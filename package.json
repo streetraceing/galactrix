@@ -1,0 +1,40 @@
+{
+  "name": "galactrix",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "lint-staged": {
+    "**/*": "prettier --write --ignore-unknown"
+  },
+  "scripts": {
+    "prepare": "husky",
+    "prettier": "prettier .",
+    "prettier:write": "prettier . --write",
+    "lint": "npx eslint .",
+    "lint:fix": "npx eslint . --fix",
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "tauri:dev": "tauri dev"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-opener": "^2",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@tauri-apps/cli": "^2",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "@vitejs/plugin-react": "^4.6.0",
+    "eslint": "^10.7.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.1.1",
+    "prettier": "3.9.6",
+    "typescript": "~5.8.3",
+    "typescript-eslint": "^8.65.0",
+    "vite": "^7.0.4"
+  }
+}
