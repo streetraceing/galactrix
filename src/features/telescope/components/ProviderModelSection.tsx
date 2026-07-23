@@ -23,9 +23,7 @@ export function ProviderModelSection({
   onLoadModels: () => void;
 }) {
   return (
-    <Surface
-      className="rounded-2xl border border-separator p-4"
-    >
+    <Surface className="rounded-2xl border border-separator p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <strong className="text-sm font-medium">Модель</strong>

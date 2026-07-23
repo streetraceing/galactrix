@@ -1,6 +1,5 @@
 import { Spinner } from '@heroui/react';
 import type { ReactNode } from 'react';
-import { navigationItems } from '../../app/navigation';
 import type { AppSettings, TabId } from '../../types';
 import { ResizeHandle } from '../ResizeHandle';
 import { AppNotice } from './AppNotice';
@@ -17,7 +16,6 @@ export function ApplicationFrame({
   notice,
   children,
   onNavigate,
-  onNewChat,
   onCloseNotice,
   onSettingsPreview,
   onSettingsCommit,
@@ -30,14 +28,10 @@ export function ApplicationFrame({
   notice: string;
   children: ReactNode;
   onNavigate: (tab: TabId) => void;
-  onNewChat: () => void;
   onCloseNotice: () => void;
   onSettingsPreview: (settings: AppSettings) => void;
   onSettingsCommit: (settings: AppSettings) => void;
 }) {
-  const activeLabel =
-    navigationItems.find((item) => item.id === activeTab)?.label ?? '';
-
   return (
     <main className="flex h-full min-w-0 overflow-hidden bg-background text-foreground">
       <DesktopSidebar
@@ -61,11 +55,7 @@ export function ApplicationFrame({
       />
 
       <section className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
-        <MobileHeader
-          title={activeLabel}
-          activeTab={activeTab}
-          onNewChat={onNewChat}
-        />
+        <MobileHeader />
 
         {loading ? (
           <div className="absolute inset-0 z-40 grid place-items-center bg-background/70 backdrop-blur-sm">

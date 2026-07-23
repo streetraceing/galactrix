@@ -1,34 +1,17 @@
-import { Button } from '@heroui/react';
-import type { TabId } from '../../types';
 import { BrandMark } from '../BrandMark';
-import { Icon } from '../Icon';
 
-export function MobileHeader({
-  title,
-  activeTab,
-  onNewChat,
-}: {
-  title: string;
-  activeTab: TabId;
-  onNewChat: () => void;
-}) {
+export function MobileHeader() {
   return (
-    <header className="flex h-16 shrink-0 items-center gap-3 border-b border-separator bg-surface px-3 md:hidden">
+    <header className="flex h-16 shrink-0 items-center gap-3 border-b border-separator bg-surface px-4 md:hidden">
       <BrandMark size={32} />
-      <strong className="min-w-0 flex-1 truncate text-sm">{title}</strong>
-      {activeTab === 'chats' ? (
-        <Button
-          isIconOnly
-          size="sm"
-          variant="ghost"
-          aria-label="Новый чат"
-          onPress={onNewChat}
-        >
-          <Icon name="plus" className="size-5" />
-        </Button>
-      ) : (
-        <span className="size-8" aria-hidden="true" />
-      )}
+      <div className="min-w-0 leading-tight">
+        <strong className="block truncate text-sm font-semibold">
+          Galactrix
+        </strong>
+        <span className="mt-0.5 block truncate text-[0.7rem] text-muted">
+          AI-клиент
+        </span>
+      </div>
     </header>
   );
 }

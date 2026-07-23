@@ -61,7 +61,7 @@ export function ProfileScreen({
 
         <UsageChart usage={usage} />
 
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-2">
           <SettingsCard
             icon="settings"
             title="Интерфейс"
@@ -101,21 +101,23 @@ export function ProfileScreen({
           </SettingsCard>
         </div>
 
-        <ScaleSettings
-          value={settings.interfaceScale}
-          onChange={(value) => patch('interfaceScale', value)}
-        />
-        <LayoutSettings
-          sidebarWidth={settings.sidebarWidth}
-          chatSidebarWidth={settings.chatSidebarWidth}
-          onReset={() =>
-            onChangeSettings({
-              ...settings,
-              sidebarWidth: 248,
-              chatSidebarWidth: 320,
-            })
-          }
-        />
+        <div className="grid gap-4 md:grid-cols-2">
+          <ScaleSettings
+            value={settings.interfaceScale}
+            onChange={(value) => patch('interfaceScale', value)}
+          />
+          <LayoutSettings
+            sidebarWidth={settings.sidebarWidth}
+            chatSidebarWidth={settings.chatSidebarWidth}
+            onReset={() =>
+              onChangeSettings({
+                ...settings,
+                sidebarWidth: 248,
+                chatSidebarWidth: 320,
+              })
+            }
+          />
+        </div>
         <AppInfo version={appVersion} />
       </div>
     </div>

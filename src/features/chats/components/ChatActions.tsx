@@ -18,13 +18,13 @@ export function ChatActions({
           isIconOnly
           size="sm"
           variant="ghost"
-          className="shrink-0 hover:bg-default-hover"
+          className="shrink-0 data-[pressed=true]:scale-100"
           aria-label={`Действия с чатом «${chat.title}»`}
         >
           <Icon name="more" className="size-4" />
         </Button>
       </Dropdown.Trigger>
-      <Dropdown.Popover className='bg-surface-tertiary'>
+      <Dropdown.Popover>
         <Dropdown.Menu
           onAction={(key: Key) => onAction(String(key) as ChatAction, chat)}
         >

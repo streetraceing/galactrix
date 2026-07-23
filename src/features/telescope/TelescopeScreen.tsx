@@ -1,4 +1,4 @@
-import { Button, Surface } from '@heroui/react';
+import { Button } from '@heroui/react';
 import { useState } from 'react';
 import { Icon } from '../../components/Icon';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -62,7 +62,7 @@ export function TelescopeScreen({
           title="Телескоп"
           description="Подключения, модели и параметры генерации."
           actions={
-            <Button variant="primary" onPress={editor.openCreate}>
+            <Button variant="primary" onPress={editor.openCreate} fullWidth>
               <Icon name="plus" className="size-4" /> Добавить
             </Button>
           }
@@ -83,7 +83,7 @@ export function TelescopeScreen({
           ]}
         />
 
-        <Surface variant="transparent" className="space-y-3">
+        <section className="space-y-4">
           <SectionHeader
             title="Подключения"
             description="Статус отражает последнюю фактическую проверку API."
@@ -102,7 +102,7 @@ export function TelescopeScreen({
           />
 
           {providers.length > 0 ? (
-            <div className="grid gap-3 lg:grid-cols-2">
+            <div className="grid gap-3 md:grid-cols-2">
               {providers.map((provider) => (
                 <ProviderCard
                   key={provider.id}
@@ -126,7 +126,7 @@ export function TelescopeScreen({
               compact
             />
           )}
-        </Surface>
+        </section>
       </div>
 
       <ProviderEditorModal

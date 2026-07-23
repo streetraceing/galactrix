@@ -66,7 +66,7 @@ export function GalaxyEditorModal({
       }
     >
       <div className="space-y-4">
-        <div className='flex flex-col gap-1'>
+        <div className="flex flex-col gap-1">
           <Label htmlFor="filter">Тип</Label>
           <div className="flex flex-wrap gap-2">
             <Select
@@ -86,7 +86,7 @@ export function GalaxyEditorModal({
                 <Select.Indicator />
               </Select.Trigger>
 
-              <Select.Popover className="bg-surface-secondary">
+              <Select.Popover>
                 <ListBox>
                   {galaxyFilters.slice(1).map((entry) => (
                     <ListBox.Item

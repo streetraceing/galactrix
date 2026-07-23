@@ -10,10 +10,7 @@ export function LayoutSettings({
   onReset: () => void;
 }) {
   return (
-    <Surface
-      variant="secondary"
-      className="flex flex-col gap-4 rounded-2xl border border-separator p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5"
-    >
+    <Surface className="h-full flex-col rounded-2xl border border-separator p-4 sm:p-5 hidden sm:flex">
       <div>
         <h2 className="section-title">Ширина панелей</h2>
         <p className="section-description">
@@ -21,7 +18,12 @@ export function LayoutSettings({
           {Math.round(chatSidebarWidth)} px
         </p>
       </div>
-      <Button size="sm" variant="secondary" onPress={onReset}>
+      <Button
+        size="sm"
+        variant="secondary"
+        className="mt-5 self-start md:mt-auto"
+        onPress={onReset}
+      >
         Сбросить ширину
       </Button>
     </Surface>

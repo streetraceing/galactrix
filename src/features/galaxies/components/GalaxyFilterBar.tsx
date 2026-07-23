@@ -1,4 +1,13 @@
-import { Button, Chip, Surface } from '@heroui/react';
+import {
+  Chip,
+  Label,
+  ListBox,
+  Select,
+  Surface,
+  ToggleButton,
+  ToggleButtonGroup,
+} from '@heroui/react';
+import type { Key } from 'react';
 import type { GalaxyItem, GalaxyKind } from '../../../types';
 import { galaxyFilters } from '../catalog';
 
@@ -11,31 +20,73 @@ export function GalaxyFilterBar({
   value: 'all' | GalaxyKind;
   onChange: (value: 'all' | GalaxyKind) => void;
 }) {
+  const getCount = (id: 'all' | GalaxyKind) =>
+    id === 'all'
+      ? items.length
+      : items.filter((item) => item.kind === id).length;
+
   return (
-    <Surface
-      className="scrollbar-thin overflow-x-auto rounded-2xl border border-separator p-2"
-    >
-      <div className="flex min-w-max items-center gap-1">
-        {galaxyFilters.map((filter) => {
-          const count =
-            filter.id === 'all'
-              ? items.length
-              : items.filter((item) => item.kind === filter.id).length;
-          return (
-            <Button
-              key={filter.id}
-              size="sm"
-              variant={value === filter.id ? 'secondary' : 'ghost'}
-              onPress={() => onChange(filter.id)}
-            >
+    <>
+      <Select
+        fullWidth
+        className="sm:hidden"
+        value={value}
+        onChange={(key: Key | Key[] | null) => {
+          if (key != null && !Array.isArray(key)) {
+            onChange(String(key) as 'all' | GalaxyKind);
+          }
+        }}
+        aria-label="Фильтр библиотеки"
+      >
+        <Select.Trigger>
+          <Select.Value />
+          <Select.Indicator />
+        </Select.Trigger>
+        <Select.Popover>
+          <ListBox>
+            {galaxyFilters.map((filter) => (
+              <ListBox.Item
+                key={filter.id}
+                id={filter.id}
+                textValue={filter.label}
+              >
+                <Label className="min-w-0 flex-1 truncate">
+                  {filter.label}
+                </Label>
+                <Chip size="sm" variant="soft" className='bg-transparent'>
+                  {getCount(filter.id)}
+                </Chip>
+              </ListBox.Item>
+            ))}
+          </ListBox>
+        </Select.Popover>
+      </Select>
+
+      <Surface className="hidden overflow-x-auto rounded-2xl border border-separator p-1.5 sm:block">
+        <ToggleButtonGroup
+          className="min-w-max"
+          size="sm"
+          isDetached
+          selectionMode="single"
+          disallowEmptySelection
+          selectedKeys={[value]}
+          onSelectionChange={(keys: Set<Key>) => {
+            const selected = [...keys][0];
+            if (selected != null) {
+              onChange(String(selected) as 'all' | GalaxyKind);
+            }
+          }}
+        >
+          {galaxyFilters.map((filter) => (
+            <ToggleButton key={filter.id} id={filter.id}>
               {filter.label}
-              <Chip size="sm" variant="soft" className='bg-transparent'>
-                {count}
+              <Chip size="sm" variant="soft">
+                {getCount(filter.id)}
               </Chip>
-            </Button>
-          );
-        })}
-      </div>
-    </Surface>
+            </ToggleButton>
+          ))}
+        </ToggleButtonGroup>
+      </Surface>
+    </>
   );
 }

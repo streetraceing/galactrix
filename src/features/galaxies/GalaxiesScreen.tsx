@@ -90,7 +90,7 @@ export function GalaxiesScreen({
           title="Галактики"
           description="Персоны, персонажи, вселенные и ворлдбуки."
           actions={
-            <Button variant="primary" onPress={openCreate}>
+            <Button variant="primary" onPress={openCreate} fullWidth>
               <Icon name="plus" className="size-4" /> Создать
             </Button>
           }

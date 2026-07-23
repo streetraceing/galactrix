@@ -27,7 +27,7 @@ export function AppScreenRouter({ controller }: { controller: Controller }) {
           })
         }
         onSelectChat={controller.setActiveChatId}
-        onNewChat={() => void controller.createNewChat()}
+        onNewChat={controller.createNewChat}
         onRenameChat={controller.renameExistingChat}
         onDeleteChat={controller.removeChat}
         onSetPinned={controller.pinChat}

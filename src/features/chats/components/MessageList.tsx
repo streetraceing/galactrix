@@ -7,15 +7,18 @@ export function MessageList({
   messages,
   provider,
   providersAvailable,
-  endRef,
+  scrollRef,
 }: {
   messages: Message[];
   provider?: Provider;
   providersAvailable: boolean;
-  endRef: RefObject<HTMLDivElement | null>;
+  scrollRef: RefObject<HTMLDivElement | null>;
 }) {
   return (
-    <div className="scrollbar-thin min-h-0 flex-1 overflow-y-auto px-3 py-5 sm:px-5">
+    <div
+      ref={scrollRef}
+      className="scrollbar-thin min-h-0 flex-1 overflow-y-auto px-3 py-5 sm:px-5"
+    >
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
         {messages.map((message) => {
           const isUser = message.role === 'user';
@@ -43,7 +46,7 @@ export function MessageList({
                   <span>{message.createdAt}</span>
                 </div>
                 <Surface
-                  variant={isUser ? 'tertiary' : 'secondary'}
+                  variant={isUser ? 'tertiary' : 'default'}
                   className="selectable whitespace-pre-wrap wrap-break-word rounded-2xl px-4 py-3 text-sm leading-6"
                 >
                   {message.content}
@@ -80,7 +83,6 @@ export function MessageList({
             </div>
           </div>
         ) : null}
-        <div ref={endRef} />
       </div>
     </div>
   );

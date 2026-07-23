@@ -13,6 +13,7 @@ export function ProviderSelect({
 }) {
   return (
     <Select
+      fullWidth
       variant="secondary"
       value={value ?? null}
       onChange={(key: Key | Key[] | null) =>
@@ -20,7 +21,6 @@ export function ProviderSelect({
       }
       placeholder="Выберите провайдера"
       aria-label="Провайдер чата"
-      className="w-fit"
     >
       <Select.Trigger>
         <Select.Value />

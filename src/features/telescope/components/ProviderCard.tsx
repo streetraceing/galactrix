@@ -1,4 +1,4 @@
-import { Button, Chip, Surface } from '@heroui/react';
+import { Button, ButtonGroup, Chip, Surface } from '@heroui/react';
 import { Icon } from '../../../components/Icon';
 import type { Provider } from '../../../types';
 import { providerStatusLabels } from '../providerHelpers';
@@ -15,9 +15,7 @@ export function ProviderCard({
   onEdit: () => void;
 }) {
   return (
-    <Surface
-      className="flex min-w-0 items-center gap-3 rounded-2xl border border-separator p-4"
-    >
+    <Surface className="flex min-w-0 items-center gap-3 rounded-2xl border border-separator p-4 transition-colors hover:bg-surface-secondary">
       <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-accent/10 text-xs font-semibold text-accent">
         {provider.name.slice(0, 2).toUpperCase()}
       </span>
@@ -52,11 +50,9 @@ export function ProviderCard({
           </span>
         </div>
       </div>
-      <div className="flex shrink-0 items-center gap-1">
+      <ButtonGroup size="sm" variant="ghost" className="shrink-0">
         <Button
           isIconOnly
-          size="sm"
-          variant="ghost"
           isPending={checking}
           aria-label="Проверить подключение"
           onPress={onCheck}
@@ -65,14 +61,12 @@ export function ProviderCard({
         </Button>
         <Button
           isIconOnly
-          size="sm"
-          variant="ghost"
           aria-label="Редактировать подключение"
           onPress={onEdit}
         >
           <Icon name="settings" className="size-4" />
         </Button>
-      </div>
+      </ButtonGroup>
     </Surface>
   );
 }

@@ -10,10 +10,7 @@ export function AppError({
 }) {
   return (
     <main className="grid h-full place-items-center bg-background p-6 text-foreground">
-      <Surface
-        className="w-full max-w-md rounded-2xl border border-separator p-7 text-center"
-        variant="secondary"
-      >
+      <Surface className="w-full max-w-md rounded-2xl border border-separator p-7 text-center">
         <div className="mx-auto mb-5 flex justify-center">
           <BrandMark size={58} />
         </div>

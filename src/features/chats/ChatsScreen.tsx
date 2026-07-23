@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Icon } from '../../components/Icon';
 import { ResizeHandle } from '../../components/ResizeHandle';
 import { EmptyState } from '../../components/ui/EmptyState';
 import type { Chat } from '../../types';
@@ -43,7 +42,7 @@ export function ChatsScreen({
     type: 'clear' | 'delete';
     chat: Chat;
   } | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const messageScrollRef = useRef<HTMLDivElement | null>(null);
 
   const filteredChats = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -80,14 +79,35 @@ export function ChatsScreen({
   }, [activeChat?.id, draft, saveDrafts]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({
-      behavior: 'instant',
-      block: 'end',
+    if (!activeChat?.id) return;
+
+    const isMobile = window.matchMedia('(max-width: 767px)').matches;
+    if (isMobile && showHistoryMobile) return;
+
+    let secondFrame = 0;
+    const firstFrame = window.requestAnimationFrame(() => {
+      const scrollToBottom = () => {
+        const scroller = messageScrollRef.current;
+        if (scroller) scroller.scrollTop = scroller.scrollHeight;
+      };
+
+      scrollToBottom();
+      secondFrame = window.requestAnimationFrame(scrollToBottom);
     });
-  }, [activeMessages.length, activeChat?.id]);
+
+    return () => {
+      window.cancelAnimationFrame(firstFrame);
+      if (secondFrame) window.cancelAnimationFrame(secondFrame);
+    };
+  }, [activeMessages.length, activeChat?.id, showHistoryMobile]);
 
   const selectChat = (id: string) => {
     onSelectChat(id);
+    setShowHistoryMobile(false);
+  };
+
+  const createNewChat = async () => {
+    await onNewChat();
     setShowHistoryMobile(false);
   };
 
@@ -165,7 +185,7 @@ export function ChatsScreen({
         isVisibleMobile={showHistoryMobile}
         onQueryChange={setQuery}
         onSelect={selectChat}
-        onNewChat={onNewChat}
+        onNewChat={() => void createNewChat()}
         onAction={handleAction}
       />
 
@@ -196,7 +216,7 @@ export function ChatsScreen({
               messages={activeMessages}
               provider={activeProvider}
               providersAvailable={providers.length > 0}
-              endRef={messagesEndRef}
+              scrollRef={messageScrollRef}
             />
             <ChatComposer
               draft={draft}
@@ -214,12 +234,7 @@ export function ChatsScreen({
             <EmptyState
               icon="chats"
               title="Нет чатов"
-              description="Создайте новый чат, чтобы начать разговор."
-              action={{
-                label: 'Новый чат',
-                onPress: onNewChat,
-                icon: <Icon name="plus" className="size-4" />,
-              }}
+              description="Создайте новый чат в панели истории, чтобы начать разговор."
             />
           </div>
         )}

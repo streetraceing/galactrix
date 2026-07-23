@@ -25,7 +25,6 @@ function App() {
       loading={controller.loading}
       notice={controller.notice}
       onNavigate={controller.navigate}
-      onNewChat={() => void controller.createNewChat()}
       onCloseNotice={() => controller.setNotice('')}
       onSettingsPreview={controller.previewSettings}
       onSettingsCommit={(settings) => void controller.saveSettings(settings)}

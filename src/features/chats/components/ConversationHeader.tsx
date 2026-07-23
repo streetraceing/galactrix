@@ -19,7 +19,7 @@ export function ConversationHeader({
   onAction: (action: ChatAction, chat: Chat) => void;
 }) {
   return (
-    <header className="flex shrink-0 flex-col gap-3 border-b border-separator bg-background/95 px-3 py-3 backdrop-blur sm:px-4 lg:flex-row lg:items-center justify-between">
+    <header className="flex shrink-0 flex-col gap-3 border-b border-separator bg-background/95 px-3 py-3 backdrop-blur sm:px-4 lg:flex-row lg:items-center lg:justify-between">
       <div className="flex min-w-0 items-center gap-2 lg:w-64">
         <Button
           isIconOnly
@@ -41,7 +41,7 @@ export function ConversationHeader({
           <ChatActions chat={chat} onAction={onAction} />
         </div>
       </div>
-      <div className="flex-1 max-w-fit">
+      <div className="w-full lg:w-72">
         <ProviderSelect
           providers={providers}
           value={chat.providerId}

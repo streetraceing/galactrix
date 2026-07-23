@@ -20,7 +20,7 @@ export function DesktopSidebar({
 }) {
   return (
     <aside
-      className="hidden h-full shrink-0 flex-col border-r border-separator bg-background md:flex"
+      className="hidden h-full shrink-0 flex-col border-r border-separator bg-surface md:flex"
       style={{ width, minWidth: 196, maxWidth: 420 } as CSSProperties}
     >
       <div className="flex min-h-20 items-center gap-3 px-4 py-4">
@@ -48,7 +48,7 @@ export function DesktopSidebar({
               {item.label}
             </span>
             {item.id === 'chats' && chatCount > 0 ? (
-              <Chip size="sm" variant="soft" className='bg-transparent'>
+              <Chip size="sm" variant="soft">
                 {chatCount}
               </Chip>
             ) : null}

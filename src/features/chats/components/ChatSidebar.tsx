@@ -36,7 +36,7 @@ export function ChatSidebar({
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-semibold tracking-tight">Чаты</h1>
             {chats.length > 0 ? (
-              <Chip size="sm" variant="soft">
+              <Chip size="sm" variant="secondary">
                 {chats.length}
               </Chip>
             ) : null}

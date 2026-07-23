@@ -1,4 +1,9 @@
-import { Button, Surface } from '@heroui/react';
+import {
+  Button,
+  ListBox,
+  Select,
+  Surface
+} from '@heroui/react';
 
 const scales = [0.8, 0.9, 1, 1.1, 1.25, 1.4, 1.5];
 
@@ -9,11 +14,33 @@ export function ScaleSettings({
   value: number;
   onChange: (value: number) => void;
 }) {
+  const currentIndex = scales.reduce((closestIndex, scale, index) => {
+    const currentDifference = Math.abs(scales[closestIndex] - value);
+    const nextDifference = Math.abs(scale - value);
+
+    return nextDifference < currentDifference ? index : closestIndex;
+  }, 0);
+
+  const currentScale = scales[currentIndex];
+
+  const decreaseScale = () => {
+    const previousScale = scales[currentIndex - 1];
+
+    if (previousScale !== undefined) {
+      onChange(previousScale);
+    }
+  };
+
+  const increaseScale = () => {
+    const nextScale = scales[currentIndex + 1];
+
+    if (nextScale !== undefined) {
+      onChange(nextScale);
+    }
+  };
+
   return (
-    <Surface
-      variant="secondary"
-      className="rounded-2xl border border-separator p-4 sm:p-5"
-    >
+    <Surface className="h-full rounded-2xl border border-separator p-4 sm:p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="section-title">Масштаб интерфейса</h2>
@@ -21,6 +48,7 @@ export function ScaleSettings({
             Текущий масштаб: {Math.round(value * 100)}%.
           </p>
         </div>
+
         <Button
           size="sm"
           variant="ghost"
@@ -30,17 +58,73 @@ export function ScaleSettings({
           Сбросить
         </Button>
       </div>
-      <div className="mt-4 flex flex-wrap gap-2">
-        {scales.map((scale) => (
-          <Button
-            key={scale}
-            size="sm"
-            variant={value === scale ? 'secondary' : 'ghost'}
-            onPress={() => onChange(scale)}
-          >
-            {Math.round(scale * 100)}%
-          </Button>
-        ))}
+
+      <div className="mt-4 flex items-center gap-2">
+        <Button
+          aria-label="Уменьшить масштаб"
+          size="sm"
+          variant="secondary"
+          isIconOnly
+          isDisabled={currentIndex === 0}
+          onPress={decreaseScale}
+        >
+          <span aria-hidden="true" className="text-lg">
+            −
+          </span>
+        </Button>
+
+        <Select
+          aria-label="Масштаб интерфейса"
+          className="min-w-0 flex-1"
+          variant="secondary"
+          value={String(currentScale)}
+          onChange={(selected) => {
+            if (selected === null || Array.isArray(selected)) return;
+
+            const nextValue = Number(selected);
+
+            if (Number.isFinite(nextValue)) {
+              onChange(nextValue);
+            }
+          }}
+        >
+          <Select.Trigger className="w-full">
+            <Select.Value />
+            <Select.Indicator />
+          </Select.Trigger>
+
+          <Select.Popover>
+            <ListBox>
+              {scales.map((scale) => {
+                const label = `${Math.round(scale * 100)}%`;
+
+                return (
+                  <ListBox.Item
+                    key={scale}
+                    id={String(scale)}
+                    textValue={label}
+                  >
+                    {label}
+                    <ListBox.ItemIndicator />
+                  </ListBox.Item>
+                );
+              })}
+            </ListBox>
+          </Select.Popover>
+        </Select>
+
+        <Button
+          aria-label="Увеличить масштаб"
+          size="sm"
+          variant="secondary"
+          isIconOnly
+          isDisabled={currentIndex === scales.length - 1}
+          onPress={increaseScale}
+        >
+          <span aria-hidden="true" className="text-lg">
+            +
+          </span>
+        </Button>
       </div>
     </Surface>
   );
