@@ -1,5 +1,6 @@
-import { Button, Chip, Separator, Spinner, Surface } from '@heroui/react';
+import { Button, Chip, Spinner, Surface } from '@heroui/react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { CSSProperties } from 'react';
 import './App.css';
 import { BrandMark } from './components/BrandMark';
 import { Icon } from './components/Icon';
@@ -277,34 +278,33 @@ function App() {
 
   return (
     <main className="app-shell flex h-full min-w-0 overflow-hidden">
-      <Surface
-        variant="secondary"
-        className="hidden h-full shrink-0 rounded-none md:flex md:flex-col"
-        style={{ width: snapshot.settings.sidebarWidth }}
+      <aside
+        className="app-primary-sidebar"
+        style={
+          {
+            '--app-sidebar-width': `${snapshot.settings.sidebarWidth}px`,
+          } as CSSProperties
+        }
       >
-        <div className="flex items-center gap-3 px-4 py-5">
-          <BrandMark size={38} />
-          <div className="min-w-0">
-            <div className="truncate font-semibold tracking-tight">
-              Galactrix
-            </div>
-            <div className="app-muted truncate text-xs">AI-клиент</div>
+        <div className="app-brand-area">
+          <BrandMark size={40} />
+          <div className="app-brand-copy">
+            <div className="app-brand-title">Galactrix</div>
+            <div className="app-brand-subtitle">AI-клиент</div>
           </div>
         </div>
 
-        <nav
-          className="flex flex-1 flex-col gap-1 px-2"
-          aria-label="Основная навигация"
-        >
+        <nav className="app-sidebar-nav" aria-label="Основная навигация">
           {tabs.map((tab) => (
             <Button
               key={tab.id}
+              size="lg"
               variant={activeTab === tab.id ? 'secondary' : 'ghost'}
               className="w-full justify-start gap-3 px-3"
               onPress={() => navigate(tab.id)}
             >
-              <Icon name={tab.icon} className="size-5 shrink-0" />
-              <span className="min-w-0 flex-1 truncate text-left">
+              <Icon name={tab.icon} className="size-[1.15rem] shrink-0" />
+              <span className="min-w-0 flex-1 truncate text-left text-sm font-medium">
                 {tab.label}
               </span>
               {tab.id === 'chats' && snapshot.chats.length > 0 && (
@@ -316,10 +316,11 @@ function App() {
           ))}
         </nav>
 
-        <div className="app-muted px-3 pb-4 text-xs">
-          {snapshot.appVersion ? `v${snapshot.appVersion}` : 'Galactrix'}
+        <div className="app-sidebar-footer">
+          <span>Galactrix</span>
+          <span>{snapshot.appVersion ? `v${snapshot.appVersion}` : ''}</span>
         </div>
-      </Surface>
+      </aside>
 
       <ResizeHandle
         value={snapshot.settings.sidebarWidth}
@@ -334,26 +335,22 @@ function App() {
         }
       />
 
-      <section className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
-        <div className="md:hidden">
-          <Surface
-            variant="secondary"
-            className="flex h-14 shrink-0 items-center gap-3 rounded-none px-3"
+      <section className="app-main-stage">
+        <header className="app-mobile-topbar">
+          <BrandMark size={31} />
+          <strong className="min-w-0 flex-1 truncate text-sm">
+            {activeLabel}
+          </strong>
+          <Button
+            isIconOnly
+            size="sm"
+            variant="ghost"
+            aria-label="Новый чат"
+            onPress={() => void handleNewChat()}
           >
-            <BrandMark size={30} />
-            <strong className="min-w-0 flex-1 truncate">{activeLabel}</strong>
-            <Button
-              isIconOnly
-              size="sm"
-              variant="ghost"
-              aria-label="Новый чат"
-              onPress={() => void handleNewChat()}
-            >
-              <Icon name="plus" className="size-5" />
-            </Button>
-          </Surface>
-          <Separator variant="tertiary" />
-        </div>
+            <Icon name="plus" className="size-5" />
+          </Button>
+        </header>
 
         {loading && (
           <div className="app-loading-overlay absolute inset-0 z-40 grid place-items-center backdrop-blur-sm">
@@ -438,24 +435,19 @@ function App() {
           )}
         </div>
 
-        <Surface
-          variant="secondary"
-          className="fixed inset-x-0 bottom-0 z-30 grid h-16 grid-cols-4 rounded-none px-1 pb-[env(safe-area-inset-bottom)] md:hidden"
-          aria-label="Мобильная навигация"
-        >
-          <Separator className="absolute inset-x-0 top-0" variant="tertiary" />
+        <nav className="app-bottom-nav" aria-label="Мобильная навигация">
           {tabs.map((tab) => (
             <Button
               key={tab.id}
               variant={activeTab === tab.id ? 'secondary' : 'ghost'}
-              className="h-full min-w-0 flex-col gap-1 rounded-none px-1"
+              className="h-full min-w-0 flex-col gap-1 px-1"
               onPress={() => navigate(tab.id)}
             >
               <Icon name={tab.icon} className="size-5" />
               <span className="truncate text-[0.68rem]">{tab.label}</span>
             </Button>
           ))}
-        </Surface>
+        </nav>
       </section>
     </main>
   );

@@ -223,12 +223,12 @@ export function TelescopeScreen({
   };
 
   return (
-    <div className="h-full overflow-y-auto p-4 sm:p-6 lg:p-8">
-      <div className="mx-auto w-full max-w-6xl">
-        <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <div className="app-page-scroll scrollbar-thin">
+      <div className="app-page-container">
+        <header className="app-page-header">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Телескоп</h1>
-            <p className="mt-1 text-sm leading-6 app-muted">
+            <h1 className="app-page-title">Телескоп</h1>
+            <p className="app-page-description">
               Подключения, модели и параметры генерации.
             </p>
           </div>

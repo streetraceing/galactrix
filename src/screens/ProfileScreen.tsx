@@ -62,11 +62,11 @@ export function ProfileScreen({
   const scales = [0.8, 0.9, 1, 1.1, 1.25, 1.4, 1.5];
 
   return (
-    <div className="h-full overflow-y-auto p-4 sm:p-6 lg:p-8">
-      <div className="mx-auto w-full max-w-6xl">
-        <header>
-          <h1 className="text-2xl font-semibold tracking-tight">Профиль</h1>
-          <p className="mt-1 text-sm leading-6 app-muted">
+    <div className="app-page-scroll scrollbar-thin">
+      <div className="app-page-container">
+        <header className="app-page-header">
+          <h1 className="app-page-title">Профиль</h1>
+          <p className="app-page-description">
             Статистика использования и настройки этого устройства.
           </p>
         </header>
@@ -191,7 +191,7 @@ export function ProfileScreen({
         </div>
 
         <Surface variant="secondary" className="mt-4 p-5 sm:p-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="app-page-header">
             <div>
               <h2 className="font-semibold">Масштаб интерфейса</h2>
               <p className="mt-1 text-xs leading-5 app-muted">

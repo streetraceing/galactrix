@@ -1,5 +1,6 @@
 import {
   Button,
+  Chip,
   Dropdown,
   Input,
   Label,
@@ -9,7 +10,7 @@ import {
   TextArea,
 } from '@heroui/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { ChangeEvent, Key, KeyboardEvent } from 'react';
+import type { CSSProperties, ChangeEvent, Key, KeyboardEvent } from 'react';
 import { Icon } from '../components/Icon';
 import { ResizeHandle } from '../components/ResizeHandle';
 import { UiModal } from '../components/UiModal';
@@ -247,28 +248,41 @@ export function ChatsScreen({
   };
 
   return (
-    <div className="flex h-full min-h-0 min-w-0 overflow-hidden">
-      <Surface
-        variant="secondary"
-        className={`${showHistoryMobile ? 'flex' : 'hidden'} h-full min-w-0 flex-1 flex-col rounded-none border-0 md:flex md:flex-none`}
-        style={{ width: chatSidebarWidth }}
+    <div className="app-chat-layout">
+      <aside
+        className={`${showHistoryMobile ? 'flex' : 'hidden'} app-chat-rail md:flex`}
+        style={
+          {
+            '--chat-sidebar-width': `${chatSidebarWidth}px`,
+          } as CSSProperties
+        }
       >
-        <div className="app-divider-bottom flex items-center gap-3 px-4 py-3">
+        <header className="app-chat-rail-header">
           <div className="min-w-0 flex-1">
-            <h1 className="text-lg font-semibold">Чаты</h1>
-            <p className="text-xs app-muted">{chats.length} всего</p>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-semibold tracking-[-0.025em]">
+                Чаты
+              </h1>
+              {chats.length > 0 && (
+                <Chip size="sm" variant="soft">
+                  {chats.length}
+                </Chip>
+              )}
+            </div>
+            <p className="app-muted mt-1 text-xs">История разговоров</p>
           </div>
           <Button
             isIconOnly
+            size="lg"
             variant="primary"
             aria-label="Новый чат"
             onPress={onNewChat}
           >
             <Icon name="plus" className="size-5" />
           </Button>
-        </div>
+        </header>
 
-        <div className="app-divider-bottom p-3">
+        <div className="px-3 pb-2">
           <Input
             fullWidth
             variant="secondary"
@@ -281,75 +295,76 @@ export function ChatsScreen({
           />
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto p-2">
-          <div className="flex flex-col gap-1">
-            {filteredChats.map((chat) => {
-              const selected = chat.id === activeChat?.id;
-              return (
-                <Surface
-                  key={chat.id}
-                  variant={selected ? 'tertiary' : 'default'}
-                  className="flex items-center gap-1 p-1"
+        <div className="app-chat-list scrollbar-thin">
+          {filteredChats.map((chat) => {
+            const selected = chat.id === activeChat?.id;
+            return (
+              <div
+                key={chat.id}
+                className={`app-chat-row ${selected ? 'is-selected' : ''}`}
+              >
+                <Button
+                  variant="ghost"
+                  className="h-auto min-w-0 flex-1 justify-start gap-3 px-3 py-3 text-left"
+                  onPress={() => selectChat(chat.id)}
                 >
-                  <Button
-                    variant="ghost"
-                    className="h-auto min-w-0 flex-1 justify-start px-2 py-2 text-left"
-                    onPress={() => selectChat(chat.id)}
-                  >
-                    <span className="min-w-0 flex-1">
-                      <span className="flex items-center gap-1.5">
-                        {chat.pinned && (
-                          <Icon
-                            name="pin"
-                            className="app-accent size-3.5 shrink-0"
-                          />
-                        )}
-                        <strong className="block min-w-0 truncate text-sm font-medium">
-                          {chat.title}
-                        </strong>
-                      </span>
-                      <span className="mt-1 block truncate text-xs app-muted">
-                        {chat.preview || 'Сообщений пока нет'}
-                      </span>
+                  <span className="app-chat-avatar">
+                    <Icon name="chats" className="size-4" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex min-w-0 items-center gap-1.5">
+                      <strong className="min-w-0 flex-1 truncate text-sm font-semibold">
+                        {chat.title}
+                      </strong>
+                      {chat.pinned && (
+                        <Icon
+                          name="pin"
+                          className="app-accent size-3.5 shrink-0"
+                        />
+                      )}
                     </span>
-                    <span className="self-start whitespace-nowrap pt-0.5 text-[0.68rem] app-muted">
-                      {chat.updatedAt}
+                    <span className="app-muted mt-1 block truncate text-xs leading-5">
+                      {chat.preview || 'Сообщений пока нет'}
                     </span>
-                  </Button>
-                  <ChatActions chat={chat} onAction={handleAction} />
-                </Surface>
-              );
-            })}
-          </div>
+                  </span>
+                  <span className="app-muted self-start whitespace-nowrap pt-0.5 text-[0.67rem]">
+                    {chat.updatedAt}
+                  </span>
+                </Button>
+                <ChatActions chat={chat} onAction={handleAction} />
+              </div>
+            );
+          })}
 
           {filteredChats.length === 0 && (
-            <div className="grid min-h-48 place-items-center p-4 text-center">
-              <div>
-                <p className="text-sm font-medium">
-                  {query ? 'Ничего не найдено' : 'Чатов пока нет'}
-                </p>
-                {!query && (
-                  <Button
-                    className="mt-3"
-                    variant="secondary"
-                    onPress={onNewChat}
-                  >
-                    Создать чат
-                  </Button>
-                )}
-              </div>
+            <div className="app-empty-state min-h-64">
+              <span className="app-empty-icon">
+                <Icon name={query ? 'search' : 'chats'} className="size-6" />
+              </span>
+              <h3>{query ? 'Ничего не найдено' : 'Чатов пока нет'}</h3>
+              <p>
+                {query
+                  ? 'Попробуйте изменить поисковый запрос.'
+                  : 'Создайте новый чат, чтобы начать разговор.'}
+              </p>
+              {!query && (
+                <Button className="mt-4" variant="primary" onPress={onNewChat}>
+                  <Icon name="plus" className="size-4" /> Новый чат
+                </Button>
+              )}
             </div>
           )}
+
           {actionError && (
             <Surface
               variant="tertiary"
-              className="allow-selection mt-2 p-3 text-sm"
+              className="allow-selection mx-1 mt-2 p-3 text-sm"
             >
               <span className="app-danger">{actionError}</span>
             </Surface>
           )}
         </div>
-      </Surface>
+      </aside>
 
       <ResizeHandle
         value={chatSidebarWidth}
@@ -361,14 +376,11 @@ export function ChatsScreen({
       />
 
       <section
-        className={`${showHistoryMobile ? 'hidden' : 'flex'} h-full min-w-0 flex-1 flex-col md:flex`}
+        className={`${showHistoryMobile ? 'hidden' : 'flex'} app-conversation md:flex`}
       >
         {activeChat ? (
           <>
-            <Surface
-              variant="secondary"
-              className="flex min-h-16 shrink-0 items-center gap-2 rounded-none px-3 py-2"
-            >
+            <header className="app-conversation-header">
               <Button
                 isIconOnly
                 size="sm"
@@ -379,190 +391,260 @@ export function ChatsScreen({
               >
                 <Icon name="back" className="size-5" />
               </Button>
+
               <div className="min-w-0 flex-1">
                 <div className="flex min-w-0 items-center gap-2">
-                  <h2 className="truncate font-semibold">{activeChat.title}</h2>
+                  <h2 className="truncate text-base font-semibold tracking-[-0.015em] sm:text-lg">
+                    {activeChat.title}
+                  </h2>
                   {activeChat.pinned && (
                     <Icon name="pin" className="app-accent size-3.5 shrink-0" />
                   )}
+                  {activeMessages.length > 0 && (
+                    <Chip size="sm" variant="soft" className="hidden sm:flex">
+                      {activeMessages.length}
+                    </Chip>
+                  )}
                 </div>
-                <Select
-                  aria-label="Провайдер чата"
-                  value={activeProvider?.id ?? 'none'}
-                  onChange={(value: Key | Key[] | null) =>
-                    void onSetProvider(
-                      activeChat.id,
-                      String(value) === 'none' ? undefined : String(value),
-                    )
-                  }
-                  placeholder="Выбрать провайдера"
-                  variant="secondary"
-                  className="mt-1 max-w-md"
-                >
-                  <Select.Trigger className="min-h-8 py-1 text-xs">
-                    <Select.Value />
-                    <Select.Indicator />
-                  </Select.Trigger>
-                  <Select.Popover>
-                    <ListBox>
-                      <ListBox.Item id="none" textValue="Не выбран">
-                        <Label>Выбрать провайдера</Label>
-                      </ListBox.Item>
-                      {providers.map((provider) => (
-                        <ListBox.Item
-                          id={provider.id}
-                          key={provider.id}
-                          textValue={`${provider.name} ${provider.model}`}
-                        >
-                          <Label>
-                            {provider.name} · {provider.model}
-                          </Label>
-                        </ListBox.Item>
-                      ))}
-                    </ListBox>
-                  </Select.Popover>
-                </Select>
+                <p className="app-muted mt-0.5 truncate text-xs">
+                  {activeProvider
+                    ? `${activeProvider.name} · ${activeProvider.model}`
+                    : 'Провайдер не выбран'}
+                </p>
               </div>
-              <ChatActions chat={activeChat} onAction={handleAction} />
-            </Surface>
 
-            <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-5">
-              <div className="mx-auto flex w-full max-w-4xl flex-col gap-5">
-                {activeMessages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                  >
-                    <div className="max-w-[92%] sm:max-w-[82%]">
-                      <div className="mb-1 flex items-center justify-between gap-4 px-1 text-xs app-muted">
-                        <span>
-                          {message.role === 'user'
-                            ? 'Вы'
-                            : message.role === 'assistant'
-                              ? (activeProvider?.name ?? 'Ассистент')
-                              : 'Система'}
-                        </span>
-                        <span>{message.createdAt}</span>
-                      </div>
-                      <Surface
-                        variant={
-                          message.role === 'user' ? 'tertiary' : 'secondary'
-                        }
-                        className="allow-selection whitespace-pre-wrap break-words px-4 py-3 text-sm leading-6"
+              <Select
+                aria-label="Провайдер чата"
+                value={activeProvider?.id ?? 'none'}
+                onChange={(value: Key | Key[] | null) =>
+                  void onSetProvider(
+                    activeChat.id,
+                    String(value) === 'none' ? undefined : String(value),
+                  )
+                }
+                placeholder="Выбрать провайдера"
+                variant="secondary"
+                className="hidden w-[min(22rem,34vw)] md:block"
+              >
+                <Select.Trigger>
+                  <Select.Value />
+                  <Select.Indicator />
+                </Select.Trigger>
+                <Select.Popover>
+                  <ListBox>
+                    <ListBox.Item id="none" textValue="Не выбран">
+                      <Label>Не выбран</Label>
+                    </ListBox.Item>
+                    {providers.map((provider) => (
+                      <ListBox.Item
+                        id={provider.id}
+                        key={provider.id}
+                        textValue={`${provider.name} ${provider.model}`}
                       >
-                        {message.content}
-                      </Surface>
-                      <div className="mt-1 flex justify-end">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onPress={() =>
-                            void navigator.clipboard.writeText(message.content)
-                          }
-                        >
-                          <Icon name="copy" className="size-3.5" />
-                          Копировать
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                        <Label>
+                          {provider.name} · {provider.model}
+                        </Label>
+                      </ListBox.Item>
+                    ))}
+                  </ListBox>
+                </Select.Popover>
+              </Select>
 
-                {activeMessages.length === 0 && (
-                  <Surface
-                    variant="secondary"
-                    className="mx-auto mt-12 max-w-md p-6 text-center"
-                  >
-                    <h3 className="font-semibold">Пустой чат</h3>
-                    <p className="mt-2 text-sm leading-6 app-muted">
-                      {providers.length > 0
-                        ? 'Выберите подключение и отправьте сообщение.'
-                        : 'Сначала добавьте провайдера во вкладке «Телескоп».'}
-                    </p>
-                  </Surface>
-                )}
-                <div ref={messagesEndRef} />
+              <ChatActions chat={activeChat} onAction={handleAction} />
+            </header>
+
+            <div className="app-conversation-canvas">
+              <div className="app-messages scrollbar-thin">
+                <div className="app-message-stream">
+                  <div className="md:hidden">
+                    <Select
+                      aria-label="Провайдер чата"
+                      value={activeProvider?.id ?? 'none'}
+                      onChange={(value: Key | Key[] | null) =>
+                        void onSetProvider(
+                          activeChat.id,
+                          String(value) === 'none' ? undefined : String(value),
+                        )
+                      }
+                      placeholder="Выбрать провайдера"
+                      variant="secondary"
+                      fullWidth
+                    >
+                      <Select.Trigger>
+                        <Select.Value />
+                        <Select.Indicator />
+                      </Select.Trigger>
+                      <Select.Popover>
+                        <ListBox>
+                          <ListBox.Item id="none" textValue="Не выбран">
+                            <Label>Не выбран</Label>
+                          </ListBox.Item>
+                          {providers.map((provider) => (
+                            <ListBox.Item
+                              id={provider.id}
+                              key={provider.id}
+                              textValue={`${provider.name} ${provider.model}`}
+                            >
+                              <Label>
+                                {provider.name} · {provider.model}
+                              </Label>
+                            </ListBox.Item>
+                          ))}
+                        </ListBox>
+                      </Select.Popover>
+                    </Select>
+                  </div>
+
+                  {activeMessages.map((message) => {
+                    const isUser = message.role === 'user';
+                    return (
+                      <article
+                        key={message.id}
+                        className={`app-message-row ${isUser ? 'is-user' : ''}`}
+                      >
+                        <span className="app-message-avatar">
+                          <Icon
+                            name={isUser ? 'user' : 'sparkles'}
+                            className="size-4"
+                          />
+                        </span>
+                        <div className="app-message-content">
+                          <div className="app-message-meta">
+                            <strong className="font-medium">
+                              {isUser
+                                ? 'Вы'
+                                : message.role === 'assistant'
+                                  ? (activeProvider?.name ?? 'Ассистент')
+                                  : 'Система'}
+                            </strong>
+                            <span>{message.createdAt}</span>
+                          </div>
+                          <Surface
+                            variant={isUser ? 'tertiary' : 'secondary'}
+                            className="allow-selection whitespace-pre-wrap break-words px-4 py-3 text-sm leading-6"
+                          >
+                            {message.content}
+                          </Surface>
+                          <div
+                            className={`mt-1 flex ${isUser ? 'justify-start' : 'justify-end'}`}
+                          >
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onPress={() =>
+                                void navigator.clipboard.writeText(
+                                  message.content,
+                                )
+                              }
+                            >
+                              <Icon name="copy" className="size-3.5" />
+                              Копировать
+                            </Button>
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  })}
+
+                  {activeMessages.length === 0 && (
+                    <div className="app-empty-state min-h-[55vh]">
+                      <span className="app-empty-icon">
+                        <Icon name="chats" className="size-6" />
+                      </span>
+                      <h3>Начните разговор</h3>
+                      <p>
+                        {providers.length > 0
+                          ? activeProvider
+                            ? `Сообщения будут отправляться через ${activeProvider.name}.`
+                            : 'Выберите провайдера в заголовке, затем напишите сообщение.'
+                          : 'Сначала добавьте провайдера во вкладке «Телескоп».'}
+                      </p>
+                    </div>
+                  )}
+                  <div ref={messagesEndRef} />
+                </div>
               </div>
             </div>
 
-            <Surface
-              variant="secondary"
-              className="shrink-0 rounded-none p-3 sm:p-4"
-            >
-              <div className="mx-auto w-full max-w-4xl">
+            <div className="app-composer-zone">
+              <div className="app-composer-inner">
                 {sendError && (
-                  <p className="allow-selection mb-2 text-sm app-danger">
+                  <p className="allow-selection app-danger mb-2 px-2 text-sm">
                     {sendError}
                   </p>
                 )}
                 {!activeProvider && providers.length > 0 && (
-                  <p className="mb-2 text-sm app-muted">
-                    Выберите провайдера в заголовке чата.
+                  <p className="app-muted mb-2 px-2 text-sm">
+                    Выберите провайдера, чтобы отправить сообщение.
                   </p>
                 )}
-                <div className="flex items-end gap-2">
-                  <TextArea
-                    fullWidth
-                    variant="secondary"
-                    rows={2}
-                    value={draft}
-                    onChange={(event: ChangeEvent<HTMLTextAreaElement>) =>
-                      setDraft(event.target.value)
-                    }
-                    onKeyDown={(event: KeyboardEvent<HTMLTextAreaElement>) => {
-                      if (
-                        sendOnEnter &&
-                        event.key === 'Enter' &&
-                        !event.shiftKey
-                      ) {
-                        event.preventDefault();
-                        void send();
+                <Surface variant="secondary" className="app-composer-surface">
+                  <div className="flex items-end gap-2">
+                    <TextArea
+                      fullWidth
+                      variant="secondary"
+                      rows={1}
+                      value={draft}
+                      onChange={(event: ChangeEvent<HTMLTextAreaElement>) =>
+                        setDraft(event.target.value)
                       }
-                    }}
-                    placeholder={
-                      activeProvider
-                        ? `Сообщение для ${activeProvider.name}`
-                        : 'Выберите провайдера'
-                    }
-                    disabled={!activeProvider || sending}
-                    className="max-h-44 min-h-12 resize-y"
-                  />
-                  <Button
-                    isIconOnly
-                    variant="primary"
-                    className="shrink-0"
-                    isDisabled={!draft.trim() || !activeProvider || sending}
-                    isPending={sending}
-                    aria-label="Отправить сообщение"
-                    onPress={() => void send()}
-                  >
-                    <Icon name="send" className="size-5" />
-                  </Button>
-                </div>
-                <div className="mt-2 flex flex-wrap justify-between gap-2 text-[0.68rem] app-muted">
-                  <span>
-                    {activeProvider
-                      ? `${activeProvider.model} · max ${activeProvider.maxTokens}`
-                      : 'Настройки берутся из подключения'}
-                  </span>
-                  <span>
-                    {sendOnEnter ? 'Enter — отправить' : 'Отправка кнопкой'}
-                  </span>
-                </div>
+                      onKeyDown={(
+                        event: KeyboardEvent<HTMLTextAreaElement>,
+                      ) => {
+                        if (
+                          sendOnEnter &&
+                          event.key === 'Enter' &&
+                          !event.shiftKey
+                        ) {
+                          event.preventDefault();
+                          void send();
+                        }
+                      }}
+                      placeholder={
+                        activeProvider
+                          ? `Сообщение для ${activeProvider.name}`
+                          : 'Выберите провайдера'
+                      }
+                      disabled={!activeProvider || sending}
+                      className="max-h-48 min-h-12 resize-y"
+                    />
+                    <Button
+                      isIconOnly
+                      size="lg"
+                      variant="primary"
+                      className="shrink-0"
+                      isDisabled={!draft.trim() || !activeProvider || sending}
+                      isPending={sending}
+                      aria-label="Отправить сообщение"
+                      onPress={() => void send()}
+                    >
+                      <Icon name="send" className="size-5" />
+                    </Button>
+                  </div>
+                  <div className="app-composer-meta">
+                    <span>
+                      {activeProvider
+                        ? `${activeProvider.model} · max ${activeProvider.maxTokens}`
+                        : 'Настройки берутся из подключения'}
+                    </span>
+                    <span>
+                      {sendOnEnter ? 'Enter — отправить' : 'Отправка кнопкой'}
+                    </span>
+                  </div>
+                </Surface>
               </div>
-            </Surface>
+            </div>
           </>
         ) : (
-          <div className="grid h-full place-items-center p-5">
-            <Surface variant="secondary" className="max-w-md p-7 text-center">
-              <h2 className="text-lg font-semibold">Нет чатов</h2>
-              <p className="mt-2 text-sm app-muted">
-                Создайте чат, чтобы начать.
-              </p>
-              <Button className="mt-5" variant="primary" onPress={onNewChat}>
-                <Icon name="plus" className="size-4" /> Новый чат
-              </Button>
-            </Surface>
+          <div className="app-empty-state h-full">
+            <span className="app-empty-icon">
+              <Icon name="chats" className="size-6" />
+            </span>
+            <h2>Нет чатов</h2>
+            <p>Создайте новый чат, чтобы начать разговор.</p>
+            <Button className="mt-5" variant="primary" onPress={onNewChat}>
+              <Icon name="plus" className="size-4" /> Новый чат
+            </Button>
           </div>
         )}
       </section>
@@ -571,7 +653,7 @@ export function ChatsScreen({
         isOpen={Boolean(renameTarget)}
         onOpenChange={(open) => !open && !working && setRenameTarget(null)}
         title="Переименовать чат"
-        description="Название хранится локально."
+        description="Введите новое название."
         footer={
           <>
             <Button
@@ -607,7 +689,7 @@ export function ChatsScreen({
           aria-label="Новое название чата"
         />
         {actionError && (
-          <p className="allow-selection mt-2 text-sm app-danger">
+          <p className="allow-selection app-danger mt-2 text-sm">
             {actionError}
           </p>
         )}
@@ -645,11 +727,11 @@ export function ChatsScreen({
           </>
         }
       >
-        <p className="text-sm leading-6 app-muted">
+        <p className="app-muted text-sm leading-6">
           Это действие нельзя отменить.
         </p>
         {actionError && (
-          <p className="allow-selection mt-2 text-sm app-danger">
+          <p className="allow-selection app-danger mt-2 text-sm">
             {actionError}
           </p>
         )}
