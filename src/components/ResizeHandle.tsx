@@ -35,7 +35,7 @@ export function ResizeHandle({
       aria-valuemax={max}
       aria-valuenow={Math.round(value)}
       tabIndex={0}
-      className="group relative hidden w-1 shrink-0 cursor-col-resize touch-none md:block"
+      className="group relative hidden w-1 shrink-0 cursor-col-resize touch-none bg-background md:block"
       onPointerDown={(event: ReactPointerEvent<HTMLDivElement>) => {
         const startX = event.clientX;
         const startValue = value;
@@ -71,7 +71,7 @@ export function ResizeHandle({
         onCommit(next);
       }}
     >
-      <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 app-resize-indicator" />
+      <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-separator transition-colors group-hover:bg-accent group-focus-visible:bg-accent" />
     </div>
   );
 }

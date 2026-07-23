@@ -36,8 +36,10 @@ export function Icon({
   const paths: Record<IconName, ReactNode> = {
     chats: (
       <>
-        <path d="M7 16.5 3.5 19v-4.5A7 7 0 1 1 7 16.5Z" />
-        <path d="M8 8h8M8 12h5" />
+        <path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719" />
+        <path d="M8 12h.01" />
+        <path d="M12 12h.01" />
+        <path d="M16 12h.01" />
       </>
     ),
     galaxies: (
