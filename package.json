@@ -12,7 +12,7 @@
     "prettier:write": "prettier . --write",
     "lint": "npx eslint .",
     "lint:fix": "npx eslint . --fix",
-    "package:archive": "powershell -NoProfile -Command \"$out = Join-Path $env:USERPROFILE 'Downloads/sources.zip'; if (Test-Path $out) { Remove-Item $out -Force }; tar.exe -a -c -f $out src src-tauri/src; Write-Host ('Archive created: ' + $out)\"",
+    "package:archive": "powershell -NoProfile -Command \"$out = Join-Path $env:USERPROFILE 'Downloads/galactrix-sources.zip'; if (Test-Path $out) { Remove-Item $out -Force }; tar.exe -a -c -f $out src src-tauri/src; Write-Host ('Archive created: ' + $out)\"",
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
