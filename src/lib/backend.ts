@@ -1,49 +1,90 @@
 import { invoke } from '@tauri-apps/api/core';
-import { mockSnapshot } from '../data';
-import type { AppSettings, AppSnapshot, GalaxyItem, Provider } from '../types';
+import type {
+  AppSettings,
+  AppSnapshot,
+  GalaxyItem,
+  GalaxyItemInput,
+  Provider,
+  ProviderInput,
+  ProviderModelResult,
+} from '../types';
 
-const inTauri = () =>
-  typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
-
-export async function loadSnapshot(): Promise<AppSnapshot> {
-  if (!inTauri()) return structuredClone(mockSnapshot);
-
-  try {
-    return await invoke<AppSnapshot>('get_app_snapshot');
-  } catch (error) {
-    console.warn('Rust backend is not ready, using preview data:', error);
-    return structuredClone(mockSnapshot);
+function requireTauri() {
+  if (typeof window === 'undefined' || !('__TAURI_INTERNALS__' in window)) {
+    throw new Error('Приложение запущено без Tauri backend');
   }
 }
 
+export async function loadSnapshot(): Promise<AppSnapshot> {
+  requireTauri();
+  return invoke<AppSnapshot>('get_app_snapshot');
+}
+
 export async function createChat(title: string) {
-  if (!inTauri()) return { id: crypto.randomUUID(), title };
+  requireTauri();
   return invoke<{ id: string; title: string }>('create_chat', { title });
 }
 
-export async function addMessage(
+export async function setChatProvider(chatId: string, providerId?: string) {
+  requireTauri();
+  return invoke<void>('set_chat_provider', {
+    chatId,
+    providerId: providerId || null,
+  });
+}
+
+export async function sendChatMessage(
   chatId: string,
-  role: 'user' | 'assistant',
+  providerId: string,
   content: string,
 ) {
-  if (!inTauri()) return { id: crypto.randomUUID(), chatId, role, content };
-  return invoke('add_message', { chatId, role, content });
+  requireTauri();
+  return invoke<void>('send_chat_message', { chatId, providerId, content });
 }
 
-export async function saveGalaxyItem(item: GalaxyItem) {
-  if (!inTauri()) return item;
-  return invoke<GalaxyItem>('save_galaxy_item', { item });
+export async function upsertGalaxyItem(input: GalaxyItemInput) {
+  requireTauri();
+  return invoke<GalaxyItem>('upsert_galaxy_item', { input });
 }
 
-export async function saveProvider(provider: Provider, apiKey?: string) {
-  if (!inTauri()) return provider;
+export async function deleteGalaxyItem(id: string) {
+  requireTauri();
+  return invoke<void>('delete_galaxy_item', { id });
+}
+
+export async function fetchProviderModels(
+  provider: ProviderInput,
+  apiKey?: string,
+): Promise<ProviderModelResult> {
+  requireTauri();
+  return invoke<ProviderModelResult>('fetch_provider_models', {
+    provider,
+    apiKey: apiKey || null,
+  });
+}
+
+export async function saveProvider(
+  provider: ProviderInput,
+  apiKey?: string,
+): Promise<Provider> {
+  requireTauri();
   return invoke<Provider>('save_provider', {
     provider,
     apiKey: apiKey || null,
   });
 }
 
+export async function checkProvider(id: string): Promise<Provider> {
+  requireTauri();
+  return invoke<Provider>('check_provider', { id });
+}
+
+export async function deleteProvider(id: string) {
+  requireTauri();
+  return invoke<void>('delete_provider', { id });
+}
+
 export async function updateSettings(settings: AppSettings) {
-  if (!inTauri()) return settings;
+  requireTauri();
   return invoke<AppSettings>('update_app_settings', { settings });
 }

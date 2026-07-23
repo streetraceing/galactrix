@@ -7,6 +7,7 @@ export type Chat = {
   updatedAt: string;
   messageCount: number;
   pinned: boolean;
+  providerId?: string;
 };
 
 export type Message = {
@@ -29,6 +30,13 @@ export type GalaxyItem = {
   updatedAt: string;
 };
 
+export type GalaxyItemInput = {
+  id?: string;
+  kind: GalaxyKind;
+  name: string;
+  description: string;
+};
+
 export type ProviderKind =
   | 'mistral'
   | 'character-ai'
@@ -38,15 +46,33 @@ export type ProviderKind =
   | 'cloudflare-workers-ai'
   | 'custom';
 
+export type ProviderStatus = 'connected' | 'disabled' | 'error';
+
 export type Provider = {
   id: string;
   name: string;
   kind: ProviderKind;
   model: string;
-  status: 'connected' | 'disabled' | 'error';
+  status: ProviderStatus;
   baseUrl?: string;
   accountId?: string;
   latencyMs?: number;
+  temperature: number;
+  topP: number;
+  maxTokens: number;
+  hasSecret: boolean;
+};
+
+export type ProviderInput = {
+  id?: string;
+  name: string;
+  kind: ProviderKind;
+  model: string;
+  baseUrl?: string;
+  accountId?: string;
+  temperature: number;
+  topP: number;
+  maxTokens: number;
 };
 
 export type AppSettings = {
@@ -70,4 +96,10 @@ export type AppSnapshot = {
   providers: Provider[];
   settings: AppSettings;
   usage: UsagePoint[];
+  appVersion: string;
+};
+
+export type ProviderModelResult = {
+  models: string[];
+  latencyMs: number;
 };

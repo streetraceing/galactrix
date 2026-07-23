@@ -9,6 +9,7 @@ pub struct Chat {
     pub updated_at: String,
     pub message_count: i64,
     pub pinned: bool,
+    pub provider_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -33,6 +34,15 @@ pub struct GalaxyItem {
     pub updated_at: String,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GalaxyItemInput {
+    pub id: Option<String>,
+    pub kind: String,
+    pub name: String,
+    pub description: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Provider {
@@ -44,6 +54,50 @@ pub struct Provider {
     pub base_url: Option<String>,
     pub account_id: Option<String>,
     pub latency_ms: Option<i64>,
+    pub temperature: f64,
+    pub top_p: f64,
+    pub max_tokens: i64,
+    pub has_secret: bool,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderInput {
+    pub id: Option<String>,
+    pub name: String,
+    pub kind: String,
+    pub model: String,
+    pub base_url: Option<String>,
+    pub account_id: Option<String>,
+    pub temperature: f64,
+    pub top_p: f64,
+    pub max_tokens: i64,
+}
+
+impl ProviderInput {
+    pub fn into_provider(self, id: String, status: String, latency_ms: Option<i64>) -> Provider {
+        Provider {
+            id,
+            name: self.name,
+            kind: self.kind,
+            model: self.model,
+            status,
+            base_url: self.base_url,
+            account_id: self.account_id,
+            latency_ms,
+            temperature: self.temperature,
+            top_p: self.top_p,
+            max_tokens: self.max_tokens,
+            has_secret: false,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderModelResult {
+    pub models: Vec<String>,
+    pub latency_ms: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -85,6 +139,7 @@ pub struct AppSnapshot {
     pub providers: Vec<Provider>,
     pub settings: AppSettings,
     pub usage: Vec<UsagePoint>,
+    pub app_version: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -92,4 +147,12 @@ pub struct AppSnapshot {
 pub struct CreatedChat {
     pub id: String,
     pub title: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct CompletionResult {
+    pub content: String,
+    pub input_tokens: i64,
+    pub output_tokens: i64,
+    pub latency_ms: i64,
 }

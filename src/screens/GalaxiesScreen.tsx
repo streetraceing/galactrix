@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Icon } from '../components/Icon';
 import { Modal } from '../components/Modal';
-import type { GalaxyItem, GalaxyKind } from '../types';
+import type { GalaxyItem, GalaxyItemInput, GalaxyKind } from '../types';
 
 const filters: Array<{ id: 'all' | GalaxyKind; label: string }> = [
   { id: 'all', label: 'Все' },
@@ -28,15 +28,20 @@ const kindIcons: Record<GalaxyKind, 'user' | 'brain' | 'planet' | 'book'> = {
 export function GalaxiesScreen({
   items,
   onSave,
+  onDelete,
 }: {
   items: GalaxyItem[];
-  onSave: (item: GalaxyItem) => void;
+  onSave: (item: GalaxyItemInput) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
 }) {
   const [filter, setFilter] = useState<'all' | GalaxyKind>('all');
+  const [editing, setEditing] = useState<GalaxyItem | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [kind, setKind] = useState<GalaxyKind>('persona');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
 
   const filtered = useMemo(
     () =>
@@ -44,63 +49,68 @@ export function GalaxiesScreen({
     [filter, items],
   );
 
-  const create = () => {
-    if (!name.trim()) return;
-    onSave({
-      id: crypto.randomUUID(),
-      kind,
-      name: name.trim(),
-      description: description.trim() || 'Описание пока не добавлено.',
-      badge: kindLabels[kind],
-      accent: ['violet', 'cyan', 'rose', 'amber'][items.length % 4],
-      updatedAt: 'только что',
-    });
+  const openCreate = () => {
+    setEditing(null);
+    setKind('persona');
     setName('');
     setDescription('');
-    setModalOpen(false);
+    setError('');
+    setModalOpen(true);
+  };
+
+  const openEdit = (item: GalaxyItem) => {
+    setEditing(item);
+    setKind(item.kind);
+    setName(item.name);
+    setDescription(item.description);
+    setError('');
+    setModalOpen(true);
+  };
+
+  const save = async () => {
+    if (!name.trim() || saving) return;
+    setSaving(true);
+    setError('');
+    try {
+      await onSave({
+        id: editing?.id,
+        kind,
+        name: name.trim(),
+        description: description.trim(),
+      });
+      setModalOpen(false);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : String(caught));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const remove = async () => {
+    if (!editing || saving) return;
+    setSaving(true);
+    setError('');
+    try {
+      await onDelete(editing.id);
+      setModalOpen(false);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : String(caught));
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <div className="screen-scroll scroll-area">
       <header className="page-header">
         <div>
-          <span className="eyebrow">Твоя ролевая база знаний</span>
           <h1>Галактики</h1>
-          <p>
-            Собирай персоны, персонажей, миры и ворлдбуки в единый контекст.
-          </p>
+          <p>Локальные сущности для персон, персонажей, миров и ворлдбуков.</p>
         </div>
-        <button className="primary-button" onClick={() => setModalOpen(true)}>
+        <button className="primary-button" onClick={openCreate}>
           <Icon name="plus" /> Создать
         </button>
       </header>
-
-      <section className="galaxy-hero panel">
-        <div className="hero-orbits" aria-hidden="true">
-          <i />
-          <i />
-          <i />
-          <span />
-        </div>
-        <div className="galaxy-hero-copy">
-          <span className="hero-kicker">
-            <Icon name="sparkles" /> Активная сборка
-          </span>
-          <h2>Стеклянное небо</h2>
-          <p>
-            Вселенная + персонаж + ворлдбук автоматически собираются в контекст
-            перед отправкой модели.
-          </p>
-          <div className="hero-tags">
-            <span>Лира Вейл</span>
-            <span>Наблюдатель</span>
-            <span>42 записи</span>
-          </div>
-        </div>
-        <button className="secondary-button">
-          Открыть сборку <Icon name="chevron" />
-        </button>
-      </section>
 
       <nav className="segmented-control" aria-label="Фильтр галактик">
         {filters.map((entry) => (
@@ -110,71 +120,93 @@ export function GalaxiesScreen({
             key={entry.id}
           >
             {entry.label}
+            <span>
+              {entry.id === 'all'
+                ? items.length
+                : items.filter((item) => item.kind === entry.id).length}
+            </span>
           </button>
         ))}
       </nav>
 
-      <div className="galaxy-grid">
-        {filtered.map((item) => (
-          <article className="galaxy-card panel" key={item.id}>
-            <div className={`galaxy-card-icon ${item.accent}`}>
-              <Icon name={kindIcons[item.kind]} />
-            </div>
-            <button className="icon-button card-more" aria-label="Меню">
-              <Icon name="more" />
+      {filtered.length > 0 ? (
+        <div className="entity-grid">
+          {filtered.map((item) => (
+            <button
+              className="entity-card"
+              key={item.id}
+              onClick={() => openEdit(item)}
+            >
+              <span className="entity-icon">
+                <Icon name={kindIcons[item.kind]} />
+              </span>
+              <span className="entity-copy">
+                <span className="entity-type">{kindLabels[item.kind]}</span>
+                <strong>{item.name}</strong>
+                <p>{item.description || 'Без описания'}</p>
+              </span>
+              <span className="entity-meta">{item.updatedAt}</span>
+              <Icon name="chevron" />
             </button>
-            <span className="card-badge">{item.badge}</span>
-            <h3>{item.name}</h3>
-            <p>{item.description}</p>
-            <footer>
-              <span>Обновлено {item.updatedAt}</span>
-              <button>
-                Редактировать <Icon name="chevron" />
-              </button>
-            </footer>
-          </article>
-        ))}
-        <button className="galaxy-add-card" onClick={() => setModalOpen(true)}>
-          <span>
-            <Icon name="plus" />
-          </span>
-          <strong>Новый объект</strong>
-          <small>Добавить часть вселенной</small>
-        </button>
-      </div>
+          ))}
+        </div>
+      ) : (
+        <div className="empty-state page-empty">
+          <h2>
+            {filter === 'all'
+              ? 'Галактика пуста'
+              : 'В этой категории пока ничего нет'}
+          </h2>
+          <p>Созданные сущности сохраняются в локальной базе данных.</p>
+          <button className="primary-button" onClick={openCreate}>
+            <Icon name="plus" /> Создать объект
+          </button>
+        </div>
+      )}
 
       {modalOpen && (
         <Modal
-          title="Новый объект галактики"
-          subtitle="Позже здесь можно сделать отдельные сложные редакторы для каждого типа."
-          onClose={() => setModalOpen(false)}
+          title={editing ? 'Редактирование' : 'Новый объект'}
+          subtitle={editing ? kindLabels[editing.kind] : undefined}
+          onClose={() => !saving && setModalOpen(false)}
           footer={
             <>
+              {editing && (
+                <button
+                  className="danger-button"
+                  onClick={() => void remove()}
+                  disabled={saving}
+                >
+                  Удалить
+                </button>
+              )}
+              <span className="modal-footer-spacer" />
               <button
                 className="ghost-button"
                 onClick={() => setModalOpen(false)}
+                disabled={saving}
               >
                 Отмена
               </button>
-              <button className="primary-button" onClick={create}>
-                Создать
+              <button
+                className="primary-button"
+                onClick={() => void save()}
+                disabled={!name.trim() || saving}
+              >
+                {saving ? 'Сохранение…' : 'Сохранить'}
               </button>
             </>
           }
         >
           <div className="type-picker">
-            {(
-              ['persona', 'character', 'universe', 'worldbook'] as GalaxyKind[]
-            ).map((value) => (
+            {(Object.keys(kindLabels) as GalaxyKind[]).map((value) => (
               <button
                 className={kind === value ? 'selected' : ''}
                 onClick={() => setKind(value)}
                 key={value}
               >
                 <Icon name={kindIcons[value]} />
-                <span>
-                  {filters.find((entry) => entry.id === value)?.label}
-                </span>
+                <span>{kindLabels[value]}</span>
               </button>
             ))}
           </div>
@@ -183,19 +215,18 @@ export function GalaxiesScreen({
             <input
               value={name}
               onChange={(event) => setName(event.target.value)}
-              placeholder="Например: Лира Вейл"
               autoFocus
             />
           </label>
           <label className="form-field">
-            <span>Краткое описание</span>
+            <span>Описание</span>
             <textarea
               value={description}
               onChange={(event) => setDescription(event.target.value)}
-              placeholder="Что это и как должно использоваться в контексте?"
-              rows={4}
+              rows={5}
             />
           </label>
+          {error && <div className="inline-error">{error}</div>}
         </Modal>
       )}
     </div>

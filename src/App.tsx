@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import './App.css';
 import { Icon } from './components/Icon';
 import { ChatsScreen } from './screens/ChatsScreen';
@@ -6,15 +6,24 @@ import { GalaxiesScreen } from './screens/GalaxiesScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
 import { TelescopeScreen } from './screens/TelescopeScreen';
 import {
-  addMessage,
+  checkProvider,
   createChat,
+  deleteGalaxyItem,
+  deleteProvider,
+  fetchProviderModels,
   loadSnapshot,
-  saveGalaxyItem,
   saveProvider,
+  sendChatMessage,
+  setChatProvider,
   updateSettings,
+  upsertGalaxyItem,
 } from './lib/backend';
-import type { AppSnapshot, GalaxyItem, Provider, TabId } from './types';
-import { mockSnapshot } from './data';
+import type {
+  AppSnapshot,
+  GalaxyItemInput,
+  ProviderInput,
+  TabId,
+} from './types';
 
 const tabs: Array<{
   id: TabId;
@@ -27,26 +36,78 @@ const tabs: Array<{
   { id: 'profile', label: 'Профиль', icon: 'profile' },
 ];
 
+const emptySnapshot: AppSnapshot = {
+  chats: [],
+  messages: [],
+  galaxyItems: [],
+  providers: [],
+  settings: {
+    animations: true,
+    haptics: true,
+    compactMode: false,
+    sendOnEnter: true,
+    saveDrafts: true,
+  },
+  usage: [],
+  appVersion: '',
+};
+
+function errorText(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
+}
+
 function App() {
   const [activeTab, setActiveTab] = useState<TabId>('chats');
-  const [snapshot, setSnapshot] = useState<AppSnapshot>(mockSnapshot);
-  const [activeChatId, setActiveChatId] = useState(
-    mockSnapshot.chats[0]?.id ?? '',
-  );
+  const [snapshot, setSnapshot] = useState<AppSnapshot>(emptySnapshot);
+  const [activeChatId, setActiveChatId] = useState('');
   const [loading, setLoading] = useState(true);
+  const [fatalError, setFatalError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [sending, setSending] = useState(false);
+
+  const refresh = useCallback(async () => {
+    const data = await loadSnapshot();
+    setSnapshot(data);
+    setActiveChatId((current) =>
+      data.chats.some((chat) => chat.id === current)
+        ? current
+        : (data.chats[0]?.id ?? ''),
+    );
+    return data;
+  }, []);
+
+  const boot = useCallback(async () => {
+    setLoading(true);
+    setFatalError('');
+    try {
+      await refresh();
+    } catch (error) {
+      setFatalError(errorText(error));
+    } finally {
+      setLoading(false);
+    }
+  }, [refresh]);
 
   useEffect(() => {
-    let alive = true;
-    loadSnapshot().then((data) => {
-      if (!alive) return;
-      setSnapshot(data);
-      setActiveChatId(data.chats[0]?.id ?? '');
-      setLoading(false);
-    });
-    return () => {
-      alive = false;
-    };
-  }, []);
+    void boot();
+  }, [boot]);
+
+  useEffect(() => {
+    if (!notice) return;
+    const timer = window.setTimeout(() => setNotice(''), 4200);
+    return () => window.clearTimeout(timer);
+  }, [notice]);
+
+  const haptic = useCallback(() => {
+    if (snapshot.settings.haptics && 'vibrate' in navigator) {
+      navigator.vibrate(12);
+    }
+  }, [snapshot.settings.haptics]);
+
+  const navigate = (tab: TabId) => {
+    haptic();
+    setActiveTab(tab);
+  };
 
   const activeLabel = useMemo(
     () => tabs.find((tab) => tab.id === activeTab)?.label ?? '',
@@ -54,70 +115,101 @@ function App() {
   );
 
   const handleNewChat = async () => {
-    const title = `Новый чат ${snapshot.chats.length + 1}`;
-    const created = await createChat(title);
-    const chat = {
-      id: created.id,
-      title: created.title,
-      preview: 'Пустой локальный диалог',
-      updatedAt: 'сейчас',
-      messageCount: 0,
-      pinned: false,
-    };
-    setSnapshot((current) => ({ ...current, chats: [chat, ...current.chats] }));
-    setActiveChatId(chat.id);
-    setActiveTab('chats');
+    try {
+      const created = await createChat('Новый чат');
+      await refresh();
+      setActiveChatId(created.id);
+      setActiveTab('chats');
+      haptic();
+    } catch (error) {
+      setNotice(errorText(error));
+    }
   };
 
-  const handleSend = async (content: string) => {
-    if (!activeChatId) return;
-    const optimistic = {
-      id: crypto.randomUUID(),
-      chatId: activeChatId,
-      role: 'user' as const,
-      content,
-      createdAt: new Date().toLocaleTimeString('ru-RU', {
-        hour: '2-digit',
-        minute: '2-digit',
-      }),
-    };
-    setSnapshot((current) => ({
-      ...current,
-      messages: [...current.messages, optimistic],
-      chats: current.chats.map((chat) =>
-        chat.id === activeChatId
-          ? {
-              ...chat,
-              preview: content,
-              updatedAt: 'сейчас',
-              messageCount: chat.messageCount + 1,
-            }
-          : chat,
-      ),
-    }));
-    await addMessage(activeChatId, 'user', content);
+  const handleSend = async (content: string, providerId: string) => {
+    if (!activeChatId || sending) return;
+    setSending(true);
+    try {
+      await sendChatMessage(activeChatId, providerId, content);
+      await refresh();
+      haptic();
+    } catch (error) {
+      await refresh().catch(() => undefined);
+      setNotice(errorText(error));
+      throw error;
+    } finally {
+      setSending(false);
+    }
   };
 
-  const handleSaveGalaxy = async (item: GalaxyItem) => {
-    await saveGalaxyItem(item);
-    setSnapshot((current) => ({
-      ...current,
-      galaxyItems: [item, ...current.galaxyItems],
-    }));
+  const handleChatProvider = async (chatId: string, providerId?: string) => {
+    try {
+      await setChatProvider(chatId, providerId);
+      await refresh();
+    } catch (error) {
+      setNotice(errorText(error));
+    }
   };
 
-  const handleSaveProvider = async (provider: Provider, apiKey?: string) => {
-    await saveProvider(provider, apiKey);
-    setSnapshot((current) => ({
-      ...current,
-      providers: [provider, ...current.providers],
-    }));
+  const handleSaveGalaxy = async (input: GalaxyItemInput) => {
+    await upsertGalaxyItem(input);
+    await refresh();
+    haptic();
+  };
+
+  const handleDeleteGalaxy = async (id: string) => {
+    await deleteGalaxyItem(id);
+    await refresh();
+    haptic();
+  };
+
+  const handleSaveProvider = async (
+    provider: ProviderInput,
+    apiKey?: string,
+  ) => {
+    const saved = await saveProvider(provider, apiKey);
+    await refresh();
+    haptic();
+    return saved;
+  };
+
+  const handleCheckProvider = async (id: string) => {
+    const checked = await checkProvider(id);
+    await refresh();
+    return checked;
+  };
+
+  const handleDeleteProvider = async (id: string) => {
+    await deleteProvider(id);
+    await refresh();
+    haptic();
   };
 
   const handleSettings = async (settings: AppSnapshot['settings']) => {
+    const previous = snapshot.settings;
     setSnapshot((current) => ({ ...current, settings }));
-    await updateSettings(settings);
+    try {
+      await updateSettings(settings);
+    } catch (error) {
+      setSnapshot((current) => ({ ...current, settings: previous }));
+      setNotice(errorText(error));
+    }
   };
+
+  if (fatalError) {
+    return (
+      <main className="boot-screen">
+        <section>
+          <div className="app-symbol">G</div>
+          <h1>Не удалось открыть локальные данные</h1>
+          <p>{fatalError}</p>
+          <button className="primary-button" onClick={() => void boot()}>
+            Повторить
+          </button>
+        </section>
+      </main>
+    );
+  }
 
   return (
     <main
@@ -125,63 +217,46 @@ function App() {
     >
       <aside className="desktop-sidebar">
         <div className="brand">
-          <div className="brand-mark">G</div>
+          <div className="app-symbol">G</div>
           <div>
             <strong>Galactrix</strong>
-            <span>local AI client</span>
+            <span>Локальный клиент</span>
           </div>
         </div>
+
         <nav className="main-nav" aria-label="Основная навигация">
           {tabs.map((tab) => (
             <button
               className={activeTab === tab.id ? 'active' : ''}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => navigate(tab.id)}
               key={tab.id}
             >
               <Icon name={tab.icon} />
               <span>{tab.label}</span>
-              {tab.id === 'chats' && <b>{snapshot.chats.length}</b>}
+              {tab.id === 'chats' && snapshot.chats.length > 0 && (
+                <b>{snapshot.chats.length}</b>
+              )}
             </button>
           ))}
         </nav>
+
         <div className="sidebar-spacer" />
-        <section className="sidebar-status">
+        <div className="local-status">
+          <span />
           <div>
-            <i />
-            <span>
-              <strong>Локальный режим</strong>
-              <small>Данные остаются на устройстве</small>
-            </span>
+            <strong>Локальное хранение</strong>
+            <small>SQLite и системное хранилище ключей</small>
           </div>
-          <button
-            aria-label="Настройки"
-            onClick={() => setActiveTab('profile')}
-          >
-            <Icon name="settings" />
-          </button>
-        </section>
-        <div
-          className="sidebar-profile"
-          onClick={() => setActiveTab('profile')}
-          role="button"
-          tabIndex={0}
-        >
-          <span>XS</span>
-          <div>
-            <strong>xstreetraceing</strong>
-            <small>Профиль устройства</small>
-          </div>
-          <Icon name="chevron" />
         </div>
       </aside>
 
       <section className="app-content">
         <header className="mobile-topbar">
-          <div className="brand-mark small">G</div>
+          <div className="app-symbol small">G</div>
           <strong>{activeLabel}</strong>
           <button
             className="icon-button"
-            onClick={handleNewChat}
+            onClick={() => void handleNewChat()}
             aria-label="Новый чат"
           >
             <Icon name="plus" />
@@ -189,36 +264,55 @@ function App() {
         </header>
 
         {loading && <div className="loading-line" />}
+        {notice && (
+          <div className="notice" role="status">
+            {notice}
+            <button onClick={() => setNotice('')} aria-label="Закрыть">
+              <Icon name="close" />
+            </button>
+          </div>
+        )}
+
         <div className="screen-host">
-          {activeTab === 'chats' && (
+          {!loading && activeTab === 'chats' && (
             <ChatsScreen
               chats={snapshot.chats}
               messages={snapshot.messages}
+              providers={snapshot.providers}
               activeChatId={activeChatId}
               onSelectChat={setActiveChatId}
-              onNewChat={handleNewChat}
+              onNewChat={() => void handleNewChat()}
               onSend={handleSend}
+              onSetProvider={handleChatProvider}
               sendOnEnter={snapshot.settings.sendOnEnter}
+              saveDrafts={snapshot.settings.saveDrafts}
+              sending={sending}
             />
           )}
-          {activeTab === 'galaxies' && (
+          {!loading && activeTab === 'galaxies' && (
             <GalaxiesScreen
               items={snapshot.galaxyItems}
               onSave={handleSaveGalaxy}
+              onDelete={handleDeleteGalaxy}
             />
           )}
-          {activeTab === 'telescope' && (
+          {!loading && activeTab === 'telescope' && (
             <TelescopeScreen
               providers={snapshot.providers}
+              onFetchModels={fetchProviderModels}
               onSave={handleSaveProvider}
+              onCheck={handleCheckProvider}
+              onDelete={handleDeleteProvider}
             />
           )}
-          {activeTab === 'profile' && (
+          {!loading && activeTab === 'profile' && (
             <ProfileScreen
               usage={snapshot.usage}
               settings={snapshot.settings}
               chatCount={snapshot.chats.length}
               messageCount={snapshot.messages.length}
+              providerCount={snapshot.providers.length}
+              appVersion={snapshot.appVersion}
               onChangeSettings={handleSettings}
             />
           )}
@@ -228,12 +322,10 @@ function App() {
           {tabs.map((tab) => (
             <button
               className={activeTab === tab.id ? 'active' : ''}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => navigate(tab.id)}
               key={tab.id}
             >
-              <span>
-                <Icon name={tab.icon} />
-              </span>
+              <Icon name={tab.icon} />
               <small>{tab.label}</small>
             </button>
           ))}

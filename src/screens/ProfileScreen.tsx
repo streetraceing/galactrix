@@ -20,17 +20,27 @@ function Toggle({
   );
 }
 
+function formatTokens(value: number) {
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+  if (value >= 1_000) return `${Math.round(value / 1_000)}K`;
+  return value.toLocaleString('ru-RU');
+}
+
 export function ProfileScreen({
   usage,
   settings,
   chatCount,
   messageCount,
+  providerCount,
+  appVersion,
   onChangeSettings,
 }: {
   usage: UsagePoint[];
   settings: AppSettings;
   chatCount: number;
   messageCount: number;
+  providerCount: number;
+  appVersion: string;
   onChangeSettings: (settings: AppSettings) => void;
 }) {
   const maxTokens = Math.max(...usage.map((point) => point.tokens), 1);
@@ -41,92 +51,72 @@ export function ProfileScreen({
 
   return (
     <div className="screen-scroll scroll-area">
-      <header className="page-header profile-header">
+      <header className="page-header">
         <div>
-          <span className="eyebrow">Локальный профиль</span>
           <h1>Профиль</h1>
-          <p>Статистика использования и настройки приложения.</p>
-        </div>
-        <div className="profile-card-mini">
-          <span>XS</span>
-          <div>
-            <strong>xstreetraceing</strong>
-            <small>Данные только на устройстве</small>
-          </div>
+          <p>Локальная статистика и настройки этого устройства.</p>
         </div>
       </header>
 
       <div className="metric-grid">
-        <article className="metric-card panel">
-          <span>Токены за неделю</span>
-          <strong>{Math.round(totalTokens / 1000)}K</strong>
-          <small>+18% к прошлой неделе</small>
+        <article className="metric-card">
+          <span>Токены за 7 дней</span>
+          <strong>{formatTokens(totalTokens)}</strong>
         </article>
-        <article className="metric-card panel">
-          <span>Запросы</span>
-          <strong>{totalRequests}</strong>
-          <small>{Math.round(totalRequests / 7)} в среднем за день</small>
+        <article className="metric-card">
+          <span>Запросы за 7 дней</span>
+          <strong>{totalRequests.toLocaleString('ru-RU')}</strong>
         </article>
-        <article className="metric-card panel">
-          <span>Локальные чаты</span>
-          <strong>{chatCount}</strong>
+        <article className="metric-card">
+          <span>Чаты</span>
+          <strong>{chatCount.toLocaleString('ru-RU')}</strong>
           <small>{messageCount.toLocaleString('ru-RU')} сообщений</small>
         </article>
-        <article className="metric-card panel">
-          <span>Активное время</span>
-          <strong>8.4 ч</strong>
-          <small>за последние 7 дней</small>
+        <article className="metric-card">
+          <span>Подключения</span>
+          <strong>{providerCount.toLocaleString('ru-RU')}</strong>
         </article>
       </div>
 
-      <section className="usage-panel panel">
+      <section className="usage-panel">
         <div className="section-title">
           <div>
-            <h2>Активность</h2>
-            <p>Токены по дням, без отправки аналитики наружу.</p>
+            <h2>Использование за 7 дней</h2>
+            <p>Счётчики формируются из локальных событий запросов.</p>
           </div>
-          <nav className="mini-tabs">
-            <button>День</button>
-            <button className="active">Неделя</button>
-            <button>Месяц</button>
-          </nav>
         </div>
-        <div className="usage-chart">
+        <div className="usage-chart" aria-label="Токены по дням">
           {usage.map((point) => (
             <div className="usage-column" key={point.label}>
-              <span className="usage-value">
-                {Math.round(point.tokens / 1000)}K
-              </span>
+              <span className="usage-value">{formatTokens(point.tokens)}</span>
               <div className="usage-bar-track">
                 <i
                   style={{
-                    height: `${Math.max(12, (point.tokens / maxTokens) * 100)}%`,
+                    height: `${point.tokens === 0 ? 0 : Math.max(6, (point.tokens / maxTokens) * 100)}%`,
                   }}
                 />
               </div>
               <span>{point.label}</span>
+              <small>{point.requests}</small>
             </div>
           ))}
         </div>
       </section>
 
       <div className="settings-layout">
-        <section className="settings-panel panel">
+        <section className="settings-panel">
           <div className="section-title">
             <div>
               <h2>Интерфейс</h2>
-              <p>Настройки применяются отдельно на каждом устройстве.</p>
+              <p>Изменения сохраняются в SQLite.</p>
             </div>
             <Icon name="settings" />
           </div>
           <div className="settings-list">
             <div className="setting-row">
-              <span className="setting-icon">
-                <Icon name="sparkles" />
-              </span>
               <div>
                 <strong>Анимации</strong>
-                <small>Плавные переходы и эффекты</small>
+                <small>Переходы и появление элементов</small>
               </div>
               <Toggle
                 checked={settings.animations}
@@ -134,12 +124,9 @@ export function ProfileScreen({
               />
             </div>
             <div className="setting-row">
-              <span className="setting-icon">
-                <Icon name="telescope" />
-              </span>
               <div>
                 <strong>Виброотклик</strong>
-                <small>Только на поддерживаемых мобильных устройствах</small>
+                <small>Используется на поддерживаемых устройствах</small>
               </div>
               <Toggle
                 checked={settings.haptics}
@@ -147,12 +134,9 @@ export function ProfileScreen({
               />
             </div>
             <div className="setting-row">
-              <span className="setting-icon">
-                <Icon name="chats" />
-              </span>
               <div>
                 <strong>Компактный режим</strong>
-                <small>Меньше отступов и больше контента</small>
+                <small>Уменьшает отступы в интерфейсе</small>
               </div>
               <Toggle
                 checked={settings.compactMode}
@@ -162,22 +146,19 @@ export function ProfileScreen({
           </div>
         </section>
 
-        <section className="settings-panel panel">
+        <section className="settings-panel">
           <div className="section-title">
             <div>
-              <h2>Чаты и данные</h2>
-              <p>Поведение редактора и локального хранилища.</p>
+              <h2>Чаты</h2>
+              <p>Поведение редактора сообщений.</p>
             </div>
-            <Icon name="database" />
+            <Icon name="chats" />
           </div>
           <div className="settings-list">
             <div className="setting-row">
-              <span className="setting-icon">
-                <Icon name="send" />
-              </span>
               <div>
-                <strong>Enter отправляет</strong>
-                <small>Shift+Enter создаёт новую строку</small>
+                <strong>Enter отправляет сообщение</strong>
+                <small>Shift+Enter добавляет новую строку</small>
               </div>
               <Toggle
                 checked={settings.sendOnEnter}
@@ -185,39 +166,26 @@ export function ProfileScreen({
               />
             </div>
             <div className="setting-row">
-              <span className="setting-icon">
-                <Icon name="book" />
-              </span>
               <div>
                 <strong>Сохранять черновики</strong>
-                <small>Восстанавливать текст после закрытия</small>
+                <small>Текст хранится локально для каждого чата</small>
               </div>
               <Toggle
                 checked={settings.saveDrafts}
                 onChange={(value) => patch('saveDrafts', value)}
               />
             </div>
-            <button className="setting-link">
-              <span className="setting-icon">
-                <Icon name="database" />
-              </span>
-              <div>
-                <strong>Экспорт локальных данных</strong>
-                <small>Чаты, галактики и настройки без API-ключей</small>
-              </div>
-              <Icon name="chevron" />
-            </button>
           </div>
         </section>
       </div>
 
-      <section className="about-row panel">
-        <div className="brand-mark small">G</div>
+      <section className="about-row">
+        <div className="app-symbol small">G</div>
         <div>
           <strong>Galactrix</strong>
-          <small>Прототип архитектуры · Tauri + React + Rust</small>
+          <small>Версия приложения из Rust package metadata</small>
         </div>
-        <span>v0.1.0</span>
+        <span>{appVersion ? `v${appVersion}` : '—'}</span>
       </section>
     </div>
   );
