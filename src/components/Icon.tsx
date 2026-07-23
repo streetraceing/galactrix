@@ -22,7 +22,12 @@ type IconName =
   | 'planet'
   | 'user'
   | 'copy'
-  | 'refresh';
+  | 'refresh'
+  | 'edit'
+  | 'trash'
+  | 'pin'
+  | 'clear'
+  | 'back';
 
 export function Icon({
   name,
@@ -151,6 +156,31 @@ export function Icon({
         <path d="M19 11a7 7 0 1 0-1.5 5" />
       </>
     ),
+    edit: (
+      <>
+        <path d="M12 20h9" />
+        <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z" />
+      </>
+    ),
+    trash: (
+      <>
+        <path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13" />
+        <path d="M10 11v5M14 11v5" />
+      </>
+    ),
+    pin: (
+      <>
+        <path d="m14 4 6 6-3 1-4 4-1 5-2-2-2-2 5-1 4-4Z" />
+        <path d="m4 20 6-6" />
+      </>
+    ),
+    clear: (
+      <>
+        <path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14" />
+        <path d="M10 10v6M14 10v6" />
+      </>
+    ),
+    back: <path d="m15 18-6-6 6-6" />,
   };
 
   return (

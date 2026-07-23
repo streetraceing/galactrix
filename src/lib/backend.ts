@@ -25,6 +25,26 @@ export async function createChat(title: string) {
   return invoke<{ id: string; title: string }>('create_chat', { title });
 }
 
+export async function renameChat(chatId: string, title: string) {
+  requireTauri();
+  return invoke<void>('rename_chat', { chatId, title });
+}
+
+export async function deleteChat(chatId: string) {
+  requireTauri();
+  return invoke<void>('delete_chat', { chatId });
+}
+
+export async function setChatPinned(chatId: string, pinned: boolean) {
+  requireTauri();
+  return invoke<void>('set_chat_pinned', { chatId, pinned });
+}
+
+export async function clearChat(chatId: string) {
+  requireTauri();
+  return invoke<void>('clear_chat', { chatId });
+}
+
 export async function setChatProvider(chatId: string, providerId?: string) {
   requireTauri();
   return invoke<void>('set_chat_provider', {

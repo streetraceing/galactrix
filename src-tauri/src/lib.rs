@@ -44,6 +44,45 @@ fn create_chat(title: String, state: State<'_, AppState>) -> Result<CreatedChat,
 }
 
 #[tauri::command]
+fn rename_chat(
+    chat_id: String,
+    title: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let title = title.trim();
+    if title.is_empty() {
+        return Err("Название чата не может быть пустым".into());
+    }
+    if title.chars().count() > 120 {
+        return Err("Название чата слишком длинное".into());
+    }
+    let database = state.database.lock().map_err(|error| error.to_string())?;
+    db::rename_chat(&database, &chat_id, title)
+}
+
+#[tauri::command]
+fn delete_chat(chat_id: String, state: State<'_, AppState>) -> Result<(), String> {
+    let database = state.database.lock().map_err(|error| error.to_string())?;
+    db::delete_chat(&database, &chat_id)
+}
+
+#[tauri::command]
+fn set_chat_pinned(
+    chat_id: String,
+    pinned: bool,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let database = state.database.lock().map_err(|error| error.to_string())?;
+    db::set_chat_pinned(&database, &chat_id, pinned)
+}
+
+#[tauri::command]
+fn clear_chat(chat_id: String, state: State<'_, AppState>) -> Result<(), String> {
+    let database = state.database.lock().map_err(|error| error.to_string())?;
+    db::clear_chat(&database, &chat_id)
+}
+
+#[tauri::command]
 fn set_chat_provider(
     chat_id: String,
     provider_id: Option<String>,
@@ -232,9 +271,13 @@ fn delete_provider(id: String, state: State<'_, AppState>) -> Result<(), String>
 
 #[tauri::command]
 fn update_app_settings(
-    settings: AppSettings,
+    mut settings: AppSettings,
     state: State<'_, AppState>,
 ) -> Result<AppSettings, String> {
+    settings.interface_scale = settings.interface_scale.clamp(0.8, 1.5);
+    settings.sidebar_width = settings.sidebar_width.clamp(196, 420);
+    settings.chat_sidebar_width = settings.chat_sidebar_width.clamp(248, 560);
+
     let database = state.database.lock().map_err(|error| error.to_string())?;
     db::update_settings(&database, &settings)?;
     Ok(settings)
@@ -336,6 +379,10 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_app_snapshot,
             create_chat,
+            rename_chat,
+            delete_chat,
+            set_chat_pinned,
+            clear_chat,
             set_chat_provider,
             send_chat_message,
             upsert_galaxy_item,

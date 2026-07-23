@@ -1,24 +1,32 @@
+import { Button, Spinner, Surface } from '@heroui/react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import './App.css';
+import { BrandMark } from './components/BrandMark';
 import { Icon } from './components/Icon';
-import { ChatsScreen } from './screens/ChatsScreen';
-import { GalaxiesScreen } from './screens/GalaxiesScreen';
-import { ProfileScreen } from './screens/ProfileScreen';
-import { TelescopeScreen } from './screens/TelescopeScreen';
+import { ResizeHandle } from './components/ResizeHandle';
 import {
   checkProvider,
+  clearChat,
   createChat,
+  deleteChat,
   deleteGalaxyItem,
   deleteProvider,
   fetchProviderModels,
   loadSnapshot,
+  renameChat,
   saveProvider,
   sendChatMessage,
+  setChatPinned,
   setChatProvider,
   updateSettings,
   upsertGalaxyItem,
 } from './lib/backend';
+import { ChatsScreen } from './screens/ChatsScreen';
+import { GalaxiesScreen } from './screens/GalaxiesScreen';
+import { ProfileScreen } from './screens/ProfileScreen';
+import { TelescopeScreen } from './screens/TelescopeScreen';
 import type {
+  AppSettings,
   AppSnapshot,
   GalaxyItemInput,
   ProviderInput,
@@ -36,18 +44,23 @@ const tabs: Array<{
   { id: 'profile', label: 'Профиль', icon: 'profile' },
 ];
 
+const defaultSettings: AppSettings = {
+  animations: true,
+  haptics: true,
+  compactMode: false,
+  sendOnEnter: true,
+  saveDrafts: true,
+  interfaceScale: 1,
+  sidebarWidth: 248,
+  chatSidebarWidth: 320,
+};
+
 const emptySnapshot: AppSnapshot = {
   chats: [],
   messages: [],
   galaxyItems: [],
   providers: [],
-  settings: {
-    animations: true,
-    haptics: true,
-    compactMode: false,
-    sendOnEnter: true,
-    saveDrafts: true,
-  },
+  settings: defaultSettings,
   usage: [],
   appVersion: '',
 };
@@ -98,6 +111,17 @@ function App() {
     return () => window.clearTimeout(timer);
   }, [notice]);
 
+  useEffect(() => {
+    const scale = Math.min(
+      1.5,
+      Math.max(0.8, snapshot.settings.interfaceScale),
+    );
+    document.documentElement.style.fontSize = `${16 * scale}px`;
+    document.documentElement.dataset.animations = snapshot.settings.animations
+      ? 'on'
+      : 'off';
+  }, [snapshot.settings.animations, snapshot.settings.interfaceScale]);
+
   const haptic = useCallback(() => {
     if (snapshot.settings.haptics && 'vibrate' in navigator) {
       navigator.vibrate(12);
@@ -124,6 +148,30 @@ function App() {
     } catch (error) {
       setNotice(errorText(error));
     }
+  };
+
+  const handleRenameChat = async (chatId: string, title: string) => {
+    await renameChat(chatId, title);
+    await refresh();
+    haptic();
+  };
+
+  const handleDeleteChat = async (chatId: string) => {
+    await deleteChat(chatId);
+    await refresh();
+    haptic();
+  };
+
+  const handlePinChat = async (chatId: string, pinned: boolean) => {
+    await setChatPinned(chatId, pinned);
+    await refresh();
+    haptic();
+  };
+
+  const handleClearChat = async (chatId: string) => {
+    await clearChat(chatId);
+    await refresh();
+    haptic();
   };
 
   const handleSend = async (content: string, providerId: string) => {
@@ -185,103 +233,172 @@ function App() {
     haptic();
   };
 
-  const handleSettings = async (settings: AppSnapshot['settings']) => {
-    const previous = snapshot.settings;
+  const previewSettings = useCallback((settings: AppSettings) => {
     setSnapshot((current) => ({ ...current, settings }));
+  }, []);
+
+  const handleSettings = async (settings: AppSettings) => {
+    const previous = snapshot.settings;
+    previewSettings(settings);
     try {
-      await updateSettings(settings);
+      const saved = await updateSettings(settings);
+      previewSettings(saved);
     } catch (error) {
-      setSnapshot((current) => ({ ...current, settings: previous }));
+      previewSettings(previous);
       setNotice(errorText(error));
     }
   };
 
   if (fatalError) {
     return (
-      <main className="boot-screen">
-        <section>
-          <div className="app-symbol">G</div>
-          <h1>Не удалось открыть локальные данные</h1>
-          <p>{fatalError}</p>
-          <button className="primary-button" onClick={() => void boot()}>
+      <main className="grid h-full place-items-center bg-background p-6 text-foreground">
+        <Surface
+          className="w-full max-w-md p-7 text-center"
+          variant="secondary"
+        >
+          <div className="mx-auto mb-5 flex justify-center">
+            <BrandMark size={58} />
+          </div>
+          <h1 className="text-xl font-semibold">Не удалось открыть данные</h1>
+          <p className="allow-selection mt-2 break-words text-sm leading-6 text-muted">
+            {fatalError}
+          </p>
+          <Button
+            className="mt-6"
+            variant="primary"
+            onPress={() => void boot()}
+          >
             Повторить
-          </button>
-        </section>
+          </Button>
+        </Surface>
       </main>
     );
   }
 
   return (
-    <main
-      className={`app-shell ${snapshot.settings.compactMode ? 'compact-mode' : ''} ${snapshot.settings.animations ? 'with-animations' : 'without-animations'}`}
-    >
-      <aside className="desktop-sidebar">
-        <div className="brand">
-          <div className="app-symbol">G</div>
-          <div>
-            <strong>Galactrix</strong>
-            <span>Локальный клиент</span>
+    <main className="flex h-full min-w-0 overflow-hidden bg-background text-foreground">
+      <Surface
+        variant="secondary"
+        className="hidden h-full shrink-0 rounded-none border-0 border-r border-border md:flex md:flex-col"
+        style={{ width: snapshot.settings.sidebarWidth }}
+      >
+        <div className="flex items-center gap-3 px-4 py-5">
+          <BrandMark size={38} />
+          <div className="min-w-0">
+            <div className="truncate font-semibold tracking-tight">
+              Galactrix
+            </div>
+            <div className="truncate text-xs text-muted">AI-клиент</div>
           </div>
         </div>
 
-        <nav className="main-nav" aria-label="Основная навигация">
+        <nav
+          className="flex flex-1 flex-col gap-1 px-2"
+          aria-label="Основная навигация"
+        >
           {tabs.map((tab) => (
-            <button
-              className={activeTab === tab.id ? 'active' : ''}
-              onClick={() => navigate(tab.id)}
+            <Button
               key={tab.id}
+              variant={activeTab === tab.id ? 'secondary' : 'ghost'}
+              className="w-full justify-start gap-3 px-3"
+              onPress={() => navigate(tab.id)}
             >
-              <Icon name={tab.icon} />
-              <span>{tab.label}</span>
+              <Icon name={tab.icon} className="size-5 shrink-0" />
+              <span className="min-w-0 flex-1 truncate text-left">
+                {tab.label}
+              </span>
               {tab.id === 'chats' && snapshot.chats.length > 0 && (
-                <b>{snapshot.chats.length}</b>
+                <span className="rounded-full bg-default/10 px-2 py-0.5 text-xs text-muted">
+                  {snapshot.chats.length}
+                </span>
               )}
-            </button>
+            </Button>
           ))}
         </nav>
 
-        <div className="sidebar-spacer" />
-        <div className="local-status">
-          <span />
-          <div>
-            <strong>Локальное хранение</strong>
-            <small>SQLite и системное хранилище ключей</small>
-          </div>
+        <div className="px-3 pb-4 text-xs text-muted">
+          {snapshot.appVersion ? `v${snapshot.appVersion}` : 'Galactrix'}
         </div>
-      </aside>
+      </Surface>
 
-      <section className="app-content">
-        <header className="mobile-topbar">
-          <div className="app-symbol small">G</div>
-          <strong>{activeLabel}</strong>
-          <button
-            className="icon-button"
-            onClick={() => void handleNewChat()}
+      <ResizeHandle
+        value={snapshot.settings.sidebarWidth}
+        min={196}
+        max={420}
+        label="Изменить ширину основной панели"
+        onChange={(sidebarWidth) =>
+          previewSettings({ ...snapshot.settings, sidebarWidth })
+        }
+        onCommit={(sidebarWidth) =>
+          void handleSettings({ ...snapshot.settings, sidebarWidth })
+        }
+      />
+
+      <section className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
+        <Surface
+          variant="secondary"
+          className="flex h-14 shrink-0 items-center gap-3 rounded-none border-0 border-b border-border px-3 md:hidden"
+        >
+          <BrandMark size={30} />
+          <strong className="min-w-0 flex-1 truncate">{activeLabel}</strong>
+          <Button
+            isIconOnly
+            size="sm"
+            variant="ghost"
             aria-label="Новый чат"
+            onPress={() => void handleNewChat()}
           >
-            <Icon name="plus" />
-          </button>
-        </header>
+            <Icon name="plus" className="size-5" />
+          </Button>
+        </Surface>
 
-        {loading && <div className="loading-line" />}
-        {notice && (
-          <div className="notice" role="status">
-            {notice}
-            <button onClick={() => setNotice('')} aria-label="Закрыть">
-              <Icon name="close" />
-            </button>
+        {loading && (
+          <div className="absolute inset-0 z-40 grid place-items-center bg-background/70 backdrop-blur-sm">
+            <Spinner aria-label="Загрузка" />
           </div>
         )}
 
-        <div className="screen-host">
+        {notice && (
+          <Surface
+            variant="tertiary"
+            role="status"
+            className="absolute right-3 top-3 z-50 flex max-w-[min(28rem,calc(100%-1.5rem))] items-start gap-3 p-3 shadow-xl md:top-4"
+          >
+            <span className="allow-selection min-w-0 flex-1 break-words text-sm">
+              {notice}
+            </span>
+            <Button
+              isIconOnly
+              size="sm"
+              variant="ghost"
+              aria-label="Закрыть уведомление"
+              onPress={() => setNotice('')}
+            >
+              <Icon name="close" className="size-4" />
+            </Button>
+          </Surface>
+        )}
+
+        <div className="min-h-0 min-w-0 flex-1 overflow-hidden pb-16 md:pb-0">
           {!loading && activeTab === 'chats' && (
             <ChatsScreen
               chats={snapshot.chats}
               messages={snapshot.messages}
               providers={snapshot.providers}
               activeChatId={activeChatId}
+              chatSidebarWidth={snapshot.settings.chatSidebarWidth}
+              onChatSidebarWidthPreview={(chatSidebarWidth) =>
+                previewSettings({ ...snapshot.settings, chatSidebarWidth })
+              }
+              onChatSidebarWidthCommit={(chatSidebarWidth) =>
+                void handleSettings({ ...snapshot.settings, chatSidebarWidth })
+              }
               onSelectChat={setActiveChatId}
               onNewChat={() => void handleNewChat()}
+              onRenameChat={handleRenameChat}
+              onDeleteChat={handleDeleteChat}
+              onSetPinned={handlePinChat}
+              onClearChat={handleClearChat}
               onSend={handleSend}
               onSetProvider={handleChatProvider}
               sendOnEnter={snapshot.settings.sendOnEnter}
@@ -313,23 +430,30 @@ function App() {
               messageCount={snapshot.messages.length}
               providerCount={snapshot.providers.length}
               appVersion={snapshot.appVersion}
-              onChangeSettings={handleSettings}
+              onChangeSettings={(settings) => void handleSettings(settings)}
             />
           )}
         </div>
 
-        <nav className="mobile-bottom-nav" aria-label="Мобильная навигация">
+        <Surface
+          variant="secondary"
+          className="fixed inset-x-0 bottom-0 z-30 grid h-16 grid-cols-4 rounded-none border-0 border-t border-border px-1 pb-[env(safe-area-inset-bottom)] md:hidden"
+          aria-label="Мобильная навигация"
+        >
           {tabs.map((tab) => (
-            <button
-              className={activeTab === tab.id ? 'active' : ''}
-              onClick={() => navigate(tab.id)}
+            <Button
               key={tab.id}
+              variant="ghost"
+              className={`h-full min-w-0 flex-col gap-1 rounded-none px-1 ${
+                activeTab === tab.id ? 'text-accent' : 'text-muted'
+              }`}
+              onPress={() => navigate(tab.id)}
             >
-              <Icon name={tab.icon} />
-              <small>{tab.label}</small>
-            </button>
+              <Icon name={tab.icon} className="size-5" />
+              <span className="truncate text-[0.68rem]">{tab.label}</span>
+            </Button>
           ))}
-        </nav>
+        </Surface>
       </section>
     </main>
   );

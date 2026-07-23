@@ -77,7 +77,10 @@ fn migrate(connection: &Connection) -> Result<(), String> {
                 haptics INTEGER NOT NULL DEFAULT 1,
                 compact_mode INTEGER NOT NULL DEFAULT 0,
                 send_on_enter INTEGER NOT NULL DEFAULT 1,
-                save_drafts INTEGER NOT NULL DEFAULT 1
+                save_drafts INTEGER NOT NULL DEFAULT 1,
+                interface_scale REAL NOT NULL DEFAULT 1.0,
+                sidebar_width INTEGER NOT NULL DEFAULT 248,
+                chat_sidebar_width INTEGER NOT NULL DEFAULT 320
             );
 
             CREATE TABLE IF NOT EXISTS usage_events (
@@ -114,6 +117,24 @@ fn migrate(connection: &Connection) -> Result<(), String> {
         "providers",
         "max_tokens",
         "INTEGER NOT NULL DEFAULT 4096",
+    )?;
+    ensure_column(
+        connection,
+        "app_settings",
+        "interface_scale",
+        "REAL NOT NULL DEFAULT 1.0",
+    )?;
+    ensure_column(
+        connection,
+        "app_settings",
+        "sidebar_width",
+        "INTEGER NOT NULL DEFAULT 248",
+    )?;
+    ensure_column(
+        connection,
+        "app_settings",
+        "chat_sidebar_width",
+        "INTEGER NOT NULL DEFAULT 320",
     )?;
     Ok(())
 }
@@ -285,7 +306,8 @@ fn list_providers(connection: &Connection) -> Result<Vec<Provider>, String> {
 fn get_settings(connection: &Connection) -> Result<AppSettings, String> {
     connection
         .query_row(
-            "SELECT animations, haptics, compact_mode, send_on_enter, save_drafts
+            "SELECT animations, haptics, compact_mode, send_on_enter, save_drafts,
+                    interface_scale, sidebar_width, chat_sidebar_width
              FROM app_settings WHERE id = 1",
             [],
             |row| {
@@ -295,6 +317,9 @@ fn get_settings(connection: &Connection) -> Result<AppSettings, String> {
                     compact_mode: row.get::<_, i64>(2)? != 0,
                     send_on_enter: row.get::<_, i64>(3)? != 0,
                     save_drafts: row.get::<_, i64>(4)? != 0,
+                    interface_scale: row.get(5)?,
+                    sidebar_width: row.get(6)?,
+                    chat_sidebar_width: row.get(7)?,
                 })
             },
         )
@@ -347,6 +372,72 @@ pub fn create_chat(connection: &Connection, id: &str, title: &str) -> Result<(),
         )
         .map_err(|error| error.to_string())?;
     Ok(())
+}
+
+pub fn rename_chat(connection: &Connection, chat_id: &str, title: &str) -> Result<(), String> {
+    let changed = connection
+        .execute(
+            "UPDATE chats SET title = ?1, updated_at = ?2 WHERE id = ?3",
+            params![title, now_unix(), chat_id],
+        )
+        .map_err(|error| error.to_string())?;
+    if changed == 0 {
+        return Err("Чат не найден".into());
+    }
+    Ok(())
+}
+
+pub fn delete_chat(connection: &Connection, chat_id: &str) -> Result<(), String> {
+    let changed = connection
+        .execute("DELETE FROM chats WHERE id = ?1", params![chat_id])
+        .map_err(|error| error.to_string())?;
+    if changed == 0 {
+        return Err("Чат не найден".into());
+    }
+    Ok(())
+}
+
+pub fn set_chat_pinned(
+    connection: &Connection,
+    chat_id: &str,
+    pinned: bool,
+) -> Result<(), String> {
+    let changed = connection
+        .execute(
+            "UPDATE chats SET pinned = ?1, updated_at = ?2 WHERE id = ?3",
+            params![pinned as i64, now_unix(), chat_id],
+        )
+        .map_err(|error| error.to_string())?;
+    if changed == 0 {
+        return Err("Чат не найден".into());
+    }
+    Ok(())
+}
+
+pub fn clear_chat(connection: &Connection, chat_id: &str) -> Result<(), String> {
+    let transaction = connection
+        .unchecked_transaction()
+        .map_err(|error| error.to_string())?;
+    let exists: bool = transaction
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM chats WHERE id = ?1)",
+            params![chat_id],
+            |row| row.get(0),
+        )
+        .map_err(|error| error.to_string())?;
+    if !exists {
+        return Err("Чат не найден".into());
+    }
+    transaction
+        .execute("DELETE FROM messages WHERE chat_id = ?1", params![chat_id])
+        .map_err(|error| error.to_string())?;
+    transaction
+        .execute(
+            "UPDATE chats SET preview = '', message_count = 0, updated_at = ?1 WHERE id = ?2",
+            params![now_unix(), chat_id],
+        )
+        .map_err(|error| error.to_string())?;
+    transaction.commit().map_err(|error| error.to_string())
 }
 
 pub fn set_chat_provider(
@@ -432,7 +523,7 @@ pub fn add_exchange(
         .execute(
             "UPDATE chats
              SET preview = ?1,
-                 title = CASE WHEN message_count = 0 THEN ?2 ELSE title END,
+                 title = CASE WHEN message_count = 0 AND title = 'Новый чат' THEN ?2 ELSE title END,
                  updated_at = ?3,
                  message_count = message_count + 2
              WHERE id = ?4",
@@ -618,14 +709,18 @@ pub fn update_settings(connection: &Connection, settings: &AppSettings) -> Resul
         .execute(
             "UPDATE app_settings
              SET animations = ?1, haptics = ?2, compact_mode = ?3,
-                 send_on_enter = ?4, save_drafts = ?5
+                 send_on_enter = ?4, save_drafts = ?5, interface_scale = ?6,
+                 sidebar_width = ?7, chat_sidebar_width = ?8
              WHERE id = 1",
             params![
                 settings.animations as i64,
                 settings.haptics as i64,
                 settings.compact_mode as i64,
                 settings.send_on_enter as i64,
-                settings.save_drafts as i64
+                settings.save_drafts as i64,
+                settings.interface_scale,
+                settings.sidebar_width,
+                settings.chat_sidebar_width
             ],
         )
         .map_err(|error| error.to_string())?;

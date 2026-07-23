@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Galactrix">
+  <rect width="512" height="512" rx="118" fill="#0b0f18"/>
+  <path d="M359 169c-26-35-67-57-113-57-80 0-145 65-145 145s65 145 145 145c45 0 86-20 113-53v-92H247" fill="none" stroke="#f6f8ff" stroke-width="42" stroke-linecap="round" stroke-linejoin="round"/>
+  <ellipse cx="256" cy="256" rx="198" ry="78" transform="rotate(-24 256 256)" fill="none" stroke="#7f9cff" stroke-width="18" stroke-linecap="round" stroke-dasharray="310 95"/>
+  <circle cx="417" cy="173" r="22" fill="#9eb2ff"/>
+</svg>

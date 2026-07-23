@@ -81,6 +81,9 @@ export type AppSettings = {
   compactMode: boolean;
   sendOnEnter: boolean;
   saveDrafts: boolean;
+  interfaceScale: number;
+  sidebarWidth: number;
+  chatSidebarWidth: number;
 };
 
 export type UsagePoint = {

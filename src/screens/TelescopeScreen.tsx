@@ -1,7 +1,9 @@
+import { Button, Input, Label, ListBox, Select, Surface } from '@heroui/react';
 import { useMemo, useState } from 'react';
-import { providerCatalog } from '../data';
+import type { ChangeEvent, Key, ReactNode } from 'react';
 import { Icon } from '../components/Icon';
-import { Modal } from '../components/Modal';
+import { UiModal } from '../components/UiModal';
+import { providerCatalog } from '../data';
 import type {
   Provider,
   ProviderInput,
@@ -42,6 +44,15 @@ function providerToInput(provider: Provider): ProviderInput {
   };
 }
 
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div>
+      <span className="mb-1.5 block text-sm font-medium">{label}</span>
+      {children}
+    </div>
+  );
+}
+
 export function TelescopeScreen({
   providers,
   onFetchModels,
@@ -74,14 +85,11 @@ export function TelescopeScreen({
     () => providerCatalog.find((entry) => entry.kind === form.kind)!,
     [form.kind],
   );
-
   const connectedCount = providers.filter(
     (provider) => provider.status === 'connected',
   ).length;
 
-  const close = () => {
-    if (saving || loadingModels) return;
-    setModalOpen(false);
+  const resetModal = () => {
     setStep(1);
     setToken('');
     setModels([]);
@@ -89,13 +97,15 @@ export function TelescopeScreen({
     setError('');
   };
 
+  const close = () => {
+    if (saving || loadingModels) return;
+    setModalOpen(false);
+    resetModal();
+  };
+
   const openCreate = () => {
     setForm(defaultInput('mistral'));
-    setToken('');
-    setModels([]);
-    setLatency(null);
-    setError('');
-    setStep(1);
+    resetModal();
     setModalOpen(true);
   };
 
@@ -159,10 +169,7 @@ export function TelescopeScreen({
         token.trim() || undefined,
       );
       setModalOpen(false);
-      setStep(1);
-      setToken('');
-      setModels([]);
-      setLatency(null);
+      resetModal();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : String(caught));
     } finally {
@@ -177,7 +184,7 @@ export function TelescopeScreen({
     try {
       await onDelete(form.id);
       setModalOpen(false);
-      setStep(1);
+      resetModal();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : String(caught));
     } finally {
@@ -189,8 +196,6 @@ export function TelescopeScreen({
     setCheckingId(id);
     try {
       await onCheck(id);
-    } catch {
-      // Статус ошибки сохраняется backend-ом и появится после refresh.
     } finally {
       setCheckingId('');
     }
@@ -203,348 +208,415 @@ export function TelescopeScreen({
       try {
         await onCheck(provider.id);
       } catch {
-        // Продолжаем проверку остальных подключений.
+        // Проверяем остальные подключения независимо.
       }
     }
     setCheckingAll(false);
   };
 
   return (
-    <div className="screen-scroll scroll-area">
-      <header className="page-header">
-        <div>
-          <h1>Телескоп</h1>
-          <p>Подключения, модели и параметры генерации.</p>
-        </div>
-        <button className="primary-button" onClick={openCreate}>
-          <Icon name="plus" /> Добавить
-        </button>
-      </header>
-
-      <div className="metric-grid compact-metrics">
-        <article className="metric-card">
-          <span>Доступны</span>
-          <strong>{connectedCount}</strong>
-        </article>
-        <article className="metric-card">
-          <span>Всего подключений</span>
-          <strong>{providers.length}</strong>
-        </article>
-        <article className="metric-card">
-          <span>Настроено моделей</span>
-          <strong>
-            {providers.filter((provider) => provider.model).length}
-          </strong>
-        </article>
-      </div>
-
-      <section className="section-block">
-        <div className="section-title">
+    <div className="h-full overflow-y-auto p-4 sm:p-6 lg:p-8">
+      <div className="mx-auto w-full max-w-6xl">
+        <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h2>Подключения</h2>
-            <p>Статус и задержка отражают последнюю реальную проверку API.</p>
+            <h1 className="text-2xl font-semibold tracking-tight">Телескоп</h1>
+            <p className="mt-1 text-sm leading-6 text-muted">
+              Подключения, модели и параметры генерации.
+            </p>
+          </div>
+          <Button variant="primary" onPress={openCreate}>
+            <Icon name="plus" className="size-4" /> Добавить
+          </Button>
+        </header>
+
+        <div className="mt-6 grid gap-3 sm:grid-cols-3">
+          {[
+            ['Доступны', connectedCount],
+            ['Всего подключений', providers.length],
+            [
+              'Настроено моделей',
+              providers.filter((provider) => provider.model).length,
+            ],
+          ].map(([label, value]) => (
+            <Surface key={label} variant="secondary" className="p-5">
+              <span className="text-sm text-muted">{label}</span>
+              <strong className="mt-2 block text-2xl font-semibold">
+                {value}
+              </strong>
+            </Surface>
+          ))}
+        </div>
+
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="font-semibold">Подключения</h2>
+            <p className="mt-1 text-xs text-muted">
+              Статус отражает последнюю фактическую проверку API.
+            </p>
           </div>
           {providers.length > 0 && (
-            <button
-              className="ghost-button"
-              onClick={() => void checkAll()}
-              disabled={checkingAll}
+            <Button
+              variant="secondary"
+              isPending={checkingAll}
+              onPress={() => void checkAll()}
             >
-              <Icon name="refresh" />{' '}
-              {checkingAll ? 'Проверка…' : 'Проверить все'}
-            </button>
+              <Icon name="refresh" className="size-4" /> Проверить все
+            </Button>
           )}
         </div>
 
         {providers.length > 0 ? (
-          <div className="provider-list">
+          <div className="mt-4 grid gap-3 lg:grid-cols-2">
             {providers.map((provider) => (
-              <article className="provider-card" key={provider.id}>
-                <div className="provider-mark">
+              <Surface
+                key={provider.id}
+                variant="secondary"
+                className="flex items-center gap-3 p-4"
+              >
+                <div className="grid size-11 shrink-0 place-items-center rounded-xl bg-accent/10 text-sm font-semibold text-accent">
                   {provider.name.slice(0, 2).toUpperCase()}
                 </div>
-                <div className="provider-info">
-                  <div className="provider-title">
-                    <h3>{provider.name}</h3>
-                    <span className={`provider-status ${provider.status}`}>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="truncate font-medium">{provider.name}</h3>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[0.68rem] ${
+                        provider.status === 'connected'
+                          ? 'bg-success/10 text-success'
+                          : provider.status === 'error'
+                            ? 'bg-danger/10 text-danger'
+                            : 'bg-default/10 text-muted'
+                      }`}
+                    >
                       {statusLabels[provider.status]}
                     </span>
                   </div>
-                  <p>{provider.model}</p>
-                  <div className="provider-details">
+                  <p className="mt-1 truncate text-sm text-muted">
+                    {provider.model}
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
                     <span>
                       {provider.hasSecret
                         ? 'Ключ сохранён'
-                        : 'Без сохранённого ключа'}
+                        : 'Ключ не сохранён'}
                     </span>
                     <span>
                       {provider.latencyMs != null
                         ? `${provider.latencyMs} мс`
-                        : 'задержка неизвестна'}
+                        : 'Задержка неизвестна'}
                     </span>
                   </div>
                 </div>
-                <div className="provider-actions">
-                  <button
-                    className="icon-button"
-                    onClick={() => void checkOne(provider.id)}
-                    disabled={checkingId === provider.id}
+                <div className="flex shrink-0 gap-1">
+                  <Button
+                    isIconOnly
+                    size="sm"
+                    variant="ghost"
+                    isPending={checkingId === provider.id}
                     aria-label="Проверить подключение"
+                    onPress={() => void checkOne(provider.id)}
                   >
-                    <Icon name="refresh" />
-                  </button>
-                  <button
-                    className="icon-button"
-                    onClick={() => openEdit(provider)}
+                    <Icon name="refresh" className="size-4" />
+                  </Button>
+                  <Button
+                    isIconOnly
+                    size="sm"
+                    variant="ghost"
                     aria-label="Редактировать подключение"
+                    onPress={() => openEdit(provider)}
                   >
-                    <Icon name="settings" />
-                  </button>
+                    <Icon name="settings" className="size-4" />
+                  </Button>
                 </div>
-              </article>
+              </Surface>
             ))}
           </div>
         ) : (
-          <div className="empty-state page-empty">
-            <h2>Нет подключений</h2>
-            <p>
-              Добавьте провайдера и получите список моделей напрямую из его API.
+          <Surface variant="secondary" className="mt-6 p-8 text-center">
+            <h2 className="text-lg font-semibold">Нет подключений</h2>
+            <p className="mt-2 text-sm text-muted">
+              Добавьте провайдера и загрузите доступные модели из его API.
             </p>
-            <button className="primary-button" onClick={openCreate}>
-              <Icon name="plus" /> Добавить подключение
-            </button>
-          </div>
+            <Button className="mt-5" variant="primary" onPress={openCreate}>
+              <Icon name="plus" className="size-4" /> Добавить подключение
+            </Button>
+          </Surface>
         )}
-      </section>
+      </div>
 
-      {modalOpen && (
-        <Modal
-          title={
-            step === 1
-              ? 'Новое подключение'
-              : form.id
-                ? 'Настройки подключения'
-                : selectedCatalog.name
-          }
-          subtitle={
-            step === 2 ? selectedCatalog.description : 'Выберите тип API'
-          }
-          onClose={close}
-          footer={
-            step === 2 ? (
-              <>
-                {form.id && (
-                  <button
-                    className="danger-button"
-                    onClick={() => void remove()}
-                    disabled={saving}
-                  >
-                    Удалить
-                  </button>
-                )}
-                <span className="modal-footer-spacer" />
-                {!form.id && (
-                  <button
-                    className="ghost-button"
-                    onClick={() => setStep(1)}
-                    disabled={saving}
-                  >
-                    Назад
-                  </button>
-                )}
-                <button
-                  className="primary-button"
-                  disabled={
-                    !form.name.trim() ||
-                    !form.model.trim() ||
-                    saving ||
-                    form.kind === 'character-ai'
+      <UiModal
+        isOpen={modalOpen}
+        onOpenChange={(open) => {
+          if (!open) close();
+        }}
+        size="lg"
+        title={
+          step === 1
+            ? 'Новое подключение'
+            : form.id
+              ? 'Настройки подключения'
+              : selectedCatalog.name
+        }
+        description={
+          step === 1 ? 'Выберите тип API.' : selectedCatalog.description
+        }
+        footer={
+          step === 2 ? (
+            <>
+              {form.id && (
+                <Button
+                  variant="danger"
+                  isPending={saving}
+                  onPress={() => void remove()}
+                >
+                  Удалить
+                </Button>
+              )}
+              <span className="flex-1" />
+              {!form.id && (
+                <Button
+                  variant="ghost"
+                  isDisabled={saving}
+                  onPress={() => setStep(1)}
+                >
+                  Назад
+                </Button>
+              )}
+              <Button
+                variant="primary"
+                isPending={saving}
+                isDisabled={
+                  !form.name.trim() ||
+                  !form.model.trim() ||
+                  form.kind === 'character-ai'
+                }
+                onPress={() => void save()}
+              >
+                Сохранить
+              </Button>
+            </>
+          ) : undefined
+        }
+      >
+        {step === 1 ? (
+          <div className="grid gap-2 sm:grid-cols-2">
+            {providerCatalog.map((provider) => (
+              <Button
+                key={provider.kind}
+                variant="ghost"
+                className="h-auto items-start justify-start gap-3 px-3 py-4 text-left"
+                onPress={() => chooseKind(provider.kind)}
+              >
+                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent/10 text-xs font-semibold text-accent">
+                  {provider.name.slice(0, 2).toUpperCase()}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <strong className="block text-sm font-medium">
+                    {provider.name}
+                  </strong>
+                  <span className="mt-1 block text-xs leading-5 text-muted">
+                    {provider.description}
+                  </span>
+                </span>
+                <Icon
+                  name="chevron"
+                  className="mt-1 size-4 shrink-0 text-muted"
+                />
+              </Button>
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {form.kind === 'character-ai' && (
+              <Surface
+                variant="tertiary"
+                className="p-4 text-sm leading-6 text-warning"
+              >
+                Для Character.AI нужен отдельный адаптер авторизации и
+                протокола. Несовместимое подключение не сохраняется.
+              </Surface>
+            )}
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Название">
+                <Input
+                  fullWidth
+                  variant="secondary"
+                  value={form.name}
+                  onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                    patch('name', event.target.value)
                   }
-                  onClick={() => void save()}
-                >
-                  {saving ? 'Проверка…' : 'Сохранить'}
-                </button>
-              </>
-            ) : undefined
-          }
-        >
-          {step === 1 ? (
-            <div className="provider-picker">
-              {providerCatalog.map((provider) => (
-                <button
-                  onClick={() => chooseKind(provider.kind)}
-                  key={provider.kind}
-                >
-                  <span className="provider-mark">
-                    {provider.name.slice(0, 2).toUpperCase()}
-                  </span>
-                  <span>
-                    <strong>{provider.name}</strong>
-                    <small>{provider.description}</small>
-                  </span>
-                  <Icon name="chevron" />
-                </button>
-              ))}
+                />
+              </Field>
+              <Field label="API-ключ">
+                <Input
+                  fullWidth
+                  variant="secondary"
+                  type="password"
+                  value={token}
+                  onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                    setToken(event.target.value)
+                  }
+                  placeholder={
+                    form.id
+                      ? 'Оставьте пустым, чтобы не менять'
+                      : selectedCatalog.requiresApiKey
+                        ? 'Обязателен'
+                        : 'Необязательно'
+                  }
+                />
+              </Field>
             </div>
-          ) : (
-            <div className="provider-form">
-              {form.kind === 'character-ai' && (
-                <div className="inline-warning">
-                  Character.AI не предоставляет совместимый публичный API. Для
-                  него нужен отдельный адаптер с собственной авторизацией;
-                  ложное подключение не создаётся.
-                </div>
-              )}
 
-              <div className="form-row">
-                <label className="form-field">
-                  <span>Название</span>
-                  <input
-                    value={form.name}
-                    onChange={(event) => patch('name', event.target.value)}
-                  />
-                </label>
-                <label className="form-field">
-                  <span>API-ключ</span>
-                  <input
-                    type="password"
-                    value={token}
-                    onChange={(event) => setToken(event.target.value)}
-                    placeholder={
-                      form.id
-                        ? 'Оставьте пустым, чтобы не менять'
-                        : selectedCatalog.requiresApiKey
-                          ? 'Обязателен'
-                          : 'Необязательно'
-                    }
-                  />
-                </label>
-              </div>
+            {(form.kind === 'custom' || form.kind === 'ollama-cloud') && (
+              <Field label="Base URL">
+                <Input
+                  fullWidth
+                  variant="secondary"
+                  value={form.baseUrl ?? ''}
+                  onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                    patch('baseUrl', event.target.value)
+                  }
+                  placeholder="https://host.example/v1"
+                />
+              </Field>
+            )}
 
-              {(form.kind === 'custom' || form.kind === 'ollama-cloud') && (
-                <label className="form-field">
-                  <span>Base URL</span>
-                  <input
-                    value={form.baseUrl ?? ''}
-                    onChange={(event) => patch('baseUrl', event.target.value)}
-                    placeholder="https://host.example/v1"
-                  />
-                </label>
-              )}
+            {selectedCatalog.requiresAccountId && (
+              <Field label="Cloudflare Account ID">
+                <Input
+                  fullWidth
+                  variant="secondary"
+                  value={form.accountId ?? ''}
+                  onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                    patch('accountId', event.target.value)
+                  }
+                />
+              </Field>
+            )}
 
-              {selectedCatalog.requiresAccountId && (
-                <label className="form-field">
-                  <span>Cloudflare Account ID</span>
-                  <input
-                    value={form.accountId ?? ''}
-                    onChange={(event) => patch('accountId', event.target.value)}
-                  />
-                </label>
-              )}
-
-              {form.kind !== 'character-ai' && (
-                <div className="models-box">
-                  <div className="models-box-heading">
-                    <div>
-                      <strong>Модель</strong>
-                      <small>
-                        {latency != null
-                          ? `API ответил за ${latency} мс`
-                          : 'Список ещё не загружен'}
-                      </small>
-                    </div>
-                    <button
-                      className="secondary-button"
-                      onClick={() => void loadModels()}
-                      disabled={loadingModels}
-                    >
-                      <Icon name="refresh" />{' '}
-                      {loadingModels ? 'Загрузка…' : 'Получить модели'}
-                    </button>
+            {form.kind !== 'character-ai' && (
+              <Surface variant="secondary" className="p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <strong className="text-sm font-medium">Модель</strong>
+                    <p className="mt-1 text-xs text-muted">
+                      {latency != null
+                        ? `API ответил за ${latency} мс`
+                        : 'Список ещё не загружен'}
+                    </p>
                   </div>
+                  <Button
+                    variant="secondary"
+                    isPending={loadingModels}
+                    onPress={() => void loadModels()}
+                  >
+                    <Icon name="refresh" className="size-4" /> Получить модели
+                  </Button>
+                </div>
 
-                  {models.length > 0 && (
-                    <label className="form-field">
-                      <span>Доступные модели</span>
-                      <select
-                        value={models.includes(form.model) ? form.model : ''}
-                        onChange={(event) => patch('model', event.target.value)}
-                      >
-                        <option value="">Выберите модель</option>
+                {models.length > 0 && (
+                  <Select
+                    className="mt-4"
+                    fullWidth
+                    variant="secondary"
+                    value={models.includes(form.model) ? form.model : null}
+                    onChange={(value: Key | Key[] | null) =>
+                      patch('model', String(value ?? ''))
+                    }
+                    placeholder="Выберите модель"
+                    aria-label="Доступные модели"
+                  >
+                    <Select.Trigger>
+                      <Select.Value />
+                      <Select.Indicator />
+                    </Select.Trigger>
+                    <Select.Popover>
+                      <ListBox>
                         {models.map((model) => (
-                          <option value={model} key={model}>
-                            {model}
-                          </option>
+                          <ListBox.Item
+                            id={model}
+                            key={model}
+                            textValue={model}
+                          >
+                            <Label>{model}</Label>
+                          </ListBox.Item>
                         ))}
-                      </select>
-                    </label>
-                  )}
+                      </ListBox>
+                    </Select.Popover>
+                  </Select>
+                )}
 
-                  <label className="form-field">
-                    <span>Идентификатор модели</span>
-                    <input
+                <div className="mt-4">
+                  <Field label="Идентификатор модели">
+                    <Input
+                      fullWidth
+                      variant="secondary"
                       value={form.model}
-                      onChange={(event) => patch('model', event.target.value)}
+                      onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                        patch('model', event.target.value)
+                      }
                       placeholder="Можно указать вручную"
                     />
-                  </label>
+                  </Field>
                 </div>
-              )}
+              </Surface>
+            )}
 
-              <details className="advanced-settings">
-                <summary>
-                  Параметры генерации <Icon name="chevron" />
-                </summary>
-                <div className="range-grid">
-                  <label>
-                    <span>
-                      Temperature <b>{form.temperature}</b>
-                    </span>
-                    <input
-                      type="range"
-                      min="0"
-                      max="2"
-                      step="0.1"
-                      value={form.temperature}
-                      onChange={(event) =>
-                        patch('temperature', Number(event.target.value))
-                      }
-                    />
-                  </label>
-                  <label>
-                    <span>
-                      Top P <b>{form.topP}</b>
-                    </span>
-                    <input
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.05"
-                      value={form.topP}
-                      onChange={(event) =>
-                        patch('topP', Number(event.target.value))
-                      }
-                    />
-                  </label>
-                  <label className="form-field">
-                    <span>Max tokens</span>
-                    <input
-                      type="number"
-                      min="1"
-                      value={form.maxTokens}
-                      onChange={(event) =>
-                        patch('maxTokens', Number(event.target.value))
-                      }
-                    />
-                  </label>
-                </div>
-              </details>
+            <Surface variant="secondary" className="p-4">
+              <strong className="text-sm font-medium">
+                Параметры генерации
+              </strong>
+              <div className="mt-4 grid gap-4 sm:grid-cols-3">
+                <Field label="Temperature">
+                  <Input
+                    fullWidth
+                    variant="secondary"
+                    type="number"
+                    min="0"
+                    max="2"
+                    step="0.1"
+                    value={String(form.temperature)}
+                    onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                      patch('temperature', Number(event.target.value))
+                    }
+                  />
+                </Field>
+                <Field label="Top P">
+                  <Input
+                    fullWidth
+                    variant="secondary"
+                    type="number"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    value={String(form.topP)}
+                    onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                      patch('topP', Number(event.target.value))
+                    }
+                  />
+                </Field>
+                <Field label="Max tokens">
+                  <Input
+                    fullWidth
+                    variant="secondary"
+                    type="number"
+                    min="1"
+                    value={String(form.maxTokens)}
+                    onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                      patch('maxTokens', Number(event.target.value))
+                    }
+                  />
+                </Field>
+              </div>
+            </Surface>
 
-              {error && <div className="inline-error">{error}</div>}
-            </div>
-          )}
-        </Modal>
-      )}
+            {error && (
+              <p className="allow-selection text-sm text-danger">{error}</p>
+            )}
+          </div>
+        )}
+      </UiModal>
     </div>
   );
 }

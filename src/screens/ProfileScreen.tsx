@@ -1,29 +1,40 @@
+import { Button, Surface, Switch } from '@heroui/react';
+import { BrandMark } from '../components/BrandMark';
 import { Icon } from '../components/Icon';
 import type { AppSettings, UsagePoint } from '../types';
-
-function Toggle({
-  checked,
-  onChange,
-}: {
-  checked: boolean;
-  onChange: (value: boolean) => void;
-}) {
-  return (
-    <button
-      className={`toggle ${checked ? 'on' : ''}`}
-      role="switch"
-      aria-checked={checked}
-      onClick={() => onChange(!checked)}
-    >
-      <span />
-    </button>
-  );
-}
 
 function formatTokens(value: number) {
   if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
   if (value >= 1_000) return `${Math.round(value / 1_000)}K`;
   return value.toLocaleString('ru-RU');
+}
+
+function SettingSwitch({
+  label,
+  description,
+  value,
+  onChange,
+}: {
+  label: string;
+  description: string;
+  value: boolean;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <div className="flex items-center gap-4 py-3">
+      <div className="min-w-0 flex-1">
+        <strong className="block text-sm font-medium">{label}</strong>
+        <p className="mt-0.5 text-xs leading-5 text-muted">{description}</p>
+      </div>
+      <Switch isSelected={value} onChange={onChange} aria-label={label}>
+        <Switch.Content>
+          <Switch.Control>
+            <Switch.Thumb />
+          </Switch.Control>
+        </Switch.Content>
+      </Switch>
+    </div>
+  );
 }
 
 export function ProfileScreen({
@@ -46,147 +57,211 @@ export function ProfileScreen({
   const maxTokens = Math.max(...usage.map((point) => point.tokens), 1);
   const totalTokens = usage.reduce((sum, point) => sum + point.tokens, 0);
   const totalRequests = usage.reduce((sum, point) => sum + point.requests, 0);
-  const patch = (key: keyof AppSettings, value: boolean) =>
+  const patch = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) =>
     onChangeSettings({ ...settings, [key]: value });
+  const scales = [0.8, 0.9, 1, 1.1, 1.25, 1.4, 1.5];
 
   return (
-    <div className="screen-scroll scroll-area">
-      <header className="page-header">
-        <div>
-          <h1>Профиль</h1>
-          <p>Локальная статистика и настройки этого устройства.</p>
-        </div>
-      </header>
+    <div className="h-full overflow-y-auto p-4 sm:p-6 lg:p-8">
+      <div className="mx-auto w-full max-w-6xl">
+        <header>
+          <h1 className="text-2xl font-semibold tracking-tight">Профиль</h1>
+          <p className="mt-1 text-sm leading-6 text-muted">
+            Статистика использования и настройки этого устройства.
+          </p>
+        </header>
 
-      <div className="metric-grid">
-        <article className="metric-card">
-          <span>Токены за 7 дней</span>
-          <strong>{formatTokens(totalTokens)}</strong>
-        </article>
-        <article className="metric-card">
-          <span>Запросы за 7 дней</span>
-          <strong>{totalRequests.toLocaleString('ru-RU')}</strong>
-        </article>
-        <article className="metric-card">
-          <span>Чаты</span>
-          <strong>{chatCount.toLocaleString('ru-RU')}</strong>
-          <small>{messageCount.toLocaleString('ru-RU')} сообщений</small>
-        </article>
-        <article className="metric-card">
-          <span>Подключения</span>
-          <strong>{providerCount.toLocaleString('ru-RU')}</strong>
-        </article>
-      </div>
-
-      <section className="usage-panel">
-        <div className="section-title">
-          <div>
-            <h2>Использование за 7 дней</h2>
-            <p>Счётчики формируются из локальных событий запросов.</p>
-          </div>
-        </div>
-        <div className="usage-chart" aria-label="Токены по дням">
-          {usage.map((point) => (
-            <div className="usage-column" key={point.label}>
-              <span className="usage-value">{formatTokens(point.tokens)}</span>
-              <div className="usage-bar-track">
-                <i
-                  style={{
-                    height: `${point.tokens === 0 ? 0 : Math.max(6, (point.tokens / maxTokens) * 100)}%`,
-                  }}
-                />
-              </div>
-              <span>{point.label}</span>
-              <small>{point.requests}</small>
-            </div>
+        <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {[
+            ['Токены за 7 дней', formatTokens(totalTokens), ''],
+            ['Запросы за 7 дней', totalRequests.toLocaleString('ru-RU'), ''],
+            [
+              'Чаты',
+              chatCount.toLocaleString('ru-RU'),
+              `${messageCount} сообщений`,
+            ],
+            ['Подключения', providerCount.toLocaleString('ru-RU'), ''],
+          ].map(([label, value, note]) => (
+            <Surface key={label} variant="secondary" className="p-5">
+              <span className="text-sm text-muted">{label}</span>
+              <strong className="mt-2 block text-2xl font-semibold">
+                {value}
+              </strong>
+              {note && (
+                <span className="mt-1 block text-xs text-muted">{note}</span>
+              )}
+            </Surface>
           ))}
         </div>
-      </section>
 
-      <div className="settings-layout">
-        <section className="settings-panel">
-          <div className="section-title">
-            <div>
-              <h2>Интерфейс</h2>
-              <p>Изменения сохраняются в SQLite.</p>
-            </div>
-            <Icon name="settings" />
+        <Surface variant="secondary" className="mt-4 p-5 sm:p-6">
+          <div>
+            <h2 className="font-semibold">Использование за 7 дней</h2>
+            <p className="mt-1 text-xs text-muted">
+              Токены и количество запросов по дням.
+            </p>
           </div>
-          <div className="settings-list">
-            <div className="setting-row">
-              <div>
-                <strong>Анимации</strong>
-                <small>Переходы и появление элементов</small>
+          <div
+            className="mt-6 grid h-56 grid-cols-7 gap-2"
+            aria-label="Токены по дням"
+          >
+            {usage.map((point) => (
+              <div
+                key={point.label}
+                className="flex min-w-0 flex-col items-center"
+              >
+                <span className="mb-2 truncate text-[0.65rem] text-muted">
+                  {formatTokens(point.tokens)}
+                </span>
+                <div className="flex min-h-0 w-full flex-1 items-end overflow-hidden rounded-lg bg-default/5 p-1">
+                  <div
+                    className="w-full rounded-md bg-accent/70"
+                    style={{
+                      height: `${point.tokens === 0 ? 0 : Math.max(5, (point.tokens / maxTokens) * 100)}%`,
+                    }}
+                  />
+                </div>
+                <strong className="mt-2 text-xs font-medium">
+                  {point.label}
+                </strong>
+                <span className="text-[0.65rem] text-muted">
+                  {point.requests}
+                </span>
               </div>
-              <Toggle
-                checked={settings.animations}
+            ))}
+          </div>
+        </Surface>
+
+        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+          <Surface variant="secondary" className="p-5 sm:p-6">
+            <div className="flex items-start gap-3">
+              <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-accent/10 text-accent">
+                <Icon name="settings" className="size-5" />
+              </span>
+              <div>
+                <h2 className="font-semibold">Интерфейс</h2>
+                <p className="mt-1 text-xs text-muted">
+                  Отображение и отклик приложения.
+                </p>
+              </div>
+            </div>
+            <div className="mt-4 divide-y divide-border">
+              <SettingSwitch
+                label="Анимации"
+                description="Переходы и появление элементов"
+                value={settings.animations}
                 onChange={(value) => patch('animations', value)}
               />
-            </div>
-            <div className="setting-row">
-              <div>
-                <strong>Виброотклик</strong>
-                <small>Используется на поддерживаемых устройствах</small>
-              </div>
-              <Toggle
-                checked={settings.haptics}
+              <SettingSwitch
+                label="Виброотклик"
+                description="Используется на поддерживаемых устройствах"
+                value={settings.haptics}
                 onChange={(value) => patch('haptics', value)}
               />
             </div>
-            <div className="setting-row">
-              <div>
-                <strong>Компактный режим</strong>
-                <small>Уменьшает отступы в интерфейсе</small>
-              </div>
-              <Toggle
-                checked={settings.compactMode}
-                onChange={(value) => patch('compactMode', value)}
-              />
-            </div>
-          </div>
-        </section>
+          </Surface>
 
-        <section className="settings-panel">
-          <div className="section-title">
-            <div>
-              <h2>Чаты</h2>
-              <p>Поведение редактора сообщений.</p>
-            </div>
-            <Icon name="chats" />
-          </div>
-          <div className="settings-list">
-            <div className="setting-row">
+          <Surface variant="secondary" className="p-5 sm:p-6">
+            <div className="flex items-start gap-3">
+              <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-accent/10 text-accent">
+                <Icon name="chats" className="size-5" />
+              </span>
               <div>
-                <strong>Enter отправляет сообщение</strong>
-                <small>Shift+Enter добавляет новую строку</small>
+                <h2 className="font-semibold">Чаты</h2>
+                <p className="mt-1 text-xs text-muted">
+                  Поведение редактора сообщений.
+                </p>
               </div>
-              <Toggle
-                checked={settings.sendOnEnter}
+            </div>
+            <div className="mt-4 divide-y divide-border">
+              <SettingSwitch
+                label="Enter отправляет сообщение"
+                description="Shift+Enter добавляет новую строку"
+                value={settings.sendOnEnter}
                 onChange={(value) => patch('sendOnEnter', value)}
               />
-            </div>
-            <div className="setting-row">
-              <div>
-                <strong>Сохранять черновики</strong>
-                <small>Текст хранится локально для каждого чата</small>
-              </div>
-              <Toggle
-                checked={settings.saveDrafts}
+              <SettingSwitch
+                label="Сохранять черновики"
+                description="Отдельный черновик для каждого чата"
+                value={settings.saveDrafts}
                 onChange={(value) => patch('saveDrafts', value)}
               />
             </div>
-          </div>
-        </section>
-      </div>
-
-      <section className="about-row">
-        <div className="app-symbol small">G</div>
-        <div>
-          <strong>Galactrix</strong>
-          <small>Версия приложения из Rust package metadata</small>
+          </Surface>
         </div>
-        <span>{appVersion ? `v${appVersion}` : '—'}</span>
-      </section>
+
+        <Surface variant="secondary" className="mt-4 p-5 sm:p-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 className="font-semibold">Масштаб интерфейса</h2>
+              <p className="mt-1 text-xs leading-5 text-muted">
+                Текущий масштаб: {Math.round(settings.interfaceScale * 100)}%.
+                Изменение применяется ко всему интерфейсу.
+              </p>
+            </div>
+            <Button
+              size="sm"
+              variant="ghost"
+              isDisabled={settings.interfaceScale === 1}
+              onPress={() => patch('interfaceScale', 1)}
+            >
+              Сбросить
+            </Button>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {scales.map((scale) => (
+              <Button
+                key={scale}
+                size="sm"
+                variant={
+                  settings.interfaceScale === scale ? 'secondary' : 'ghost'
+                }
+                onPress={() => patch('interfaceScale', scale)}
+              >
+                {Math.round(scale * 100)}%
+              </Button>
+            ))}
+          </div>
+        </Surface>
+
+        <Surface variant="secondary" className="mt-4 p-5 sm:p-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="font-semibold">Ширина панелей</h2>
+              <p className="mt-1 text-xs leading-5 text-muted">
+                Основная: {Math.round(settings.sidebarWidth)} px · Чаты:{' '}
+                {Math.round(settings.chatSidebarWidth)} px
+              </p>
+            </div>
+            <Button
+              variant="secondary"
+              onPress={() =>
+                onChangeSettings({
+                  ...settings,
+                  sidebarWidth: 248,
+                  chatSidebarWidth: 320,
+                })
+              }
+            >
+              Сбросить ширину
+            </Button>
+          </div>
+        </Surface>
+
+        <Surface
+          variant="secondary"
+          className="mt-4 flex items-center gap-3 p-4"
+        >
+          <BrandMark size={40} />
+          <div className="min-w-0 flex-1">
+            <strong className="block">Galactrix</strong>
+            <span className="text-xs text-muted">Версия приложения</span>
+          </div>
+          <span className="text-sm text-muted">
+            {appVersion ? `v${appVersion}` : '—'}
+          </span>
+        </Surface>
+      </div>
     </div>
   );
 }

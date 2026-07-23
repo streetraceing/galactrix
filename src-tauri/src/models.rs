@@ -108,6 +108,9 @@ pub struct AppSettings {
     pub compact_mode: bool,
     pub send_on_enter: bool,
     pub save_drafts: bool,
+    pub interface_scale: f64,
+    pub sidebar_width: i64,
+    pub chat_sidebar_width: i64,
 }
 
 impl Default for AppSettings {
@@ -118,6 +121,9 @@ impl Default for AppSettings {
             compact_mode: false,
             send_on_enter: true,
             save_drafts: true,
+            interface_scale: 1.0,
+            sidebar_width: 248,
+            chat_sidebar_width: 320,
         }
     }
 }

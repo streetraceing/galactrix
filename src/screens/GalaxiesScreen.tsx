@@ -1,6 +1,8 @@
+import { Button, Input, Surface, TextArea } from '@heroui/react';
 import { useMemo, useState } from 'react';
+import type { ChangeEvent } from 'react';
 import { Icon } from '../components/Icon';
-import { Modal } from '../components/Modal';
+import { UiModal } from '../components/UiModal';
 import type { GalaxyItem, GalaxyItemInput, GalaxyKind } from '../types';
 
 const filters: Array<{ id: 'all' | GalaxyKind; label: string }> = [
@@ -101,134 +103,190 @@ export function GalaxiesScreen({
   };
 
   return (
-    <div className="screen-scroll scroll-area">
-      <header className="page-header">
-        <div>
-          <h1>Галактики</h1>
-          <p>Локальные сущности для персон, персонажей, миров и ворлдбуков.</p>
-        </div>
-        <button className="primary-button" onClick={openCreate}>
-          <Icon name="plus" /> Создать
-        </button>
-      </header>
+    <div className="h-full overflow-y-auto p-4 sm:p-6 lg:p-8">
+      <div className="mx-auto w-full max-w-6xl">
+        <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">Галактики</h1>
+            <p className="mt-1 text-sm leading-6 text-muted">
+              Персоны, персонажи, вселенные и ворлдбуки.
+            </p>
+          </div>
+          <Button variant="primary" onPress={openCreate}>
+            <Icon name="plus" className="size-4" /> Создать
+          </Button>
+        </header>
 
-      <nav className="segmented-control" aria-label="Фильтр галактик">
-        {filters.map((entry) => (
-          <button
-            className={filter === entry.id ? 'active' : ''}
-            onClick={() => setFilter(entry.id)}
-            key={entry.id}
-          >
-            {entry.label}
-            <span>
-              {entry.id === 'all'
-                ? items.length
-                : items.filter((item) => item.kind === entry.id).length}
-            </span>
-          </button>
-        ))}
-      </nav>
-
-      {filtered.length > 0 ? (
-        <div className="entity-grid">
-          {filtered.map((item) => (
-            <button
-              className="entity-card"
-              key={item.id}
-              onClick={() => openEdit(item)}
-            >
-              <span className="entity-icon">
-                <Icon name={kindIcons[item.kind]} />
-              </span>
-              <span className="entity-copy">
-                <span className="entity-type">{kindLabels[item.kind]}</span>
-                <strong>{item.name}</strong>
-                <p>{item.description || 'Без описания'}</p>
-              </span>
-              <span className="entity-meta">{item.updatedAt}</span>
-              <Icon name="chevron" />
-            </button>
-          ))}
-        </div>
-      ) : (
-        <div className="empty-state page-empty">
-          <h2>
-            {filter === 'all'
-              ? 'Галактика пуста'
-              : 'В этой категории пока ничего нет'}
-          </h2>
-          <p>Созданные сущности сохраняются в локальной базе данных.</p>
-          <button className="primary-button" onClick={openCreate}>
-            <Icon name="plus" /> Создать объект
-          </button>
-        </div>
-      )}
-
-      {modalOpen && (
-        <Modal
-          title={editing ? 'Редактирование' : 'Новый объект'}
-          subtitle={editing ? kindLabels[editing.kind] : undefined}
-          onClose={() => !saving && setModalOpen(false)}
-          footer={
-            <>
-              {editing && (
-                <button
-                  className="danger-button"
-                  onClick={() => void remove()}
-                  disabled={saving}
-                >
-                  Удалить
-                </button>
-              )}
-              <span className="modal-footer-spacer" />
-              <button
-                className="ghost-button"
-                onClick={() => setModalOpen(false)}
-                disabled={saving}
-              >
-                Отмена
-              </button>
-              <button
-                className="primary-button"
-                onClick={() => void save()}
-                disabled={!name.trim() || saving}
-              >
-                {saving ? 'Сохранение…' : 'Сохранить'}
-              </button>
-            </>
-          }
+        <Surface
+          variant="secondary"
+          className="mt-6 flex flex-wrap gap-1 p-1.5"
         >
-          <div className="type-picker">
-            {(Object.keys(kindLabels) as GalaxyKind[]).map((value) => (
-              <button
-                className={kind === value ? 'selected' : ''}
-                onClick={() => setKind(value)}
-                key={value}
+          {filters.map((entry) => {
+            const count =
+              entry.id === 'all'
+                ? items.length
+                : items.filter((item) => item.kind === entry.id).length;
+            return (
+              <Button
+                key={entry.id}
+                size="sm"
+                variant={filter === entry.id ? 'secondary' : 'ghost'}
+                onPress={() => setFilter(entry.id)}
               >
-                <Icon name={kindIcons[value]} />
-                <span>{kindLabels[value]}</span>
-              </button>
+                {entry.label}
+                <span className="rounded-full bg-default/10 px-1.5 py-0.5 text-[0.68rem] text-muted">
+                  {count}
+                </span>
+              </Button>
+            );
+          })}
+        </Surface>
+
+        {filtered.length > 0 ? (
+          <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {filtered.map((item) => (
+              <Surface key={item.id} variant="secondary" className="p-1">
+                <Button
+                  variant="ghost"
+                  className="h-full w-full items-start justify-start gap-3 px-3 py-4 text-left"
+                  onPress={() => openEdit(item)}
+                >
+                  <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent/10 text-accent">
+                    <Icon name={kindIcons[item.kind]} className="size-5" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="text-xs text-muted">
+                      {kindLabels[item.kind]}
+                    </span>
+                    <strong className="mt-0.5 block truncate font-medium">
+                      {item.name}
+                    </strong>
+                    <span className="mt-2 line-clamp-3 block text-sm leading-6 text-muted">
+                      {item.description || 'Без описания'}
+                    </span>
+                    <span className="mt-3 block text-xs text-muted">
+                      {item.updatedAt}
+                    </span>
+                  </span>
+                  <Icon
+                    name="chevron"
+                    className="mt-1 size-4 shrink-0 text-muted"
+                  />
+                </Button>
+              </Surface>
             ))}
           </div>
-          <label className="form-field">
-            <span>Название</span>
-            <input
+        ) : (
+          <Surface variant="secondary" className="mt-8 p-8 text-center">
+            <h2 className="text-lg font-semibold">
+              {filter === 'all'
+                ? 'Галактика пуста'
+                : 'В категории пока ничего нет'}
+            </h2>
+            <p className="mt-2 text-sm text-muted">Создайте первый объект.</p>
+            <Button className="mt-5" variant="primary" onPress={openCreate}>
+              <Icon name="plus" className="size-4" /> Создать объект
+            </Button>
+          </Surface>
+        )}
+      </div>
+
+      <UiModal
+        isOpen={modalOpen}
+        onOpenChange={(open) => !saving && setModalOpen(open)}
+        title={editing ? 'Редактирование' : 'Новый объект'}
+        description={
+          editing
+            ? kindLabels[editing.kind]
+            : 'Выберите тип и заполните данные.'
+        }
+        footer={
+          <>
+            {editing && (
+              <Button
+                variant="danger"
+                isPending={saving}
+                onPress={() => void remove()}
+              >
+                Удалить
+              </Button>
+            )}
+            <span className="flex-1" />
+            <Button
+              variant="ghost"
+              isDisabled={saving}
+              onPress={() => setModalOpen(false)}
+            >
+              Отмена
+            </Button>
+            <Button
+              variant="primary"
+              isPending={saving}
+              isDisabled={!name.trim()}
+              onPress={() => void save()}
+            >
+              Сохранить
+            </Button>
+          </>
+        }
+      >
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {(Object.keys(kindLabels) as GalaxyKind[]).map((value) => (
+            <Button
+              key={value}
+              variant={kind === value ? 'secondary' : 'ghost'}
+              className="h-auto flex-col gap-2 py-3"
+              onPress={() => setKind(value)}
+            >
+              <Icon name={kindIcons[value]} className="size-5" />
+              <span className="text-xs">{kindLabels[value]}</span>
+            </Button>
+          ))}
+        </div>
+
+        <div className="mt-4 space-y-4">
+          <div>
+            <label
+              className="mb-1.5 block text-sm font-medium"
+              htmlFor="galaxy-name"
+            >
+              Название
+            </label>
+            <Input
+              id="galaxy-name"
+              fullWidth
+              variant="secondary"
               value={name}
-              onChange={(event) => setName(event.target.value)}
               autoFocus
+              onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                setName(event.target.value)
+              }
             />
-          </label>
-          <label className="form-field">
-            <span>Описание</span>
-            <textarea
+          </div>
+          <div>
+            <label
+              className="mb-1.5 block text-sm font-medium"
+              htmlFor="galaxy-description"
+            >
+              Описание
+            </label>
+            <TextArea
+              id="galaxy-description"
+              fullWidth
+              variant="secondary"
+              rows={6}
               value={description}
-              onChange={(event) => setDescription(event.target.value)}
-              rows={5}
+              onChange={(event: ChangeEvent<HTMLTextAreaElement>) =>
+                setDescription(event.target.value)
+              }
+              className="resize-y"
             />
-          </label>
-          {error && <div className="inline-error">{error}</div>}
-        </Modal>
-      )}
+          </div>
+        </div>
+        {error && (
+          <p className="allow-selection mt-3 text-sm text-danger">{error}</p>
+        )}
+      </UiModal>
     </div>
   );
 }
