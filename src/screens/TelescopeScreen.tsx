@@ -237,121 +237,123 @@ export function TelescopeScreen({
           </Button>
         </header>
 
-        <div className="mt-6 grid gap-3 sm:grid-cols-3">
+        <Surface variant="secondary" className="app-panel app-stat-strip mt-5">
           {[
             ['Доступны', connectedCount],
-            ['Всего подключений', providers.length],
-            [
-              'Настроено моделей',
-              providers.filter((provider) => provider.model).length,
-            ],
+            ['Подключения', providers.length],
+            ['Модели', providers.filter((provider) => provider.model).length],
           ].map(([label, value]) => (
-            <Surface key={label} variant="secondary" className="p-5">
-              <span className="text-sm app-muted">{label}</span>
-              <strong className="mt-2 block text-2xl font-semibold">
-                {value}
-              </strong>
-            </Surface>
+            <div key={label} className="app-stat-item">
+              <span>{label}</span>
+              <strong>{value}</strong>
+            </div>
           ))}
-        </div>
+        </Surface>
 
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="font-semibold">Подключения</h2>
-            <p className="mt-1 text-xs app-muted">
-              Статус отражает последнюю фактическую проверку API.
-            </p>
-          </div>
-          {providers.length > 0 && (
-            <Button
-              variant="secondary"
-              isPending={checkingAll}
-              onPress={() => void checkAll()}
-            >
-              <Icon name="refresh" className="size-4" /> Проверить все
-            </Button>
-          )}
-        </div>
-
-        {providers.length > 0 ? (
-          <div className="mt-4 grid gap-3 lg:grid-cols-2">
-            {providers.map((provider) => (
-              <Surface
-                key={provider.id}
+        <section className="app-content-section mt-5">
+          <div className="app-section-heading">
+            <div>
+              <h2>Подключения</h2>
+              <p>Статус обновляется только после реального ответа API.</p>
+            </div>
+            {providers.length > 0 && (
+              <Button
+                size="sm"
                 variant="secondary"
-                className="flex items-center gap-3 p-4"
+                isPending={checkingAll}
+                onPress={() => void checkAll()}
               >
-                <div className="app-accent-tile grid size-11 shrink-0 place-items-center rounded-xl text-sm font-semibold">
-                  {provider.name.slice(0, 2).toUpperCase()}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="truncate font-medium">{provider.name}</h3>
-                    <Chip
-                      size="sm"
-                      variant="soft"
-                      color={
-                        provider.status === 'connected'
-                          ? 'success'
-                          : provider.status === 'error'
-                            ? 'danger'
-                            : 'default'
-                      }
-                    >
-                      {statusLabels[provider.status]}
-                    </Chip>
-                  </div>
-                  <p className="mt-1 truncate text-sm app-muted">
-                    {provider.model}
-                  </p>
-                  <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs app-muted">
-                    <span>
-                      {provider.hasSecret
-                        ? 'Ключ сохранён'
-                        : 'Ключ не сохранён'}
-                    </span>
-                    <span>
-                      {provider.latencyMs != null
-                        ? `${provider.latencyMs} мс`
-                        : 'Задержка неизвестна'}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex shrink-0 gap-1">
-                  <Button
-                    isIconOnly
-                    size="sm"
-                    variant="ghost"
-                    isPending={checkingId === provider.id}
-                    aria-label="Проверить подключение"
-                    onPress={() => void checkOne(provider.id)}
-                  >
-                    <Icon name="refresh" className="size-4" />
-                  </Button>
-                  <Button
-                    isIconOnly
-                    size="sm"
-                    variant="ghost"
-                    aria-label="Редактировать подключение"
-                    onPress={() => openEdit(provider)}
-                  >
-                    <Icon name="settings" className="size-4" />
-                  </Button>
-                </div>
-              </Surface>
-            ))}
+                <Icon name="refresh" className="size-4" /> Проверить все
+              </Button>
+            )}
           </div>
-        ) : (
-          <Surface variant="secondary" className="mt-6 p-8 text-center">
-            <h2 className="text-lg font-semibold">Нет подключений</h2>
-            <p className="mt-2 text-sm app-muted">
-              Добавьте провайдера и загрузите доступные модели из его API.
-            </p>
-            <Button className="mt-5" variant="primary" onPress={openCreate}>
-              <Icon name="plus" className="size-4" /> Добавить подключение
-            </Button>
-          </Surface>
-        )}
+
+          {providers.length > 0 ? (
+            <div className="app-provider-grid mt-3">
+              {providers.map((provider) => (
+                <Surface
+                  key={provider.id}
+                  variant="secondary"
+                  className="app-panel app-provider-card"
+                >
+                  <div className="app-accent-tile app-provider-mark">
+                    {provider.name.slice(0, 2).toUpperCase()}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex min-w-0 flex-wrap items-center gap-2">
+                      <h3 className="min-w-0 flex-1 truncate text-base font-semibold">
+                        {provider.name}
+                      </h3>
+                      <Chip
+                        size="sm"
+                        variant="soft"
+                        color={
+                          provider.status === 'connected'
+                            ? 'success'
+                            : provider.status === 'error'
+                              ? 'danger'
+                              : 'default'
+                        }
+                      >
+                        {statusLabels[provider.status]}
+                      </Chip>
+                    </div>
+                    <p className="app-muted mt-1 truncate text-sm">
+                      {provider.model || 'Модель не выбрана'}
+                    </p>
+                    <div className="app-provider-meta">
+                      <span>
+                        {provider.hasSecret ? 'Ключ сохранён' : 'Без ключа'}
+                      </span>
+                      <span>
+                        {provider.latencyMs != null
+                          ? `${provider.latencyMs} мс`
+                          : 'Не проверено'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="app-provider-actions">
+                    <Button
+                      isIconOnly
+                      size="sm"
+                      variant="ghost"
+                      isPending={checkingId === provider.id}
+                      aria-label="Проверить подключение"
+                      onPress={() => void checkOne(provider.id)}
+                    >
+                      <Icon name="refresh" className="size-4" />
+                    </Button>
+                    <Button
+                      isIconOnly
+                      size="sm"
+                      variant="ghost"
+                      aria-label="Редактировать подключение"
+                      onPress={() => openEdit(provider)}
+                    >
+                      <Icon name="settings" className="size-4" />
+                    </Button>
+                  </div>
+                </Surface>
+              ))}
+            </div>
+          ) : (
+            <Surface
+              variant="secondary"
+              className="app-panel app-empty-panel mt-3"
+            >
+              <span className="app-empty-icon">
+                <Icon name="telescope" className="size-6" />
+              </span>
+              <div>
+                <h2>Подключений пока нет</h2>
+                <p>Добавьте провайдера и загрузите модели из его API.</p>
+              </div>
+              <Button variant="primary" onPress={openCreate}>
+                <Icon name="plus" className="size-4" /> Добавить подключение
+              </Button>
+            </Surface>
+          )}
+        </section>
       </div>
 
       <UiModal
@@ -414,7 +416,7 @@ export function TelescopeScreen({
               <Button
                 key={provider.kind}
                 variant="ghost"
-                className="h-auto items-start justify-start gap-3 px-3 py-4 text-left"
+                className="app-card-action h-auto items-start justify-start gap-3 px-3 py-4 text-left"
                 onPress={() => chooseKind(provider.kind)}
               >
                 <span className="app-accent-tile grid size-10 shrink-0 place-items-center rounded-xl text-xs font-semibold">
@@ -438,7 +440,10 @@ export function TelescopeScreen({
         ) : (
           <div className="space-y-4">
             {form.kind === 'character-ai' && (
-              <Surface variant="tertiary" className="p-4 text-sm leading-6">
+              <Surface
+                variant="tertiary"
+                className="app-panel p-4 text-sm leading-6"
+              >
                 <span className="app-warning">
                   Для Character.AI нужен отдельный адаптер авторизации и
                   протокола. Несовместимое подключение не сохраняется.
@@ -505,7 +510,7 @@ export function TelescopeScreen({
             )}
 
             {form.kind !== 'character-ai' && (
-              <Surface variant="secondary" className="p-4">
+              <Surface variant="secondary" className="app-panel p-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <strong className="text-sm font-medium">Модель</strong>
@@ -572,7 +577,7 @@ export function TelescopeScreen({
               </Surface>
             )}
 
-            <Surface variant="secondary" className="p-4">
+            <Surface variant="secondary" className="app-panel p-4">
               <strong className="text-sm font-medium">
                 Параметры генерации
               </strong>

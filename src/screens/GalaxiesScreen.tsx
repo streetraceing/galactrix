@@ -109,7 +109,7 @@ export function GalaxiesScreen({
           <div>
             <h1 className="app-page-title">Галактики</h1>
             <p className="app-page-description">
-              Персоны, персонажи, вселенные и ворлдбуки.
+              Библиотека персон, персонажей, вселенных и ворлдбуков.
             </p>
           </div>
           <Button variant="primary" onPress={openCreate}>
@@ -119,72 +119,86 @@ export function GalaxiesScreen({
 
         <Surface
           variant="secondary"
-          className="mt-6 flex flex-wrap gap-1 p-1.5"
+          className="app-panel app-filter-toolbar mt-5"
         >
-          {filters.map((entry) => {
-            const count =
-              entry.id === 'all'
-                ? items.length
-                : items.filter((item) => item.kind === entry.id).length;
-            return (
-              <Button
-                key={entry.id}
-                size="sm"
-                variant={filter === entry.id ? 'secondary' : 'ghost'}
-                onPress={() => setFilter(entry.id)}
-              >
-                {entry.label}
-                <Chip size="sm" variant="soft">
-                  {count}
-                </Chip>
-              </Button>
-            );
-          })}
+          <div className="app-filter-scroll">
+            {filters.map((entry) => {
+              const count =
+                entry.id === 'all'
+                  ? items.length
+                  : items.filter((item) => item.kind === entry.id).length;
+              return (
+                <Button
+                  key={entry.id}
+                  size="sm"
+                  variant={filter === entry.id ? 'secondary' : 'ghost'}
+                  className="shrink-0"
+                  onPress={() => setFilter(entry.id)}
+                >
+                  {entry.label}
+                  <Chip size="sm" variant="soft">
+                    {count}
+                  </Chip>
+                </Button>
+              );
+            })}
+          </div>
         </Surface>
 
         {filtered.length > 0 ? (
-          <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <div className="app-library-grid mt-4">
             {filtered.map((item) => (
-              <Surface key={item.id} variant="secondary" className="p-1">
+              <Surface
+                key={item.id}
+                variant="secondary"
+                className="app-panel app-library-card"
+              >
                 <Button
                   variant="ghost"
-                  className="h-full w-full items-start justify-start gap-3 px-3 py-4 text-left"
+                  className="app-card-action h-full w-full items-stretch justify-start text-left"
                   onPress={() => openEdit(item)}
                 >
-                  <span className="app-accent-tile grid size-10 shrink-0 place-items-center rounded-xl">
+                  <span className="app-accent-tile app-library-icon">
                     <Icon name={kindIcons[item.kind]} className="size-5" />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="text-xs app-muted">
-                      {kindLabels[item.kind]}
+                    <span className="flex min-w-0 items-center gap-2">
+                      <strong className="min-w-0 flex-1 truncate text-base font-semibold">
+                        {item.name}
+                      </strong>
+                      <Chip size="sm" variant="soft">
+                        {kindLabels[item.kind]}
+                      </Chip>
                     </span>
-                    <strong className="mt-0.5 block truncate font-medium">
-                      {item.name}
-                    </strong>
-                    <span className="mt-2 line-clamp-3 block text-sm leading-6 app-muted">
-                      {item.description || 'Без описания'}
+                    <span className="app-muted mt-2 line-clamp-3 block text-sm leading-6">
+                      {item.description || 'Описание пока не добавлено.'}
                     </span>
-                    <span className="mt-3 block text-xs app-muted">
-                      {item.updatedAt}
+                    <span className="app-card-footer app-muted">
+                      <span>Изменено {item.updatedAt}</span>
+                      <Icon name="chevron" className="size-4" />
                     </span>
                   </span>
-                  <Icon
-                    name="chevron"
-                    className="mt-1 size-4 shrink-0 app-muted"
-                  />
                 </Button>
               </Surface>
             ))}
           </div>
         ) : (
-          <Surface variant="secondary" className="mt-8 p-8 text-center">
-            <h2 className="text-lg font-semibold">
-              {filter === 'all'
-                ? 'Галактика пуста'
-                : 'В категории пока ничего нет'}
-            </h2>
-            <p className="mt-2 text-sm app-muted">Создайте первый объект.</p>
-            <Button className="mt-5" variant="primary" onPress={openCreate}>
+          <Surface
+            variant="secondary"
+            className="app-panel app-empty-panel mt-5"
+          >
+            <span className="app-empty-icon">
+              <Icon name="galaxies" className="size-6" />
+            </span>
+            <div>
+              <h2>
+                {filter === 'all'
+                  ? 'Библиотека пока пуста'
+                  : 'В этой категории пока ничего нет'}
+              </h2>
+              <p>Создайте первый объект и заполните его реальными данными.</p>
+            </div>
+            <Button variant="primary" onPress={openCreate}>
               <Icon name="plus" className="size-4" /> Создать объект
             </Button>
           </Surface>

@@ -1,5 +1,4 @@
 import { Button, Surface, Switch } from '@heroui/react';
-import { BrandMark } from '../components/BrandMark';
 import { Icon } from '../components/Icon';
 import type { AppSettings, UsagePoint } from '../types';
 
@@ -21,10 +20,10 @@ function SettingSwitch({
   onChange: (value: boolean) => void;
 }) {
   return (
-    <div className="flex items-center gap-4 py-3">
+    <div className="app-setting-row">
       <div className="min-w-0 flex-1">
-        <strong className="block text-sm font-medium">{label}</strong>
-        <p className="mt-0.5 text-xs leading-5 app-muted">{description}</p>
+        <strong>{label}</strong>
+        <p>{description}</p>
       </div>
       <Switch isSelected={value} onChange={onChange} aria-label={label}>
         <Switch.Content>
@@ -43,7 +42,6 @@ export function ProfileScreen({
   chatCount,
   messageCount,
   providerCount,
-  appVersion,
   onChangeSettings,
 }: {
   usage: UsagePoint[];
@@ -65,87 +63,85 @@ export function ProfileScreen({
     <div className="app-page-scroll scrollbar-thin">
       <div className="app-page-container">
         <header className="app-page-header">
-          <h1 className="app-page-title">Профиль</h1>
-          <p className="app-page-description">
-            Статистика использования и настройки этого устройства.
-          </p>
+          <div>
+            <h1 className="app-page-title">Профиль</h1>
+            <p className="app-page-description">
+              Использование и настройки текущего устройства.
+            </p>
+          </div>
         </header>
 
-        <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Surface
+          variant="secondary"
+          className="app-panel app-stat-strip app-stat-strip-four mt-5"
+        >
           {[
-            ['Токены за 7 дней', formatTokens(totalTokens), ''],
-            ['Запросы за 7 дней', totalRequests.toLocaleString('ru-RU'), ''],
+            ['Токены', formatTokens(totalTokens), 'за 7 дней'],
+            ['Запросы', totalRequests.toLocaleString('ru-RU'), 'за 7 дней'],
             [
               'Чаты',
               chatCount.toLocaleString('ru-RU'),
               `${messageCount} сообщений`,
             ],
-            ['Подключения', providerCount.toLocaleString('ru-RU'), ''],
+            [
+              'Подключения',
+              providerCount.toLocaleString('ru-RU'),
+              'на устройстве',
+            ],
           ].map(([label, value, note]) => (
-            <Surface key={label} variant="secondary" className="p-5">
-              <span className="text-sm app-muted">{label}</span>
-              <strong className="mt-2 block text-2xl font-semibold">
-                {value}
-              </strong>
-              {note && (
-                <span className="mt-1 block text-xs app-muted">{note}</span>
-              )}
-            </Surface>
+            <div key={label} className="app-stat-item">
+              <span>{label}</span>
+              <strong>{value}</strong>
+              <small>{note}</small>
+            </div>
           ))}
-        </div>
-
-        <Surface variant="secondary" className="mt-4 p-5 sm:p-6">
-          <div>
-            <h2 className="font-semibold">Использование за 7 дней</h2>
-            <p className="mt-1 text-xs app-muted">
-              Токены и количество запросов по дням.
-            </p>
-          </div>
-          <div
-            className="mt-6 grid h-56 grid-cols-7 gap-2"
-            aria-label="Токены по дням"
-          >
-            {usage.map((point) => (
-              <div
-                key={point.label}
-                className="flex min-w-0 flex-col items-center"
-              >
-                <span className="mb-2 truncate text-[0.65rem] app-muted">
-                  {formatTokens(point.tokens)}
-                </span>
-                <div className="app-chart-track flex min-h-0 w-full flex-1 items-end overflow-hidden rounded-lg p-1">
-                  <div
-                    className="app-chart-bar w-full rounded-md"
-                    style={{
-                      height: `${point.tokens === 0 ? 0 : Math.max(5, (point.tokens / maxTokens) * 100)}%`,
-                    }}
-                  />
-                </div>
-                <strong className="mt-2 text-xs font-medium">
-                  {point.label}
-                </strong>
-                <span className="text-[0.65rem] app-muted">
-                  {point.requests}
-                </span>
-              </div>
-            ))}
-          </div>
         </Surface>
 
-        <div className="mt-4 grid gap-4 lg:grid-cols-2">
-          <Surface variant="secondary" className="p-5 sm:p-6">
-            <div className="flex items-start gap-3">
-              <span className="app-accent-tile grid size-9 shrink-0 place-items-center rounded-xl">
-                <Icon name="settings" className="size-5" />
-              </span>
+        <div className="app-profile-dashboard mt-4">
+          <Surface variant="secondary" className="app-panel app-usage-panel">
+            <div className="app-section-heading">
               <div>
-                <h2 className="font-semibold">Интерфейс</h2>
-                <p className="mt-1 text-xs app-muted">
-                  Отображение и отклик приложения.
-                </p>
+                <h2>Использование за 7 дней</h2>
+                <p>Токены и запросы по дням.</p>
+              </div>
+              <span className="app-muted text-xs">
+                {formatTokens(totalTokens)} токенов
+              </span>
+            </div>
+            <div className="app-usage-chart" aria-label="Токены по дням">
+              {usage.map((point) => (
+                <div key={point.label} className="app-usage-column">
+                  <span className="app-muted app-usage-value">
+                    {formatTokens(point.tokens)}
+                  </span>
+                  <div className="app-chart-track app-usage-track">
+                    <div
+                      className="app-chart-bar app-usage-bar"
+                      style={{
+                        height: `${point.tokens === 0 ? 0 : Math.max(6, (point.tokens / maxTokens) * 100)}%`,
+                      }}
+                    />
+                  </div>
+                  <strong>{point.label}</strong>
+                  <span className="app-muted">{point.requests}</span>
+                </div>
+              ))}
+            </div>
+          </Surface>
+
+          <Surface variant="secondary" className="app-panel app-settings-panel">
+            <div className="app-section-heading">
+              <div className="flex items-center gap-3">
+                <span className="app-accent-tile app-section-icon">
+                  <Icon name="settings" className="size-5" />
+                </span>
+                <div>
+                  <h2>Интерфейс</h2>
+                  <p>Отображение и отклик.</p>
+                </div>
               </div>
             </div>
-            <div className="app-divided-list mt-4">
+            <div className="app-divided-list mt-3">
               <SettingSwitch
                 label="Анимации"
                 description="Переходы и появление элементов"
@@ -154,26 +150,28 @@ export function ProfileScreen({
               />
               <SettingSwitch
                 label="Виброотклик"
-                description="Используется на поддерживаемых устройствах"
+                description="На поддерживаемых устройствах"
                 value={settings.haptics}
                 onChange={(value) => patch('haptics', value)}
               />
             </div>
           </Surface>
+        </div>
 
-          <Surface variant="secondary" className="p-5 sm:p-6">
-            <div className="flex items-start gap-3">
-              <span className="app-accent-tile grid size-9 shrink-0 place-items-center rounded-xl">
-                <Icon name="chats" className="size-5" />
-              </span>
-              <div>
-                <h2 className="font-semibold">Чаты</h2>
-                <p className="mt-1 text-xs app-muted">
-                  Поведение редактора сообщений.
-                </p>
+        <div className="app-settings-grid mt-4">
+          <Surface variant="secondary" className="app-panel app-settings-panel">
+            <div className="app-section-heading">
+              <div className="flex items-center gap-3">
+                <span className="app-accent-tile app-section-icon">
+                  <Icon name="chats" className="size-5" />
+                </span>
+                <div>
+                  <h2>Чаты</h2>
+                  <p>Поведение редактора сообщений.</p>
+                </div>
               </div>
             </div>
-            <div className="app-divided-list mt-4">
+            <div className="app-divided-list mt-3">
               <SettingSwitch
                 label="Enter отправляет сообщение"
                 description="Shift+Enter добавляет новую строку"
@@ -188,79 +186,60 @@ export function ProfileScreen({
               />
             </div>
           </Surface>
-        </div>
 
-        <Surface variant="secondary" className="mt-4 p-5 sm:p-6">
-          <div className="app-page-header">
-            <div>
-              <h2 className="font-semibold">Масштаб интерфейса</h2>
-              <p className="mt-1 text-xs leading-5 app-muted">
-                Текущий масштаб: {Math.round(settings.interfaceScale * 100)}%.
-                Изменение применяется ко всему интерфейсу.
-              </p>
-            </div>
-            <Button
-              size="sm"
-              variant="ghost"
-              isDisabled={settings.interfaceScale === 1}
-              onPress={() => patch('interfaceScale', 1)}
-            >
-              Сбросить
-            </Button>
-          </div>
-          <div className="mt-4 flex flex-wrap gap-2">
-            {scales.map((scale) => (
+          <Surface variant="secondary" className="app-panel app-settings-panel">
+            <div className="app-section-heading">
+              <div>
+                <h2>Масштаб интерфейса</h2>
+                <p>Сейчас {Math.round(settings.interfaceScale * 100)}%.</p>
+              </div>
               <Button
-                key={scale}
                 size="sm"
-                variant={
-                  settings.interfaceScale === scale ? 'secondary' : 'ghost'
-                }
-                onPress={() => patch('interfaceScale', scale)}
+                variant="ghost"
+                isDisabled={settings.interfaceScale === 1}
+                onPress={() => patch('interfaceScale', 1)}
               >
-                {Math.round(scale * 100)}%
+                Сбросить
               </Button>
-            ))}
-          </div>
-        </Surface>
-
-        <Surface variant="secondary" className="mt-4 p-5 sm:p-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="font-semibold">Ширина панелей</h2>
-              <p className="mt-1 text-xs leading-5 app-muted">
-                Основная: {Math.round(settings.sidebarWidth)} px · Чаты:{' '}
-                {Math.round(settings.chatSidebarWidth)} px
-              </p>
             </div>
-            <Button
-              variant="secondary"
-              onPress={() =>
-                onChangeSettings({
-                  ...settings,
-                  sidebarWidth: 248,
-                  chatSidebarWidth: 320,
-                })
-              }
-            >
-              Сбросить ширину
-            </Button>
-          </div>
-        </Surface>
-
-        <Surface
-          variant="secondary"
-          className="mt-4 flex items-center gap-3 p-4"
-        >
-          <BrandMark size={40} />
-          <div className="min-w-0 flex-1">
-            <strong className="block">Galactrix</strong>
-            <span className="text-xs app-muted">Версия приложения</span>
-          </div>
-          <span className="text-sm app-muted">
-            {appVersion ? `v${appVersion}` : '—'}
-          </span>
-        </Surface>
+            <div className="app-scale-options mt-4">
+              {scales.map((scale) => (
+                <Button
+                  key={scale}
+                  size="sm"
+                  variant={
+                    settings.interfaceScale === scale ? 'secondary' : 'ghost'
+                  }
+                  onPress={() => patch('interfaceScale', scale)}
+                >
+                  {Math.round(scale * 100)}%
+                </Button>
+              ))}
+            </div>
+            <div className="app-panel-width-row">
+              <div>
+                <strong>Ширина панелей</strong>
+                <p>
+                  Основная {Math.round(settings.sidebarWidth)} px · Чаты{' '}
+                  {Math.round(settings.chatSidebarWidth)} px
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant="secondary"
+                onPress={() =>
+                  onChangeSettings({
+                    ...settings,
+                    sidebarWidth: 248,
+                    chatSidebarWidth: 320,
+                  })
+                }
+              >
+                Сбросить ширину
+              </Button>
+            </div>
+          </Surface>
+        </div>
       </div>
     </div>
   );

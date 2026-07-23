@@ -36,6 +36,7 @@ function ChatActions({
           isIconOnly
           size="sm"
           variant="ghost"
+          className="app-chat-action-trigger"
           aria-label={`Действия с чатом «${chat.title}»`}
         >
           <Icon name="more" className="size-4" />
@@ -46,7 +47,7 @@ function ChatActions({
           onAction={(key: Key) => onAction(String(key) as ChatAction, chat)}
         >
           <Dropdown.Item id="rename" textValue="Переименовать">
-            <span className="flex items-center gap-2">
+            <span className="app-accent flex items-center gap-2">
               <Icon name="edit" className="size-4" /> Переименовать
             </span>
           </Dropdown.Item>
@@ -65,7 +66,7 @@ function ChatActions({
             </span>
           </Dropdown.Item>
           <Dropdown.Item id="delete" textValue="Удалить" variant="danger">
-            <span className="flex items-center gap-2">
+            <span className="app-danger flex items-center gap-2">
               <Icon name="trash" className="size-4" /> Удалить
             </span>
           </Dropdown.Item>
@@ -250,7 +251,7 @@ export function ChatsScreen({
   return (
     <div className="app-chat-layout">
       <aside
-        className={`${showHistoryMobile ? 'flex' : 'hidden'} app-chat-rail md:flex`}
+        className={`${showHistoryMobile ? 'flex' : 'hidden'} app-chat-rail md:flex bg-transparent`}
         style={
           {
             '--chat-sidebar-width': `${chatSidebarWidth}px`,
@@ -260,9 +261,7 @@ export function ChatsScreen({
         <header className="app-chat-rail-header">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <h1 className="text-xl font-semibold tracking-[-0.025em]">
-                Чаты
-              </h1>
+              <h1 className="text-xl font-semibold tracking-tight">Чаты</h1>
               {chats.length > 0 && (
                 <Chip size="sm" variant="soft">
                   {chats.length}
@@ -299,13 +298,14 @@ export function ChatsScreen({
           {filteredChats.map((chat) => {
             const selected = chat.id === activeChat?.id;
             return (
-              <div
+              <Surface
                 key={chat.id}
+                variant={selected ? 'tertiary' : 'secondary'}
                 className={`app-chat-row ${selected ? 'is-selected' : ''}`}
               >
                 <Button
                   variant="ghost"
-                  className="h-auto min-w-0 flex-1 justify-start gap-3 px-3 py-3 text-left"
+                  className="app-chat-row-main h-auto min-w-0 flex-1 justify-start gap-3 px-3 py-3 text-left"
                   onPress={() => selectChat(chat.id)}
                 >
                   <span className="app-chat-avatar">
@@ -332,7 +332,7 @@ export function ChatsScreen({
                   </span>
                 </Button>
                 <ChatActions chat={chat} onAction={handleAction} />
-              </div>
+              </Surface>
             );
           })}
 
@@ -521,7 +521,7 @@ export function ChatsScreen({
                           </div>
                           <Surface
                             variant={isUser ? 'tertiary' : 'secondary'}
-                            className="allow-selection whitespace-pre-wrap break-words px-4 py-3 text-sm leading-6"
+                            className="allow-selection whitespace-pre-wrap wrap-break-word px-4 py-3 text-sm leading-6"
                           >
                             {message.content}
                           </Surface>

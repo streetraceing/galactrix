@@ -261,7 +261,7 @@ function App() {
             <BrandMark size={58} />
           </div>
           <h1 className="text-xl font-semibold">Не удалось открыть данные</h1>
-          <p className="allow-selection mt-2 break-words text-sm leading-6 app-muted">
+          <p className="allow-selection mt-2 wrap-break-word text-sm leading-6 app-muted">
             {fatalError}
           </p>
           <Button
@@ -300,7 +300,7 @@ function App() {
               key={tab.id}
               size="lg"
               variant={activeTab === tab.id ? 'secondary' : 'ghost'}
-              className="w-full justify-start gap-3 px-3"
+              className="app-primary-nav-item w-full justify-start gap-3 px-3"
               onPress={() => navigate(tab.id)}
             >
               <Icon name={tab.icon} className="size-[1.15rem] shrink-0" />
@@ -341,15 +341,19 @@ function App() {
           <strong className="min-w-0 flex-1 truncate text-sm">
             {activeLabel}
           </strong>
-          <Button
-            isIconOnly
-            size="sm"
-            variant="ghost"
-            aria-label="Новый чат"
-            onPress={() => void handleNewChat()}
-          >
-            <Icon name="plus" className="size-5" />
-          </Button>
+          {activeTab === 'chats' ? (
+            <Button
+              isIconOnly
+              size="sm"
+              variant="ghost"
+              aria-label="Новый чат"
+              onPress={() => void handleNewChat()}
+            >
+              <Icon name="plus" className="size-5" />
+            </Button>
+          ) : (
+            <span className="size-8" aria-hidden="true" />
+          )}
         </header>
 
         {loading && (
@@ -364,7 +368,7 @@ function App() {
             role="status"
             className="absolute right-3 top-3 z-50 flex max-w-[min(28rem,calc(100%-1.5rem))] items-start gap-3 p-3 shadow-xl md:top-4"
           >
-            <span className="allow-selection min-w-0 flex-1 break-words text-sm">
+            <span className="allow-selection min-w-0 flex-1 wrap-break-word text-sm">
               {notice}
             </span>
             <Button
@@ -379,7 +383,7 @@ function App() {
           </Surface>
         )}
 
-        <div className="min-h-0 min-w-0 flex-1 overflow-hidden pb-16 md:pb-0">
+        <div className="min-h-0 min-w-0 flex-1 overflow-hidden pb-20 md:pb-0">
           {!loading && activeTab === 'chats' && (
             <ChatsScreen
               chats={snapshot.chats}
@@ -439,12 +443,13 @@ function App() {
           {tabs.map((tab) => (
             <Button
               key={tab.id}
+              size="sm"
               variant={activeTab === tab.id ? 'secondary' : 'ghost'}
-              className="h-full min-w-0 flex-col gap-1 px-1"
+              className="app-bottom-nav-item"
               onPress={() => navigate(tab.id)}
             >
               <Icon name={tab.icon} className="size-5" />
-              <span className="truncate text-[0.68rem]">{tab.label}</span>
+              <span className="app-bottom-nav-label">{tab.label}</span>
             </Button>
           ))}
         </nav>
