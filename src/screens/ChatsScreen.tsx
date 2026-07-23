@@ -253,10 +253,10 @@ export function ChatsScreen({
         className={`${showHistoryMobile ? 'flex' : 'hidden'} h-full min-w-0 flex-1 flex-col rounded-none border-0 md:flex md:flex-none`}
         style={{ width: chatSidebarWidth }}
       >
-        <div className="flex items-center gap-3 border-b border-border px-4 py-3">
+        <div className="app-divider-bottom flex items-center gap-3 px-4 py-3">
           <div className="min-w-0 flex-1">
             <h1 className="text-lg font-semibold">Чаты</h1>
-            <p className="text-xs text-muted">{chats.length} всего</p>
+            <p className="text-xs app-muted">{chats.length} всего</p>
           </div>
           <Button
             isIconOnly
@@ -268,7 +268,7 @@ export function ChatsScreen({
           </Button>
         </div>
 
-        <div className="border-b border-border p-3">
+        <div className="app-divider-bottom p-3">
           <Input
             fullWidth
             variant="secondary"
@@ -301,18 +301,18 @@ export function ChatsScreen({
                         {chat.pinned && (
                           <Icon
                             name="pin"
-                            className="size-3.5 shrink-0 text-accent"
+                            className="app-accent size-3.5 shrink-0"
                           />
                         )}
                         <strong className="block min-w-0 truncate text-sm font-medium">
                           {chat.title}
                         </strong>
                       </span>
-                      <span className="mt-1 block truncate text-xs text-muted">
+                      <span className="mt-1 block truncate text-xs app-muted">
                         {chat.preview || 'Сообщений пока нет'}
                       </span>
                     </span>
-                    <span className="self-start whitespace-nowrap pt-0.5 text-[0.68rem] text-muted">
+                    <span className="self-start whitespace-nowrap pt-0.5 text-[0.68rem] app-muted">
                       {chat.updatedAt}
                     </span>
                   </Button>
@@ -343,9 +343,9 @@ export function ChatsScreen({
           {actionError && (
             <Surface
               variant="tertiary"
-              className="allow-selection mt-2 p-3 text-sm text-danger"
+              className="allow-selection mt-2 p-3 text-sm"
             >
-              {actionError}
+              <span className="app-danger">{actionError}</span>
             </Surface>
           )}
         </div>
@@ -367,7 +367,7 @@ export function ChatsScreen({
           <>
             <Surface
               variant="secondary"
-              className="flex min-h-16 shrink-0 items-center gap-2 rounded-none border-0 border-b border-border px-3 py-2"
+              className="flex min-h-16 shrink-0 items-center gap-2 rounded-none px-3 py-2"
             >
               <Button
                 isIconOnly
@@ -383,10 +383,7 @@ export function ChatsScreen({
                 <div className="flex min-w-0 items-center gap-2">
                   <h2 className="truncate font-semibold">{activeChat.title}</h2>
                   {activeChat.pinned && (
-                    <Icon
-                      name="pin"
-                      className="size-3.5 shrink-0 text-accent"
-                    />
+                    <Icon name="pin" className="app-accent size-3.5 shrink-0" />
                   )}
                 </div>
                 <Select
@@ -437,7 +434,7 @@ export function ChatsScreen({
                     className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
                     <div className="max-w-[92%] sm:max-w-[82%]">
-                      <div className="mb-1 flex items-center justify-between gap-4 px-1 text-xs text-muted">
+                      <div className="mb-1 flex items-center justify-between gap-4 px-1 text-xs app-muted">
                         <span>
                           {message.role === 'user'
                             ? 'Вы'
@@ -477,7 +474,7 @@ export function ChatsScreen({
                     className="mx-auto mt-12 max-w-md p-6 text-center"
                   >
                     <h3 className="font-semibold">Пустой чат</h3>
-                    <p className="mt-2 text-sm leading-6 text-muted">
+                    <p className="mt-2 text-sm leading-6 app-muted">
                       {providers.length > 0
                         ? 'Выберите подключение и отправьте сообщение.'
                         : 'Сначала добавьте провайдера во вкладке «Телескоп».'}
@@ -490,16 +487,16 @@ export function ChatsScreen({
 
             <Surface
               variant="secondary"
-              className="shrink-0 rounded-none border-0 border-t border-border p-3 sm:p-4"
+              className="shrink-0 rounded-none p-3 sm:p-4"
             >
               <div className="mx-auto w-full max-w-4xl">
                 {sendError && (
-                  <p className="allow-selection mb-2 text-sm text-danger">
+                  <p className="allow-selection mb-2 text-sm app-danger">
                     {sendError}
                   </p>
                 )}
                 {!activeProvider && providers.length > 0 && (
-                  <p className="mb-2 text-sm text-muted">
+                  <p className="mb-2 text-sm app-muted">
                     Выберите провайдера в заголовке чата.
                   </p>
                 )}
@@ -542,7 +539,7 @@ export function ChatsScreen({
                     <Icon name="send" className="size-5" />
                   </Button>
                 </div>
-                <div className="mt-2 flex flex-wrap justify-between gap-2 text-[0.68rem] text-muted">
+                <div className="mt-2 flex flex-wrap justify-between gap-2 text-[0.68rem] app-muted">
                   <span>
                     {activeProvider
                       ? `${activeProvider.model} · max ${activeProvider.maxTokens}`
@@ -559,7 +556,7 @@ export function ChatsScreen({
           <div className="grid h-full place-items-center p-5">
             <Surface variant="secondary" className="max-w-md p-7 text-center">
               <h2 className="text-lg font-semibold">Нет чатов</h2>
-              <p className="mt-2 text-sm text-muted">
+              <p className="mt-2 text-sm app-muted">
                 Создайте чат, чтобы начать.
               </p>
               <Button className="mt-5" variant="primary" onPress={onNewChat}>
@@ -610,7 +607,7 @@ export function ChatsScreen({
           aria-label="Новое название чата"
         />
         {actionError && (
-          <p className="allow-selection mt-2 text-sm text-danger">
+          <p className="allow-selection mt-2 text-sm app-danger">
             {actionError}
           </p>
         )}
@@ -648,11 +645,11 @@ export function ChatsScreen({
           </>
         }
       >
-        <p className="text-sm leading-6 text-muted">
+        <p className="text-sm leading-6 app-muted">
           Это действие нельзя отменить.
         </p>
         {actionError && (
-          <p className="allow-selection mt-2 text-sm text-danger">
+          <p className="allow-selection mt-2 text-sm app-danger">
             {actionError}
           </p>
         )}

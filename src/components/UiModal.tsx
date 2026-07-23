@@ -31,7 +31,7 @@ export function UiModal({
             <Modal.Header className="pr-10">
               <Modal.Heading>{title}</Modal.Heading>
               {description && (
-                <p className="mt-1 text-sm text-muted">{description}</p>
+                <p className="app-muted mt-1 text-sm">{description}</p>
               )}
             </Modal.Header>
             <Modal.Body className="overflow-y-auto">{children}</Modal.Body>

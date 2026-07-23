@@ -24,7 +24,7 @@ function SettingSwitch({
     <div className="flex items-center gap-4 py-3">
       <div className="min-w-0 flex-1">
         <strong className="block text-sm font-medium">{label}</strong>
-        <p className="mt-0.5 text-xs leading-5 text-muted">{description}</p>
+        <p className="mt-0.5 text-xs leading-5 app-muted">{description}</p>
       </div>
       <Switch isSelected={value} onChange={onChange} aria-label={label}>
         <Switch.Content>
@@ -66,7 +66,7 @@ export function ProfileScreen({
       <div className="mx-auto w-full max-w-6xl">
         <header>
           <h1 className="text-2xl font-semibold tracking-tight">Профиль</h1>
-          <p className="mt-1 text-sm leading-6 text-muted">
+          <p className="mt-1 text-sm leading-6 app-muted">
             Статистика использования и настройки этого устройства.
           </p>
         </header>
@@ -83,12 +83,12 @@ export function ProfileScreen({
             ['Подключения', providerCount.toLocaleString('ru-RU'), ''],
           ].map(([label, value, note]) => (
             <Surface key={label} variant="secondary" className="p-5">
-              <span className="text-sm text-muted">{label}</span>
+              <span className="text-sm app-muted">{label}</span>
               <strong className="mt-2 block text-2xl font-semibold">
                 {value}
               </strong>
               {note && (
-                <span className="mt-1 block text-xs text-muted">{note}</span>
+                <span className="mt-1 block text-xs app-muted">{note}</span>
               )}
             </Surface>
           ))}
@@ -97,7 +97,7 @@ export function ProfileScreen({
         <Surface variant="secondary" className="mt-4 p-5 sm:p-6">
           <div>
             <h2 className="font-semibold">Использование за 7 дней</h2>
-            <p className="mt-1 text-xs text-muted">
+            <p className="mt-1 text-xs app-muted">
               Токены и количество запросов по дням.
             </p>
           </div>
@@ -110,12 +110,12 @@ export function ProfileScreen({
                 key={point.label}
                 className="flex min-w-0 flex-col items-center"
               >
-                <span className="mb-2 truncate text-[0.65rem] text-muted">
+                <span className="mb-2 truncate text-[0.65rem] app-muted">
                   {formatTokens(point.tokens)}
                 </span>
-                <div className="flex min-h-0 w-full flex-1 items-end overflow-hidden rounded-lg bg-default/5 p-1">
+                <div className="app-chart-track flex min-h-0 w-full flex-1 items-end overflow-hidden rounded-lg p-1">
                   <div
-                    className="w-full rounded-md bg-accent/70"
+                    className="app-chart-bar w-full rounded-md"
                     style={{
                       height: `${point.tokens === 0 ? 0 : Math.max(5, (point.tokens / maxTokens) * 100)}%`,
                     }}
@@ -124,7 +124,7 @@ export function ProfileScreen({
                 <strong className="mt-2 text-xs font-medium">
                   {point.label}
                 </strong>
-                <span className="text-[0.65rem] text-muted">
+                <span className="text-[0.65rem] app-muted">
                   {point.requests}
                 </span>
               </div>
@@ -135,17 +135,17 @@ export function ProfileScreen({
         <div className="mt-4 grid gap-4 lg:grid-cols-2">
           <Surface variant="secondary" className="p-5 sm:p-6">
             <div className="flex items-start gap-3">
-              <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-accent/10 text-accent">
+              <span className="app-accent-tile grid size-9 shrink-0 place-items-center rounded-xl">
                 <Icon name="settings" className="size-5" />
               </span>
               <div>
                 <h2 className="font-semibold">Интерфейс</h2>
-                <p className="mt-1 text-xs text-muted">
+                <p className="mt-1 text-xs app-muted">
                   Отображение и отклик приложения.
                 </p>
               </div>
             </div>
-            <div className="mt-4 divide-y divide-border">
+            <div className="app-divided-list mt-4">
               <SettingSwitch
                 label="Анимации"
                 description="Переходы и появление элементов"
@@ -163,17 +163,17 @@ export function ProfileScreen({
 
           <Surface variant="secondary" className="p-5 sm:p-6">
             <div className="flex items-start gap-3">
-              <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-accent/10 text-accent">
+              <span className="app-accent-tile grid size-9 shrink-0 place-items-center rounded-xl">
                 <Icon name="chats" className="size-5" />
               </span>
               <div>
                 <h2 className="font-semibold">Чаты</h2>
-                <p className="mt-1 text-xs text-muted">
+                <p className="mt-1 text-xs app-muted">
                   Поведение редактора сообщений.
                 </p>
               </div>
             </div>
-            <div className="mt-4 divide-y divide-border">
+            <div className="app-divided-list mt-4">
               <SettingSwitch
                 label="Enter отправляет сообщение"
                 description="Shift+Enter добавляет новую строку"
@@ -194,7 +194,7 @@ export function ProfileScreen({
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h2 className="font-semibold">Масштаб интерфейса</h2>
-              <p className="mt-1 text-xs leading-5 text-muted">
+              <p className="mt-1 text-xs leading-5 app-muted">
                 Текущий масштаб: {Math.round(settings.interfaceScale * 100)}%.
                 Изменение применяется ко всему интерфейсу.
               </p>
@@ -228,7 +228,7 @@ export function ProfileScreen({
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="font-semibold">Ширина панелей</h2>
-              <p className="mt-1 text-xs leading-5 text-muted">
+              <p className="mt-1 text-xs leading-5 app-muted">
                 Основная: {Math.round(settings.sidebarWidth)} px · Чаты:{' '}
                 {Math.round(settings.chatSidebarWidth)} px
               </p>
@@ -255,9 +255,9 @@ export function ProfileScreen({
           <BrandMark size={40} />
           <div className="min-w-0 flex-1">
             <strong className="block">Galactrix</strong>
-            <span className="text-xs text-muted">Версия приложения</span>
+            <span className="text-xs app-muted">Версия приложения</span>
           </div>
-          <span className="text-sm text-muted">
+          <span className="text-sm app-muted">
             {appVersion ? `v${appVersion}` : '—'}
           </span>
         </Surface>

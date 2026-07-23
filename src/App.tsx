@@ -1,4 +1,4 @@
-import { Button, Spinner, Surface } from '@heroui/react';
+import { Button, Chip, Separator, Spinner, Surface } from '@heroui/react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import './App.css';
 import { BrandMark } from './components/BrandMark';
@@ -251,7 +251,7 @@ function App() {
 
   if (fatalError) {
     return (
-      <main className="grid h-full place-items-center bg-background p-6 text-foreground">
+      <main className="app-shell grid h-full place-items-center p-6">
         <Surface
           className="w-full max-w-md p-7 text-center"
           variant="secondary"
@@ -260,7 +260,7 @@ function App() {
             <BrandMark size={58} />
           </div>
           <h1 className="text-xl font-semibold">Не удалось открыть данные</h1>
-          <p className="allow-selection mt-2 break-words text-sm leading-6 text-muted">
+          <p className="allow-selection mt-2 break-words text-sm leading-6 app-muted">
             {fatalError}
           </p>
           <Button
@@ -276,10 +276,10 @@ function App() {
   }
 
   return (
-    <main className="flex h-full min-w-0 overflow-hidden bg-background text-foreground">
+    <main className="app-shell flex h-full min-w-0 overflow-hidden">
       <Surface
         variant="secondary"
-        className="hidden h-full shrink-0 rounded-none border-0 border-r border-border md:flex md:flex-col"
+        className="hidden h-full shrink-0 rounded-none md:flex md:flex-col"
         style={{ width: snapshot.settings.sidebarWidth }}
       >
         <div className="flex items-center gap-3 px-4 py-5">
@@ -288,7 +288,7 @@ function App() {
             <div className="truncate font-semibold tracking-tight">
               Galactrix
             </div>
-            <div className="truncate text-xs text-muted">AI-клиент</div>
+            <div className="app-muted truncate text-xs">AI-клиент</div>
           </div>
         </div>
 
@@ -308,15 +308,15 @@ function App() {
                 {tab.label}
               </span>
               {tab.id === 'chats' && snapshot.chats.length > 0 && (
-                <span className="rounded-full bg-default/10 px-2 py-0.5 text-xs text-muted">
+                <Chip size="sm" variant="soft">
                   {snapshot.chats.length}
-                </span>
+                </Chip>
               )}
             </Button>
           ))}
         </nav>
 
-        <div className="px-3 pb-4 text-xs text-muted">
+        <div className="app-muted px-3 pb-4 text-xs">
           {snapshot.appVersion ? `v${snapshot.appVersion}` : 'Galactrix'}
         </div>
       </Surface>
@@ -335,25 +335,28 @@ function App() {
       />
 
       <section className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
-        <Surface
-          variant="secondary"
-          className="flex h-14 shrink-0 items-center gap-3 rounded-none border-0 border-b border-border px-3 md:hidden"
-        >
-          <BrandMark size={30} />
-          <strong className="min-w-0 flex-1 truncate">{activeLabel}</strong>
-          <Button
-            isIconOnly
-            size="sm"
-            variant="ghost"
-            aria-label="Новый чат"
-            onPress={() => void handleNewChat()}
+        <div className="md:hidden">
+          <Surface
+            variant="secondary"
+            className="flex h-14 shrink-0 items-center gap-3 rounded-none px-3"
           >
-            <Icon name="plus" className="size-5" />
-          </Button>
-        </Surface>
+            <BrandMark size={30} />
+            <strong className="min-w-0 flex-1 truncate">{activeLabel}</strong>
+            <Button
+              isIconOnly
+              size="sm"
+              variant="ghost"
+              aria-label="Новый чат"
+              onPress={() => void handleNewChat()}
+            >
+              <Icon name="plus" className="size-5" />
+            </Button>
+          </Surface>
+          <Separator variant="tertiary" />
+        </div>
 
         {loading && (
-          <div className="absolute inset-0 z-40 grid place-items-center bg-background/70 backdrop-blur-sm">
+          <div className="app-loading-overlay absolute inset-0 z-40 grid place-items-center backdrop-blur-sm">
             <Spinner aria-label="Загрузка" />
           </div>
         )}
@@ -437,16 +440,15 @@ function App() {
 
         <Surface
           variant="secondary"
-          className="fixed inset-x-0 bottom-0 z-30 grid h-16 grid-cols-4 rounded-none border-0 border-t border-border px-1 pb-[env(safe-area-inset-bottom)] md:hidden"
+          className="fixed inset-x-0 bottom-0 z-30 grid h-16 grid-cols-4 rounded-none px-1 pb-[env(safe-area-inset-bottom)] md:hidden"
           aria-label="Мобильная навигация"
         >
+          <Separator className="absolute inset-x-0 top-0" variant="tertiary" />
           {tabs.map((tab) => (
             <Button
               key={tab.id}
-              variant="ghost"
-              className={`h-full min-w-0 flex-col gap-1 rounded-none px-1 ${
-                activeTab === tab.id ? 'text-accent' : 'text-muted'
-              }`}
+              variant={activeTab === tab.id ? 'secondary' : 'ghost'}
+              className="h-full min-w-0 flex-col gap-1 rounded-none px-1"
               onPress={() => navigate(tab.id)}
             >
               <Icon name={tab.icon} className="size-5" />

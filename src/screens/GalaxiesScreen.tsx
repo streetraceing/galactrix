@@ -1,4 +1,4 @@
-import { Button, Input, Surface, TextArea } from '@heroui/react';
+import { Button, Chip, Input, Surface, TextArea } from '@heroui/react';
 import { useMemo, useState } from 'react';
 import type { ChangeEvent } from 'react';
 import { Icon } from '../components/Icon';
@@ -108,7 +108,7 @@ export function GalaxiesScreen({
         <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">Галактики</h1>
-            <p className="mt-1 text-sm leading-6 text-muted">
+            <p className="mt-1 text-sm leading-6 app-muted">
               Персоны, персонажи, вселенные и ворлдбуки.
             </p>
           </div>
@@ -134,9 +134,9 @@ export function GalaxiesScreen({
                 onPress={() => setFilter(entry.id)}
               >
                 {entry.label}
-                <span className="rounded-full bg-default/10 px-1.5 py-0.5 text-[0.68rem] text-muted">
+                <Chip size="sm" variant="soft">
                   {count}
-                </span>
+                </Chip>
               </Button>
             );
           })}
@@ -151,26 +151,26 @@ export function GalaxiesScreen({
                   className="h-full w-full items-start justify-start gap-3 px-3 py-4 text-left"
                   onPress={() => openEdit(item)}
                 >
-                  <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent/10 text-accent">
+                  <span className="app-accent-tile grid size-10 shrink-0 place-items-center rounded-xl">
                     <Icon name={kindIcons[item.kind]} className="size-5" />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="text-xs text-muted">
+                    <span className="text-xs app-muted">
                       {kindLabels[item.kind]}
                     </span>
                     <strong className="mt-0.5 block truncate font-medium">
                       {item.name}
                     </strong>
-                    <span className="mt-2 line-clamp-3 block text-sm leading-6 text-muted">
+                    <span className="mt-2 line-clamp-3 block text-sm leading-6 app-muted">
                       {item.description || 'Без описания'}
                     </span>
-                    <span className="mt-3 block text-xs text-muted">
+                    <span className="mt-3 block text-xs app-muted">
                       {item.updatedAt}
                     </span>
                   </span>
                   <Icon
                     name="chevron"
-                    className="mt-1 size-4 shrink-0 text-muted"
+                    className="mt-1 size-4 shrink-0 app-muted"
                   />
                 </Button>
               </Surface>
@@ -183,7 +183,7 @@ export function GalaxiesScreen({
                 ? 'Галактика пуста'
                 : 'В категории пока ничего нет'}
             </h2>
-            <p className="mt-2 text-sm text-muted">Создайте первый объект.</p>
+            <p className="mt-2 text-sm app-muted">Создайте первый объект.</p>
             <Button className="mt-5" variant="primary" onPress={openCreate}>
               <Icon name="plus" className="size-4" /> Создать объект
             </Button>
@@ -284,7 +284,7 @@ export function GalaxiesScreen({
           </div>
         </div>
         {error && (
-          <p className="allow-selection mt-3 text-sm text-danger">{error}</p>
+          <p className="allow-selection mt-3 text-sm app-danger">{error}</p>
         )}
       </UiModal>
     </div>

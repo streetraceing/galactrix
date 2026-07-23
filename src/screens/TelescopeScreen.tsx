@@ -1,4 +1,12 @@
-import { Button, Input, Label, ListBox, Select, Surface } from '@heroui/react';
+import {
+  Button,
+  Chip,
+  Input,
+  Label,
+  ListBox,
+  Select,
+  Surface,
+} from '@heroui/react';
 import { useMemo, useState } from 'react';
 import type { ChangeEvent, Key, ReactNode } from 'react';
 import { Icon } from '../components/Icon';
@@ -220,7 +228,7 @@ export function TelescopeScreen({
         <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">Телескоп</h1>
-            <p className="mt-1 text-sm leading-6 text-muted">
+            <p className="mt-1 text-sm leading-6 app-muted">
               Подключения, модели и параметры генерации.
             </p>
           </div>
@@ -239,7 +247,7 @@ export function TelescopeScreen({
             ],
           ].map(([label, value]) => (
             <Surface key={label} variant="secondary" className="p-5">
-              <span className="text-sm text-muted">{label}</span>
+              <span className="text-sm app-muted">{label}</span>
               <strong className="mt-2 block text-2xl font-semibold">
                 {value}
               </strong>
@@ -250,7 +258,7 @@ export function TelescopeScreen({
         <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="font-semibold">Подключения</h2>
-            <p className="mt-1 text-xs text-muted">
+            <p className="mt-1 text-xs app-muted">
               Статус отражает последнюю фактическую проверку API.
             </p>
           </div>
@@ -273,28 +281,30 @@ export function TelescopeScreen({
                 variant="secondary"
                 className="flex items-center gap-3 p-4"
               >
-                <div className="grid size-11 shrink-0 place-items-center rounded-xl bg-accent/10 text-sm font-semibold text-accent">
+                <div className="app-accent-tile grid size-11 shrink-0 place-items-center rounded-xl text-sm font-semibold">
                   {provider.name.slice(0, 2).toUpperCase()}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="truncate font-medium">{provider.name}</h3>
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-[0.68rem] ${
+                    <Chip
+                      size="sm"
+                      variant="soft"
+                      color={
                         provider.status === 'connected'
-                          ? 'bg-success/10 text-success'
+                          ? 'success'
                           : provider.status === 'error'
-                            ? 'bg-danger/10 text-danger'
-                            : 'bg-default/10 text-muted'
-                      }`}
+                            ? 'danger'
+                            : 'default'
+                      }
                     >
                       {statusLabels[provider.status]}
-                    </span>
+                    </Chip>
                   </div>
-                  <p className="mt-1 truncate text-sm text-muted">
+                  <p className="mt-1 truncate text-sm app-muted">
                     {provider.model}
                   </p>
-                  <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
+                  <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs app-muted">
                     <span>
                       {provider.hasSecret
                         ? 'Ключ сохранён'
@@ -334,7 +344,7 @@ export function TelescopeScreen({
         ) : (
           <Surface variant="secondary" className="mt-6 p-8 text-center">
             <h2 className="text-lg font-semibold">Нет подключений</h2>
-            <p className="mt-2 text-sm text-muted">
+            <p className="mt-2 text-sm app-muted">
               Добавьте провайдера и загрузите доступные модели из его API.
             </p>
             <Button className="mt-5" variant="primary" onPress={openCreate}>
@@ -407,20 +417,20 @@ export function TelescopeScreen({
                 className="h-auto items-start justify-start gap-3 px-3 py-4 text-left"
                 onPress={() => chooseKind(provider.kind)}
               >
-                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent/10 text-xs font-semibold text-accent">
+                <span className="app-accent-tile grid size-10 shrink-0 place-items-center rounded-xl text-xs font-semibold">
                   {provider.name.slice(0, 2).toUpperCase()}
                 </span>
                 <span className="min-w-0 flex-1">
                   <strong className="block text-sm font-medium">
                     {provider.name}
                   </strong>
-                  <span className="mt-1 block text-xs leading-5 text-muted">
+                  <span className="mt-1 block text-xs leading-5 app-muted">
                     {provider.description}
                   </span>
                 </span>
                 <Icon
                   name="chevron"
-                  className="mt-1 size-4 shrink-0 text-muted"
+                  className="mt-1 size-4 shrink-0 app-muted"
                 />
               </Button>
             ))}
@@ -428,12 +438,11 @@ export function TelescopeScreen({
         ) : (
           <div className="space-y-4">
             {form.kind === 'character-ai' && (
-              <Surface
-                variant="tertiary"
-                className="p-4 text-sm leading-6 text-warning"
-              >
-                Для Character.AI нужен отдельный адаптер авторизации и
-                протокола. Несовместимое подключение не сохраняется.
+              <Surface variant="tertiary" className="p-4 text-sm leading-6">
+                <span className="app-warning">
+                  Для Character.AI нужен отдельный адаптер авторизации и
+                  протокола. Несовместимое подключение не сохраняется.
+                </span>
               </Surface>
             )}
 
@@ -500,7 +509,7 @@ export function TelescopeScreen({
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <strong className="text-sm font-medium">Модель</strong>
-                    <p className="mt-1 text-xs text-muted">
+                    <p className="mt-1 text-xs app-muted">
                       {latency != null
                         ? `API ответил за ${latency} мс`
                         : 'Список ещё не загружен'}
@@ -612,7 +621,7 @@ export function TelescopeScreen({
             </Surface>
 
             {error && (
-              <p className="allow-selection text-sm text-danger">{error}</p>
+              <p className="allow-selection text-sm app-danger">{error}</p>
             )}
           </div>
         )}
