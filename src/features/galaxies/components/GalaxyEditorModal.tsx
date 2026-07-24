@@ -111,7 +111,7 @@ export function GalaxyEditorModal({
       <div className="space-y-4">
         <Surface className="rounded-2xl border border-separator p-4 sm:p-5">
           <div className="grid gap-4 sm:grid-cols-[minmax(0,0.72fr)_minmax(0,1.28fr)]">
-            <div className="space-y-1.5">
+            <div className="flex flex-col gap-1.5">
               <Label>Тип объекта</Label>
               <Select
                 fullWidth
@@ -144,7 +144,7 @@ export function GalaxyEditorModal({
               </Select>
             </div>
 
-            <div className="space-y-1.5">
+            <div className="flex flex-col gap-1.5">
               <Label htmlFor="galaxy-name">Название</Label>
               <Input
                 id="galaxy-name"
@@ -161,7 +161,7 @@ export function GalaxyEditorModal({
             </div>
           </div>
 
-          <div className="mt-4 space-y-1.5">
+          <div className="mt-4 flex flex-col gap-1.5">
             <Label htmlFor="galaxy-description">Краткое описание</Label>
             <TextArea
               id="galaxy-description"

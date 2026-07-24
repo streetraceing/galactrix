@@ -25,7 +25,7 @@ export function ChatActions({
       <ContextMenuTrigger className="block min-w-0">
         {children}
       </ContextMenuTrigger>
-      <ContextMenuContent className="w-56">
+      <ContextMenuContent className="w-56 bg-surface-secondary/75 backdrop-blur-md">
         <ContextMenuLabel>{chat.title}</ContextMenuLabel>
         <ContextMenuItem onClick={() => onAction('configure', chat)}>
           <Icon name="settings" className="size-4 text-accent" />
@@ -45,7 +45,7 @@ export function ChatActions({
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem
-          className="text-warning data-highlighted:text-warning"
+          className="text-warning data-highlighted:text-warning hover:bg-warning-soft! hover:text-warning!"
           onClick={() => onAction('clear', chat)}
         >
           <Icon name="clear" className="size-4" />

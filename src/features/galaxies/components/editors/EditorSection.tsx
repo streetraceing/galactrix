@@ -23,7 +23,7 @@ export function EditorSection({
         </div>
         {action ? <div className="shrink-0">{action}</div> : null}
       </div>
-      <div className="mt-4">{children}</div>
+      <div className="mt-4 flex flex-col gap-3">{children}</div>
     </Surface>
   );
 }

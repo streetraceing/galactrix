@@ -118,7 +118,9 @@ export function ProfileScreen({
             }
           />
         </div>
-        <AppInfo version={appVersion} />
+        <div className="md:hidden">
+          <AppInfo version={appVersion} />
+        </div>
       </div>
     </div>
   );

@@ -69,7 +69,7 @@ export function GalaxyCard({
           </button>
         </Surface>
       </ContextMenuTrigger>
-      <ContextMenuContent className="w-56">
+      <ContextMenuContent className="w-56 bg-surface-secondary/75 backdrop-blur-md">
         <ContextMenuLabel>{item.name}</ContextMenuLabel>
         <ContextMenuItem onClick={onEdit}>
           <Icon name="edit" className="size-4" /> Редактировать

@@ -27,7 +27,7 @@ export function ChatListItem({
         variant={isActive ? 'default' : 'transparent'}
         className={`group relative min-w-0 overflow-hidden rounded-xl border transition-colors before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-full ${
           isActive
-            ? 'border-separator before:bg-accent'
+            ? 'md:border-separator md:before:bg-accent bg-transparent md:bg-surface border-0'
             : 'border-transparent before:bg-transparent hover:bg-surface'
         }`}
       >

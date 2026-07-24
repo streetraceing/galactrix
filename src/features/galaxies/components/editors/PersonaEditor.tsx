@@ -64,30 +64,27 @@ export function PersonaEditor({
         title="Поведение и предпочтения"
         description="Факты из этих полей будут собраны в отдельный блок персоны."
       >
-        <div className="grid gap-3 sm:grid-cols-2">
-          <TextArea
-            fullWidth
-            variant="secondary"
-            rows={4}
-            value={data.habits}
-            placeholder="Привычки и устойчивое поведение"
-            aria-label="Привычки"
-            onChange={(event) => patch('habits', event.target.value)}
-          />
-          <TextArea
-            fullWidth
-            variant="secondary"
-            rows={4}
-            value={data.preferences}
-            placeholder="Предпочтения, интересы и ограничения"
-            aria-label="Предпочтения"
-            onChange={(event) => patch('preferences', event.target.value)}
-          />
-        </div>
         <TextArea
           fullWidth
           variant="secondary"
-          className="mt-3"
+          rows={4}
+          value={data.habits}
+          placeholder="Привычки и устойчивое поведение"
+          aria-label="Привычки"
+          onChange={(event) => patch('habits', event.target.value)}
+        />
+        <TextArea
+          fullWidth
+          variant="secondary"
+          rows={4}
+          value={data.preferences}
+          placeholder="Предпочтения, интересы и ограничения"
+          aria-label="Предпочтения"
+          onChange={(event) => patch('preferences', event.target.value)}
+        />
+        <TextArea
+          fullWidth
+          variant="secondary"
           rows={3}
           value={data.communicationNotes}
           placeholder="Как персонаж должен общаться с пользователем"
@@ -123,7 +120,7 @@ export function PersonaEditor({
             {data.attributes.map((attribute) => (
               <div
                 key={attribute.id}
-                className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 rounded-xl border border-separator bg-surface-secondary p-3 sm:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)_auto]"
+                className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 rounded-xl border border-separator sm:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)_auto]"
               >
                 <Input
                   fullWidth

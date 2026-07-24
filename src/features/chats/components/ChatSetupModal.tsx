@@ -81,7 +81,7 @@ export function ChatSetupModal({
     >
       <div className="space-y-5">
         <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-1.5">
+          <div className="flex flex-col gap-1.5">
             <Label htmlFor="chat-title">Название</Label>
             <Input
               id="chat-title"

@@ -38,16 +38,18 @@ function ContextMenuContent({
         alignOffset={alignOffset}
         side={side}
         sideOffset={sideOffset}
+        disableAnchorTracking
+        positionMethod="fixed"
         className="z-50 outline-none"
       >
         <ContextMenuPrimitive.Popup
           data-slot="context-menu-content"
           className={cn(
             'z-50 min-w-40 overflow-hidden rounded-xl border border-separator bg-overlay p-1.5 text-overlay-foreground shadow-lg outline-none',
-            'max-h-[var(--available-height)] origin-[var(--transform-origin)] overflow-y-auto',
-            'transition-[transform,opacity] duration-150 will-change-[transform,opacity]',
-            'data-[starting-style]:scale-95 data-[starting-style]:opacity-0',
-            'data-[ending-style]:scale-95 data-[ending-style]:opacity-0',
+            'max-h-[var(--available-height)] overflow-y-auto',
+            'transition-opacity duration-75 ease-out motion-reduce:transition-none',
+            'data-[starting-style]:opacity-0 data-[ending-style]:opacity-0',
+            'data-[instant]:transition-none',
             className,
           )}
           {...props}
@@ -158,10 +160,10 @@ function ContextMenuSubContent({
           data-slot="context-menu-sub-content"
           className={cn(
             'z-50 min-w-40 overflow-hidden rounded-xl border border-separator bg-overlay p-1.5 text-overlay-foreground shadow-lg outline-none',
-            'max-h-[var(--available-height)] origin-[var(--transform-origin)] overflow-y-auto',
-            'transition-[transform,opacity] duration-150 will-change-[transform,opacity]',
-            'data-[starting-style]:scale-95 data-[starting-style]:opacity-0',
-            'data-[ending-style]:scale-95 data-[ending-style]:opacity-0',
+            'max-h-[var(--available-height)] overflow-y-auto',
+            'transition-opacity duration-75 ease-out motion-reduce:transition-none',
+            'data-[starting-style]:opacity-0 data-[ending-style]:opacity-0',
+            'data-[instant]:transition-none',
             className,
           )}
           {...props}

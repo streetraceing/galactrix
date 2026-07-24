@@ -28,7 +28,7 @@ export function CharacterEditor({
         description="Встроенный стиль или собственный пресет из библиотеки «Галактики»."
       >
         <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-1.5">
+          <div className="flex flex-col gap-1.5">
             <Label>Пресет</Label>
             <Select
               fullWidth
@@ -67,7 +67,7 @@ export function CharacterEditor({
           </div>
 
           {data.stylePreset === 'custom' ? (
-            <div className="space-y-1.5">
+            <div className="flex flex-col gap-1.5">
               <Label>Сохранённый стиль</Label>
               <Select
                 fullWidth

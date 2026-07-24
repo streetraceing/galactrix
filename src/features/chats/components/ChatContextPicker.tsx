@@ -47,7 +47,7 @@ export function ChatContextPicker({
         </Chip>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="flex gap-4 flex-col">
         <GalaxySelectField
           label="Персона пользователя"
           placeholder="Без персоны"
@@ -69,7 +69,7 @@ export function ChatContextPicker({
           value={value.universeId}
           onChange={(universeId) => onChange({ ...value, universeId })}
         />
-        <div className="space-y-1.5">
+        <div className="flex flex-col gap-1.5">
           <Label>Ворлдбуки</Label>
           <Select
             fullWidth

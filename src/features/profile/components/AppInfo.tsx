@@ -1,10 +1,10 @@
+import { BrandMark } from '@/components/BrandMark';
 import { Surface } from '@heroui/react';
-import { BrandMark } from '../../../components/BrandMark';
 
 export function AppInfo({ version }: { version: string }) {
   return (
     <Surface className="flex items-center gap-3 rounded-2xl border border-separator p-4">
-      <div className="hidden md:flex">
+      <div>
         <BrandMark size={38} />
       </div>
       <div className="min-w-0 flex-1">
