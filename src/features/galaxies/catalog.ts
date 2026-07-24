@@ -9,6 +9,19 @@ export const galaxyFilters: Array<{ id: 'all' | GalaxyKind; label: string }> = [
   { id: 'style', label: 'Стили' },
 ];
 
+export const galaxyKindDescriptions: Record<GalaxyKind, string> = {
+  persona:
+    'Описывает пользователя: его устойчивые факты, привычки, предпочтения и особенности общения.',
+  character:
+    'Задаёт личность ассистента, подробное определение и постоянный стиль его сообщений.',
+  universe:
+    'Хранит правила мира, сеттинг и общие факты, действующие на протяжении всего чата.',
+  worldbook:
+    'Содержит отдельные записи лора, которые можно подключать к одному или нескольким чатам.',
+  style:
+    'Сохраняет переиспользуемые инструкции по тону, формату и манере переписки персонажа.',
+};
+
 export const galaxyKindLabels: Record<GalaxyKind, string> = {
   persona: 'Персона',
   character: 'Персонаж',

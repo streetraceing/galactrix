@@ -703,11 +703,10 @@ pub fn add_exchange(
         .execute(
             "UPDATE chats
              SET preview = ?1,
-                 title = CASE WHEN message_count = 0 AND title = 'Новый чат' THEN ?2 ELSE title END,
-                 updated_at = ?3,
+                 updated_at = ?2,
                  message_count = message_count + 2
-             WHERE id = ?4",
-            params![assistant_content, title_from_content(user_content), now + 1, chat_id],
+             WHERE id = ?3",
+            params![assistant_content, now + 1, chat_id],
         )
         .map_err(|error| error.to_string())?;
     transaction.commit().map_err(|error| error.to_string())
@@ -1128,19 +1127,6 @@ fn galaxy_presentation(kind: &str) -> Result<(&'static str, &'static str), Strin
         "worldbook" => Ok(("Ворлдбук", "amber")),
         "style" => Ok(("Стиль", "violet")),
         _ => Err("Неизвестный тип объекта галактики".into()),
-    }
-}
-
-fn title_from_content(content: &str) -> String {
-    let normalized = content.split_whitespace().collect::<Vec<_>>().join(" ");
-    let mut title = normalized.chars().take(56).collect::<String>();
-    if normalized.chars().count() > 56 {
-        title.push('…');
-    }
-    if title.is_empty() {
-        "Новый чат".into()
-    } else {
-        title
     }
 }
 

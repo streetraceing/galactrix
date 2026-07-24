@@ -41,7 +41,7 @@ export function GalaxyFilterBar({
           <Select.Value />
           <Select.Indicator />
         </Select.Trigger>
-        <Select.Popover>
+        <Select.Popover className="bg-surface/75 backdrop-blur-md">
           <ListBox>
             {galaxyFilters.map((filter) => (
               <ListBox.Item
@@ -60,7 +60,7 @@ export function GalaxyFilterBar({
         </Select.Popover>
       </Select>
 
-      <Surface className="hidden overflow-x-auto rounded-2xl border border-separator p-1.5 sm:block">
+      <Surface className="hidden overflow-x-auto rounded-2xl border-separator bg-transparent sm:block">
         <ToggleButtonGroup
           className="min-w-max"
           size="sm"

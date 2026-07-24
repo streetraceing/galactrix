@@ -2,6 +2,7 @@ import { Chip, Surface } from '@heroui/react';
 import { Icon } from '../../../components/Icon';
 import type { Chat } from '../../../types';
 import type { ChatAction } from '../types';
+import { markdownToPreview } from '../utils';
 import { ChatActions } from './ChatActions';
 
 export function ChatListItem({
@@ -52,7 +53,7 @@ export function ChatListItem({
             </span>
             <span className="mt-1 flex min-w-0 items-center gap-2 text-xs text-muted">
               <span className="min-w-0 flex-1 truncate">
-                {chat.preview || 'Сообщений пока нет'}
+                {markdownToPreview(chat.preview) || 'Сообщений пока нет'}
               </span>
               <span className="shrink-0">{chat.updatedAt}</span>
             </span>

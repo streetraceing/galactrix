@@ -26,7 +26,7 @@ export function ProviderSelect({
         <Select.Value />
         <Select.Indicator />
       </Select.Trigger>
-      <Select.Popover>
+      <Select.Popover className="bg-surface/75 backdrop-blur-md">
         <ListBox>
           <ListBox.Item id="" textValue="Без провайдера">
             <Label>Без провайдера</Label>

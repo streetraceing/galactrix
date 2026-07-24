@@ -9,7 +9,7 @@ export function ProviderTypePicker({
   onChoose: (kind: ProviderKind) => void;
 }) {
   return (
-    <div className="grid gap-2 sm:grid-cols-2">
+    <div className="flex flex-col gap-3">
       {providerCatalog.map((provider) => (
         <Surface
           key={provider.kind}

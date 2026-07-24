@@ -26,7 +26,7 @@ export function UiModal({
         variant="blur"
       >
         <Modal.Container size={size} scroll="inside">
-          <Modal.Dialog className="max-h-[90dvh] bg-surface/75 backdrop-blur-md">
+          <Modal.Dialog className="max-h-[90dvh] min-w-0 bg-surface/75 backdrop-blur-md">
             <Modal.CloseTrigger />
             <Modal.Header className="pr-10">
               <Modal.Heading>{title}</Modal.Heading>
@@ -34,7 +34,7 @@ export function UiModal({
                 <p className="mt-1 text-sm text-muted">{description}</p>
               ) : null}
             </Modal.Header>
-            <Modal.Body className="scrollbar-thin overflow-y-auto">
+            <Modal.Body className="scrollbar-thin min-w-0 overflow-x-hidden overflow-y-auto [scrollbar-gutter:stable]">
               {children}
             </Modal.Body>
             {footer ? <Modal.Footer>{footer}</Modal.Footer> : null}

@@ -13,8 +13,10 @@ export function ChatProviderPicker({
   value?: string;
   onChange: (value?: string) => void;
 }) {
+  const selectedProvider = providers.find((provider) => provider.id === value);
+
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex min-w-0 flex-col gap-1.5">
       <Label>Провайдер</Label>
       <Select
         fullWidth
@@ -27,11 +29,15 @@ export function ChatProviderPicker({
           onChange(next === NONE_KEY ? undefined : next);
         }}
       >
-        <Select.Trigger>
-          <Select.Value />
-          <Select.Indicator />
+        <Select.Trigger className="min-w-0 overflow-hidden">
+          <Select.Value className="min-w-0 flex-1 overflow-hidden">
+            <span className="block min-w-0 truncate">
+              {selectedProvider?.name ?? 'Без провайдера'}
+            </span>
+          </Select.Value>
+          <Select.Indicator className="shrink-0" />
         </Select.Trigger>
-        <Select.Popover>
+        <Select.Popover className="bg-surface/75 backdrop-blur-md">
           <ListBox>
             <ListBox.Item id={NONE_KEY} textValue="Без провайдера">
               <span className="text-muted">Без провайдера</span>
@@ -41,7 +47,7 @@ export function ChatProviderPicker({
               <ListBox.Item
                 key={provider.id}
                 id={provider.id}
-                textValue={`${provider.name} ${provider.model}`}
+                textValue={provider.name}
               >
                 <span className="min-w-0 flex-1">
                   <strong className="block truncate text-sm font-medium">

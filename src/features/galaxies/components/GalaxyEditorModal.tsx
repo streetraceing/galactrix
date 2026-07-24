@@ -19,7 +19,11 @@ import type {
   UniverseData,
   WorldbookData,
 } from '../../../types';
-import { galaxyFilters, galaxyKindLabels } from '../catalog';
+import {
+  galaxyFilters,
+  galaxyKindDescriptions,
+  galaxyKindLabels,
+} from '../catalog';
 import { emptyData } from '../model';
 import { CharacterEditor } from './editors/CharacterEditor';
 import { PersonaEditor } from './editors/PersonaEditor';
@@ -110,7 +114,7 @@ export function GalaxyEditorModal({
     >
       <div className="space-y-4">
         <Surface className="rounded-2xl border border-separator p-4 sm:p-5">
-          <div className="grid gap-4 sm:grid-cols-[minmax(0,0.72fr)_minmax(0,1.28fr)]">
+          <div className="flex gap-4 flex-col">
             <div className="flex flex-col gap-1.5">
               <Label>Тип объекта</Label>
               <Select
@@ -127,7 +131,7 @@ export function GalaxyEditorModal({
                   <Select.Value />
                   <Select.Indicator />
                 </Select.Trigger>
-                <Select.Popover>
+                <Select.Popover className="bg-surface/75 backdrop-blur-md">
                   <ListBox>
                     {galaxyFilters.slice(1).map((entry) => (
                       <ListBox.Item
@@ -135,13 +139,23 @@ export function GalaxyEditorModal({
                         id={entry.id}
                         textValue={entry.label}
                       >
-                        {entry.label}
+                        <span className="min-w-0 flex-1">
+                          <strong className="block text-sm font-medium">
+                            {entry.label}
+                          </strong>
+                          <span className="mt-0.5 block text-xs leading-5 text-muted">
+                            {galaxyKindDescriptions[entry.id as GalaxyKind]}
+                          </span>
+                        </span>
                         <ListBox.ItemIndicator />
                       </ListBox.Item>
                     ))}
                   </ListBox>
                 </Select.Popover>
               </Select>
+              <p className="text-xs leading-5 text-muted">
+                {galaxyKindDescriptions[draft.kind]}
+              </p>
             </div>
 
             <div className="flex flex-col gap-1.5">

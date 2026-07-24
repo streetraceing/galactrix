@@ -545,7 +545,7 @@ export function TelescopeScreen({
                       <Select.Value />
                       <Select.Indicator />
                     </Select.Trigger>
-                    <Select.Popover>
+                    <Select.Popover className="bg-surface/75 backdrop-blur-md">
                       <ListBox>
                         {models.map((model) => (
                           <ListBox.Item

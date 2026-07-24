@@ -17,8 +17,10 @@ export function GalaxySelectField({
   value?: string;
   onChange: (value?: string) => void;
 }) {
+  const selectedItem = items.find((item) => item.id === value);
+
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex min-w-0 flex-col gap-1.5">
       <Label>{label}</Label>
       <Select
         fullWidth
@@ -31,11 +33,15 @@ export function GalaxySelectField({
           onChange(next === NONE_KEY ? undefined : next);
         }}
       >
-        <Select.Trigger>
-          <Select.Value />
-          <Select.Indicator />
+        <Select.Trigger className="min-w-0 overflow-hidden">
+          <Select.Value className="min-w-0 flex-1 overflow-hidden">
+            <span className="block min-w-0 truncate">
+              {selectedItem?.name ?? placeholder}
+            </span>
+          </Select.Value>
+          <Select.Indicator className="shrink-0" />
         </Select.Trigger>
-        <Select.Popover>
+        <Select.Popover className="bg-surface/75 backdrop-blur-md">
           <ListBox>
             <ListBox.Item id={NONE_KEY} textValue={placeholder}>
               <span className="text-muted">{placeholder}</span>
@@ -43,7 +49,7 @@ export function GalaxySelectField({
             </ListBox.Item>
             {items.map((item) => (
               <ListBox.Item key={item.id} id={item.id} textValue={item.name}>
-                <span className="min-w-0 flex-1">
+                <span className="min-w-0 flex-1 overflow-hidden">
                   <strong className="block truncate text-sm font-medium">
                     {item.name}
                   </strong>

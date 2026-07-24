@@ -18,13 +18,18 @@ const kindLabels: Record<GalaxyKind, string> = {
   character: 'Персонаж',
   universe: 'Вселенная',
   worldbook: 'Ворлдбук',
+  style: 'Стиль общения',
 };
 
-const kindIcons: Record<GalaxyKind, 'user' | 'brain' | 'planet' | 'book'> = {
+const kindIcons: Record<
+  GalaxyKind,
+  'user' | 'brain' | 'planet' | 'book' | 'message_box'
+> = {
   persona: 'user',
   character: 'brain',
   universe: 'planet',
   worldbook: 'book',
+  style: 'message_box',
 };
 
 export function GalaxiesScreen({
@@ -79,6 +84,7 @@ export function GalaxiesScreen({
         kind,
         name: name.trim(),
         description: description.trim(),
+        data: { ...editing?.data },
       });
       setModalOpen(false);
     } catch (caught) {

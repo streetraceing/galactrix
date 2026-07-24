@@ -430,7 +430,7 @@ export function ChatsScreen({
                   <Select.Value />
                   <Select.Indicator />
                 </Select.Trigger>
-                <Select.Popover>
+                <Select.Popover className="bg-surface/75 backdrop-blur-md">
                   <ListBox>
                     <ListBox.Item id="none" textValue="Не выбран">
                       <Label>Не выбран</Label>
@@ -474,7 +474,7 @@ export function ChatsScreen({
                         <Select.Value />
                         <Select.Indicator />
                       </Select.Trigger>
-                      <Select.Popover>
+                      <Select.Popover className="bg-surface/75 backdrop-blur-md">
                         <ListBox>
                           <ListBox.Item id="none" textValue="Не выбран">
                             <Label>Не выбран</Label>

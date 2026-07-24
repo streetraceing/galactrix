@@ -1,6 +1,7 @@
 import type { ReactNode, SVGProps } from 'react';
 
 type IconName =
+  | 'message_box'
   | 'chats'
   | 'galaxies'
   | 'telescope'
@@ -48,6 +49,14 @@ export function Icon({
         <circle cx="12" cy="12" r="2.5" />
         <path d="M4.7 7.2c2.4-3.5 8.2-4.7 12-2.3 3.7 2.4 3.1 6.7-.3 9.8-3.3 3.1-8.4 4-11.5 1.5-3-2.5-1.9-6.5 1.3-9.2" />
         <path d="M7 4.5c-1.2 3.2.2 8.1 3.7 11.2 3.5 3.2 7.4 3.5 9.1.7" />
+      </>
+    ),
+    message_box: (
+      <>
+        <path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719" />
+        <path d="M8 12h.01" />
+        <path d="M12 12h.01" />
+        <path d="M16 12h.01" />
       </>
     ),
     telescope: (

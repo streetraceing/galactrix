@@ -21,33 +21,42 @@ export function ChatContextPicker({
   const characters = ofKind(galaxyItems, 'character');
   const universes = ofKind(galaxyItems, 'universe');
   const worldbooks = ofKind(galaxyItems, 'worldbook');
+  const selectedWorldbooks = worldbooks.filter((item) =>
+    value.worldbookIds.includes(item.id),
+  );
   const selectedCount =
     Number(Boolean(value.personaId)) +
     Number(Boolean(value.characterId)) +
     Number(Boolean(value.universeId)) +
     value.worldbookIds.length;
+  const worldbookLabel =
+    selectedWorldbooks.length === 0
+      ? 'Без ворлдбуков'
+      : selectedWorldbooks.length === 1
+        ? selectedWorldbooks[0].name
+        : `${selectedWorldbooks[0].name} +${selectedWorldbooks.length - 1}`;
 
   return (
-    <Surface className="rounded-2xl border border-separator p-4 sm:p-5">
-      <div className="mb-4 flex items-start justify-between gap-3">
+    <Surface className="min-w-0 rounded-2xl border border-separator p-4 sm:p-5">
+      <div className="mb-4 flex min-w-0 items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 items-center gap-2">
             <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-accent/10 text-accent">
               <Icon name="galaxies" className="size-4" />
             </span>
-            <h3 className="text-sm font-semibold">Ролевой контекст</h3>
+            <h3 className="truncate text-sm font-semibold">Ролевой контекст</h3>
           </div>
           <p className="mt-2 text-xs leading-5 text-muted">
             Одна персона пользователя, один персонаж, одна вселенная и несколько
             ворлдбуков.
           </p>
         </div>
-        <Chip size="sm" variant="soft">
+        <Chip size="sm" variant="soft" className="shrink-0">
           {selectedCount}
         </Chip>
       </div>
 
-      <div className="flex gap-4 flex-col">
+      <div className="flex flex-col gap-4 min-w-0">
         <GalaxySelectField
           label="Персона пользователя"
           placeholder="Без персоны"
@@ -69,7 +78,7 @@ export function ChatContextPicker({
           value={value.universeId}
           onChange={(universeId) => onChange({ ...value, universeId })}
         />
-        <div className="flex flex-col gap-1.5">
+        <div className="flex min-w-0 flex-col gap-1.5">
           <Label>Ворлдбуки</Label>
           <Select
             fullWidth
@@ -88,11 +97,13 @@ export function ChatContextPicker({
               })
             }
           >
-            <Select.Trigger>
-              <Select.Value />
-              <Select.Indicator />
+            <Select.Trigger className="min-w-0">
+              <Select.Value className="min-w-0 flex-1">
+                <span className="block min-w-0 truncate">{worldbookLabel}</span>
+              </Select.Value>
+              <Select.Indicator className="shrink-0" />
             </Select.Trigger>
-            <Select.Popover>
+            <Select.Popover className="bg-surface/75 backdrop-blur-md">
               <ListBox>
                 {worldbooks.map((item) => (
                   <ListBox.Item

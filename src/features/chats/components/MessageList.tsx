@@ -1,6 +1,7 @@
 import { Button, Surface } from '@heroui/react';
 import type { RefObject } from 'react';
 import { Icon } from '../../../components/Icon';
+import { MarkdownContent } from '../../../components/ui/MarkdownContent';
 import type { Message, Provider } from '../../../types';
 
 export function MessageList({
@@ -47,9 +48,9 @@ export function MessageList({
                 </div>
                 <Surface
                   variant={isUser ? 'tertiary' : 'default'}
-                  className="selectable whitespace-pre-wrap wrap-break-word rounded-2xl px-4 py-3 text-sm leading-6"
+                  className="selectable min-w-0 max-w-full overflow-hidden rounded-2xl px-4 py-3"
                 >
-                  {message.content}
+                  <MarkdownContent>{message.content}</MarkdownContent>
                 </Surface>
                 <Button
                   size="sm"

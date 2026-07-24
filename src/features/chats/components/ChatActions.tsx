@@ -43,7 +43,7 @@ export function ChatActions({
           <Icon name="pin" className="size-4" />
           {chat.pinned ? 'Открепить' : 'Закрепить'}
         </ContextMenuItem>
-        <ContextMenuSeparator />
+        <ContextMenuSeparator className="bg-default-hover" />
         <ContextMenuItem
           className="text-warning data-highlighted:text-warning hover:bg-warning-soft! hover:text-warning!"
           onClick={() => onAction('clear', chat)}
