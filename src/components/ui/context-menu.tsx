@@ -13,24 +13,17 @@ function ContextMenuPortal(props: ContextMenuPrimitive.Portal.Props) {
   );
 }
 
-function ContextMenuTrigger({
-  className,
-  ...props
-}: ContextMenuPrimitive.Trigger.Props) {
+function ContextMenuTrigger(props: ContextMenuPrimitive.Trigger.Props) {
   return (
-    <ContextMenuPrimitive.Trigger
-      data-slot="context-menu-trigger"
-      className={cn('cursor-context-menu select-none', className)}
-      {...props}
-    />
+    <ContextMenuPrimitive.Trigger data-slot="context-menu-trigger" {...props} />
   );
 }
 
 function ContextMenuContent({
   className,
   align = 'start',
-  alignOffset = 4,
-  side = 'bottom',
+  alignOffset = 0,
+  side = 'right',
   sideOffset = 4,
   ...props
 }: ContextMenuPrimitive.Popup.Props &
@@ -41,18 +34,20 @@ function ContextMenuContent({
   return (
     <ContextMenuPrimitive.Portal>
       <ContextMenuPrimitive.Positioner
-        className="isolate z-50 outline-none"
         align={align}
         alignOffset={alignOffset}
         side={side}
         sideOffset={sideOffset}
+        className="z-50 outline-none"
       >
         <ContextMenuPrimitive.Popup
           data-slot="context-menu-content"
           className={cn(
-            'z-50 max-h-(--available-height) min-w-40 origin-(--transform-origin) overflow-x-hidden overflow-y-auto rounded-xl border border-separator bg-overlay p-1.5 text-overlay-foreground shadow-lg outline-none duration-100',
-            'data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95',
-            'data-[side=bottom]:slide-in-from-top-2 data-[side=inline-end]:slide-in-from-left-2 data-[side=inline-start]:slide-in-from-right-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2',
+            'z-50 min-w-40 overflow-hidden rounded-xl border border-separator bg-overlay p-1.5 text-overlay-foreground shadow-lg outline-none',
+            'max-h-[var(--available-height)] origin-[var(--transform-origin)] overflow-y-auto',
+            'transition-[transform,opacity] duration-150 will-change-[transform,opacity]',
+            'data-[starting-style]:scale-95 data-[starting-style]:opacity-0',
+            'data-[ending-style]:scale-95 data-[ending-style]:opacity-0',
             className,
           )}
           {...props}
@@ -72,13 +67,13 @@ function ContextMenuLabel({
   className,
   inset,
   ...props
-}: ContextMenuPrimitive.GroupLabel.Props & { inset?: boolean }) {
+}: React.ComponentPropsWithoutRef<'div'> & { inset?: boolean }) {
   return (
-    <ContextMenuPrimitive.GroupLabel
+    <div
       data-slot="context-menu-label"
       data-inset={inset}
       className={cn(
-        'px-2 py-1.5 text-xs font-medium text-muted data-inset:pl-8',
+        'px-2 py-1.5 text-xs font-medium text-muted data-[inset]:pl-8',
         className,
       )}
       {...props}
@@ -101,9 +96,10 @@ function ContextMenuItem({
       data-inset={inset}
       data-variant={variant}
       className={cn(
-        'group/context-menu-item relative flex cursor-default select-none items-center gap-2 rounded-lg px-2.5 py-2 text-sm outline-hidden',
-        'data-highlighted:bg-default data-highlighted:text-default-foreground data-inset:pl-8 data-disabled:pointer-events-none data-disabled:opacity-50',
-        'data-[variant=destructive]:text-danger data-[variant=destructive]:data-highlighted:bg-danger/10 data-[variant=destructive]:data-highlighted:text-danger',
+        'group/context-menu-item relative flex cursor-default select-none items-center gap-2 rounded-lg px-2.5 py-2 text-sm outline-none',
+        'data-[highlighted]:bg-default data-[highlighted]:text-default-foreground data-[inset]:pl-8',
+        'data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+        'data-[variant=destructive]:text-danger data-[variant=destructive]:data-[highlighted]:bg-danger/10 data-[variant=destructive]:data-[highlighted]:text-danger',
         '[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=size-])]:size-4',
         className,
       )}
@@ -129,8 +125,9 @@ function ContextMenuSubTrigger({
       data-slot="context-menu-sub-trigger"
       data-inset={inset}
       className={cn(
-        'flex cursor-default select-none items-center gap-2 rounded-lg px-2.5 py-2 text-sm outline-hidden',
-        'data-highlighted:bg-default data-highlighted:text-default-foreground data-open:bg-default data-open:text-default-foreground data-inset:pl-8',
+        'flex cursor-default select-none items-center gap-2 rounded-lg px-2.5 py-2 text-sm outline-none',
+        'data-[highlighted]:bg-default data-[highlighted]:text-default-foreground data-[popup-open]:bg-default data-[popup-open]:text-default-foreground data-[inset]:pl-8',
+        'data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
         '[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=size-])]:size-4',
         className,
       )}
@@ -142,15 +139,35 @@ function ContextMenuSubTrigger({
   );
 }
 
-function ContextMenuSubContent(
-  props: React.ComponentProps<typeof ContextMenuContent>,
-) {
+function ContextMenuSubContent({
+  className,
+  sideOffset = 4,
+  alignOffset = -4,
+  ...props
+}: ContextMenuPrimitive.Popup.Props &
+  Pick<ContextMenuPrimitive.Positioner.Props, 'sideOffset' | 'alignOffset'>) {
   return (
-    <ContextMenuContent
-      data-slot="context-menu-sub-content"
-      side="right"
-      {...props}
-    />
+    <ContextMenuPrimitive.Portal>
+      <ContextMenuPrimitive.Positioner
+        side="right"
+        sideOffset={sideOffset}
+        alignOffset={alignOffset}
+        className="z-50 outline-none"
+      >
+        <ContextMenuPrimitive.Popup
+          data-slot="context-menu-sub-content"
+          className={cn(
+            'z-50 min-w-40 overflow-hidden rounded-xl border border-separator bg-overlay p-1.5 text-overlay-foreground shadow-lg outline-none',
+            'max-h-[var(--available-height)] origin-[var(--transform-origin)] overflow-y-auto',
+            'transition-[transform,opacity] duration-150 will-change-[transform,opacity]',
+            'data-[starting-style]:scale-95 data-[starting-style]:opacity-0',
+            'data-[ending-style]:scale-95 data-[ending-style]:opacity-0',
+            className,
+          )}
+          {...props}
+        />
+      </ContextMenuPrimitive.Positioner>
+    </ContextMenuPrimitive.Portal>
   );
 }
 
@@ -166,8 +183,9 @@ function ContextMenuCheckboxItem({
       data-slot="context-menu-checkbox-item"
       data-inset={inset}
       className={cn(
-        'relative flex cursor-default select-none items-center gap-2 rounded-lg py-2 pr-8 pl-2.5 text-sm outline-hidden',
-        'data-highlighted:bg-default data-highlighted:text-default-foreground data-inset:pl-8 data-disabled:pointer-events-none data-disabled:opacity-50',
+        'relative flex cursor-default select-none items-center gap-2 rounded-lg py-2 pr-8 pl-2.5 text-sm outline-none',
+        'data-[highlighted]:bg-default data-[highlighted]:text-default-foreground data-[inset]:pl-8',
+        'data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
         '[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=size-])]:size-4',
         className,
       )}
@@ -204,8 +222,9 @@ function ContextMenuRadioItem({
       data-slot="context-menu-radio-item"
       data-inset={inset}
       className={cn(
-        'relative flex cursor-default select-none items-center gap-2 rounded-lg py-2 pr-8 pl-2.5 text-sm outline-hidden',
-        'data-highlighted:bg-default data-highlighted:text-default-foreground data-inset:pl-8 data-disabled:pointer-events-none data-disabled:opacity-50',
+        'relative flex cursor-default select-none items-center gap-2 rounded-lg py-2 pr-8 pl-2.5 text-sm outline-none',
+        'data-[highlighted]:bg-default data-[highlighted]:text-default-foreground data-[inset]:pl-8',
+        'data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
         '[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=size-])]:size-4',
         className,
       )}

@@ -79,7 +79,10 @@ export function normalizeData(
   kind: GalaxyKind,
   data: GalaxyItemData,
 ): GalaxyItemData {
-  const value = data as Record<string, unknown>;
+  const value =
+    typeof data === 'object' && data !== null && !Array.isArray(data)
+      ? (data as Record<string, unknown>)
+      : {};
 
   switch (kind) {
     case 'persona':

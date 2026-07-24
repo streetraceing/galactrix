@@ -6,12 +6,14 @@ import type {
   UniverseData,
   WorldbookData,
 } from '../../types';
-import { stylePresets } from './model';
+import { normalizeData, stylePresets } from './model';
 
 export function galaxyItemDetails(item: GalaxyItem): string[] {
+  const normalized = normalizeData(item.kind, item.data);
+
   switch (item.kind) {
     case 'persona': {
-      const data = item.data as PersonaData;
+      const data = normalized as PersonaData;
       const identity = [data.gender, data.age, data.pronouns].filter(
         Boolean,
       ).length;
@@ -22,7 +24,7 @@ export function galaxyItemDetails(item: GalaxyItem): string[] {
       ].filter(Boolean);
     }
     case 'character': {
-      const data = item.data as CharacterData;
+      const data = normalized as CharacterData;
       const style = stylePresets.find(
         (entry) => entry.id === data.stylePreset,
       )?.label;
@@ -32,16 +34,16 @@ export function galaxyItemDetails(item: GalaxyItem): string[] {
       ].filter(Boolean);
     }
     case 'universe': {
-      const data = item.data as UniverseData;
+      const data = normalized as UniverseData;
       return [`${data.rules.length} правил и фактов`];
     }
     case 'worldbook': {
-      const data = item.data as WorldbookData;
+      const data = normalized as WorldbookData;
       const enabled = data.entries.filter((entry) => entry.enabled).length;
       return [`${data.entries.length} записей`, `${enabled} включено`];
     }
     case 'style': {
-      const data = item.data as StyleData;
+      const data = normalized as StyleData;
       return [data.example.trim() ? 'Есть пример' : 'Только инструкции'];
     }
   }

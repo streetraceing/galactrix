@@ -55,8 +55,6 @@ export function ApplicationFrame({
       />
 
       <section className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
-        <MobileHeader />
-
         {loading ? (
           <div className="absolute inset-0 z-40 grid place-items-center bg-background/70 backdrop-blur-sm">
             <Spinner aria-label="Загрузка" />
