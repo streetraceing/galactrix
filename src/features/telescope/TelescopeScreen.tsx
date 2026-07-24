@@ -5,6 +5,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { MetricGrid } from '../../components/ui/MetricGrid';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { SectionHeader } from '../../components/ui/SectionHeader';
+import { UiModal } from '../../components/ui/UiModal';
 import type { Provider, ProviderInput, ProviderModelResult } from '../../types';
 import { ProviderCard } from './components/ProviderCard';
 import { ProviderEditorModal } from './components/ProviderEditorModal';
@@ -28,7 +29,10 @@ export function TelescopeScreen({
 }) {
   const [checkingAll, setCheckingAll] = useState(false);
   const [checkingId, setCheckingId] = useState('');
-  const editor = useProviderEditor({ onFetchModels, onSave, onDelete });
+  const [deleteTarget, setDeleteTarget] = useState<Provider | null>(null);
+  const [deleteError, setDeleteError] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const editor = useProviderEditor({ onFetchModels, onSave });
   const connectedCount = providers.filter(
     (provider) => provider.status === 'connected',
   ).length;
@@ -53,6 +57,20 @@ export function TelescopeScreen({
       }
     }
     setCheckingAll(false);
+  };
+
+  const removeProvider = async () => {
+    if (!deleteTarget || deleting) return;
+    setDeleting(true);
+    setDeleteError('');
+    try {
+      await onDelete(deleteTarget.id);
+      setDeleteTarget(null);
+    } catch (error) {
+      setDeleteError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setDeleting(false);
+    }
   };
 
   return (
@@ -110,6 +128,7 @@ export function TelescopeScreen({
                   checking={checkingId === provider.id}
                   onCheck={() => void checkOne(provider.id)}
                   onEdit={() => editor.openEdit(provider)}
+                  onDelete={() => setDeleteTarget(provider)}
                 />
               ))}
             </div>
@@ -147,8 +166,41 @@ export function TelescopeScreen({
         onTokenChange={editor.setToken}
         onLoadModels={() => void editor.loadModels()}
         onSave={() => void editor.save()}
-        onDelete={() => void editor.remove()}
       />
+
+      <UiModal
+        isOpen={Boolean(deleteTarget)}
+        onOpenChange={(open) => !open && !deleting && setDeleteTarget(null)}
+        title="Удалить подключение?"
+        description={
+          deleteTarget
+            ? `Подключение «${deleteTarget.name}» и сохранённый ключ будут удалены.`
+            : undefined
+        }
+        footer={
+          <>
+            <Button
+              variant="ghost"
+              isDisabled={deleting}
+              onPress={() => setDeleteTarget(null)}
+            >
+              Отмена
+            </Button>
+            <Button
+              variant="danger"
+              isPending={deleting}
+              onPress={() => void removeProvider()}
+            >
+              Удалить
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-muted">Это действие нельзя отменить.</p>
+        {deleteError ? (
+          <p className="selectable mt-2 text-sm text-danger">{deleteError}</p>
+        ) : null}
+      </UiModal>
     </div>
   );
 }

@@ -1,6 +1,5 @@
 import {
   Chip,
-  Label,
   ListBox,
   Select,
   Surface,
@@ -31,12 +30,12 @@ export function GalaxyFilterBar({
         fullWidth
         className="sm:hidden"
         value={value}
+        aria-label="Фильтр библиотеки"
         onChange={(key: Key | Key[] | null) => {
           if (key != null && !Array.isArray(key)) {
             onChange(String(key) as 'all' | GalaxyKind);
           }
         }}
-        aria-label="Фильтр библиотеки"
       >
         <Select.Trigger>
           <Select.Value />
@@ -50,12 +49,11 @@ export function GalaxyFilterBar({
                 id={filter.id}
                 textValue={filter.label}
               >
-                <Label className="min-w-0 flex-1 truncate">
-                  {filter.label}
-                </Label>
-                <Chip size="sm" variant="soft" className='bg-transparent'>
+                <span className="min-w-0 flex-1 truncate">{filter.label}</span>
+                <Chip size="sm" variant="soft">
                   {getCount(filter.id)}
                 </Chip>
+                <ListBox.ItemIndicator />
               </ListBox.Item>
             ))}
           </ListBox>

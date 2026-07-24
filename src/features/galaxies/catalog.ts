@@ -6,6 +6,7 @@ export const galaxyFilters: Array<{ id: 'all' | GalaxyKind; label: string }> = [
   { id: 'character', label: 'Персонажи' },
   { id: 'universe', label: 'Вселенные' },
   { id: 'worldbook', label: 'Ворлдбуки' },
+  { id: 'style', label: 'Стили' },
 ];
 
 export const galaxyKindLabels: Record<GalaxyKind, string> = {
@@ -13,14 +14,16 @@ export const galaxyKindLabels: Record<GalaxyKind, string> = {
   character: 'Персонаж',
   universe: 'Вселенная',
   worldbook: 'Ворлдбук',
+  style: 'Стиль',
 };
 
 export const galaxyKindIcons: Record<
   GalaxyKind,
-  'user' | 'brain' | 'planet' | 'book'
+  'user' | 'brain' | 'planet' | 'book' | 'sparkles'
 > = {
   persona: 'user',
   character: 'brain',
   universe: 'planet',
   worldbook: 'book',
+  style: 'sparkles',
 };

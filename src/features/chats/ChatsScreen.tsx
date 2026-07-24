@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ResizeHandle } from '../../components/ResizeHandle';
 import { EmptyState } from '../../components/ui/EmptyState';
-import type { Chat } from '../../types';
+import type { Chat, ChatConfigInput } from '../../types';
 import { ChatComposer } from './components/ChatComposer';
 import { ChatDialogs } from './components/ChatDialogs';
+import { ChatSetupModal } from './components/ChatSetupModal';
 import { ChatSidebar } from './components/ChatSidebar';
 import { ConversationHeader } from './components/ConversationHeader';
 import { MessageList } from './components/MessageList';
@@ -14,12 +15,14 @@ export function ChatsScreen({
   chats,
   messages,
   providers,
+  galaxyItems,
   activeChatId,
   chatSidebarWidth,
   onChatSidebarWidthPreview,
   onChatSidebarWidthCommit,
   onSelectChat,
   onNewChat,
+  onUpdateChat,
   onRenameChat,
   onDeleteChat,
   onSetPinned,
@@ -38,6 +41,8 @@ export function ChatsScreen({
   const [actionError, setActionError] = useState('');
   const [renameTarget, setRenameTarget] = useState<Chat | null>(null);
   const [renameValue, setRenameValue] = useState('');
+  const [configTarget, setConfigTarget] = useState<Chat | 'new' | null>(null);
+  const [configError, setConfigError] = useState('');
   const [confirmTarget, setConfirmTarget] = useState<{
     type: 'clear' | 'delete';
     chat: Chat;
@@ -80,7 +85,6 @@ export function ChatsScreen({
 
   useEffect(() => {
     if (!activeChat?.id) return;
-
     const isMobile = window.matchMedia('(max-width: 767px)').matches;
     if (isMobile && showHistoryMobile) return;
 
@@ -90,7 +94,6 @@ export function ChatsScreen({
         const scroller = messageScrollRef.current;
         if (scroller) scroller.scrollTop = scroller.scrollHeight;
       };
-
       scrollToBottom();
       secondFrame = window.requestAnimationFrame(scrollToBottom);
     });
@@ -103,11 +106,6 @@ export function ChatsScreen({
 
   const selectChat = (id: string) => {
     onSelectChat(id);
-    setShowHistoryMobile(false);
-  };
-
-  const createNewChat = async () => {
-    await onNewChat();
     setShowHistoryMobile(false);
   };
 
@@ -126,6 +124,26 @@ export function ChatsScreen({
 
   const handleAction = (action: ChatAction, chat: Chat) => {
     setActionError('');
+    if (action === 'configure') {
+      setConfigError('');
+      setConfigTarget(chat);
+      return;
+    }
+    if (action === 'duplicate') {
+      setWorking(true);
+      void onNewChat({
+        title: `${chat.title} — копия`,
+        providerId: chat.providerId,
+        personaId: chat.personaId,
+        characterId: chat.characterId,
+        universeId: chat.universeId,
+        worldbookIds: [...chat.worldbookIds],
+      })
+        .then(() => setShowHistoryMobile(false))
+        .catch((error) => setActionError(String(error)))
+        .finally(() => setWorking(false));
+      return;
+    }
     if (action === 'rename') {
       setRenameTarget(chat);
       setRenameValue(chat.title);
@@ -139,6 +157,25 @@ export function ChatsScreen({
       return;
     }
     setConfirmTarget({ type: action, chat });
+  };
+
+  const saveConfig = async (input: ChatConfigInput) => {
+    if (!configTarget || working) return;
+    setWorking(true);
+    setConfigError('');
+    try {
+      if (configTarget === 'new') {
+        await onNewChat(input);
+        setShowHistoryMobile(false);
+      } else {
+        await onUpdateChat(configTarget.id, input);
+      }
+      setConfigTarget(null);
+    } catch (error) {
+      setConfigError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setWorking(false);
+    }
   };
 
   const commitRename = async () => {
@@ -185,7 +222,10 @@ export function ChatsScreen({
         isVisibleMobile={showHistoryMobile}
         onQueryChange={setQuery}
         onSelect={selectChat}
-        onNewChat={() => void createNewChat()}
+        onNewChat={() => {
+          setConfigError('');
+          setConfigTarget('new');
+        }}
         onAction={handleAction}
       />
 
@@ -206,6 +246,7 @@ export function ChatsScreen({
             <ConversationHeader
               chat={activeChat}
               providers={providers}
+              galaxyItems={galaxyItems}
               onBack={() => setShowHistoryMobile(true)}
               onSetProvider={(providerId) =>
                 void onSetProvider(activeChat.id, providerId)
@@ -234,11 +275,22 @@ export function ChatsScreen({
             <EmptyState
               icon="chats"
               title="Нет чатов"
-              description="Создайте новый чат в панели истории, чтобы начать разговор."
+              description="Создайте чат и сразу выберите его ролевой контекст."
             />
           </div>
         )}
       </section>
+
+      <ChatSetupModal
+        isOpen={configTarget != null}
+        chat={configTarget === 'new' ? null : configTarget}
+        galaxyItems={galaxyItems}
+        providers={providers}
+        saving={working}
+        error={configError}
+        onOpenChange={(open) => !open && setConfigTarget(null)}
+        onSubmit={(input) => void saveConfig(input)}
+      />
 
       <ChatDialogs
         renameTarget={renameTarget}

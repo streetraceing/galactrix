@@ -1,13 +1,14 @@
 mod db;
 mod models;
+mod prompt_builder;
 mod provider_client;
 mod secure_storage;
 
 use std::sync::Mutex;
 
 use models::{
-    AppSettings, AppSnapshot, CreatedChat, GalaxyItem, GalaxyItemInput, Provider, ProviderInput,
-    ProviderModelResult,
+    AppSettings, AppSnapshot, ChatConfigInput, CreatedChat, GalaxyItem, GalaxyItemInput, Provider,
+    ProviderInput, ProviderModelResult,
 };
 use rusqlite::Connection;
 use tauri::{Manager, State};
@@ -28,19 +29,29 @@ fn get_app_snapshot(state: State<'_, AppState>) -> Result<AppSnapshot, String> {
 }
 
 #[tauri::command]
-fn create_chat(title: String, state: State<'_, AppState>) -> Result<CreatedChat, String> {
-    let title = title.trim();
+fn create_chat(input: ChatConfigInput, state: State<'_, AppState>) -> Result<CreatedChat, String> {
+    let title = input.title.trim();
     if title.is_empty() {
         return Err("Название чата не может быть пустым".into());
     }
 
     let id = Uuid::new_v4().to_string();
     let database = state.database.lock().map_err(|error| error.to_string())?;
-    db::create_chat(&database, &id, title)?;
+    db::create_chat(&database, &id, &input)?;
     Ok(CreatedChat {
         id,
         title: title.into(),
     })
+}
+
+#[tauri::command]
+fn update_chat_config(
+    chat_id: String,
+    input: ChatConfigInput,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let database = state.database.lock().map_err(|error| error.to_string())?;
+    db::update_chat_config(&database, &chat_id, &input)
 }
 
 #[tauri::command]
@@ -104,16 +115,26 @@ async fn send_chat_message(
         return Err("Пустое сообщение не отправляется".into());
     }
 
-    let (provider, history) = {
+    let (provider, history, system_prompt) = {
         let database = state.database.lock().map_err(|error| error.to_string())?;
+        let context = db::get_chat_prompt_context(&database, &chat_id)?;
         (
             db::get_provider(&database, &provider_id)?,
             db::messages_for_chat(&database, &chat_id)?,
+            prompt_builder::build_system_prompt(&context),
         )
     };
     let secret = secret_for_saved_provider(&provider)?;
 
-    let completion = match provider_client::complete(&provider, secret.as_deref(), &history, content).await {
+    let completion = match provider_client::complete(
+        &provider,
+        secret.as_deref(),
+        &history,
+        system_prompt.as_deref(),
+        content,
+    )
+    .await
+    {
         Ok(completion) => completion,
         Err(error) => {
             if let Ok(database) = state.database.lock() {
@@ -379,6 +400,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_app_snapshot,
             create_chat,
+            update_chat_config,
             rename_chat,
             delete_chat,
             set_chat_pinned,

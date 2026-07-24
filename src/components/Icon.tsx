@@ -27,7 +27,8 @@ type IconName =
   | 'trash'
   | 'pin'
   | 'clear'
-  | 'back';
+  | 'back'
+  | 'info';
 
 export function Icon({
   name,
@@ -183,6 +184,12 @@ export function Icon({
       </>
     ),
     back: <path d="m15 18-6-6 6-6" />,
+    info: (
+      <>
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 11v5M12 8h.01" />
+      </>
+    ),
   };
 
   return (

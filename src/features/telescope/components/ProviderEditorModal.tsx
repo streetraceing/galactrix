@@ -1,7 +1,7 @@
 import { Button, Surface } from '@heroui/react';
 import { UiModal } from '../../../components/ui/UiModal';
-import type { ProviderInput, ProviderKind } from '../../../types';
 import type { providerCatalog } from '../../../data';
+import type { ProviderInput, ProviderKind } from '../../../types';
 import { GenerationSettings } from './GenerationSettings';
 import { ProviderCredentials } from './ProviderCredentials';
 import { ProviderModelSection } from './ProviderModelSection';
@@ -27,7 +27,6 @@ export function ProviderEditorModal({
   onTokenChange,
   onLoadModels,
   onSave,
-  onDelete,
 }: {
   isOpen: boolean;
   step: 1 | 2;
@@ -49,7 +48,6 @@ export function ProviderEditorModal({
   onTokenChange: (value: string) => void;
   onLoadModels: () => void;
   onSave: () => void;
-  onDelete: () => void;
 }) {
   return (
     <UiModal
@@ -67,11 +65,6 @@ export function ProviderEditorModal({
       footer={
         step === 2 ? (
           <>
-            {form.id ? (
-              <Button variant="danger" isPending={saving} onPress={onDelete}>
-                Удалить
-              </Button>
-            ) : null}
             <span className="flex-1" />
             {!form.id ? (
               <Button

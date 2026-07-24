@@ -8,6 +8,19 @@ export type Chat = {
   messageCount: number;
   pinned: boolean;
   providerId?: string;
+  personaId?: string;
+  characterId?: string;
+  universeId?: string;
+  worldbookIds: string[];
+};
+
+export type ChatConfigInput = {
+  title: string;
+  providerId?: string;
+  personaId?: string;
+  characterId?: string;
+  universeId?: string;
+  worldbookIds: string[];
 };
 
 export type Message = {
@@ -18,13 +31,73 @@ export type Message = {
   createdAt: string;
 };
 
-export type GalaxyKind = 'persona' | 'character' | 'universe' | 'worldbook';
+export type GalaxyKind =
+  'persona' | 'character' | 'universe' | 'worldbook' | 'style';
+
+export type NamedValue = {
+  id: string;
+  title: string;
+  value: string;
+};
+
+export type DefinitionSection = {
+  id: string;
+  title: string;
+  content: string;
+};
+
+export type WorldbookEntry = {
+  id: string;
+  title: string;
+  keywords: string;
+  content: string;
+  enabled: boolean;
+};
+
+export type PersonaData = {
+  gender: string;
+  age: string;
+  pronouns: string;
+  habits: string;
+  preferences: string;
+  communicationNotes: string;
+  attributes: NamedValue[];
+};
+
+export type CharacterData = {
+  definitionSections: DefinitionSection[];
+  stylePreset:
+    'neutral' | 'warm' | 'concise' | 'roleplay' | 'literary' | 'custom';
+  styleItemId?: string;
+};
+
+export type UniverseData = {
+  rules: DefinitionSection[];
+};
+
+export type WorldbookData = {
+  entries: WorldbookEntry[];
+};
+
+export type StyleData = {
+  instructions: string;
+  example: string;
+};
+
+export type GalaxyItemData =
+  | PersonaData
+  | CharacterData
+  | UniverseData
+  | WorldbookData
+  | StyleData
+  | Record<string, unknown>;
 
 export type GalaxyItem = {
   id: string;
   kind: GalaxyKind;
   name: string;
   description: string;
+  data: GalaxyItemData;
   badge: string;
   accent: string;
   updatedAt: string;
@@ -35,6 +108,7 @@ export type GalaxyItemInput = {
   kind: GalaxyKind;
   name: string;
   description: string;
+  data: GalaxyItemData;
 };
 
 export type ProviderKind =

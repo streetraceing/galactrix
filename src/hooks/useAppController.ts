@@ -13,12 +13,14 @@ import {
   sendChatMessage,
   setChatPinned,
   setChatProvider,
+  updateChatConfig,
   updateSettings,
   upsertGalaxyItem,
 } from '../lib/backend';
 import type {
   AppSettings,
   AppSnapshot,
+  ChatConfigInput,
   GalaxyItemInput,
   ProviderInput,
   TabId,
@@ -134,17 +136,30 @@ export function useAppController() {
     [previewSettings, snapshot.settings],
   );
 
-  const createNewChat = useCallback(async () => {
-    try {
-      const created = await createChat('Новый чат');
+  const createNewChat = useCallback(
+    async (input: ChatConfigInput) => {
+      try {
+        const created = await createChat(input);
+        await refresh();
+        setActiveChatId(created.id);
+        setActiveTab('chats');
+        haptic();
+      } catch (error) {
+        setNotice(errorText(error));
+        throw error;
+      }
+    },
+    [haptic, refresh],
+  );
+
+  const updateExistingChat = useCallback(
+    async (chatId: string, input: ChatConfigInput) => {
+      await updateChatConfig(chatId, input);
       await refresh();
-      setActiveChatId(created.id);
-      setActiveTab('chats');
       haptic();
-    } catch (error) {
-      setNotice(errorText(error));
-    }
-  }, [haptic, refresh]);
+    },
+    [haptic, refresh],
+  );
 
   const renameExistingChat = useCallback(
     async (chatId: string, title: string) => {
@@ -274,6 +289,7 @@ export function useAppController() {
     previewSettings,
     saveSettings,
     createNewChat,
+    updateExistingChat,
     renameExistingChat,
     removeChat,
     pinChat,

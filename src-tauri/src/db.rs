@@ -1,9 +1,11 @@
 use std::path::Path;
 
 use rusqlite::{params, Connection, OptionalExtension};
+use serde_json::Value;
 
 use crate::models::{
-    AppSettings, AppSnapshot, Chat, GalaxyItem, GalaxyItemInput, Message, Provider, UsagePoint,
+    AppSettings, AppSnapshot, Chat, ChatConfigInput, ChatPromptContext, GalaxyItem,
+    GalaxyItemInput, Message, Provider, UsagePoint,
 };
 
 pub fn open(path: &Path) -> Result<Connection, String> {
@@ -30,7 +32,10 @@ fn migrate(connection: &Connection) -> Result<(), String> {
                 updated_at INTEGER NOT NULL,
                 message_count INTEGER NOT NULL DEFAULT 0,
                 pinned INTEGER NOT NULL DEFAULT 0,
-                provider_id TEXT
+                provider_id TEXT,
+                persona_id TEXT,
+                character_id TEXT,
+                universe_id TEXT
             );
 
             CREATE TABLE IF NOT EXISTS messages (
@@ -50,10 +55,23 @@ fn migrate(connection: &Connection) -> Result<(), String> {
                 kind TEXT NOT NULL,
                 name TEXT NOT NULL,
                 description TEXT NOT NULL DEFAULT '',
+                data_json TEXT NOT NULL DEFAULT '{}',
                 badge TEXT NOT NULL DEFAULT '',
                 accent TEXT NOT NULL DEFAULT 'neutral',
                 updated_at INTEGER NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS chat_worldbooks (
+                chat_id TEXT NOT NULL,
+                worldbook_id TEXT NOT NULL,
+                position INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY(chat_id, worldbook_id),
+                FOREIGN KEY(chat_id) REFERENCES chats(id) ON DELETE CASCADE,
+                FOREIGN KEY(worldbook_id) REFERENCES galaxy_items(id) ON DELETE CASCADE
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_chat_worldbooks_chat
+                ON chat_worldbooks(chat_id, position);
 
             CREATE TABLE IF NOT EXISTS providers (
                 id TEXT PRIMARY KEY,
@@ -100,6 +118,10 @@ fn migrate(connection: &Connection) -> Result<(), String> {
         .map_err(|error| error.to_string())?;
 
     ensure_column(connection, "chats", "provider_id", "TEXT")?;
+    ensure_column(connection, "chats", "persona_id", "TEXT")?;
+    ensure_column(connection, "chats", "character_id", "TEXT")?;
+    ensure_column(connection, "chats", "universe_id", "TEXT")?;
+    ensure_column(connection, "galaxy_items", "data_json", "TEXT NOT NULL DEFAULT '{}'")?;
     ensure_column(
         connection,
         "providers",
@@ -204,22 +226,58 @@ pub fn snapshot(connection: &Connection, app_version: &str) -> Result<AppSnapsho
 fn list_chats(connection: &Connection) -> Result<Vec<Chat>, String> {
     let mut statement = connection
         .prepare(
-            "SELECT id, title, preview, updated_at, message_count, pinned, provider_id
+            "SELECT id, title, preview, updated_at, message_count, pinned, provider_id,
+                    persona_id, character_id, universe_id
              FROM chats ORDER BY pinned DESC, updated_at DESC",
         )
         .map_err(|error| error.to_string())?;
-    let result = statement
+    let rows = statement
         .query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, i64>(3)?,
+                row.get::<_, i64>(4)?,
+                row.get::<_, i64>(5)? != 0,
+                row.get::<_, Option<String>>(6)?,
+                row.get::<_, Option<String>>(7)?,
+                row.get::<_, Option<String>>(8)?,
+                row.get::<_, Option<String>>(9)?,
+            ))
+        })
+        .map_err(|error| error.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| error.to_string())?;
+    drop(statement);
+
+    rows.into_iter()
+        .map(|(id, title, preview, updated_at, message_count, pinned, provider_id, persona_id, character_id, universe_id)| {
             Ok(Chat {
-                id: row.get(0)?,
-                title: row.get(1)?,
-                preview: row.get(2)?,
-                updated_at: relative_time(row.get(3)?),
-                message_count: row.get(4)?,
-                pinned: row.get::<_, i64>(5)? != 0,
-                provider_id: row.get(6)?,
+                worldbook_ids: worldbook_ids_for_chat(connection, &id)?,
+                id,
+                title,
+                preview,
+                updated_at: relative_time(updated_at),
+                message_count,
+                pinned,
+                provider_id,
+                persona_id,
+                character_id,
+                universe_id,
             })
         })
+        .collect()
+}
+
+fn worldbook_ids_for_chat(connection: &Connection, chat_id: &str) -> Result<Vec<String>, String> {
+    let mut statement = connection
+        .prepare(
+            "SELECT worldbook_id FROM chat_worldbooks WHERE chat_id = ?1 ORDER BY position ASC",
+        )
+        .map_err(|error| error.to_string())?;
+    let result = statement
+        .query_map(params![chat_id], |row| row.get(0))
         .map_err(|error| error.to_string())?
         .collect::<Result<Vec<_>, _>>()
         .map_err(|error| error.to_string());
@@ -250,20 +308,22 @@ fn list_messages(connection: &Connection) -> Result<Vec<Message>, String> {
 fn list_galaxy_items(connection: &Connection) -> Result<Vec<GalaxyItem>, String> {
     let mut statement = connection
         .prepare(
-            "SELECT id, kind, name, description, badge, accent, updated_at
+            "SELECT id, kind, name, description, data_json, badge, accent, updated_at
              FROM galaxy_items ORDER BY updated_at DESC",
         )
         .map_err(|error| error.to_string())?;
     let result = statement
         .query_map([], |row| {
+            let data_json: String = row.get(4)?;
             Ok(GalaxyItem {
                 id: row.get(0)?,
                 kind: row.get(1)?,
                 name: row.get(2)?,
                 description: row.get(3)?,
-                badge: row.get(4)?,
-                accent: row.get(5)?,
-                updated_at: relative_time(row.get(6)?),
+                data: serde_json::from_str(&data_json).unwrap_or(Value::Object(Default::default())),
+                badge: row.get(5)?,
+                accent: row.get(6)?,
+                updated_at: relative_time(row.get(7)?),
             })
         })
         .map_err(|error| error.to_string())?
@@ -355,22 +415,142 @@ fn weekly_usage(connection: &Connection) -> Result<Vec<UsagePoint>, String> {
     Ok(points)
 }
 
-pub fn create_chat(connection: &Connection, id: &str, title: &str) -> Result<(), String> {
-    let default_provider: Option<String> = connection
-        .query_row(
-            "SELECT id FROM providers WHERE status = 'connected' ORDER BY updated_at DESC LIMIT 1",
-            [],
-            |row| row.get(0),
-        )
-        .optional()
+pub fn create_chat(
+    connection: &Connection,
+    id: &str,
+    input: &ChatConfigInput,
+) -> Result<(), String> {
+    validate_chat_links(connection, input)?;
+    let transaction = connection
+        .unchecked_transaction()
         .map_err(|error| error.to_string())?;
-    connection
+    transaction
         .execute(
-            "INSERT INTO chats (id, title, preview, updated_at, message_count, pinned, provider_id)
-             VALUES (?1, ?2, '', ?3, 0, 0, ?4)",
-            params![id, title, now_unix(), default_provider],
+            "INSERT INTO chats (
+                id, title, preview, updated_at, message_count, pinned, provider_id,
+                persona_id, character_id, universe_id
+             ) VALUES (?1, ?2, '', ?3, 0, 0, ?4, ?5, ?6, ?7)",
+            params![
+                id,
+                input.title.trim(),
+                now_unix(),
+                input.provider_id,
+                input.persona_id,
+                input.character_id,
+                input.universe_id,
+            ],
         )
         .map_err(|error| error.to_string())?;
+    replace_chat_worldbooks(&transaction, id, &input.worldbook_ids)?;
+    transaction.commit().map_err(|error| error.to_string())
+}
+
+pub fn update_chat_config(
+    connection: &Connection,
+    chat_id: &str,
+    input: &ChatConfigInput,
+) -> Result<(), String> {
+    validate_chat_links(connection, input)?;
+    let transaction = connection
+        .unchecked_transaction()
+        .map_err(|error| error.to_string())?;
+    let changed = transaction
+        .execute(
+            "UPDATE chats SET title = ?1, provider_id = ?2, persona_id = ?3,
+                    character_id = ?4, universe_id = ?5, updated_at = ?6
+             WHERE id = ?7",
+            params![
+                input.title.trim(),
+                input.provider_id,
+                input.persona_id,
+                input.character_id,
+                input.universe_id,
+                now_unix(),
+                chat_id,
+            ],
+        )
+        .map_err(|error| error.to_string())?;
+    if changed == 0 {
+        return Err("Чат не найден".into());
+    }
+    replace_chat_worldbooks(&transaction, chat_id, &input.worldbook_ids)?;
+    transaction.commit().map_err(|error| error.to_string())
+}
+
+fn replace_chat_worldbooks(
+    connection: &Connection,
+    chat_id: &str,
+    worldbook_ids: &[String],
+) -> Result<(), String> {
+    connection
+        .execute("DELETE FROM chat_worldbooks WHERE chat_id = ?1", params![chat_id])
+        .map_err(|error| error.to_string())?;
+    let mut inserted = std::collections::HashSet::new();
+    for worldbook_id in worldbook_ids {
+        if !inserted.insert(worldbook_id) {
+            continue;
+        }
+        let position = inserted.len().saturating_sub(1) as i64;
+        connection
+            .execute(
+                "INSERT INTO chat_worldbooks (chat_id, worldbook_id, position) VALUES (?1, ?2, ?3)",
+                params![chat_id, worldbook_id, position],
+            )
+            .map_err(|error| error.to_string())?;
+    }
+    Ok(())
+}
+
+fn validate_chat_links(connection: &Connection, input: &ChatConfigInput) -> Result<(), String> {
+    if input.title.trim().is_empty() {
+        return Err("Укажите название чата".into());
+    }
+    if input.title.chars().count() > 120 {
+        return Err("Название чата слишком длинное".into());
+    }
+    validate_optional_provider(connection, input.provider_id.as_deref())?;
+    validate_optional_galaxy(connection, input.persona_id.as_deref(), "persona")?;
+    validate_optional_galaxy(connection, input.character_id.as_deref(), "character")?;
+    validate_optional_galaxy(connection, input.universe_id.as_deref(), "universe")?;
+    for id in &input.worldbook_ids {
+        validate_optional_galaxy(connection, Some(id), "worldbook")?;
+    }
+    Ok(())
+}
+
+fn validate_optional_provider(connection: &Connection, id: Option<&str>) -> Result<(), String> {
+    if let Some(id) = id {
+        let exists: bool = connection
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM providers WHERE id = ?1)",
+                params![id],
+                |row| row.get(0),
+            )
+            .map_err(|error| error.to_string())?;
+        if !exists {
+            return Err("Подключение не найдено".into());
+        }
+    }
+    Ok(())
+}
+
+fn validate_optional_galaxy(
+    connection: &Connection,
+    id: Option<&str>,
+    kind: &str,
+) -> Result<(), String> {
+    if let Some(id) = id {
+        let exists: bool = connection
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM galaxy_items WHERE id = ?1 AND kind = ?2)",
+                params![id, kind],
+                |row| row.get(0),
+            )
+            .map_err(|error| error.to_string())?;
+        if !exists {
+            return Err(format!("Объект типа {kind} не найден"));
+        }
+    }
     Ok(())
 }
 
@@ -567,24 +747,57 @@ pub fn upsert_galaxy_item(
     id: &str,
     input: &GalaxyItemInput,
 ) -> Result<GalaxyItem, String> {
+    let name = input.name.trim();
+    if name.is_empty() {
+        return Err("Укажите название".into());
+    }
+    if name.chars().count() > 120 {
+        return Err("Название слишком длинное".into());
+    }
+    if !input.data.is_object() {
+        return Err("Параметры объекта должны быть JSON-объектом".into());
+    }
+    validate_galaxy_data(connection, input)?;
+
+    let existing_kind = connection
+        .query_row(
+            "SELECT kind FROM galaxy_items WHERE id = ?1",
+            params![id],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()
+        .map_err(|error| error.to_string())?;
+    if existing_kind
+        .as_deref()
+        .is_some_and(|kind| kind != input.kind.as_str())
+    {
+        return Err("Тип существующего объекта нельзя изменить".into());
+    }
+
     let (badge, accent) = galaxy_presentation(&input.kind)?;
     let now = now_unix();
+    let data_json = serde_json::to_string(&input.data).map_err(|error| error.to_string())?;
+    if data_json.len() > 1_000_000 {
+        return Err("Параметры объекта слишком большие".into());
+    }
     connection
         .execute(
-            r#"INSERT INTO galaxy_items (id, kind, name, description, badge, accent, updated_at)
-               VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+            r#"INSERT INTO galaxy_items (id, kind, name, description, data_json, badge, accent, updated_at)
+               VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
                ON CONFLICT(id) DO UPDATE SET
                  kind = excluded.kind,
                  name = excluded.name,
                  description = excluded.description,
+                 data_json = excluded.data_json,
                  badge = excluded.badge,
                  accent = excluded.accent,
                  updated_at = excluded.updated_at"#,
             params![
                 id,
                 input.kind,
-                input.name.trim(),
+                name,
                 input.description.trim(),
+                data_json,
                 badge,
                 accent,
                 now
@@ -594,18 +807,198 @@ pub fn upsert_galaxy_item(
     Ok(GalaxyItem {
         id: id.into(),
         kind: input.kind.clone(),
-        name: input.name.trim().into(),
+        name: name.into(),
         description: input.description.trim().into(),
+        data: input.data.clone(),
         badge: badge.into(),
         accent: accent.into(),
         updated_at: relative_time(now),
     })
 }
 
-pub fn delete_galaxy_item(connection: &Connection, id: &str) -> Result<(), String> {
+fn validate_galaxy_data(
+    connection: &Connection,
+    input: &GalaxyItemInput,
+) -> Result<(), String> {
+    if input.kind != "character" {
+        return Ok(());
+    }
+
+    let preset = input
+        .data
+        .get("stylePreset")
+        .and_then(Value::as_str)
+        .unwrap_or("neutral");
+    if !matches!(
+        preset,
+        "neutral" | "warm" | "concise" | "roleplay" | "literary" | "custom"
+    ) {
+        return Err("Неизвестный пресет стиля персонажа".into());
+    }
+
+    if preset == "custom" {
+        let style_id = input
+            .data
+            .get("styleItemId")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .ok_or_else(|| "Выберите сохранённый стиль переписки".to_string())?;
+        validate_optional_galaxy(connection, Some(style_id), "style")?;
+    }
+
+    Ok(())
+}
+
+pub fn get_chat_prompt_context(
+    connection: &Connection,
+    chat_id: &str,
+) -> Result<ChatPromptContext, String> {
+    let (persona_id, character_id, universe_id): (Option<String>, Option<String>, Option<String>) =
+        connection
+            .query_row(
+                "SELECT persona_id, character_id, universe_id FROM chats WHERE id = ?1",
+                params![chat_id],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .optional()
+            .map_err(|error| error.to_string())?
+            .ok_or_else(|| "Чат не найден".to_string())?;
+
+    let persona = persona_id
+        .as_deref()
+        .map(|id| get_galaxy_item(connection, id))
+        .transpose()?;
+    let character = character_id
+        .as_deref()
+        .map(|id| get_galaxy_item(connection, id))
+        .transpose()?;
+    let universe = universe_id
+        .as_deref()
+        .map(|id| get_galaxy_item(connection, id))
+        .transpose()?;
+    let worldbooks = worldbook_ids_for_chat(connection, chat_id)?
+        .iter()
+        .map(|id| get_galaxy_item(connection, id))
+        .collect::<Result<Vec<_>, _>>()?;
+    let character_style = character
+        .as_ref()
+        .and_then(|item| item.data.get("styleItemId"))
+        .and_then(Value::as_str)
+        .filter(|id| !id.is_empty())
+        .and_then(|id| get_galaxy_item(connection, id).ok())
+        .filter(|item| item.kind == "style");
+
+    Ok(ChatPromptContext {
+        persona,
+        character,
+        universe,
+        worldbooks,
+        character_style,
+    })
+}
+
+fn get_galaxy_item(connection: &Connection, id: &str) -> Result<GalaxyItem, String> {
     connection
+        .query_row(
+            "SELECT id, kind, name, description, data_json, badge, accent, updated_at
+             FROM galaxy_items WHERE id = ?1",
+            params![id],
+            |row| {
+                let data_json: String = row.get(4)?;
+                Ok(GalaxyItem {
+                    id: row.get(0)?,
+                    kind: row.get(1)?,
+                    name: row.get(2)?,
+                    description: row.get(3)?,
+                    data: serde_json::from_str(&data_json)
+                        .unwrap_or(Value::Object(Default::default())),
+                    badge: row.get(5)?,
+                    accent: row.get(6)?,
+                    updated_at: relative_time(row.get(7)?),
+                })
+            },
+        )
+        .optional()
+        .map_err(|error| error.to_string())?
+        .ok_or_else(|| "Объект Галактики не найден".into())
+}
+
+pub fn delete_galaxy_item(connection: &Connection, id: &str) -> Result<(), String> {
+    let kind = connection
+        .query_row(
+            "SELECT kind FROM galaxy_items WHERE id = ?1",
+            params![id],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()
+        .map_err(|error| error.to_string())?
+        .ok_or_else(|| "Объект Галактики не найден".to_string())?;
+
+    let transaction = connection
+        .unchecked_transaction()
+        .map_err(|error| error.to_string())?;
+    transaction
+        .execute("UPDATE chats SET persona_id = NULL WHERE persona_id = ?1", params![id])
+        .map_err(|error| error.to_string())?;
+    transaction
+        .execute("UPDATE chats SET character_id = NULL WHERE character_id = ?1", params![id])
+        .map_err(|error| error.to_string())?;
+    transaction
+        .execute("UPDATE chats SET universe_id = NULL WHERE universe_id = ?1", params![id])
+        .map_err(|error| error.to_string())?;
+    transaction
+        .execute("DELETE FROM chat_worldbooks WHERE worldbook_id = ?1", params![id])
+        .map_err(|error| error.to_string())?;
+
+    if kind == "style" {
+        clear_character_style_references(&transaction, id)?;
+    }
+
+    transaction
         .execute("DELETE FROM galaxy_items WHERE id = ?1", params![id])
         .map_err(|error| error.to_string())?;
+    transaction.commit().map_err(|error| error.to_string())
+}
+
+fn clear_character_style_references(
+    connection: &Connection,
+    style_id: &str,
+) -> Result<(), String> {
+    let mut statement = connection
+        .prepare("SELECT id, data_json FROM galaxy_items WHERE kind = 'character'")
+        .map_err(|error| error.to_string())?;
+    let rows = statement
+        .query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))
+        .map_err(|error| error.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| error.to_string())?;
+    drop(statement);
+
+    for (character_id, data_json) in rows {
+        let mut data = serde_json::from_str::<Value>(&data_json)
+            .unwrap_or(Value::Object(Default::default()));
+        let references_style = data
+            .get("styleItemId")
+            .and_then(Value::as_str)
+            .is_some_and(|value| value == style_id);
+        if !references_style {
+            continue;
+        }
+
+        if let Some(object) = data.as_object_mut() {
+            object.insert("stylePreset".into(), Value::String("neutral".into()));
+            object.remove("styleItemId");
+        }
+        let updated = serde_json::to_string(&data).map_err(|error| error.to_string())?;
+        connection
+            .execute(
+                "UPDATE galaxy_items SET data_json = ?1, updated_at = ?2 WHERE id = ?3",
+                params![updated, now_unix(), character_id],
+            )
+            .map_err(|error| error.to_string())?;
+    }
+
     Ok(())
 }
 
@@ -733,6 +1126,7 @@ fn galaxy_presentation(kind: &str) -> Result<(&'static str, &'static str), Strin
         "character" => Ok(("Персонаж", "blue")),
         "universe" => Ok(("Вселенная", "indigo")),
         "worldbook" => Ok(("Ворлдбук", "amber")),
+        "style" => Ok(("Стиль", "violet")),
         _ => Err("Неизвестный тип объекта галактики".into()),
     }
 }

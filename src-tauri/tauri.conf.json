@@ -13,11 +13,13 @@
     "windows": [
       {
         "title": "Galactrix",
-        "width": 1280,
-        "height": 720,
+        "width": 1000,
+        "height": 800,
         "center": true,
         "maximized": false,
-        "resizable": true
+        "resizable": true,
+        "minWidth": 720,
+        "minHeight": 560
       }
     ],
     "security": {

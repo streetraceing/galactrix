@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -10,6 +11,22 @@ pub struct Chat {
     pub message_count: i64,
     pub pinned: bool,
     pub provider_id: Option<String>,
+    pub persona_id: Option<String>,
+    pub character_id: Option<String>,
+    pub universe_id: Option<String>,
+    pub worldbook_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ChatConfigInput {
+    pub title: String,
+    pub provider_id: Option<String>,
+    pub persona_id: Option<String>,
+    pub character_id: Option<String>,
+    pub universe_id: Option<String>,
+    #[serde(default)]
+    pub worldbook_ids: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -29,6 +46,7 @@ pub struct GalaxyItem {
     pub kind: String,
     pub name: String,
     pub description: String,
+    pub data: Value,
     pub badge: String,
     pub accent: String,
     pub updated_at: String,
@@ -41,6 +59,8 @@ pub struct GalaxyItemInput {
     pub kind: String,
     pub name: String,
     pub description: String,
+    #[serde(default)]
+    pub data: Value,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -153,6 +173,15 @@ pub struct AppSnapshot {
 pub struct CreatedChat {
     pub id: String,
     pub title: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct ChatPromptContext {
+    pub persona: Option<GalaxyItem>,
+    pub character: Option<GalaxyItem>,
+    pub universe: Option<GalaxyItem>,
+    pub worldbooks: Vec<GalaxyItem>,
+    pub character_style: Option<GalaxyItem>,
 }
 
 #[derive(Debug, Clone)]

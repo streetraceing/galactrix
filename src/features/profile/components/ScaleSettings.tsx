@@ -1,9 +1,4 @@
-import {
-  Button,
-  ListBox,
-  Select,
-  Surface
-} from '@heroui/react';
+import { Button, ListBox, Select, Surface } from '@heroui/react';
 
 const scales = [0.8, 0.9, 1, 1.1, 1.25, 1.4, 1.5];
 

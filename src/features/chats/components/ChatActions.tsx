@@ -1,59 +1,64 @@
-import { Button, Dropdown } from '@heroui/react';
-import type { Key } from 'react';
+import type { ReactNode } from 'react';
 import { Icon } from '../../../components/Icon';
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuLabel,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from '../../../components/ui/context-menu';
 import type { Chat } from '../../../types';
 import type { ChatAction } from '../types';
 
 export function ChatActions({
   chat,
+  children,
   onAction,
 }: {
   chat: Chat;
+  children: ReactNode;
   onAction: (action: ChatAction, chat: Chat) => void;
 }) {
   return (
-    <Dropdown>
-      <Dropdown.Trigger>
-        <Button
-          isIconOnly
-          size="sm"
-          variant="ghost"
-          className="shrink-0 data-[pressed=true]:scale-100"
-          aria-label={`Действия с чатом «${chat.title}»`}
+    <ContextMenu>
+      <ContextMenuTrigger className="block min-w-0">
+        {children}
+      </ContextMenuTrigger>
+      <ContextMenuContent className="w-56">
+        <ContextMenuLabel>{chat.title}</ContextMenuLabel>
+        <ContextMenuItem onClick={() => onAction('configure', chat)}>
+          <Icon name="settings" className="size-4 text-accent" />
+          Настроить контекст
+        </ContextMenuItem>
+        <ContextMenuItem onClick={() => onAction('duplicate', chat)}>
+          <Icon name="copy" className="size-4" />
+          Создать копию настроек
+        </ContextMenuItem>
+        <ContextMenuItem onClick={() => onAction('rename', chat)}>
+          <Icon name="edit" className="size-4" />
+          Переименовать
+        </ContextMenuItem>
+        <ContextMenuItem onClick={() => onAction('pin', chat)}>
+          <Icon name="pin" className="size-4" />
+          {chat.pinned ? 'Открепить' : 'Закрепить'}
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem
+          className="text-warning data-highlighted:text-warning"
+          onClick={() => onAction('clear', chat)}
         >
-          <Icon name="more" className="size-4" />
-        </Button>
-      </Dropdown.Trigger>
-      <Dropdown.Popover>
-        <Dropdown.Menu
-          onAction={(key: Key) => onAction(String(key) as ChatAction, chat)}
+          <Icon name="clear" className="size-4" />
+          Очистить историю
+        </ContextMenuItem>
+        <ContextMenuItem
+          variant="destructive"
+          onClick={() => onAction('delete', chat)}
         >
-          <Dropdown.Item id="rename" textValue="Переименовать">
-            <span className="flex items-center gap-2 text-accent">
-              <Icon name="edit" className="size-4" /> Переименовать
-            </span>
-          </Dropdown.Item>
-          <Dropdown.Item
-            id="pin"
-            textValue={chat.pinned ? 'Открепить' : 'Закрепить'}
-          >
-            <span className="flex items-center gap-2">
-              <Icon name="pin" className="size-4" />
-              {chat.pinned ? 'Открепить' : 'Закрепить'}
-            </span>
-          </Dropdown.Item>
-          <Dropdown.Item id="clear" textValue="Очистить историю">
-            <span className="flex items-center gap-2 text-warning">
-              <Icon name="clear" className="size-4" /> Очистить историю
-            </span>
-          </Dropdown.Item>
-          <Dropdown.Item id="delete" textValue="Удалить" variant="danger">
-            <span className="flex items-center gap-2 text-danger">
-              <Icon name="trash" className="size-4" /> Удалить
-            </span>
-          </Dropdown.Item>
-        </Dropdown.Menu>
-      </Dropdown.Popover>
-    </Dropdown>
+          <Icon name="trash" className="size-4" />
+          Удалить чат
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   );
 }

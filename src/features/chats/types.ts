@@ -1,17 +1,26 @@
-import type { Chat, Message, Provider } from '../../types';
+import type {
+  Chat,
+  ChatConfigInput,
+  GalaxyItem,
+  Message,
+  Provider,
+} from '../../types';
 
-export type ChatAction = 'rename' | 'pin' | 'clear' | 'delete';
+export type ChatAction =
+  'configure' | 'duplicate' | 'rename' | 'pin' | 'clear' | 'delete';
 
 export type ChatsScreenProps = {
   chats: Chat[];
   messages: Message[];
   providers: Provider[];
+  galaxyItems: GalaxyItem[];
   activeChatId: string;
   chatSidebarWidth: number;
   onChatSidebarWidthPreview: (width: number) => void;
   onChatSidebarWidthCommit: (width: number) => void;
   onSelectChat: (id: string) => void;
-  onNewChat: () => Promise<void>;
+  onNewChat: (input: ChatConfigInput) => Promise<void>;
+  onUpdateChat: (chatId: string, input: ChatConfigInput) => Promise<void>;
   onRenameChat: (chatId: string, title: string) => Promise<void>;
   onDeleteChat: (chatId: string) => Promise<void>;
   onSetPinned: (chatId: string, pinned: boolean) => Promise<void>;

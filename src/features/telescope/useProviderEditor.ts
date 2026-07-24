@@ -11,14 +11,12 @@ import { defaultProviderInput, providerToInput } from './providerHelpers';
 export function useProviderEditor({
   onFetchModels,
   onSave,
-  onDelete,
 }: {
   onFetchModels: (
     provider: ProviderInput,
     apiKey?: string,
   ) => Promise<ProviderModelResult>;
   onSave: (provider: ProviderInput, apiKey?: string) => Promise<Provider>;
-  onDelete: (id: string) => Promise<void>;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [step, setStep] = useState<1 | 2>(1);
@@ -125,22 +123,6 @@ export function useProviderEditor({
     }
   };
 
-  const remove = async () => {
-    if (!form.id || saving) return;
-    setSaving(true);
-    setError('');
-    try {
-      await onDelete(form.id);
-      setIsOpen(false);
-      setStep(1);
-      resetTransient();
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
-    } finally {
-      setSaving(false);
-    }
-  };
-
   return {
     isOpen,
     step,
@@ -161,6 +143,5 @@ export function useProviderEditor({
     chooseKind,
     loadModels,
     save,
-    remove,
   };
 }

@@ -2,6 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import type {
   AppSettings,
   AppSnapshot,
+  ChatConfigInput,
   GalaxyItem,
   GalaxyItemInput,
   Provider,
@@ -20,9 +21,14 @@ export async function loadSnapshot(): Promise<AppSnapshot> {
   return invoke<AppSnapshot>('get_app_snapshot');
 }
 
-export async function createChat(title: string) {
+export async function createChat(input: ChatConfigInput) {
   requireTauri();
-  return invoke<{ id: string; title: string }>('create_chat', { title });
+  return invoke<{ id: string; title: string }>('create_chat', { input });
+}
+
+export async function updateChatConfig(chatId: string, input: ChatConfigInput) {
+  requireTauri();
+  return invoke<void>('update_chat_config', { chatId, input });
 }
 
 export async function renameChat(chatId: string, title: string) {
