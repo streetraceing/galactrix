@@ -41,7 +41,7 @@ export function GalaxyFilterBar({
           <Select.Value />
           <Select.Indicator />
         </Select.Trigger>
-        <Select.Popover className="bg-surface/75 backdrop-blur-md">
+        <Select.Popover>
           <ListBox>
             {galaxyFilters.map((filter) => (
               <ListBox.Item

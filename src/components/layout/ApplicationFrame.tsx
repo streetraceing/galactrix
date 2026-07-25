@@ -1,70 +1,104 @@
 import { Spinner } from '@heroui/react';
 import type { ReactNode } from 'react';
-import type { AppSettings, TabId } from '../../types';
+import { isMobilePlatform } from '../../lib/platform';
+import type { AppSettings, Chat, TabId } from '../../types';
 import { ResizeHandle } from '../ResizeHandle';
 import { AppNotice } from './AppNotice';
 import { DesktopSidebar } from './DesktopSidebar';
+import { DesktopTitlebar } from './DesktopTitlebar';
 import { MobileBottomNavigation } from './MobileBottomNavigation';
-import { MobileHeader } from './MobileHeader';
 
 export function ApplicationFrame({
   activeTab,
   settings,
+  chats,
   chatCount,
   appVersion,
   loading,
   notice,
   children,
   onNavigate,
+  onOpenChat,
   onCloseNotice,
   onSettingsPreview,
   onSettingsCommit,
 }: {
   activeTab: TabId;
   settings: AppSettings;
+  chats: Chat[];
   chatCount: number;
   appVersion: string;
   loading: boolean;
   notice: string;
   children: ReactNode;
   onNavigate: (tab: TabId) => void;
+  onOpenChat: (chatId: string) => void;
   onCloseNotice: () => void;
   onSettingsPreview: (settings: AppSettings) => void;
   onSettingsCommit: (settings: AppSettings) => void;
 }) {
-  return (
-    <main className="flex h-full min-w-0 overflow-hidden bg-background text-foreground">
-      <DesktopSidebar
-        activeTab={activeTab}
-        chatCount={chatCount}
-        appVersion={appVersion}
-        width={settings.sidebarWidth}
-        onNavigate={onNavigate}
-      />
-      <ResizeHandle
-        value={settings.sidebarWidth}
-        min={196}
-        max={420}
-        label="Изменить ширину основной панели"
-        onChange={(sidebarWidth) =>
-          onSettingsPreview({ ...settings, sidebarWidth })
-        }
-        onCommit={(sidebarWidth) =>
-          onSettingsCommit({ ...settings, sidebarWidth })
-        }
-      />
+  const isMobile = isMobilePlatform();
 
-      <section className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
-        {loading ? (
-          <div className="absolute inset-0 z-40 grid place-items-center bg-background/70 backdrop-blur-sm">
-            <Spinner aria-label="Загрузка" />
-          </div>
+  return (
+    <main className="flex h-full min-w-0 flex-col overflow-hidden bg-background text-foreground">
+      <DesktopTitlebar
+        activeTab={activeTab}
+        chats={chats}
+        onNavigate={onNavigate}
+        onOpenChat={onOpenChat}
+      />
+      <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
+        {!isMobile ? (
+          <DesktopSidebar
+            activeTab={activeTab}
+            chatCount={chatCount}
+            appVersion={appVersion}
+            width={settings.sidebarWidth}
+            collapsed={settings.sidebarCollapsed}
+            onNavigate={onNavigate}
+            onToggleCollapsed={() =>
+              onSettingsCommit({
+                ...settings,
+                sidebarCollapsed: !settings.sidebarCollapsed,
+              })
+            }
+          />
+        ) : null}
+        {!isMobile && !settings.sidebarCollapsed ? (
+          <ResizeHandle
+            value={settings.sidebarWidth}
+            min={196}
+            max={420}
+            className="max-[1300px]:hidden"
+            label="Изменить ширину основной панели"
+            onChange={(sidebarWidth) =>
+              onSettingsPreview({ ...settings, sidebarWidth })
+            }
+            onCommit={(sidebarWidth) =>
+              onSettingsCommit({ ...settings, sidebarWidth })
+            }
+          />
         ) : null}
 
-        <AppNotice message={notice} onClose={onCloseNotice} />
-        <div className="min-h-0 min-w-0 flex-1 overflow-hidden">{children}</div>
-        <MobileBottomNavigation activeTab={activeTab} onNavigate={onNavigate} />
-      </section>
+        <section className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
+          {loading ? (
+            <div className="absolute inset-0 z-40 grid place-items-center bg-background/70 backdrop-blur-sm">
+              <Spinner aria-label="Загрузка" />
+            </div>
+          ) : null}
+
+          <AppNotice message={notice} onClose={onCloseNotice} />
+          <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
+            {children}
+          </div>
+          {isMobile ? (
+            <MobileBottomNavigation
+              activeTab={activeTab}
+              onNavigate={onNavigate}
+            />
+          ) : null}
+        </section>
+      </div>
     </main>
   );
 }

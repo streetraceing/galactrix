@@ -69,7 +69,7 @@ export function GalaxyCard({
           </button>
         </Surface>
       </ContextMenuTrigger>
-      <ContextMenuContent className="w-56 bg-surface-secondary/75 backdrop-blur-md">
+      <ContextMenuContent className="w-56">
         <ContextMenuLabel>{item.name}</ContextMenuLabel>
         <ContextMenuItem onClick={onEdit}>
           <Icon name="edit" className="size-4" /> Редактировать
@@ -77,7 +77,7 @@ export function GalaxyCard({
         <ContextMenuItem onClick={onDuplicate}>
           <Icon name="copy" className="size-4" /> Создать копию
         </ContextMenuItem>
-        <ContextMenuSeparator className="bg-default-hover" />
+        <ContextMenuSeparator />
         <ContextMenuItem variant="destructive" onClick={onDelete}>
           <Icon name="trash" className="size-4" /> Удалить
         </ContextMenuItem>

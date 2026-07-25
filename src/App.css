@@ -3,7 +3,7 @@
 @import 'tw-animate-css';
 @import '@fontsource-variable/geist';
 
-@custom-variant dark (&:is(.dark *));
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 
 @layer base {
   :root {
@@ -159,11 +159,7 @@
 @layer base {
   /* Spotify */
 
-  :is(
-    [data-theme='light'][data-theme-variant='spotify'],
-    [data-theme='default'][data-theme-variant='spotify'],
-
-  ) {
+  [data-theme='light'][data-theme-variant='spotify'] {
     --accent: oklch(76.97% 0.2124 148.67);
     --accent-foreground: oklch(15% 0.03 148.67);
     --background: oklch(97.02% 0.002 148.67);
@@ -199,7 +195,7 @@
     --field-radius: 0.125rem;
   }
 
-  :is([data-theme='dark'][data-theme-variant='spotify']) {
+  [data-theme='dark'][data-theme-variant='spotify'] {
     color-scheme: dark;
     --accent: oklch(76.97% 0.2124 148.67);
     --accent-foreground: oklch(15% 0.03 148.67);
@@ -236,11 +232,7 @@
 
   /* Discord */
 
-  :is(
-    [data-theme='light'][data-theme-variant='discord'],
-    [data-theme='default'][data-theme-variant='discord'],
-
-  ) {
+  [data-theme='light'][data-theme-variant='discord'] {
     --accent: oklch(57.74% 0.2091 273.85);
     --accent-foreground: oklch(99.11% 0 0);
     --background: oklch(97.02% 0.01 273.85);
@@ -276,7 +268,7 @@
     --field-radius: 0.75rem;
   }
 
-  :is([data-theme='dark'][data-theme-variant='discord']) {
+  [data-theme='dark'][data-theme-variant='discord'] {
     color-scheme: dark;
     --accent: oklch(57.74% 0.2091 273.85);
     --accent-foreground: oklch(99.11% 0 0);
@@ -313,11 +305,7 @@
 
   /* Lavender */
 
-  :is(
-    [data-theme='light'][data-theme-variant='lavender'],
-    [data-theme='default'][data-theme-variant='lavender'],
-
-  ) {
+  [data-theme='light'][data-theme-variant='lavender'] {
     --accent: oklch(77% 0.13 305);
     --accent-foreground: oklch(15% 0.026 305);
     --background: oklch(97.02% 0.0015 305);
@@ -353,7 +341,7 @@
     --field-radius: 0.75rem;
   }
 
-  :is([data-theme='dark'][data-theme-variant='lavender']) {
+  [data-theme='dark'][data-theme-variant='lavender'] {
     color-scheme: dark;
     --accent: oklch(77% 0.13 305);
     --accent-foreground: oklch(15% 0.026 305);

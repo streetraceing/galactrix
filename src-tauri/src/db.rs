@@ -35,7 +35,8 @@ fn migrate(connection: &Connection) -> Result<(), String> {
                 provider_id TEXT,
                 persona_id TEXT,
                 character_id TEXT,
-                universe_id TEXT
+                universe_id TEXT,
+                response_preset TEXT NOT NULL DEFAULT 'natural'
             );
 
             CREATE TABLE IF NOT EXISTS messages (
@@ -44,6 +45,7 @@ fn migrate(connection: &Connection) -> Result<(), String> {
                 role TEXT NOT NULL CHECK(role IN ('system', 'user', 'assistant')),
                 content TEXT NOT NULL,
                 created_at INTEGER NOT NULL,
+                remembered INTEGER NOT NULL DEFAULT 0,
                 FOREIGN KEY(chat_id) REFERENCES chats(id) ON DELETE CASCADE
             );
 
@@ -98,7 +100,10 @@ fn migrate(connection: &Connection) -> Result<(), String> {
                 save_drafts INTEGER NOT NULL DEFAULT 1,
                 interface_scale REAL NOT NULL DEFAULT 1.0,
                 sidebar_width INTEGER NOT NULL DEFAULT 248,
-                chat_sidebar_width INTEGER NOT NULL DEFAULT 320
+                chat_sidebar_width INTEGER NOT NULL DEFAULT 320,
+                sidebar_collapsed INTEGER NOT NULL DEFAULT 0,
+                theme_mode TEXT NOT NULL DEFAULT 'system',
+                theme_variant TEXT NOT NULL DEFAULT 'default'
             );
 
             CREATE TABLE IF NOT EXISTS usage_events (
@@ -121,6 +126,18 @@ fn migrate(connection: &Connection) -> Result<(), String> {
     ensure_column(connection, "chats", "persona_id", "TEXT")?;
     ensure_column(connection, "chats", "character_id", "TEXT")?;
     ensure_column(connection, "chats", "universe_id", "TEXT")?;
+    ensure_column(
+        connection,
+        "chats",
+        "response_preset",
+        "TEXT NOT NULL DEFAULT 'natural'",
+    )?;
+    ensure_column(
+        connection,
+        "messages",
+        "remembered",
+        "INTEGER NOT NULL DEFAULT 0",
+    )?;
     ensure_column(connection, "galaxy_items", "data_json", "TEXT NOT NULL DEFAULT '{}'")?;
     ensure_column(
         connection,
@@ -157,6 +174,24 @@ fn migrate(connection: &Connection) -> Result<(), String> {
         "app_settings",
         "chat_sidebar_width",
         "INTEGER NOT NULL DEFAULT 320",
+    )?;
+    ensure_column(
+        connection,
+        "app_settings",
+        "sidebar_collapsed",
+        "INTEGER NOT NULL DEFAULT 0",
+    )?;
+    ensure_column(
+        connection,
+        "app_settings",
+        "theme_mode",
+        "TEXT NOT NULL DEFAULT 'system'",
+    )?;
+    ensure_column(
+        connection,
+        "app_settings",
+        "theme_variant",
+        "TEXT NOT NULL DEFAULT 'default'",
     )?;
     Ok(())
 }
@@ -227,7 +262,7 @@ fn list_chats(connection: &Connection) -> Result<Vec<Chat>, String> {
     let mut statement = connection
         .prepare(
             "SELECT id, title, preview, updated_at, message_count, pinned, provider_id,
-                    persona_id, character_id, universe_id
+                    persona_id, character_id, universe_id, response_preset
              FROM chats ORDER BY pinned DESC, updated_at DESC",
         )
         .map_err(|error| error.to_string())?;
@@ -244,6 +279,7 @@ fn list_chats(connection: &Connection) -> Result<Vec<Chat>, String> {
                 row.get::<_, Option<String>>(7)?,
                 row.get::<_, Option<String>>(8)?,
                 row.get::<_, Option<String>>(9)?,
+                row.get::<_, String>(10)?,
             ))
         })
         .map_err(|error| error.to_string())?
@@ -252,7 +288,7 @@ fn list_chats(connection: &Connection) -> Result<Vec<Chat>, String> {
     drop(statement);
 
     rows.into_iter()
-        .map(|(id, title, preview, updated_at, message_count, pinned, provider_id, persona_id, character_id, universe_id)| {
+        .map(|(id, title, preview, updated_at, message_count, pinned, provider_id, persona_id, character_id, universe_id, response_preset)| {
             Ok(Chat {
                 worldbook_ids: worldbook_ids_for_chat(connection, &id)?,
                 id,
@@ -265,6 +301,7 @@ fn list_chats(connection: &Connection) -> Result<Vec<Chat>, String> {
                 persona_id,
                 character_id,
                 universe_id,
+                response_preset,
             })
         })
         .collect()
@@ -286,7 +323,7 @@ fn worldbook_ids_for_chat(connection: &Connection, chat_id: &str) -> Result<Vec<
 
 fn list_messages(connection: &Connection) -> Result<Vec<Message>, String> {
     let mut statement = connection
-        .prepare("SELECT id, chat_id, role, content, created_at FROM messages ORDER BY created_at ASC")
+        .prepare("SELECT id, chat_id, role, content, created_at, remembered FROM messages ORDER BY created_at ASC")
         .map_err(|error| error.to_string())?;
     let result = statement
         .query_map([], |row| {
@@ -297,6 +334,7 @@ fn list_messages(connection: &Connection) -> Result<Vec<Message>, String> {
                 role: row.get(2)?,
                 content: row.get(3)?,
                 created_at: clock_time(timestamp),
+                remembered: row.get::<_, i64>(5)? != 0,
             })
         })
         .map_err(|error| error.to_string())?
@@ -367,7 +405,8 @@ fn get_settings(connection: &Connection) -> Result<AppSettings, String> {
     connection
         .query_row(
             "SELECT animations, haptics, compact_mode, send_on_enter, save_drafts,
-                    interface_scale, sidebar_width, chat_sidebar_width
+                    interface_scale, sidebar_width, chat_sidebar_width,
+                    sidebar_collapsed, theme_mode, theme_variant
              FROM app_settings WHERE id = 1",
             [],
             |row| {
@@ -380,6 +419,9 @@ fn get_settings(connection: &Connection) -> Result<AppSettings, String> {
                     interface_scale: row.get(5)?,
                     sidebar_width: row.get(6)?,
                     chat_sidebar_width: row.get(7)?,
+                    sidebar_collapsed: row.get::<_, i64>(8)? != 0,
+                    theme_mode: row.get(9)?,
+                    theme_variant: row.get(10)?,
                 })
             },
         )
@@ -428,8 +470,8 @@ pub fn create_chat(
         .execute(
             "INSERT INTO chats (
                 id, title, preview, updated_at, message_count, pinned, provider_id,
-                persona_id, character_id, universe_id
-             ) VALUES (?1, ?2, '', ?3, 0, 0, ?4, ?5, ?6, ?7)",
+                persona_id, character_id, universe_id, response_preset
+             ) VALUES (?1, ?2, '', ?3, 0, 0, ?4, ?5, ?6, ?7, ?8)",
             params![
                 id,
                 input.title.trim(),
@@ -438,6 +480,7 @@ pub fn create_chat(
                 input.persona_id,
                 input.character_id,
                 input.universe_id,
+                input.response_preset,
             ],
         )
         .map_err(|error| error.to_string())?;
@@ -457,14 +500,16 @@ pub fn update_chat_config(
     let changed = transaction
         .execute(
             "UPDATE chats SET title = ?1, provider_id = ?2, persona_id = ?3,
-                    character_id = ?4, universe_id = ?5, updated_at = ?6
-             WHERE id = ?7",
+                    character_id = ?4, universe_id = ?5, response_preset = ?6,
+                    updated_at = ?7
+             WHERE id = ?8",
             params![
                 input.title.trim(),
                 input.provider_id,
                 input.persona_id,
                 input.character_id,
                 input.universe_id,
+                input.response_preset,
                 now_unix(),
                 chat_id,
             ],
@@ -514,6 +559,12 @@ fn validate_chat_links(connection: &Connection, input: &ChatConfigInput) -> Resu
     validate_optional_galaxy(connection, input.universe_id.as_deref(), "universe")?;
     for id in &input.worldbook_ids {
         validate_optional_galaxy(connection, Some(id), "worldbook")?;
+    }
+    if !matches!(
+        input.response_preset.as_str(),
+        "natural" | "human" | "dialogue-only" | "no-emoji" | "first-person" | "clean-human"
+    ) {
+        return Err("Неизвестный пресет ответа".into());
     }
     Ok(())
 }
@@ -620,39 +671,10 @@ pub fn clear_chat(connection: &Connection, chat_id: &str) -> Result<(), String> 
     transaction.commit().map_err(|error| error.to_string())
 }
 
-pub fn set_chat_provider(
-    connection: &Connection,
-    chat_id: &str,
-    provider_id: Option<&str>,
-) -> Result<(), String> {
-    if let Some(provider_id) = provider_id {
-        let exists: bool = connection
-            .query_row(
-                "SELECT EXISTS(SELECT 1 FROM providers WHERE id = ?1)",
-                params![provider_id],
-                |row| row.get(0),
-            )
-            .map_err(|error| error.to_string())?;
-        if !exists {
-            return Err("Подключение не найдено".into());
-        }
-    }
-    let changed = connection
-        .execute(
-            "UPDATE chats SET provider_id = ?1 WHERE id = ?2",
-            params![provider_id, chat_id],
-        )
-        .map_err(|error| error.to_string())?;
-    if changed == 0 {
-        return Err("Чат не найден".into());
-    }
-    Ok(())
-}
-
 pub fn messages_for_chat(connection: &Connection, chat_id: &str) -> Result<Vec<Message>, String> {
     let mut statement = connection
         .prepare(
-            "SELECT id, chat_id, role, content, created_at
+            "SELECT id, chat_id, role, content, created_at, remembered
              FROM messages WHERE chat_id = ?1 ORDER BY created_at ASC",
         )
         .map_err(|error| error.to_string())?;
@@ -665,6 +687,7 @@ pub fn messages_for_chat(connection: &Connection, chat_id: &str) -> Result<Vec<M
                 role: row.get(2)?,
                 content: row.get(3)?,
                 created_at: clock_time(timestamp),
+                remembered: row.get::<_, i64>(5)? != 0,
             })
         })
         .map_err(|error| error.to_string())?
@@ -710,6 +733,244 @@ pub fn add_exchange(
         )
         .map_err(|error| error.to_string())?;
     transaction.commit().map_err(|error| error.to_string())
+}
+
+
+pub fn chat_response_preset(connection: &Connection, chat_id: &str) -> Result<String, String> {
+    connection
+        .query_row(
+            "SELECT response_preset FROM chats WHERE id = ?1",
+            params![chat_id],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|error| error.to_string())?
+        .ok_or_else(|| "Чат не найден".into())
+}
+
+pub fn chat_provider_id(connection: &Connection, chat_id: &str) -> Result<String, String> {
+    connection
+        .query_row(
+            "SELECT provider_id FROM chats WHERE id = ?1",
+            params![chat_id],
+            |row| row.get::<_, Option<String>>(0),
+        )
+        .optional()
+        .map_err(|error| error.to_string())?
+        .ok_or_else(|| "Чат не найден".to_string())?
+        .ok_or_else(|| "Выберите провайдера в настройках чата".to_string())
+}
+
+pub fn clone_chat(
+    connection: &Connection,
+    source_chat_id: &str,
+    new_chat_id: &str,
+    include_messages: bool,
+    through_message_id: Option<&str>,
+) -> Result<String, String> {
+    let source = connection
+        .query_row(
+            "SELECT title, provider_id, persona_id, character_id, universe_id, response_preset
+             FROM chats WHERE id = ?1",
+            params![source_chat_id],
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, Option<String>>(1)?,
+                    row.get::<_, Option<String>>(2)?,
+                    row.get::<_, Option<String>>(3)?,
+                    row.get::<_, Option<String>>(4)?,
+                    row.get::<_, String>(5)?,
+                ))
+            },
+        )
+        .optional()
+        .map_err(|error| error.to_string())?
+        .ok_or_else(|| "Чат не найден".to_string())?;
+
+    let suffix = if through_message_id.is_some() {
+        " — ветка"
+    } else {
+        " — копия"
+    };
+    let title = format!("{}{}", source.0, suffix);
+    let now = now_unix();
+    let transaction = connection
+        .unchecked_transaction()
+        .map_err(|error| error.to_string())?;
+
+    transaction
+        .execute(
+            "INSERT INTO chats (
+                id, title, preview, updated_at, message_count, pinned, provider_id,
+                persona_id, character_id, universe_id, response_preset
+             ) VALUES (?1, ?2, '', ?3, 0, 0, ?4, ?5, ?6, ?7, ?8)",
+            params![
+                new_chat_id,
+                title,
+                now,
+                source.1,
+                source.2,
+                source.3,
+                source.4,
+                source.5,
+            ],
+        )
+        .map_err(|error| error.to_string())?;
+
+    transaction
+        .execute(
+            "INSERT INTO chat_worldbooks (chat_id, worldbook_id, position)
+             SELECT ?1, worldbook_id, position
+             FROM chat_worldbooks WHERE chat_id = ?2",
+            params![new_chat_id, source_chat_id],
+        )
+        .map_err(|error| error.to_string())?;
+
+    if include_messages || through_message_id.is_some() {
+        let cutoff = match through_message_id {
+            Some(message_id) => Some(
+                transaction
+                    .query_row(
+                        "SELECT created_at FROM messages WHERE id = ?1 AND chat_id = ?2",
+                        params![message_id, source_chat_id],
+                        |row| row.get::<_, i64>(0),
+                    )
+                    .optional()
+                    .map_err(|error| error.to_string())?
+                    .ok_or_else(|| "Сообщение не найдено".to_string())?,
+            ),
+            None => None,
+        };
+
+        let mut statement = transaction
+            .prepare(
+                "SELECT role, content, created_at, remembered
+                 FROM messages
+                 WHERE chat_id = ?1 AND (?2 IS NULL OR created_at <= ?2)
+                 ORDER BY created_at ASC",
+            )
+            .map_err(|error| error.to_string())?;
+        let rows = statement
+            .query_map(params![source_chat_id, cutoff], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, i64>(2)?,
+                    row.get::<_, i64>(3)?,
+                ))
+            })
+            .map_err(|error| error.to_string())?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|error| error.to_string())?;
+        drop(statement);
+
+        for (index, (role, content, created_at, remembered)) in rows.iter().enumerate() {
+            transaction
+                .execute(
+                    "INSERT INTO messages (id, chat_id, role, content, created_at, remembered)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                    params![
+                        format!("{new_chat_id}-{index}"),
+                        new_chat_id,
+                        role,
+                        content,
+                        created_at,
+                        remembered,
+                    ],
+                )
+                .map_err(|error| error.to_string())?;
+        }
+        refresh_chat_summary(&transaction, new_chat_id)?;
+    }
+
+    transaction.commit().map_err(|error| error.to_string())?;
+    Ok(title)
+}
+
+pub fn edit_message(
+    connection: &Connection,
+    message_id: &str,
+    content: &str,
+) -> Result<(), String> {
+    let chat_id = connection
+        .query_row(
+            "SELECT chat_id FROM messages WHERE id = ?1",
+            params![message_id],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()
+        .map_err(|error| error.to_string())?
+        .ok_or_else(|| "Сообщение не найдено".to_string())?;
+    let changed = connection
+        .execute(
+            "UPDATE messages SET content = ?1 WHERE id = ?2",
+            params![content.trim(), message_id],
+        )
+        .map_err(|error| error.to_string())?;
+    if changed == 0 {
+        return Err("Сообщение не найдено".into());
+    }
+    refresh_chat_summary(connection, &chat_id)
+}
+
+pub fn delete_message(connection: &Connection, message_id: &str) -> Result<(), String> {
+    let chat_id = connection
+        .query_row(
+            "SELECT chat_id FROM messages WHERE id = ?1",
+            params![message_id],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()
+        .map_err(|error| error.to_string())?
+        .ok_or_else(|| "Сообщение не найдено".to_string())?;
+    connection
+        .execute("DELETE FROM messages WHERE id = ?1", params![message_id])
+        .map_err(|error| error.to_string())?;
+    refresh_chat_summary(connection, &chat_id)
+}
+
+pub fn set_message_remembered(
+    connection: &Connection,
+    message_id: &str,
+    remembered: bool,
+) -> Result<(), String> {
+    let changed = connection
+        .execute(
+            "UPDATE messages SET remembered = ?1 WHERE id = ?2",
+            params![remembered as i64, message_id],
+        )
+        .map_err(|error| error.to_string())?;
+    if changed == 0 {
+        return Err("Сообщение не найдено".into());
+    }
+    Ok(())
+}
+
+fn refresh_chat_summary(connection: &Connection, chat_id: &str) -> Result<(), String> {
+    let (message_count, preview, updated_at) = connection
+        .query_row(
+            "SELECT COUNT(*),
+                    COALESCE((SELECT content FROM messages WHERE chat_id = ?1 ORDER BY created_at DESC LIMIT 1), ''),
+                    COALESCE((SELECT created_at FROM messages WHERE chat_id = ?1 ORDER BY created_at DESC LIMIT 1), ?2)
+             FROM messages WHERE chat_id = ?1",
+            params![chat_id, now_unix()],
+            |row| {
+                Ok((
+                    row.get::<_, i64>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, i64>(2)?,
+                ))
+            },
+        )
+        .map_err(|error| error.to_string())?;
+    connection
+        .execute(
+            "UPDATE chats SET preview = ?1, message_count = ?2, updated_at = ?3 WHERE id = ?4",
+            params![preview, message_count, updated_at, chat_id],
+        )
+        .map_err(|error| error.to_string())?;
+    Ok(())
 }
 
 pub fn get_provider(connection: &Connection, id: &str) -> Result<Provider, String> {
@@ -1102,7 +1363,8 @@ pub fn update_settings(connection: &Connection, settings: &AppSettings) -> Resul
             "UPDATE app_settings
              SET animations = ?1, haptics = ?2, compact_mode = ?3,
                  send_on_enter = ?4, save_drafts = ?5, interface_scale = ?6,
-                 sidebar_width = ?7, chat_sidebar_width = ?8
+                 sidebar_width = ?7, chat_sidebar_width = ?8,
+                 sidebar_collapsed = ?9, theme_mode = ?10, theme_variant = ?11
              WHERE id = 1",
             params![
                 settings.animations as i64,
@@ -1112,7 +1374,10 @@ pub fn update_settings(connection: &Connection, settings: &AppSettings) -> Resul
                 settings.save_drafts as i64,
                 settings.interface_scale,
                 settings.sidebar_width,
-                settings.chat_sidebar_width
+                settings.chat_sidebar_width,
+                settings.sidebar_collapsed as i64,
+                settings.theme_mode,
+                settings.theme_variant
             ],
         )
         .map_err(|error| error.to_string())?;

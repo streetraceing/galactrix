@@ -12,7 +12,7 @@ export function MobileBottomNavigation({
 }) {
   return (
     <nav
-      className="shrink-0 border-t border-separator bg-surface px-2 pb-[max(0.25rem,env(safe-area-inset-bottom))] pt-1 md:hidden"
+      className="shrink-0 border-t border-separator bg-surface px-2 pb-[max(0.25rem,env(safe-area-inset-bottom))] pt-1"
       aria-label="Мобильная навигация"
     >
       <div className="grid h-16 w-full grid-cols-4 gap-1">

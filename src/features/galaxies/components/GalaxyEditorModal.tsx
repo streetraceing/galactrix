@@ -131,7 +131,7 @@ export function GalaxyEditorModal({
                   <Select.Value />
                   <Select.Indicator />
                 </Select.Trigger>
-                <Select.Popover className="bg-surface/75 backdrop-blur-md">
+                <Select.Popover>
                   <ListBox>
                     {galaxyFilters.slice(1).map((entry) => (
                       <ListBox.Item

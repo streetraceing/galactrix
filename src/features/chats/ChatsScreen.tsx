@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ResizeHandle } from '../../components/ResizeHandle';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { useMediaQuery } from '../../hooks/useMediaQuery';
+import { isMobilePlatform } from '../../lib/platform';
 import type { Chat, ChatConfigInput } from '../../types';
 import { ChatComposer } from './components/ChatComposer';
 import { ChatDialogs } from './components/ChatDialogs';
@@ -27,12 +29,19 @@ export function ChatsScreen({
   onDeleteChat,
   onSetPinned,
   onClearChat,
+  onCloneChat,
+  onBranchMessage,
+  onEditMessage,
+  onDeleteMessage,
+  onRememberMessage,
   onSend,
-  onSetProvider,
   sendOnEnter,
   saveDrafts,
   sending,
 }: ChatsScreenProps) {
+  const isMobile = isMobilePlatform();
+  const isNarrowDesktop = useMediaQuery('(max-width: 820px)');
+  const isSinglePane = isMobile || isNarrowDesktop;
   const [query, setQuery] = useState('');
   const [draft, setDraft] = useState('');
   const [showHistoryMobile, setShowHistoryMobile] = useState(true);
@@ -66,6 +75,16 @@ export function ChatsScreen({
   );
 
   useEffect(() => {
+    const openNewChat = () => {
+      setConfigError('');
+      setConfigTarget('new');
+      setShowHistoryMobile(true);
+    };
+    window.addEventListener('galactrix:new-chat', openNewChat);
+    return () => window.removeEventListener('galactrix:new-chat', openNewChat);
+  }, []);
+
+  useEffect(() => {
     if (!activeChat?.id) {
       setDraft('');
       setShowHistoryMobile(true);
@@ -85,8 +104,7 @@ export function ChatsScreen({
 
   useEffect(() => {
     if (!activeChat?.id) return;
-    const isMobile = window.matchMedia('(max-width: 767px)').matches;
-    if (isMobile && showHistoryMobile) return;
+    if (isSinglePane && showHistoryMobile) return;
 
     let secondFrame = 0;
     const firstFrame = window.requestAnimationFrame(() => {
@@ -102,7 +120,7 @@ export function ChatsScreen({
       window.cancelAnimationFrame(firstFrame);
       if (secondFrame) window.cancelAnimationFrame(secondFrame);
     };
-  }, [activeMessages.length, activeChat?.id, showHistoryMobile]);
+  }, [activeMessages.length, activeChat?.id, isSinglePane, showHistoryMobile]);
 
   const selectChat = (id: string) => {
     onSelectChat(id);
@@ -114,7 +132,7 @@ export function ChatsScreen({
     if (!value || !activeChat || !activeProvider || sending) return;
     setSendError('');
     try {
-      await onSend(value, activeProvider.id);
+      await onSend(value);
       setDraft('');
       localStorage.removeItem(draftKey(activeChat.id));
     } catch (error) {
@@ -129,16 +147,9 @@ export function ChatsScreen({
       setConfigTarget(chat);
       return;
     }
-    if (action === 'duplicate') {
+    if (action === 'duplicate' || action === 'duplicate-with-messages') {
       setWorking(true);
-      void onNewChat({
-        title: `${chat.title} — копия`,
-        providerId: chat.providerId,
-        personaId: chat.personaId,
-        characterId: chat.characterId,
-        universeId: chat.universeId,
-        worldbookIds: [...chat.worldbookIds],
-      })
+      void onCloneChat(chat.id, action === 'duplicate-with-messages')
         .then(() => setShowHistoryMobile(false))
         .catch((error) => setActionError(String(error)))
         .finally(() => setWorking(false));
@@ -220,6 +231,7 @@ export function ChatsScreen({
         query={query}
         width={chatSidebarWidth}
         isVisibleMobile={showHistoryMobile}
+        isSinglePane={isSinglePane}
         onQueryChange={setQuery}
         onSelect={selectChat}
         onNewChat={() => {
@@ -229,28 +241,28 @@ export function ChatsScreen({
         onAction={handleAction}
       />
 
-      <ResizeHandle
-        value={chatSidebarWidth}
-        min={260}
-        max={520}
-        label="Изменить ширину списка чатов"
-        onChange={onChatSidebarWidthPreview}
-        onCommit={onChatSidebarWidthCommit}
-      />
+      {!isSinglePane ? (
+        <ResizeHandle
+          value={chatSidebarWidth}
+          min={260}
+          max={520}
+          className="max-[1300px]:hidden"
+          label="Изменить ширину списка чатов"
+          onChange={onChatSidebarWidthPreview}
+          onCommit={onChatSidebarWidthCommit}
+        />
+      ) : null}
 
       <section
-        className={`${showHistoryMobile ? 'hidden' : 'flex'} min-w-0 flex-1 flex-col md:flex`}
+        className={`${isSinglePane && showHistoryMobile ? 'hidden' : 'flex'} min-w-0 flex-1 flex-col`}
       >
         {activeChat ? (
           <>
             <ConversationHeader
               chat={activeChat}
-              providers={providers}
               galaxyItems={galaxyItems}
+              showBack={isSinglePane}
               onBack={() => setShowHistoryMobile(true)}
-              onSetProvider={(providerId) =>
-                void onSetProvider(activeChat.id, providerId)
-              }
               onAction={handleAction}
             />
             <MessageList
@@ -258,6 +270,13 @@ export function ChatsScreen({
               provider={activeProvider}
               providersAvailable={providers.length > 0}
               scrollRef={messageScrollRef}
+              onBranch={async (messageId) => {
+                await onBranchMessage(messageId);
+                setShowHistoryMobile(false);
+              }}
+              onEdit={onEditMessage}
+              onDelete={onDeleteMessage}
+              onRemember={onRememberMessage}
             />
             <ChatComposer
               draft={draft}
@@ -290,6 +309,20 @@ export function ChatsScreen({
         error={configError}
         onOpenChange={(open) => !open && setConfigTarget(null)}
         onSubmit={(input) => void saveConfig(input)}
+        onCloneWithMessages={
+          configTarget && configTarget !== 'new'
+            ? (input) => {
+                setWorking(true);
+                void onCloneChat(configTarget.id, true, input)
+                  .then(() => {
+                    setConfigTarget(null);
+                    setShowHistoryMobile(false);
+                  })
+                  .catch((error) => setConfigError(String(error)))
+                  .finally(() => setWorking(false));
+              }
+            : undefined
+        }
       />
 
       <ChatDialogs

@@ -25,7 +25,7 @@ export function ChatActions({
       <ContextMenuTrigger className="block min-w-0">
         {children}
       </ContextMenuTrigger>
-      <ContextMenuContent className="w-56 bg-surface-secondary/75 backdrop-blur-md">
+      <ContextMenuContent className="w-56">
         <ContextMenuLabel>{chat.title}</ContextMenuLabel>
         <ContextMenuItem onClick={() => onAction('configure', chat)}>
           <Icon name="settings" className="size-4 text-accent" />
@@ -33,7 +33,13 @@ export function ChatActions({
         </ContextMenuItem>
         <ContextMenuItem onClick={() => onAction('duplicate', chat)}>
           <Icon name="copy" className="size-4" />
-          Создать копию настроек
+          Копия без сообщений
+        </ContextMenuItem>
+        <ContextMenuItem
+          onClick={() => onAction('duplicate-with-messages', chat)}
+        >
+          <Icon name="branch" className="size-4" />
+          Копия с сообщениями
         </ContextMenuItem>
         <ContextMenuItem onClick={() => onAction('rename', chat)}>
           <Icon name="edit" className="size-4" />
@@ -43,9 +49,9 @@ export function ChatActions({
           <Icon name="pin" className="size-4" />
           {chat.pinned ? 'Открепить' : 'Закрепить'}
         </ContextMenuItem>
-        <ContextMenuSeparator className="bg-default-hover" />
+        <ContextMenuSeparator />
         <ContextMenuItem
-          className="text-warning data-highlighted:text-warning hover:bg-warning-soft! hover:text-warning!"
+          className="text-warning data-[highlighted]:bg-warning/10 data-[highlighted]:text-warning"
           onClick={() => onAction('clear', chat)}
         >
           <Icon name="clear" className="size-4" />

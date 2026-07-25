@@ -81,7 +81,7 @@ export function ProviderCard({
           </button>
         </Surface>
       </ContextMenuTrigger>
-      <ContextMenuContent className="w-56 bg-surface-secondary/75 backdrop-blur-md">
+      <ContextMenuContent className="w-56">
         <ContextMenuLabel>{provider.name}</ContextMenuLabel>
         <ContextMenuItem onClick={onCheck}>
           <Icon name="refresh" className="size-4" /> Проверить API
@@ -89,7 +89,7 @@ export function ProviderCard({
         <ContextMenuItem onClick={onEdit}>
           <Icon name="settings" className="size-4" /> Настроить
         </ContextMenuItem>
-        <ContextMenuSeparator className="bg-default-hover" />
+        <ContextMenuSeparator />
         <ContextMenuItem variant="destructive" onClick={onDelete}>
           <Icon name="trash" className="size-4" /> Удалить
         </ContextMenuItem>

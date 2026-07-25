@@ -51,21 +51,45 @@ export async function clearChat(chatId: string) {
   return invoke<void>('clear_chat', { chatId });
 }
 
-export async function setChatProvider(chatId: string, providerId?: string) {
+export async function sendChatMessage(chatId: string, content: string) {
   requireTauri();
-  return invoke<void>('set_chat_provider', {
+  return invoke<void>('send_chat_message', { chatId, content });
+}
+
+export async function cloneChat(
+  chatId: string,
+  includeMessages: boolean,
+  input?: ChatConfigInput,
+) {
+  requireTauri();
+  return invoke<{ id: string; title: string }>('clone_chat', {
     chatId,
-    providerId: providerId || null,
+    includeMessages,
+    input: input ?? null,
   });
 }
 
-export async function sendChatMessage(
-  chatId: string,
-  providerId: string,
-  content: string,
+export async function branchChat(messageId: string) {
+  requireTauri();
+  return invoke<{ id: string; title: string }>('branch_chat', { messageId });
+}
+
+export async function editMessage(messageId: string, content: string) {
+  requireTauri();
+  return invoke<void>('edit_message', { messageId, content });
+}
+
+export async function deleteMessage(messageId: string) {
+  requireTauri();
+  return invoke<void>('delete_message', { messageId });
+}
+
+export async function setMessageRemembered(
+  messageId: string,
+  remembered: boolean,
 ) {
   requireTauri();
-  return invoke<void>('send_chat_message', { chatId, providerId, content });
+  return invoke<void>('set_message_remembered', { messageId, remembered });
 }
 
 export async function upsertGalaxyItem(input: GalaxyItemInput) {

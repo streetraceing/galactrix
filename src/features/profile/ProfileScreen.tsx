@@ -6,6 +6,7 @@ import { LayoutSettings } from './components/LayoutSettings';
 import { ScaleSettings } from './components/ScaleSettings';
 import { SettingsCard } from './components/SettingsCard';
 import { SettingSwitchRow } from './components/SettingSwitchRow';
+import { ThemeSettings } from './components/ThemeSettings';
 import { UsageChart } from './components/UsageChart';
 import { formatTokens } from './format';
 
@@ -100,6 +101,13 @@ export function ProfileScreen({
             />
           </SettingsCard>
         </div>
+
+        <ThemeSettings
+          mode={settings.themeMode}
+          variant={settings.themeVariant}
+          onModeChange={(value) => patch('themeMode', value)}
+          onVariantChange={(value) => patch('themeVariant', value)}
+        />
 
         <div className="grid gap-4 md:grid-cols-2">
           <ScaleSettings

@@ -1,6 +1,6 @@
 import type { ReactNode, SVGProps } from 'react';
 
-type IconName =
+export type IconName =
   | 'message_box'
   | 'chats'
   | 'galaxies'
@@ -29,7 +29,12 @@ type IconName =
   | 'pin'
   | 'clear'
   | 'back'
-  | 'info';
+  | 'info'
+  | 'branch'
+  | 'memory'
+  | 'sidebar'
+  | 'minimize'
+  | 'maximize';
 
 export function Icon({
   name,
@@ -193,6 +198,28 @@ export function Icon({
       </>
     ),
     back: <path d="m15 18-6-6 6-6" />,
+    branch: (
+      <>
+        <circle cx="6" cy="5" r="2" />
+        <circle cx="18" cy="7" r="2" />
+        <circle cx="18" cy="18" r="2" />
+        <path d="M8 5h3a4 4 0 0 1 4 4v7M8 5v8a5 5 0 0 0 5 5h3" />
+      </>
+    ),
+    memory: (
+      <>
+        <path d="M9 4.5A3 3 0 0 0 6 7.4 3.5 3.5 0 0 0 4.5 14 3.5 3.5 0 0 0 9 19.3V4.5ZM15 4.5a3 3 0 0 1 3 2.9 3.5 3.5 0 0 1 1.5 6.6 3.5 3.5 0 0 1-4.5 5.3V4.5Z" />
+        <path d="M9 9H7M15 9h2M9 14H6.5M15 14h2.5" />
+      </>
+    ),
+    sidebar: (
+      <>
+        <rect x="3" y="4" width="18" height="16" rx="2" />
+        <path d="M9 4v16" />
+      </>
+    ),
+    minimize: <path d="M5 12h14" />,
+    maximize: <rect x="5" y="5" width="14" height="14" rx="1" />,
     info: (
       <>
         <circle cx="12" cy="12" r="9" />

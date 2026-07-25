@@ -2,6 +2,7 @@ mod db;
 mod models;
 mod prompt_builder;
 mod provider_client;
+mod response_presets;
 mod secure_storage;
 
 use std::sync::Mutex;
@@ -94,19 +95,84 @@ fn clear_chat(chat_id: String, state: State<'_, AppState>) -> Result<(), String>
 }
 
 #[tauri::command]
-fn set_chat_provider(
+fn clone_chat(
     chat_id: String,
-    provider_id: Option<String>,
+    include_messages: bool,
+    input: Option<ChatConfigInput>,
+    state: State<'_, AppState>,
+) -> Result<CreatedChat, String> {
+    let new_id = Uuid::new_v4().to_string();
+    let database = state.database.lock().map_err(|error| error.to_string())?;
+    let mut title = db::clone_chat(&database, &chat_id, &new_id, include_messages, None)?;
+
+    if let Some(input) = input {
+        if let Err(error) = db::update_chat_config(&database, &new_id, &input) {
+            let _ = db::delete_chat(&database, &new_id);
+            return Err(error);
+        }
+        title = input.title.trim().to_owned();
+    }
+
+    Ok(CreatedChat { id: new_id, title })
+}
+
+#[tauri::command]
+fn branch_chat(
+    message_id: String,
+    state: State<'_, AppState>,
+) -> Result<CreatedChat, String> {
+    let new_id = Uuid::new_v4().to_string();
+    let database = state.database.lock().map_err(|error| error.to_string())?;
+    let source_chat_id = database
+        .query_row(
+            "SELECT chat_id FROM messages WHERE id = ?1",
+            rusqlite::params![message_id],
+            |row| row.get::<_, String>(0),
+        )
+        .map_err(|_| "Сообщение не найдено".to_string())?;
+    let title = db::clone_chat(
+        &database,
+        &source_chat_id,
+        &new_id,
+        true,
+        Some(&message_id),
+    )?;
+    Ok(CreatedChat { id: new_id, title })
+}
+
+#[tauri::command]
+fn edit_message(
+    message_id: String,
+    content: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let content = content.trim();
+    if content.is_empty() {
+        return Err("Сообщение не может быть пустым".into());
+    }
+    let database = state.database.lock().map_err(|error| error.to_string())?;
+    db::edit_message(&database, &message_id, content)
+}
+
+#[tauri::command]
+fn delete_message(message_id: String, state: State<'_, AppState>) -> Result<(), String> {
+    let database = state.database.lock().map_err(|error| error.to_string())?;
+    db::delete_message(&database, &message_id)
+}
+
+#[tauri::command]
+fn set_message_remembered(
+    message_id: String,
+    remembered: bool,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let database = state.database.lock().map_err(|error| error.to_string())?;
-    db::set_chat_provider(&database, &chat_id, provider_id.as_deref())
+    db::set_message_remembered(&database, &message_id, remembered)
 }
 
 #[tauri::command]
 async fn send_chat_message(
     chat_id: String,
-    provider_id: String,
     content: String,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
@@ -115,13 +181,34 @@ async fn send_chat_message(
         return Err("Пустое сообщение не отправляется".into());
     }
 
-    let (provider, history, system_prompt) = {
+    let (provider, history, system_prompt, response_preset) = {
         let database = state.database.lock().map_err(|error| error.to_string())?;
         let context = db::get_chat_prompt_context(&database, &chat_id)?;
+        let provider_id = db::chat_provider_id(&database, &chat_id)?;
+        let history = db::messages_for_chat(&database, &chat_id)?;
+        let response_preset = db::chat_response_preset(&database, &chat_id)?;
+        let remembered = history
+            .iter()
+            .filter(|message| message.remembered)
+            .map(|message| format!("- {}: {}", message.role, message.content.trim()))
+            .collect::<Vec<_>>();
+        let mut blocks = prompt_builder::build_system_prompt(&context)
+            .into_iter()
+            .collect::<Vec<_>>();
+        if let Some(instructions) = response_presets::instructions(&response_preset) {
+            blocks.push(format!("[RESPONSE PRESET]\n{instructions}"));
+        }
+        if !remembered.is_empty() {
+            blocks.push(format!(
+                "[REMEMBERED MESSAGES]\nTreat these marked messages as important persistent facts:\n{}",
+                remembered.join("\n")
+            ));
+        }
         (
             db::get_provider(&database, &provider_id)?,
-            db::messages_for_chat(&database, &chat_id)?,
-            prompt_builder::build_system_prompt(&context),
+            history,
+            (!blocks.is_empty()).then(|| blocks.join("\n\n")),
+            response_preset,
         )
     };
     let secret = secret_for_saved_provider(&provider)?;
@@ -144,15 +231,19 @@ async fn send_chat_message(
         }
     };
 
+    let response_content = response_presets::apply(&response_preset, &completion.content);
+    if response_content.is_empty() {
+        return Err("Ответ модели стал пустым после применения пресета".into());
+    }
+
     let database = state.database.lock().map_err(|error| error.to_string())?;
-    db::set_chat_provider(&database, &chat_id, Some(&provider.id))?;
     db::add_exchange(
         &database,
         &chat_id,
         &Uuid::new_v4().to_string(),
         content,
         &Uuid::new_v4().to_string(),
-        &completion.content,
+        &response_content,
     )?;
     db::record_usage(
         &database,
@@ -298,6 +389,15 @@ fn update_app_settings(
     settings.interface_scale = settings.interface_scale.clamp(0.8, 1.5);
     settings.sidebar_width = settings.sidebar_width.clamp(196, 420);
     settings.chat_sidebar_width = settings.chat_sidebar_width.clamp(248, 560);
+    if !matches!(settings.theme_mode.as_str(), "light" | "dark" | "system") {
+        settings.theme_mode = "system".into();
+    }
+    if !matches!(
+        settings.theme_variant.as_str(),
+        "default" | "lavender" | "discord" | "spotify"
+    ) {
+        settings.theme_variant = "default".into();
+    }
 
     let database = state.database.lock().map_err(|error| error.to_string())?;
     db::update_settings(&database, &settings)?;
@@ -405,7 +505,11 @@ pub fn run() {
             delete_chat,
             set_chat_pinned,
             clear_chat,
-            set_chat_provider,
+            clone_chat,
+            branch_chat,
+            edit_message,
+            delete_message,
+            set_message_remembered,
             send_chat_message,
             upsert_galaxy_item,
             delete_galaxy_item,

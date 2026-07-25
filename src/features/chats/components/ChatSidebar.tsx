@@ -11,6 +11,7 @@ export function ChatSidebar({
   query,
   width,
   isVisibleMobile,
+  isSinglePane,
   onQueryChange,
   onSelect,
   onNewChat,
@@ -21,6 +22,7 @@ export function ChatSidebar({
   query: string;
   width: number;
   isVisibleMobile: boolean;
+  isSinglePane: boolean;
   onQueryChange: (value: string) => void;
   onSelect: (id: string) => void;
   onNewChat: () => void;
@@ -28,7 +30,7 @@ export function ChatSidebar({
 }) {
   return (
     <aside
-      className={`${isVisibleMobile ? 'flex' : 'hidden'} h-full w-full shrink-0 flex-col border-r border-separator bg-background md:flex md:w-(--chat-sidebar-width)`}
+      className={`${isSinglePane ? (isVisibleMobile ? 'flex w-full' : 'hidden') : 'flex w-[min(var(--chat-sidebar-width),36vw)] min-[1300px]:w-(--chat-sidebar-width)'} h-full shrink-0 flex-col border-r border-separator bg-background`}
       style={{ '--chat-sidebar-width': `${width}px` } as CSSProperties}
     >
       <header className="flex items-start gap-3 px-4 pb-3 pt-4">

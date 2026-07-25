@@ -15,6 +15,7 @@ pub struct Chat {
     pub character_id: Option<String>,
     pub universe_id: Option<String>,
     pub worldbook_ids: Vec<String>,
+    pub response_preset: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -27,6 +28,12 @@ pub struct ChatConfigInput {
     pub universe_id: Option<String>,
     #[serde(default)]
     pub worldbook_ids: Vec<String>,
+    #[serde(default = "default_response_preset")]
+    pub response_preset: String,
+}
+
+fn default_response_preset() -> String {
+    "natural".into()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -37,6 +44,7 @@ pub struct Message {
     pub role: String,
     pub content: String,
     pub created_at: String,
+    pub remembered: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -131,6 +139,9 @@ pub struct AppSettings {
     pub interface_scale: f64,
     pub sidebar_width: i64,
     pub chat_sidebar_width: i64,
+    pub sidebar_collapsed: bool,
+    pub theme_mode: String,
+    pub theme_variant: String,
 }
 
 impl Default for AppSettings {
@@ -144,6 +155,9 @@ impl Default for AppSettings {
             interface_scale: 1.0,
             sidebar_width: 248,
             chat_sidebar_width: 320,
+            sidebar_collapsed: false,
+            theme_mode: "system".into(),
+            theme_variant: "default".into(),
         }
     }
 }

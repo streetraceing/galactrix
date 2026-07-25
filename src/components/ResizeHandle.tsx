@@ -8,6 +8,7 @@ type ResizeHandleProps = {
   onChange: (value: number) => void;
   onCommit: (value: number) => void;
   label: string;
+  className?: string;
 };
 
 export function ResizeHandle({
@@ -17,6 +18,7 @@ export function ResizeHandle({
   onChange,
   onCommit,
   label,
+  className = '',
 }: ResizeHandleProps) {
   const latestValue = useRef(value);
 
@@ -35,7 +37,7 @@ export function ResizeHandle({
       aria-valuemax={max}
       aria-valuenow={Math.round(value)}
       tabIndex={0}
-      className="group relative hidden w-1 shrink-0 cursor-col-resize touch-none bg-background md:block"
+      className={`group relative block w-1 shrink-0 cursor-col-resize touch-none bg-background ${className}`}
       onPointerDown={(event: ReactPointerEvent<HTMLDivElement>) => {
         const startX = event.clientX;
         const startValue = value;

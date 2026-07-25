@@ -37,7 +37,7 @@ export function ChatProviderPicker({
           </Select.Value>
           <Select.Indicator className="shrink-0" />
         </Select.Trigger>
-        <Select.Popover className="bg-surface/75 backdrop-blur-md">
+        <Select.Popover>
           <ListBox>
             <ListBox.Item id={NONE_KEY} textValue="Без провайдера">
               <span className="text-muted">Без провайдера</span>

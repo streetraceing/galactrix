@@ -1,18 +1,23 @@
+import { useTheme } from 'next-themes';
 import { useCallback, useEffect, useState } from 'react';
 import {
+  branchChat,
   checkProvider,
   clearChat,
+  cloneChat,
   createChat,
   deleteChat,
   deleteGalaxyItem,
+  deleteMessage,
   deleteProvider,
+  editMessage,
   fetchProviderModels,
   loadSnapshot,
   renameChat,
   saveProvider,
   sendChatMessage,
+  setMessageRemembered,
   setChatPinned,
-  setChatProvider,
   updateChatConfig,
   updateSettings,
   upsertGalaxyItem,
@@ -35,6 +40,9 @@ const defaultSettings: AppSettings = {
   interfaceScale: 1,
   sidebarWidth: 248,
   chatSidebarWidth: 320,
+  sidebarCollapsed: false,
+  themeMode: 'system',
+  themeVariant: 'default',
 };
 
 const emptySnapshot: AppSnapshot = {
@@ -52,6 +60,7 @@ function errorText(error: unknown) {
 }
 
 export function useAppController() {
+  const { setTheme } = useTheme();
   const [activeTab, setActiveTab] = useState<TabId>('chats');
   const [snapshot, setSnapshot] = useState<AppSnapshot>(emptySnapshot);
   const [activeChatId, setActiveChatId] = useState('');
@@ -94,6 +103,16 @@ export function useAppController() {
   }, [notice]);
 
   useEffect(() => {
+    setTheme(snapshot.settings.themeMode);
+    document.documentElement.dataset.themeVariant =
+      snapshot.settings.themeVariant;
+    localStorage.setItem(
+      'galactrix-theme-variant',
+      snapshot.settings.themeVariant,
+    );
+  }, [setTheme, snapshot.settings.themeMode, snapshot.settings.themeVariant]);
+
+  useEffect(() => {
     const scale = Math.min(
       1.5,
       Math.max(0.8, snapshot.settings.interfaceScale),
@@ -113,6 +132,15 @@ export function useAppController() {
     (tab: TabId) => {
       haptic();
       setActiveTab(tab);
+    },
+    [haptic],
+  );
+
+  const openChat = useCallback(
+    (chatId: string) => {
+      setActiveChatId(chatId);
+      setActiveTab('chats');
+      haptic();
     },
     [haptic],
   );
@@ -198,11 +226,11 @@ export function useAppController() {
   );
 
   const sendMessage = useCallback(
-    async (content: string, providerId: string) => {
+    async (content: string) => {
       if (!activeChatId || sending) return;
       setSending(true);
       try {
-        await sendChatMessage(activeChatId, providerId, content);
+        await sendChatMessage(activeChatId, content);
         await refresh();
         haptic();
       } catch (error) {
@@ -216,16 +244,57 @@ export function useAppController() {
     [activeChatId, haptic, refresh, sending],
   );
 
-  const changeChatProvider = useCallback(
-    async (chatId: string, providerId?: string) => {
-      try {
-        await setChatProvider(chatId, providerId);
-        await refresh();
-      } catch (error) {
-        setNotice(errorText(error));
-      }
+  const cloneExistingChat = useCallback(
+    async (
+      chatId: string,
+      includeMessages: boolean,
+      input?: ChatConfigInput,
+    ) => {
+      const created = await cloneChat(chatId, includeMessages, input);
+      await refresh();
+      setActiveChatId(created.id);
+      setActiveTab('chats');
+      haptic();
     },
-    [refresh],
+    [haptic, refresh],
+  );
+
+  const branchFromMessage = useCallback(
+    async (messageId: string) => {
+      const created = await branchChat(messageId);
+      await refresh();
+      setActiveChatId(created.id);
+      setActiveTab('chats');
+      haptic();
+    },
+    [haptic, refresh],
+  );
+
+  const editExistingMessage = useCallback(
+    async (messageId: string, content: string) => {
+      await editMessage(messageId, content);
+      await refresh();
+      haptic();
+    },
+    [haptic, refresh],
+  );
+
+  const removeMessage = useCallback(
+    async (messageId: string) => {
+      await deleteMessage(messageId);
+      await refresh();
+      haptic();
+    },
+    [haptic, refresh],
+  );
+
+  const rememberMessage = useCallback(
+    async (messageId: string, remembered: boolean) => {
+      await setMessageRemembered(messageId, remembered);
+      await refresh();
+      haptic();
+    },
+    [haptic, refresh],
   );
 
   const saveGalaxyItem = useCallback(
@@ -283,6 +352,7 @@ export function useAppController() {
     notice,
     sending,
     navigate,
+    openChat,
     boot,
     setNotice,
     setActiveChatId,
@@ -295,7 +365,11 @@ export function useAppController() {
     pinChat,
     clearExistingChat,
     sendMessage,
-    changeChatProvider,
+    cloneExistingChat,
+    branchFromMessage,
+    editExistingMessage,
+    removeMessage,
+    rememberMessage,
     saveGalaxyItem,
     removeGalaxyItem,
     fetchProviderModels,

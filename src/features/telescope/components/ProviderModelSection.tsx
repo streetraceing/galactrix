@@ -54,7 +54,7 @@ export function ProviderModelSection({
             <Select.Value />
             <Select.Indicator />
           </Select.Trigger>
-          <Select.Popover className="bg-surface/75 backdrop-blur-md">
+          <Select.Popover>
             <ListBox>
               {models.map((model) => (
                 <ListBox.Item id={model} key={model} textValue={model}>

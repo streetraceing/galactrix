@@ -1,18 +1,63 @@
-import { Button, Input, Label } from '@heroui/react';
+import { Button, Input, Label, ListBox, Select } from '@heroui/react';
 import { useEffect, useState } from 'react';
+import { Icon } from '../../../components/Icon';
 import { UiModal } from '../../../components/ui/UiModal';
 import type {
   Chat,
   ChatConfigInput,
   GalaxyItem,
   Provider,
+  ResponsePreset,
 } from '../../../types';
 import { ChatContextPicker } from './ChatContextPicker';
 import { ChatProviderPicker } from './ChatProviderPicker';
 
+const responsePresets: Array<{
+  id: ResponsePreset;
+  label: string;
+  description: string;
+}> = [
+  {
+    id: 'natural',
+    label: 'Естественный',
+    description:
+      'Следует персонажу и контексту без дополнительных ограничений.',
+  },
+  {
+    id: 'human',
+    label: 'Максимально человечный',
+    description:
+      'Живой ритм, конкретные формулировки и минимум ассистентского тона.',
+  },
+  {
+    id: 'dialogue-only',
+    label: 'Только реплики',
+    description:
+      'Без действий, сценических ремарок, звёздочек и повествования.',
+  },
+  {
+    id: 'no-emoji',
+    label: 'Без эмодзи',
+    description: 'Эмодзи и декоративные символы удаляются из ответа.',
+  },
+  {
+    id: 'first-person',
+    label: 'От первого лица',
+    description:
+      'Персонаж пишет от своего имени и не описывает себя в третьем лице.',
+  },
+  {
+    id: 'clean-human',
+    label: 'Чистый живой диалог',
+    description:
+      'Человечный стиль, первое лицо, без эмодзи и ролевых действий.',
+  },
+];
+
 const newChatConfig: ChatConfigInput = {
   title: 'Новый чат',
   worldbookIds: [],
+  responsePreset: 'natural',
 };
 
 function configFromChat(chat: Chat): ChatConfigInput {
@@ -23,6 +68,7 @@ function configFromChat(chat: Chat): ChatConfigInput {
     characterId: chat.characterId,
     universeId: chat.universeId,
     worldbookIds: [...chat.worldbookIds],
+    responsePreset: chat.responsePreset,
   };
 }
 
@@ -35,6 +81,7 @@ export function ChatSetupModal({
   error,
   onOpenChange,
   onSubmit,
+  onCloneWithMessages,
 }: {
   isOpen: boolean;
   chat: Chat | null;
@@ -44,6 +91,7 @@ export function ChatSetupModal({
   error: string;
   onOpenChange: (open: boolean) => void;
   onSubmit: (input: ChatConfigInput) => void;
+  onCloneWithMessages?: (input: ChatConfigInput) => void;
 }) {
   const [form, setForm] = useState<ChatConfigInput>(newChatConfig);
 
@@ -52,15 +100,38 @@ export function ChatSetupModal({
     setForm(chat ? configFromChat(chat) : { ...newChatConfig });
   }, [chat, isOpen]);
 
+  const preset =
+    responsePresets.find((entry) => entry.id === form.responsePreset) ??
+    responsePresets[0];
+
   return (
     <UiModal
       isOpen={isOpen}
       onOpenChange={(open) => !saving && onOpenChange(open)}
       size="lg"
       title={chat ? 'Настройки чата' : 'Новый чат'}
-      description="Провайдер и ролевой контекст можно изменить в любое время через контекстное меню чата."
+      description="Провайдер, ролевой контекст и стиль ответа можно изменить в любое время."
       footer={
-        <>
+        <div className="flex w-full flex-wrap items-center justify-end gap-2">
+          {chat && onCloneWithMessages ? (
+            <Button
+              className="mr-auto"
+              variant="secondary"
+              isDisabled={saving || !form.title.trim()}
+              onPress={() =>
+                onCloneWithMessages({
+                  ...form,
+                  title:
+                    form.title.trim() === chat.title
+                      ? `${chat.title} — копия`
+                      : form.title.trim(),
+                })
+              }
+            >
+              <Icon name="branch" className="size-4" />
+              Новый чат с сообщениями
+            </Button>
+          ) : null}
           <Button
             variant="ghost"
             isDisabled={saving}
@@ -76,7 +147,7 @@ export function ChatSetupModal({
           >
             {chat ? 'Сохранить' : 'Создать чат'}
           </Button>
-        </>
+        </div>
       }
     >
       <div className="min-w-0 space-y-5">
@@ -105,6 +176,47 @@ export function ChatSetupModal({
               setForm((current) => ({ ...current, providerId }))
             }
           />
+        </div>
+
+        <div className="flex min-w-0 flex-col gap-1.5">
+          <Label>Пресет ответа</Label>
+          <Select
+            aria-label="Пресет ответа модели"
+            value={form.responsePreset}
+            onChange={(value) => {
+              if (typeof value === 'string') {
+                setForm((current) => ({
+                  ...current,
+                  responsePreset: value as ResponsePreset,
+                }));
+              }
+            }}
+          >
+            <Select.Trigger className="w-full">
+              <Select.Value />
+              <Select.Indicator />
+            </Select.Trigger>
+            <Select.Popover>
+              <ListBox>
+                {responsePresets.map((entry) => (
+                  <ListBox.Item
+                    key={entry.id}
+                    id={entry.id}
+                    textValue={entry.label}
+                  >
+                    <div className="min-w-0 py-0.5">
+                      <div className="truncate font-medium">{entry.label}</div>
+                      <div className="line-clamp-2 text-xs text-muted">
+                        {entry.description}
+                      </div>
+                    </div>
+                    <ListBox.ItemIndicator />
+                  </ListBox.Item>
+                ))}
+              </ListBox>
+            </Select.Popover>
+          </Select>
+          <p className="text-xs leading-5 text-muted">{preset.description}</p>
         </div>
 
         <ChatContextPicker

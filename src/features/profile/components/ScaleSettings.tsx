@@ -88,7 +88,7 @@ export function ScaleSettings({
             <Select.Indicator />
           </Select.Trigger>
 
-          <Select.Popover className="bg-surface/75 backdrop-blur-md">
+          <Select.Popover>
             <ListBox>
               {scales.map((scale) => {
                 const label = `${Math.round(scale * 100)}%`;

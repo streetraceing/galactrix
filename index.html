@@ -1,10 +1,33 @@
 <!doctype html>
-<html lang="ru" class="dark" data-theme="dark">
+<html lang="ru">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/galactrix-mark.svg" />
     <link rel="icon" type="image/png" href="/galactrix-mark.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      (() => {
+        const modes = new Set(['light', 'dark', 'system']);
+        const variants = new Set(['default', 'lavender', 'discord', 'spotify']);
+        const savedMode = localStorage.getItem('galactrix-theme-mode');
+        const mode = modes.has(savedMode) ? savedMode : 'system';
+        const resolvedMode =
+          mode === 'system'
+            ? window.matchMedia('(prefers-color-scheme: dark)').matches
+              ? 'dark'
+              : 'light'
+            : mode;
+        const savedVariant = localStorage.getItem('galactrix-theme-variant');
+
+        document.documentElement.dataset.theme = resolvedMode;
+        document.documentElement.dataset.themeVariant = variants.has(
+          savedVariant,
+        )
+          ? savedVariant
+          : 'default';
+        document.documentElement.style.colorScheme = resolvedMode;
+      })();
+    </script>
     <title>Galactrix</title>
   </head>
 

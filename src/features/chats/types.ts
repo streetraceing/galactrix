@@ -7,7 +7,13 @@ import type {
 } from '../../types';
 
 export type ChatAction =
-  'configure' | 'duplicate' | 'rename' | 'pin' | 'clear' | 'delete';
+  | 'configure'
+  | 'duplicate'
+  | 'duplicate-with-messages'
+  | 'rename'
+  | 'pin'
+  | 'clear'
+  | 'delete';
 
 export type ChatsScreenProps = {
   chats: Chat[];
@@ -25,8 +31,16 @@ export type ChatsScreenProps = {
   onDeleteChat: (chatId: string) => Promise<void>;
   onSetPinned: (chatId: string, pinned: boolean) => Promise<void>;
   onClearChat: (chatId: string) => Promise<void>;
-  onSend: (content: string, providerId: string) => Promise<void>;
-  onSetProvider: (chatId: string, providerId?: string) => Promise<void>;
+  onCloneChat: (
+    chatId: string,
+    includeMessages: boolean,
+    input?: ChatConfigInput,
+  ) => Promise<void>;
+  onBranchMessage: (messageId: string) => Promise<void>;
+  onEditMessage: (messageId: string, content: string) => Promise<void>;
+  onDeleteMessage: (messageId: string) => Promise<void>;
+  onRememberMessage: (messageId: string, remembered: boolean) => Promise<void>;
+  onSend: (content: string) => Promise<void>;
   sendOnEnter: boolean;
   saveDrafts: boolean;
   sending: boolean;

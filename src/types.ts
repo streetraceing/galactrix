@@ -12,7 +12,16 @@ export type Chat = {
   characterId?: string;
   universeId?: string;
   worldbookIds: string[];
+  responsePreset: ResponsePreset;
 };
+
+export type ResponsePreset =
+  | 'natural'
+  | 'human'
+  | 'dialogue-only'
+  | 'no-emoji'
+  | 'first-person'
+  | 'clean-human';
 
 export type ChatConfigInput = {
   title: string;
@@ -21,6 +30,7 @@ export type ChatConfigInput = {
   characterId?: string;
   universeId?: string;
   worldbookIds: string[];
+  responsePreset: ResponsePreset;
 };
 
 export type Message = {
@@ -29,6 +39,7 @@ export type Message = {
   role: 'user' | 'assistant' | 'system';
   content: string;
   createdAt: string;
+  remembered: boolean;
 };
 
 export type GalaxyKind =
@@ -158,6 +169,9 @@ export type AppSettings = {
   interfaceScale: number;
   sidebarWidth: number;
   chatSidebarWidth: number;
+  sidebarCollapsed: boolean;
+  themeMode: 'light' | 'dark' | 'system';
+  themeVariant: 'default' | 'lavender' | 'discord' | 'spotify';
 };
 
 export type UsagePoint = {

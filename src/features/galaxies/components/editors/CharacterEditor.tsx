@@ -49,7 +49,7 @@ export function CharacterEditor({
                 <Select.Value />
                 <Select.Indicator />
               </Select.Trigger>
-              <Select.Popover className="bg-surface/75 backdrop-blur-md">
+              <Select.Popover>
                 <ListBox>
                   {stylePresets.map((preset) => (
                     <ListBox.Item
@@ -84,7 +84,7 @@ export function CharacterEditor({
                   <Select.Value />
                   <Select.Indicator />
                 </Select.Trigger>
-                <Select.Popover className="bg-surface/75 backdrop-blur-md">
+                <Select.Popover>
                   <ListBox>
                     <ListBox.Item id={NONE_KEY} textValue="Стиль не выбран">
                       <span className="text-muted">Стиль не выбран</span>

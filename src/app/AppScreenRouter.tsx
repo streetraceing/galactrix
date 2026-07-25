@@ -34,8 +34,12 @@ export function AppScreenRouter({ controller }: { controller: Controller }) {
         onDeleteChat={controller.removeChat}
         onSetPinned={controller.pinChat}
         onClearChat={controller.clearExistingChat}
+        onCloneChat={controller.cloneExistingChat}
+        onBranchMessage={controller.branchFromMessage}
+        onEditMessage={controller.editExistingMessage}
+        onDeleteMessage={controller.removeMessage}
+        onRememberMessage={controller.rememberMessage}
         onSend={controller.sendMessage}
-        onSetProvider={controller.changeChatProvider}
         sendOnEnter={snapshot.settings.sendOnEnter}
         saveDrafts={snapshot.settings.saveDrafts}
         sending={controller.sending}
