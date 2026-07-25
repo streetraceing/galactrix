@@ -97,7 +97,7 @@ pub async fn complete(
     api_key: Option<&str>,
     history: &[Message],
     system_prompt: Option<&str>,
-    user_content: &str,
+    user_content: Option<&str>,
 ) -> Result<CompletionResult, String> {
     validate_saved_provider(provider, api_key)?;
     let client = http_client()?;
@@ -110,7 +110,11 @@ pub async fn complete(
                 .filter(|message| matches!(message.role.as_str(), "system" | "user" | "assistant"))
                 .map(|message| json!({ "role": message.role, "content": message.content })),
         )
-        .chain(std::iter::once(json!({ "role": "user", "content": user_content })))
+        .chain(
+            user_content
+                .map(|content| json!({ "role": "user", "content": content }))
+                .into_iter(),
+        )
         .collect::<Vec<_>>();
     let started = Instant::now();
 

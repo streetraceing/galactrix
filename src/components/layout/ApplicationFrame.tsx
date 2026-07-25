@@ -13,7 +13,6 @@ export function ApplicationFrame({
   settings,
   chats,
   chatCount,
-  appVersion,
   loading,
   notice,
   children,
@@ -27,7 +26,6 @@ export function ApplicationFrame({
   settings: AppSettings;
   chats: Chat[];
   chatCount: number;
-  appVersion: string;
   loading: boolean;
   notice: string;
   children: ReactNode;
@@ -52,7 +50,6 @@ export function ApplicationFrame({
           <DesktopSidebar
             activeTab={activeTab}
             chatCount={chatCount}
-            appVersion={appVersion}
             width={settings.sidebarWidth}
             collapsed={settings.sidebarCollapsed}
             onNavigate={onNavigate}
@@ -80,7 +77,7 @@ export function ApplicationFrame({
           />
         ) : null}
 
-        <section className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
+        <section className="relative flex min-w-0 flex-1 flex-col overflow-hidden rounded-tl-2xl border-l border-t border-separator/60 bg-background">
           {loading ? (
             <div className="absolute inset-0 z-40 grid place-items-center bg-background/70 backdrop-blur-sm">
               <Spinner aria-label="Загрузка" />

@@ -92,6 +92,19 @@ export async function setMessageRemembered(
   return invoke<void>('set_message_remembered', { messageId, remembered });
 }
 
+export async function selectMessageVariant(
+  messageId: string,
+  variantIndex: number,
+) {
+  requireTauri();
+  return invoke<void>('select_message_variant', { messageId, variantIndex });
+}
+
+export async function regenerateMessage(messageId: string) {
+  requireTauri();
+  return invoke<void>('regenerate_message', { messageId });
+}
+
 export async function upsertGalaxyItem(input: GalaxyItemInput) {
   requireTauri();
   return invoke<GalaxyItem>('upsert_galaxy_item', { input });

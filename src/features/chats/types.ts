@@ -40,6 +40,11 @@ export type ChatsScreenProps = {
   onEditMessage: (messageId: string, content: string) => Promise<void>;
   onDeleteMessage: (messageId: string) => Promise<void>;
   onRememberMessage: (messageId: string, remembered: boolean) => Promise<void>;
+  onRegenerateMessage: (messageId: string) => Promise<void>;
+  onSelectMessageVariant: (
+    messageId: string,
+    variantIndex: number,
+  ) => Promise<void>;
   onSend: (content: string) => Promise<void>;
   sendOnEnter: boolean;
   saveDrafts: boolean;

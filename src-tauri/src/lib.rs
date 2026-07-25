@@ -151,7 +151,12 @@ fn edit_message(
         return Err("Сообщение не может быть пустым".into());
     }
     let database = state.database.lock().map_err(|error| error.to_string())?;
-    db::edit_message(&database, &message_id, content)
+    db::edit_message(
+        &database,
+        &message_id,
+        &Uuid::new_v4().to_string(),
+        content,
+    )
 }
 
 #[tauri::command]
@@ -168,6 +173,114 @@ fn set_message_remembered(
 ) -> Result<(), String> {
     let database = state.database.lock().map_err(|error| error.to_string())?;
     db::set_message_remembered(&database, &message_id, remembered)
+}
+
+#[tauri::command]
+fn select_message_variant(
+    message_id: String,
+    variant_index: i64,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let database = state.database.lock().map_err(|error| error.to_string())?;
+    db::select_message_variant(&database, &message_id, variant_index)
+}
+
+fn build_chat_system_prompt(
+    database: &Connection,
+    chat_id: &str,
+    history: &[models::Message],
+    response_preset: &str,
+) -> Result<Option<String>, String> {
+    let context = db::get_chat_prompt_context(database, chat_id)?;
+    let remembered = history
+        .iter()
+        .filter(|message| message.remembered)
+        .map(|message| format!("- {}: {}", message.role, message.content.trim()))
+        .collect::<Vec<_>>();
+    let mut blocks = prompt_builder::build_system_prompt(&context)
+        .into_iter()
+        .collect::<Vec<_>>();
+    if let Some(instructions) = response_presets::instructions(response_preset) {
+        blocks.push(format!("[RESPONSE PRESET]\n{instructions}"));
+    }
+    if !remembered.is_empty() {
+        blocks.push(format!(
+            "[REMEMBERED MESSAGES]\nTreat these marked messages as important persistent facts:\n{}",
+            remembered.join("\n")
+        ));
+    }
+    Ok((!blocks.is_empty()).then(|| blocks.join("\n\n")))
+}
+
+#[tauri::command]
+async fn regenerate_message(
+    message_id: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let (provider, history, system_prompt, response_preset) = {
+        let database = state.database.lock().map_err(|error| error.to_string())?;
+        let (chat_id, history) = db::messages_before_message(&database, &message_id)?;
+        if !matches!(history.last(), Some(message) if message.role == "user") {
+            return Err("Перед ответом ассистента не найдено сообщение пользователя".into());
+        }
+        let provider_id = db::chat_provider_id(&database, &chat_id)?;
+        let response_preset = db::chat_response_preset(&database, &chat_id)?;
+        let system_prompt =
+            build_chat_system_prompt(&database, &chat_id, &history, &response_preset)?;
+        (
+            db::get_provider(&database, &provider_id)?,
+            history,
+            system_prompt,
+            response_preset,
+        )
+    };
+    let secret = secret_for_saved_provider(&provider)?;
+
+    let completion = match provider_client::complete(
+        &provider,
+        secret.as_deref(),
+        &history,
+        system_prompt.as_deref(),
+        None,
+    )
+    .await
+    {
+        Ok(completion) => completion,
+        Err(error) => {
+            if let Ok(database) = state.database.lock() {
+                let _ = db::update_provider_health(&database, &provider.id, "error", None);
+            }
+            return Err(error);
+        }
+    };
+
+    let response_content = response_presets::apply(&response_preset, &completion.content);
+    if response_content.is_empty() {
+        return Err("Ответ модели стал пустым после применения пресета".into());
+    }
+
+    let database = state.database.lock().map_err(|error| error.to_string())?;
+    db::append_message_variant(
+        &database,
+        &message_id,
+        &Uuid::new_v4().to_string(),
+        &response_content,
+    )?;
+    db::record_usage(
+        &database,
+        &Uuid::new_v4().to_string(),
+        &provider.id,
+        &provider.model,
+        completion.input_tokens,
+        completion.output_tokens,
+    )?;
+    db::update_provider_health(
+        &database,
+        &provider.id,
+        "connected",
+        Some(completion.latency_ms),
+    )?;
+    Ok(())
 }
 
 #[tauri::command]
@@ -218,7 +331,7 @@ async fn send_chat_message(
         secret.as_deref(),
         &history,
         system_prompt.as_deref(),
-        content,
+        Some(content),
     )
     .await
     {
@@ -510,6 +623,8 @@ pub fn run() {
             edit_message,
             delete_message,
             set_message_remembered,
+            select_message_variant,
+            regenerate_message,
             send_chat_message,
             upsert_galaxy_item,
             delete_galaxy_item,

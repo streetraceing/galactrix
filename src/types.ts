@@ -33,6 +33,13 @@ export type ChatConfigInput = {
   responsePreset: ResponsePreset;
 };
 
+export type MessageVariant = {
+  id: string;
+  index: number;
+  content: string;
+  createdAt: string;
+};
+
 export type Message = {
   id: string;
   chatId: string;
@@ -40,6 +47,8 @@ export type Message = {
   content: string;
   createdAt: string;
   remembered: boolean;
+  activeVariantIndex: number;
+  variants: MessageVariant[];
 };
 
 export type GalaxyKind =

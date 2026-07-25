@@ -1,25 +1,33 @@
 import { Button, Surface, TextArea } from '@heroui/react';
-import { useState } from 'react';
-import type { ReactNode, RefObject } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import type { ReactNode, RefObject, TouchEvent } from 'react';
 import { Icon } from '../../../components/Icon';
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
+  ContextMenuLabel,
   ContextMenuSeparator,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from '../../../components/ui/context-menu';
 import { MarkdownContent } from '../../../components/ui/MarkdownContent';
 import { UiModal } from '../../../components/ui/UiModal';
 import { isMobilePlatform } from '../../../lib/platform';
 import type { Message, Provider } from '../../../types';
+import { MessageHistoryModal } from './MessageHistoryModal';
 
 type MessageActionProps = {
   message: Message;
   onBranch: (messageId: string) => Promise<void>;
   onRemember: (messageId: string, remembered: boolean) => Promise<void>;
+  onRegenerate: (messageId: string) => Promise<void>;
+  onSelectVariant: (messageId: string, variantIndex: number) => Promise<void>;
   onEditRequest: () => void;
   onDeleteRequest: () => void;
+  onHistoryRequest: () => void;
   onError: (message: string) => void;
 };
 
@@ -49,19 +57,75 @@ function MessageMenu({
   onEditRequest,
   onDeleteRequest,
   onRemember,
+  onRegenerate,
+  onSelectVariant,
+  onHistoryRequest,
   onError,
 }: MessageActionProps & { children: ReactNode }) {
   const run = (action: () => Promise<void>) => {
     onError('');
     void action().catch((error) => onError(String(error)));
   };
+  const isAssistant = message.role === 'assistant';
 
   return (
     <ContextMenu>
       <ContextMenuTrigger className="block min-w-0">
         {children}
       </ContextMenuTrigger>
-      <ContextMenuContent className="w-56">
+      <ContextMenuContent className="w-64">
+        <ContextMenuLabel>
+          {isAssistant ? 'Ответ ассистента' : 'Сообщение'}
+        </ContextMenuLabel>
+        {isAssistant ? (
+          <>
+            <ContextMenuItem
+              onClick={() => run(() => onRegenerate(message.id))}
+            >
+              <Icon name="regenerate" className="size-4 text-accent" />
+              Перегенерировать
+            </ContextMenuItem>
+            <ContextMenuSub>
+              <ContextMenuSubTrigger>
+                <Icon name="history" className="size-4" />
+                История ответов
+                <span className="ml-auto mr-1 text-xs tabular-nums text-muted">
+                  {message.activeVariantIndex + 1}/{message.variants.length}
+                </span>
+              </ContextMenuSubTrigger>
+              <ContextMenuSubContent className="w-72">
+                <ContextMenuLabel>Сохранённые варианты</ContextMenuLabel>
+                {message.variants.map((variant) => (
+                  <ContextMenuItem
+                    key={variant.id}
+                    onClick={() =>
+                      run(() => onSelectVariant(message.id, variant.index))
+                    }
+                  >
+                    <span className="w-5 shrink-0 text-center text-xs tabular-nums text-muted">
+                      {variant.index + 1}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate">
+                      {variant.content.replace(/\s+/g, ' ').trim()}
+                    </span>
+                    {variant.index === message.activeVariantIndex ? (
+                      <Icon
+                        name="check"
+                        className="size-4 shrink-0 text-accent"
+                      />
+                    ) : null}
+                  </ContextMenuItem>
+                ))}
+                <ContextMenuSeparator />
+                <ContextMenuItem onClick={onHistoryRequest}>
+                  <Icon name="history" className="size-4" />
+                  Открыть полную историю
+                </ContextMenuItem>
+              </ContextMenuSubContent>
+            </ContextMenuSub>
+            <ContextMenuSeparator />
+          </>
+        ) : null}
         <ContextMenuItem onClick={() => run(() => onBranch(message.id))}>
           <Icon name="branch" className="size-4" />
           Ветка отсюда
@@ -90,12 +154,80 @@ function MessageMenu({
   );
 }
 
+function VariantNavigator({
+  message,
+  compact = false,
+  onSelect,
+  onHistory,
+}: {
+  message: Message;
+  compact?: boolean;
+  onSelect: (index: number) => void;
+  onHistory: () => void;
+}) {
+  const count = message.variants.length;
+  if (message.role !== 'assistant' || count === 0) return null;
+
+  if (compact) {
+    return (
+      <Button
+        size="sm"
+        variant="ghost"
+        className="h-6 min-w-0 px-2 text-xs text-muted"
+        aria-label="Открыть историю ответов"
+        onPress={onHistory}
+      >
+        {message.activeVariantIndex + 1}/{count}
+      </Button>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-0.5">
+      <Button
+        isIconOnly
+        size="sm"
+        variant="ghost"
+        className="size-7 min-w-7"
+        aria-label="Предыдущий вариант ответа"
+        isDisabled={message.activeVariantIndex <= 0}
+        onPress={() => onSelect(message.activeVariantIndex - 1)}
+      >
+        <Icon name="chevron-left" className="size-3.5" />
+      </Button>
+      <Button
+        size="sm"
+        variant="ghost"
+        className="h-7 min-w-14 px-2 text-xs tabular-nums text-muted"
+        aria-label="Открыть историю ответов"
+        onPress={onHistory}
+      >
+        {message.activeVariantIndex + 1}/{count}
+      </Button>
+      <Button
+        isIconOnly
+        size="sm"
+        variant="ghost"
+        className="size-7 min-w-7"
+        aria-label="Следующий вариант ответа"
+        isDisabled={message.activeVariantIndex >= count - 1}
+        onPress={() => onSelect(message.activeVariantIndex + 1)}
+      >
+        <Icon name="chevron-right" className="size-3.5" />
+      </Button>
+    </div>
+  );
+}
+
 function DesktopMessageActions({
   message,
   onBranch,
   onEditRequest,
   onDeleteRequest,
   onRemember,
+  onRegenerate,
+  onSelectVariant,
+  onHistoryRequest,
   onError,
 }: MessageActionProps) {
   const run = (action: () => Promise<void>) => {
@@ -103,6 +235,20 @@ function DesktopMessageActions({
     void action().catch((error) => onError(String(error)));
   };
   const actions = [
+    ...(message.role === 'assistant'
+      ? [
+          {
+            label: 'Перегенерировать ответ',
+            icon: 'regenerate' as const,
+            onPress: () => run(() => onRegenerate(message.id)),
+          },
+          {
+            label: 'История ответов',
+            icon: 'history' as const,
+            onPress: onHistoryRequest,
+          },
+        ]
+      : []),
     {
       label: 'Разветвить чат с этого сообщения',
       icon: 'branch' as const,
@@ -132,21 +278,67 @@ function DesktopMessageActions({
   ];
 
   return (
-    <div className="mt-0.5 flex h-7 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
-      {actions.map((action) => (
-        <Button
-          key={action.label}
-          isIconOnly
-          size="sm"
-          variant="ghost"
-          className={`size-7 min-w-7 ${action.danger ? 'text-danger' : ''}`}
-          aria-label={action.label}
-          title={action.label}
-          onPress={action.onPress}
-        >
-          <Icon name={action.icon} className="size-3.5" />
-        </Button>
-      ))}
+    <div className="mt-1 flex min-h-7 w-full items-center justify-between gap-3">
+      <div className="flex items-center gap-0.5 opacity-55 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+        {actions.map((action) => (
+          <Button
+            key={action.label}
+            isIconOnly
+            size="sm"
+            variant="ghost"
+            className={`size-7 min-w-7 ${action.danger ? 'text-danger' : ''}`}
+            aria-label={action.label}
+            title={action.label}
+            onPress={action.onPress}
+          >
+            <Icon name={action.icon} className="size-3.5" />
+          </Button>
+        ))}
+      </div>
+      <VariantNavigator
+        message={message}
+        onSelect={(index) => run(() => onSelectVariant(message.id, index))}
+        onHistory={onHistoryRequest}
+      />
+    </div>
+  );
+}
+
+function SwipeableMessage({
+  message,
+  children,
+  onSelectVariant,
+}: {
+  message: Message;
+  children: ReactNode;
+  onSelectVariant: (messageId: string, variantIndex: number) => Promise<void>;
+}) {
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
+
+  const onTouchStart = (event: TouchEvent<HTMLElement>) => {
+    const touch = event.touches[0];
+    if (touch) touchStart.current = { x: touch.clientX, y: touch.clientY };
+  };
+
+  const onTouchEnd = (event: TouchEvent<HTMLElement>) => {
+    const start = touchStart.current;
+    touchStart.current = null;
+    const touch = event.changedTouches[0];
+    if (!start || !touch || message.role !== 'assistant') return;
+
+    const dx = touch.clientX - start.x;
+    const dy = touch.clientY - start.y;
+    if (Math.abs(dx) < 48 || Math.abs(dx) <= Math.abs(dy) * 1.2) return;
+
+    const nextIndex =
+      dx > 0 ? message.activeVariantIndex - 1 : message.activeVariantIndex + 1;
+    if (nextIndex < 0 || nextIndex >= message.variants.length) return;
+    void onSelectVariant(message.id, nextIndex);
+  };
+
+  return (
+    <div onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+      {children}
     </div>
   );
 }
@@ -160,6 +352,8 @@ export function MessageList({
   onEdit,
   onDelete,
   onRemember,
+  onRegenerate,
+  onSelectVariant,
 }: {
   messages: Message[];
   provider?: Provider;
@@ -169,13 +363,21 @@ export function MessageList({
   onEdit: (messageId: string, content: string) => Promise<void>;
   onDelete: (messageId: string) => Promise<void>;
   onRemember: (messageId: string, remembered: boolean) => Promise<void>;
+  onRegenerate: (messageId: string) => Promise<void>;
+  onSelectVariant: (messageId: string, variantIndex: number) => Promise<void>;
 }) {
   const isMobile = isMobilePlatform();
   const [editing, setEditing] = useState<Message | null>(null);
   const [editValue, setEditValue] = useState('');
   const [deleting, setDeleting] = useState<Message | null>(null);
+  const [historyMessageId, setHistoryMessageId] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState('');
+
+  const historyMessage = useMemo(
+    () => messages.find((message) => message.id === historyMessageId) ?? null,
+    [historyMessageId, messages],
+  );
 
   const requestEdit = (message: Message) => {
     setError('');
@@ -212,6 +414,19 @@ export function MessageList({
     }
   };
 
+  const selectHistoryVariant = async (variantIndex: number) => {
+    if (!historyMessage || working) return;
+    setWorking(true);
+    setError('');
+    try {
+      await onSelectVariant(historyMessage.id, variantIndex);
+    } catch (nextError) {
+      setError(String(nextError));
+    } finally {
+      setWorking(false);
+    }
+  };
+
   return (
     <>
       <div
@@ -226,16 +441,19 @@ export function MessageList({
               setError('');
               setDeleting(message);
             };
+            const history = () => setHistoryMessageId(message.id);
             const reportError = (value: string) => setError(value);
 
-            return (
+            const content = (
               <MessageMenu
-                key={message.id}
                 message={message}
                 onBranch={onBranch}
                 onRemember={onRemember}
+                onRegenerate={onRegenerate}
+                onSelectVariant={onSelectVariant}
                 onEditRequest={edit}
                 onDeleteRequest={remove}
+                onHistoryRequest={history}
                 onError={reportError}
               >
                 <article
@@ -278,14 +496,38 @@ export function MessageList({
                         message={message}
                         onBranch={onBranch}
                         onRemember={onRemember}
+                        onRegenerate={onRegenerate}
+                        onSelectVariant={onSelectVariant}
                         onEditRequest={edit}
                         onDeleteRequest={remove}
+                        onHistoryRequest={history}
                         onError={reportError}
                       />
-                    ) : null}
+                    ) : (
+                      <VariantNavigator
+                        message={message}
+                        compact
+                        onSelect={(index) =>
+                          void onSelectVariant(message.id, index)
+                        }
+                        onHistory={history}
+                      />
+                    )}
                   </div>
                 </article>
               </MessageMenu>
+            );
+
+            return isMobile ? (
+              <SwipeableMessage
+                key={message.id}
+                message={message}
+                onSelectVariant={onSelectVariant}
+              >
+                {content}
+              </SwipeableMessage>
+            ) : (
+              <div key={message.id}>{content}</div>
             );
           })}
 
@@ -319,7 +561,12 @@ export function MessageList({
         isOpen={Boolean(editing)}
         onOpenChange={(open) => !open && !working && setEditing(null)}
         title="Редактировать сообщение"
-        description="Изменение применяется к текущей истории диалога."
+        description={
+          editing?.role === 'assistant'
+            ? 'Изменённый текст сохранится как новый вариант ответа.'
+            : 'Изменение применяется к текущей истории диалога.'
+        }
+        size={isMobile ? 'full' : 'cover'}
         footer={
           <>
             <Button
@@ -344,8 +591,9 @@ export function MessageList({
           fullWidth
           variant="secondary"
           value={editValue}
-          minRows={4}
-          maxRows={12}
+          minRows={14}
+          maxRows={32}
+          className="[&_textarea]:min-h-[18rem]"
           aria-label="Текст сообщения"
           onChange={(event) => setEditValue(event.target.value)}
         />
@@ -356,7 +604,7 @@ export function MessageList({
         isOpen={Boolean(deleting)}
         onOpenChange={(open) => !open && !working && setDeleting(null)}
         title="Удалить сообщение?"
-        description="Сообщение исчезнет из локальной истории этого чата."
+        description="Сообщение и вся история его вариантов исчезнут из этого чата."
         footer={
           <>
             <Button
@@ -376,11 +624,18 @@ export function MessageList({
           </>
         }
       >
-        <p className="line-clamp-4 text-sm leading-6 text-muted">
+        <p className="line-clamp-6 text-sm leading-6 text-muted">
           {deleting?.content}
         </p>
         {error ? <p className="mt-2 text-sm text-danger">{error}</p> : null}
       </UiModal>
+
+      <MessageHistoryModal
+        message={historyMessage}
+        isWorking={working}
+        onSelect={(variantIndex) => void selectHistoryVariant(variantIndex)}
+        onClose={() => setHistoryMessageId(null)}
+      />
     </>
   );
 }

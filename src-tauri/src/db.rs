@@ -5,7 +5,7 @@ use serde_json::Value;
 
 use crate::models::{
     AppSettings, AppSnapshot, Chat, ChatConfigInput, ChatPromptContext, GalaxyItem,
-    GalaxyItemInput, Message, Provider, UsagePoint,
+    GalaxyItemInput, Message, MessageVariant, Provider, UsagePoint,
 };
 
 pub fn open(path: &Path) -> Result<Connection, String> {
@@ -46,11 +46,25 @@ fn migrate(connection: &Connection) -> Result<(), String> {
                 content TEXT NOT NULL,
                 created_at INTEGER NOT NULL,
                 remembered INTEGER NOT NULL DEFAULT 0,
+                active_variant_index INTEGER NOT NULL DEFAULT 0,
                 FOREIGN KEY(chat_id) REFERENCES chats(id) ON DELETE CASCADE
             );
 
             CREATE INDEX IF NOT EXISTS idx_messages_chat_created
                 ON messages(chat_id, created_at);
+
+            CREATE TABLE IF NOT EXISTS message_variants (
+                id TEXT PRIMARY KEY,
+                message_id TEXT NOT NULL,
+                position INTEGER NOT NULL,
+                content TEXT NOT NULL,
+                created_at INTEGER NOT NULL,
+                UNIQUE(message_id, position),
+                FOREIGN KEY(message_id) REFERENCES messages(id) ON DELETE CASCADE
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_message_variants_message_position
+                ON message_variants(message_id, position);
 
             CREATE TABLE IF NOT EXISTS galaxy_items (
                 id TEXT PRIMARY KEY,
@@ -138,6 +152,12 @@ fn migrate(connection: &Connection) -> Result<(), String> {
         "remembered",
         "INTEGER NOT NULL DEFAULT 0",
     )?;
+    ensure_column(
+        connection,
+        "messages",
+        "active_variant_index",
+        "INTEGER NOT NULL DEFAULT 0",
+    )?;
     ensure_column(connection, "galaxy_items", "data_json", "TEXT NOT NULL DEFAULT '{}'")?;
     ensure_column(
         connection,
@@ -193,6 +213,16 @@ fn migrate(connection: &Connection) -> Result<(), String> {
         "theme_variant",
         "TEXT NOT NULL DEFAULT 'default'",
     )?;
+    connection
+        .execute_batch(
+            r#"
+            INSERT OR IGNORE INTO message_variants (id, message_id, position, content, created_at)
+            SELECT id || '-variant-0', id, 0, content, created_at
+            FROM messages
+            WHERE role = 'assistant';
+            "#,
+        )
+        .map_err(|error| error.to_string())?;
     Ok(())
 }
 
@@ -321,26 +351,74 @@ fn worldbook_ids_for_chat(connection: &Connection, chat_id: &str) -> Result<Vec<
     result
 }
 
-fn list_messages(connection: &Connection) -> Result<Vec<Message>, String> {
+fn message_variants_for_message(
+    connection: &Connection,
+    message_id: &str,
+) -> Result<Vec<MessageVariant>, String> {
     let mut statement = connection
-        .prepare("SELECT id, chat_id, role, content, created_at, remembered FROM messages ORDER BY created_at ASC")
+        .prepare(
+            "SELECT id, position, content, created_at
+             FROM message_variants WHERE message_id = ?1 ORDER BY position ASC",
+        )
         .map_err(|error| error.to_string())?;
     let result = statement
-        .query_map([], |row| {
-            let timestamp: i64 = row.get(4)?;
-            Ok(Message {
+        .query_map(params![message_id], |row| {
+            Ok(MessageVariant {
                 id: row.get(0)?,
-                chat_id: row.get(1)?,
-                role: row.get(2)?,
-                content: row.get(3)?,
-                created_at: clock_time(timestamp),
-                remembered: row.get::<_, i64>(5)? != 0,
+                index: row.get(1)?,
+                content: row.get(2)?,
+                created_at: clock_time(row.get(3)?),
             })
         })
         .map_err(|error| error.to_string())?
         .collect::<Result<Vec<_>, _>>()
         .map_err(|error| error.to_string());
     result
+}
+
+fn list_messages(connection: &Connection) -> Result<Vec<Message>, String> {
+    let mut statement = connection
+        .prepare(
+            "SELECT id, chat_id, role, content, created_at, remembered, active_variant_index
+             FROM messages ORDER BY created_at ASC",
+        )
+        .map_err(|error| error.to_string())?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, String>(3)?,
+                row.get::<_, i64>(4)?,
+                row.get::<_, i64>(5)? != 0,
+                row.get::<_, i64>(6)?,
+            ))
+        })
+        .map_err(|error| error.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| error.to_string())?;
+    drop(statement);
+
+    rows.into_iter()
+        .map(|(id, chat_id, role, content, created_at, remembered, active_variant_index)| {
+            let variants = if role == "assistant" {
+                message_variants_for_message(connection, &id)?
+            } else {
+                Vec::new()
+            };
+            Ok(Message {
+                id,
+                chat_id,
+                role,
+                content,
+                created_at: clock_time(created_at),
+                remembered,
+                active_variant_index,
+                variants,
+            })
+        })
+        .collect()
 }
 
 fn list_galaxy_items(connection: &Connection) -> Result<Vec<GalaxyItem>, String> {
@@ -674,26 +752,117 @@ pub fn clear_chat(connection: &Connection, chat_id: &str) -> Result<(), String> 
 pub fn messages_for_chat(connection: &Connection, chat_id: &str) -> Result<Vec<Message>, String> {
     let mut statement = connection
         .prepare(
-            "SELECT id, chat_id, role, content, created_at, remembered
+            "SELECT id, chat_id, role, content, created_at, remembered, active_variant_index
              FROM messages WHERE chat_id = ?1 ORDER BY created_at ASC",
         )
         .map_err(|error| error.to_string())?;
-    let result = statement
+    let rows = statement
         .query_map(params![chat_id], |row| {
-            let timestamp: i64 = row.get(4)?;
-            Ok(Message {
-                id: row.get(0)?,
-                chat_id: row.get(1)?,
-                role: row.get(2)?,
-                content: row.get(3)?,
-                created_at: clock_time(timestamp),
-                remembered: row.get::<_, i64>(5)? != 0,
-            })
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, String>(3)?,
+                row.get::<_, i64>(4)?,
+                row.get::<_, i64>(5)? != 0,
+                row.get::<_, i64>(6)?,
+            ))
         })
         .map_err(|error| error.to_string())?
         .collect::<Result<Vec<_>, _>>()
-        .map_err(|error| error.to_string());
-    result
+        .map_err(|error| error.to_string())?;
+    drop(statement);
+
+    rows.into_iter()
+        .map(|(id, chat_id, role, content, created_at, remembered, active_variant_index)| {
+            let variants = if role == "assistant" {
+                message_variants_for_message(connection, &id)?
+            } else {
+                Vec::new()
+            };
+            Ok(Message {
+                id,
+                chat_id,
+                role,
+                content,
+                created_at: clock_time(created_at),
+                remembered,
+                active_variant_index,
+                variants,
+            })
+        })
+        .collect()
+}
+
+pub fn messages_before_message(
+    connection: &Connection,
+    message_id: &str,
+) -> Result<(String, Vec<Message>), String> {
+    let (chat_id, created_at, role) = connection
+        .query_row(
+            "SELECT chat_id, created_at, role FROM messages WHERE id = ?1",
+            params![message_id],
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, i64>(1)?,
+                    row.get::<_, String>(2)?,
+                ))
+            },
+        )
+        .optional()
+        .map_err(|error| error.to_string())?
+        .ok_or_else(|| "Сообщение не найдено".to_string())?;
+    if role != "assistant" {
+        return Err("Перегенерировать можно только ответ ассистента".into());
+    }
+
+    let mut statement = connection
+        .prepare(
+            "SELECT id, chat_id, role, content, created_at, remembered, active_variant_index
+             FROM messages
+             WHERE chat_id = ?1 AND created_at < ?2
+             ORDER BY created_at ASC",
+        )
+        .map_err(|error| error.to_string())?;
+    let rows = statement
+        .query_map(params![chat_id, created_at], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, String>(3)?,
+                row.get::<_, i64>(4)?,
+                row.get::<_, i64>(5)? != 0,
+                row.get::<_, i64>(6)?,
+            ))
+        })
+        .map_err(|error| error.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| error.to_string())?;
+    drop(statement);
+
+    let history = rows
+        .into_iter()
+        .map(|(id, chat_id, role, content, created_at, remembered, active_variant_index)| {
+            Ok(Message {
+                variants: if role == "assistant" {
+                    message_variants_for_message(connection, &id)?
+                } else {
+                    Vec::new()
+                },
+                id,
+                chat_id,
+                role,
+                content,
+                created_at: clock_time(created_at),
+                remembered,
+                active_variant_index,
+            })
+        })
+        .collect::<Result<Vec<_>, String>>()?;
+
+    Ok((chat_id, history))
 }
 
 pub fn add_exchange(
@@ -717,9 +886,21 @@ pub fn add_exchange(
         .map_err(|error| error.to_string())?;
     transaction
         .execute(
-            "INSERT INTO messages (id, chat_id, role, content, created_at)
-             VALUES (?1, ?2, 'assistant', ?3, ?4)",
+            "INSERT INTO messages (id, chat_id, role, content, created_at, active_variant_index)
+             VALUES (?1, ?2, 'assistant', ?3, ?4, 0)",
             params![assistant_message_id, chat_id, assistant_content, now + 1],
+        )
+        .map_err(|error| error.to_string())?;
+    transaction
+        .execute(
+            "INSERT INTO message_variants (id, message_id, position, content, created_at)
+             VALUES (?1, ?2, 0, ?3, ?4)",
+            params![
+                format!("{assistant_message_id}-variant-0"),
+                assistant_message_id,
+                assistant_content,
+                now + 1,
+            ],
         )
         .map_err(|error| error.to_string())?;
     transaction
@@ -735,6 +916,83 @@ pub fn add_exchange(
     transaction.commit().map_err(|error| error.to_string())
 }
 
+pub fn append_message_variant(
+    connection: &Connection,
+    message_id: &str,
+    variant_id: &str,
+    content: &str,
+) -> Result<i64, String> {
+    let transaction = connection
+        .unchecked_transaction()
+        .map_err(|error| error.to_string())?;
+    let (chat_id, role) = transaction
+        .query_row(
+            "SELECT chat_id, role FROM messages WHERE id = ?1",
+            params![message_id],
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+        )
+        .optional()
+        .map_err(|error| error.to_string())?
+        .ok_or_else(|| "Сообщение не найдено".to_string())?;
+    if role != "assistant" {
+        return Err("История вариантов доступна только для ответов ассистента".into());
+    }
+
+    let next_position = transaction
+        .query_row(
+            "SELECT COALESCE(MAX(position), -1) + 1 FROM message_variants WHERE message_id = ?1",
+            params![message_id],
+            |row| row.get::<_, i64>(0),
+        )
+        .map_err(|error| error.to_string())?;
+    let now = now_unix();
+    transaction
+        .execute(
+            "INSERT INTO message_variants (id, message_id, position, content, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![variant_id, message_id, next_position, content.trim(), now],
+        )
+        .map_err(|error| error.to_string())?;
+    transaction
+        .execute(
+            "UPDATE messages SET content = ?1, active_variant_index = ?2 WHERE id = ?3",
+            params![content.trim(), next_position, message_id],
+        )
+        .map_err(|error| error.to_string())?;
+    refresh_chat_summary(&transaction, &chat_id)?;
+    transaction.commit().map_err(|error| error.to_string())?;
+    Ok(next_position)
+}
+
+pub fn select_message_variant(
+    connection: &Connection,
+    message_id: &str,
+    variant_index: i64,
+) -> Result<(), String> {
+    let transaction = connection
+        .unchecked_transaction()
+        .map_err(|error| error.to_string())?;
+    let (chat_id, content) = transaction
+        .query_row(
+            "SELECT messages.chat_id, message_variants.content
+             FROM messages
+             JOIN message_variants ON message_variants.message_id = messages.id
+             WHERE messages.id = ?1 AND message_variants.position = ?2",
+            params![message_id, variant_index],
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+        )
+        .optional()
+        .map_err(|error| error.to_string())?
+        .ok_or_else(|| "Вариант ответа не найден".to_string())?;
+    transaction
+        .execute(
+            "UPDATE messages SET content = ?1, active_variant_index = ?2 WHERE id = ?3",
+            params![content, variant_index, message_id],
+        )
+        .map_err(|error| error.to_string())?;
+    refresh_chat_summary(&transaction, &chat_id)?;
+    transaction.commit().map_err(|error| error.to_string())
+}
 
 pub fn chat_response_preset(connection: &Connection, chat_id: &str) -> Result<String, String> {
     connection
@@ -845,7 +1103,7 @@ pub fn clone_chat(
 
         let mut statement = transaction
             .prepare(
-                "SELECT role, content, created_at, remembered
+                "SELECT id, role, content, created_at, remembered, active_variant_index
                  FROM messages
                  WHERE chat_id = ?1 AND (?2 IS NULL OR created_at <= ?2)
                  ORDER BY created_at ASC",
@@ -856,8 +1114,10 @@ pub fn clone_chat(
                 Ok((
                     row.get::<_, String>(0)?,
                     row.get::<_, String>(1)?,
-                    row.get::<_, i64>(2)?,
+                    row.get::<_, String>(2)?,
                     row.get::<_, i64>(3)?,
+                    row.get::<_, i64>(4)?,
+                    row.get::<_, i64>(5)?,
                 ))
             })
             .map_err(|error| error.to_string())?
@@ -865,21 +1125,63 @@ pub fn clone_chat(
             .map_err(|error| error.to_string())?;
         drop(statement);
 
-        for (index, (role, content, created_at, remembered)) in rows.iter().enumerate() {
+        for (index, (source_message_id, role, content, created_at, remembered, active_variant_index)) in
+            rows.iter().enumerate()
+        {
+            let new_message_id = format!("{new_chat_id}-message-{index}");
             transaction
                 .execute(
-                    "INSERT INTO messages (id, chat_id, role, content, created_at, remembered)
-                     VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                    "INSERT INTO messages (
+                        id, chat_id, role, content, created_at, remembered, active_variant_index
+                     ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
                     params![
-                        format!("{new_chat_id}-{index}"),
+                        new_message_id,
                         new_chat_id,
                         role,
                         content,
                         created_at,
                         remembered,
+                        active_variant_index,
                     ],
                 )
                 .map_err(|error| error.to_string())?;
+
+            if role == "assistant" {
+                let mut variant_statement = transaction
+                    .prepare(
+                        "SELECT position, content, created_at
+                         FROM message_variants WHERE message_id = ?1 ORDER BY position ASC",
+                    )
+                    .map_err(|error| error.to_string())?;
+                let variants = variant_statement
+                    .query_map(params![source_message_id], |row| {
+                        Ok((
+                            row.get::<_, i64>(0)?,
+                            row.get::<_, String>(1)?,
+                            row.get::<_, i64>(2)?,
+                        ))
+                    })
+                    .map_err(|error| error.to_string())?
+                    .collect::<Result<Vec<_>, _>>()
+                    .map_err(|error| error.to_string())?;
+                drop(variant_statement);
+
+                for (position, variant_content, variant_created_at) in variants {
+                    transaction
+                        .execute(
+                            "INSERT INTO message_variants (id, message_id, position, content, created_at)
+                             VALUES (?1, ?2, ?3, ?4, ?5)",
+                            params![
+                                format!("{new_message_id}-variant-{position}"),
+                                new_message_id,
+                                position,
+                                variant_content,
+                                variant_created_at,
+                            ],
+                        )
+                        .map_err(|error| error.to_string())?;
+                }
+            }
         }
         refresh_chat_summary(&transaction, new_chat_id)?;
     }
@@ -891,17 +1193,24 @@ pub fn clone_chat(
 pub fn edit_message(
     connection: &Connection,
     message_id: &str,
+    variant_id: &str,
     content: &str,
 ) -> Result<(), String> {
-    let chat_id = connection
+    let (chat_id, role) = connection
         .query_row(
-            "SELECT chat_id FROM messages WHERE id = ?1",
+            "SELECT chat_id, role FROM messages WHERE id = ?1",
             params![message_id],
-            |row| row.get::<_, String>(0),
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
         )
         .optional()
         .map_err(|error| error.to_string())?
         .ok_or_else(|| "Сообщение не найдено".to_string())?;
+
+    if role == "assistant" {
+        append_message_variant(connection, message_id, variant_id, content)?;
+        return Ok(());
+    }
+
     let changed = connection
         .execute(
             "UPDATE messages SET content = ?1 WHERE id = ?2",

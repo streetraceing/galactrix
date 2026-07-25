@@ -34,7 +34,12 @@ export type IconName =
   | 'memory'
   | 'sidebar'
   | 'minimize'
-  | 'maximize';
+  | 'maximize'
+  | 'restore'
+  | 'history'
+  | 'regenerate'
+  | 'chevron-left'
+  | 'chevron-right';
 
 export function Icon({
   name,
@@ -219,7 +224,31 @@ export function Icon({
       </>
     ),
     minimize: <path d="M5 12h14" />,
-    maximize: <rect x="5" y="5" width="14" height="14" rx="1" />,
+    maximize: (
+      <>
+        <path d="M6 6h12v12H6z" />
+      </>
+    ),
+    restore: (
+      <>
+        <path d="M8 5h10a1 1 0 0 1 1 1v10" />
+        <path d="M5 8h11a1 1 0 0 1 1 1v10H5Z" />
+      </>
+    ),
+    history: (
+      <>
+        <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+        <path d="M3 3v5h5M12 7v5l3 2" />
+      </>
+    ),
+    regenerate: (
+      <>
+        <path d="M20 7v5h-5" />
+        <path d="M19 12a7 7 0 1 0-2 5" />
+      </>
+    ),
+    'chevron-left': <path d="m15 18-6-6 6-6" />,
+    'chevron-right': <path d="m9 18 6-6-6-6" />,
     info: (
       <>
         <circle cx="12" cy="12" r="9" />

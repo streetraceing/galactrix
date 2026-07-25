@@ -30,8 +30,9 @@ export function DesktopTitlebar({
 }) {
   const [query, setQuery] = useState('');
   const [focused, setFocused] = useState(false);
+  const [maximized, setMaximized] = useState(false);
   const isMobile = isMobilePlatform();
-  const appWindow = getCurrentWindow();
+  const appWindow = useMemo(() => getCurrentWindow(), []);
 
   const commands = useMemo<Command[]>(
     () => [
@@ -85,6 +86,27 @@ export function DesktopTitlebar({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [commands, isMobile]);
 
+  useEffect(() => {
+    if (isMobile) return;
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+    const sync = () => {
+      void appWindow
+        .isMaximized()
+        .then((value) => !disposed && setMaximized(value))
+        .catch(() => undefined);
+    };
+    sync();
+    void appWindow.onResized(sync).then((next) => {
+      if (disposed) next();
+      else unlisten = next;
+    });
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, [appWindow, isMobile]);
+
   if (isMobile) return null;
 
   const normalized = query.trim().toLowerCase();
@@ -108,32 +130,43 @@ export function DesktopTitlebar({
     void appWindow.toggleMaximize();
   };
 
+  const toggleWindowMaximize = async () => {
+    await appWindow.toggleMaximize();
+    setMaximized(await appWindow.isMaximized());
+  };
+
   return (
     <header
       data-tauri-drag-region
-      className="relative z-50 flex h-11 shrink-0 items-center border-b border-separator bg-surface px-2"
+      className="relative z-50 flex h-11 shrink-0 items-center border-b border-separator bg-surface pl-2"
       onDoubleClick={toggleMaximize}
     >
       <div
         data-tauri-drag-region
-        className="flex min-w-32 items-center gap-2 px-1 sm:min-w-40"
+        className="flex min-w-0 items-center gap-2 pr-2"
       >
         <BrandMark size={24} />
-        <span className="hidden text-xs font-semibold min-[760px]:inline">
+        <span className="hidden truncate text-xs font-semibold min-[760px]:block">
           Galactrix
         </span>
       </div>
 
       <div
         data-command-search="true"
-        className="absolute left-1/2 top-1/2 w-[min(34rem,46vw)] -translate-x-1/2 -translate-y-1/2 max-[760px]:w-[min(18rem,42vw)]"
+        className="absolute left-1/2 top-1/2 w-[min(54vw,48rem)] min-w-64 -translate-x-1/2 -translate-y-1/2"
       >
+        <Icon
+          name="search"
+          className="pointer-events-none absolute left-3 top-1/2 z-10 size-4 -translate-y-1/2 text-muted"
+        />
         <Input
+          fullWidth
           size="sm"
           variant="secondary"
           value={query}
-          placeholder="Поиск и команды"
+          placeholder="Поиск по чатам и команды"
           aria-label="Поиск и команды"
+          className="[&_input]:pl-9 [&_input]:pr-24"
           onFocus={() => setFocused(true)}
           onBlur={() => window.setTimeout(() => setFocused(false), 120)}
           onChange={(event) => setQuery(event.target.value)}
@@ -146,9 +179,17 @@ export function DesktopTitlebar({
             }
           }}
         />
+        <kbd className="pointer-events-none absolute right-2.5 top-1/2 hidden -translate-y-1/2 items-center gap-1 text-[0.625rem] font-semibold text-muted min-[720px]:flex">
+          <span className="rounded border border-separator bg-surface px-1.5 py-0.5 shadow-sm">
+            Ctrl
+          </span>
+          <span className="rounded border border-separator bg-surface px-1.5 py-0.5 shadow-sm">
+            K
+          </span>
+        </kbd>
         {focused ? (
           <Surface className="absolute inset-x-0 top-[calc(100%+0.4rem)] overflow-hidden rounded-xl border border-separator p-1 shadow-lg">
-            {filtered.slice(0, 6).map((command) => (
+            {filtered.slice(0, 7).map((command) => (
               <Button
                 key={command.id}
                 fullWidth
@@ -174,12 +215,12 @@ export function DesktopTitlebar({
         ) : null}
       </div>
 
-      <div className="ml-auto flex h-full items-center">
+      <div className="absolute inset-y-0 right-0 flex items-stretch">
         <Button
           isIconOnly
           size="sm"
           variant="ghost"
-          className="h-full rounded-none"
+          className="h-full w-12 min-w-12 rounded-none"
           aria-label="Свернуть окно"
           onPress={() => void appWindow.minimize()}
         >
@@ -189,17 +230,20 @@ export function DesktopTitlebar({
           isIconOnly
           size="sm"
           variant="ghost"
-          className="h-full rounded-none"
-          aria-label="Развернуть окно"
-          onPress={() => void appWindow.toggleMaximize()}
+          className="h-full w-12 min-w-12 rounded-none"
+          aria-label={maximized ? 'Восстановить окно' : 'Развернуть окно'}
+          onPress={() => void toggleWindowMaximize()}
         >
-          <Icon name="maximize" className="size-3.5" />
+          <Icon
+            name={maximized ? 'restore' : 'maximize'}
+            className="size-3.5"
+          />
         </Button>
         <Button
           isIconOnly
           size="sm"
           variant="ghost"
-          className="h-full rounded-none hover:bg-danger hover:text-danger-foreground"
+          className="h-full w-12 min-w-12 rounded-none hover:bg-danger hover:text-danger-foreground"
           aria-label="Закрыть окно"
           onPress={() => void appWindow.close()}
         >

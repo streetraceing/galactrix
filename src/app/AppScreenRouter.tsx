@@ -39,6 +39,8 @@ export function AppScreenRouter({ controller }: { controller: Controller }) {
         onEditMessage={controller.editExistingMessage}
         onDeleteMessage={controller.removeMessage}
         onRememberMessage={controller.rememberMessage}
+        onRegenerateMessage={controller.regenerateExistingMessage}
+        onSelectMessageVariant={controller.chooseMessageVariant}
         onSend={controller.sendMessage}
         sendOnEnter={snapshot.settings.sendOnEnter}
         saveDrafts={snapshot.settings.saveDrafts}

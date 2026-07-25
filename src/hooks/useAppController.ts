@@ -13,8 +13,10 @@ import {
   editMessage,
   fetchProviderModels,
   loadSnapshot,
+  regenerateMessage,
   renameChat,
   saveProvider,
+  selectMessageVariant,
   sendChatMessage,
   setMessageRemembered,
   setChatPinned,
@@ -297,6 +299,24 @@ export function useAppController() {
     [haptic, refresh],
   );
 
+  const regenerateExistingMessage = useCallback(
+    async (messageId: string) => {
+      await regenerateMessage(messageId);
+      await refresh();
+      haptic();
+    },
+    [haptic, refresh],
+  );
+
+  const chooseMessageVariant = useCallback(
+    async (messageId: string, variantIndex: number) => {
+      await selectMessageVariant(messageId, variantIndex);
+      await refresh();
+      haptic();
+    },
+    [haptic, refresh],
+  );
+
   const saveGalaxyItem = useCallback(
     async (input: GalaxyItemInput) => {
       await upsertGalaxyItem(input);
@@ -370,6 +390,8 @@ export function useAppController() {
     editExistingMessage,
     removeMessage,
     rememberMessage,
+    regenerateExistingMessage,
+    chooseMessageVariant,
     saveGalaxyItem,
     removeGalaxyItem,
     fetchProviderModels,

@@ -13,7 +13,6 @@ function App() {
       settings={controller.snapshot.settings}
       chats={controller.snapshot.chats}
       chatCount={controller.snapshot.chats.length}
-      appVersion={controller.snapshot.appVersion}
       loading={controller.loading}
       notice={controller.notice}
       onNavigate={controller.navigate}

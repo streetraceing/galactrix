@@ -38,6 +38,15 @@ fn default_response_preset() -> String {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct MessageVariant {
+    pub id: String,
+    pub index: i64,
+    pub content: String,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Message {
     pub id: String,
     pub chat_id: String,
@@ -45,6 +54,8 @@ pub struct Message {
     pub content: String,
     pub created_at: String,
     pub remembered: bool,
+    pub active_variant_index: i64,
+    pub variants: Vec<MessageVariant>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

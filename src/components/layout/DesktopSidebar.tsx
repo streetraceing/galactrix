@@ -3,13 +3,11 @@ import type { CSSProperties } from 'react';
 import { navigationItems } from '../../app/navigation';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import type { TabId } from '../../types';
-import { BrandMark } from '../BrandMark';
 import { Icon } from '../Icon';
 
 export function DesktopSidebar({
   activeTab,
   chatCount,
-  appVersion,
   width,
   collapsed,
   onNavigate,
@@ -17,7 +15,6 @@ export function DesktopSidebar({
 }: {
   activeTab: TabId;
   chatCount: number;
-  appVersion: string;
   width: number;
   collapsed: boolean;
   onNavigate: (tab: TabId) => void;
@@ -37,16 +34,8 @@ export function DesktopSidebar({
       }
       data-collapsed={compact || undefined}
     >
-      <div className="flex min-h-20 items-center gap-3 px-4 py-4 group-data-[collapsed]/sidebar:justify-center group-data-[collapsed]/sidebar:px-2">
-        <BrandMark size={40} />
-        <div className="min-w-0 leading-tight group-data-[collapsed]/sidebar:hidden">
-          <div className="truncate text-sm font-semibold">Galactrix</div>
-          <div className="mt-1 truncate text-xs text-muted">AI-клиент</div>
-        </div>
-      </div>
-
       <nav
-        className="flex flex-1 flex-col gap-1 px-2"
+        className="flex flex-1 flex-col gap-1 px-2 pt-3"
         aria-label="Основная навигация"
       >
         {navigationItems.map((item) => (
@@ -76,12 +65,12 @@ export function DesktopSidebar({
         ))}
       </nav>
 
-      <div className="space-y-2 p-2">
-        {!forcedCompact ? (
+      {!forcedCompact ? (
+        <div className="p-2">
           <Button
             fullWidth
             size="sm"
-            variant="ghost"
+            variant="secondary"
             className="justify-start gap-2 group-data-[collapsed]/sidebar:justify-center"
             aria-label={
               collapsed
@@ -96,12 +85,8 @@ export function DesktopSidebar({
               Свернуть панель
             </span>
           </Button>
-        ) : null}
-        <div className="flex items-center justify-between px-2 text-[0.7rem] text-muted group-data-[collapsed]/sidebar:hidden">
-          <span>Galactrix</span>
-          <span>{appVersion ? `v${appVersion}` : ''}</span>
         </div>
-      </div>
+      ) : null}
     </aside>
   );
 }
