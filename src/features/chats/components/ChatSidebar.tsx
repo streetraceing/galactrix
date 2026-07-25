@@ -1,5 +1,5 @@
-import { Button, Chip, Input } from '@heroui/react';
-import type { CSSProperties, ChangeEvent } from 'react';
+import { Button, Chip, SearchField } from '@heroui/react';
+import type { CSSProperties } from 'react';
 import { Icon } from '../../../components/Icon';
 import type { Chat } from '../../../types';
 import type { ChatAction } from '../types';
@@ -38,7 +38,7 @@ export function ChatSidebar({
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-semibold tracking-tight">Чаты</h1>
             {chats.length > 0 ? (
-              <Chip size="sm" variant="secondary">
+              <Chip size="sm" variant="secondary" className="bg-transparent">
                 {chats.length}
               </Chip>
             ) : null}
@@ -57,16 +57,21 @@ export function ChatSidebar({
       </header>
 
       <div className="px-3 pb-3">
-        <Input
+        <SearchField
           fullWidth
           variant="secondary"
           value={query}
-          placeholder="Поиск по чатам"
-          aria-label="Поиск по чатам"
-          onChange={(event: ChangeEvent<HTMLInputElement>) =>
-            onQueryChange(event.target.value)
-          }
-        />
+          onChange={onQueryChange}
+        >
+          <SearchField.Group>
+            <SearchField.SearchIcon />
+            <SearchField.Input
+              placeholder="Поиск по чатам"
+              aria-label="Поиск по чатам"
+            />
+            <SearchField.ClearButton aria-label="Очистить поиск" />
+          </SearchField.Group>
+        </SearchField>
       </div>
 
       <div className="scrollbar-thin flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-2 pb-3">

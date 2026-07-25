@@ -41,7 +41,7 @@ export function GalaxySelectField({
           </Select.Value>
           <Select.Indicator className="shrink-0" />
         </Select.Trigger>
-        <Select.Popover>
+        <Select.Popover className="bg-surface-secondary">
           <ListBox>
             <ListBox.Item id={NONE_KEY} textValue={placeholder}>
               <span className="text-muted">{placeholder}</span>

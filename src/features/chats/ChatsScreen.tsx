@@ -75,6 +75,11 @@ export function ChatsScreen({
   const activeProvider = providers.find(
     (provider) => provider.id === activeChat?.providerId,
   );
+  const activeCharacterName =
+    galaxyItems.find(
+      (item) =>
+        item.kind === 'character' && item.id === activeChat?.characterId,
+    )?.name ?? 'Ассистент';
 
   useEffect(() => {
     const openNewChat = () => {
@@ -270,6 +275,7 @@ export function ChatsScreen({
             <MessageList
               messages={activeMessages}
               provider={activeProvider}
+              assistantName={activeCharacterName}
               providersAvailable={providers.length > 0}
               scrollRef={messageScrollRef}
               onBranch={async (messageId) => {

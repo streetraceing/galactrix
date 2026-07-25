@@ -1,6 +1,5 @@
 import { Button, Input, Label, ListBox, Select } from '@heroui/react';
 import { useEffect, useState } from 'react';
-import { Icon } from '../../../components/Icon';
 import { UiModal } from '../../../components/ui/UiModal';
 import type {
   Chat,
@@ -81,7 +80,6 @@ export function ChatSetupModal({
   error,
   onOpenChange,
   onSubmit,
-  onCloneWithMessages,
 }: {
   isOpen: boolean;
   chat: Chat | null;
@@ -113,25 +111,6 @@ export function ChatSetupModal({
       description="Провайдер, ролевой контекст и стиль ответа можно изменить в любое время."
       footer={
         <div className="flex w-full flex-wrap items-center justify-end gap-2">
-          {chat && onCloneWithMessages ? (
-            <Button
-              className="mr-auto"
-              variant="secondary"
-              isDisabled={saving || !form.title.trim()}
-              onPress={() =>
-                onCloneWithMessages({
-                  ...form,
-                  title:
-                    form.title.trim() === chat.title
-                      ? `${chat.title} — копия`
-                      : form.title.trim(),
-                })
-              }
-            >
-              <Icon name="branch" className="size-4" />
-              Новый чат с сообщениями
-            </Button>
-          ) : null}
           <Button
             variant="ghost"
             isDisabled={saving}

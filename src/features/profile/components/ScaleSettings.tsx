@@ -63,7 +63,7 @@ export function ScaleSettings({
           isDisabled={currentIndex === 0}
           onPress={decreaseScale}
         >
-          <span aria-hidden="true" className="text-lg">
+          <span aria-hidden="true" className="text-lg text-center">
             −
           </span>
         </Button>
@@ -88,7 +88,7 @@ export function ScaleSettings({
             <Select.Indicator />
           </Select.Trigger>
 
-          <Select.Popover>
+          <Select.Popover className="bg-surface-secondary">
             <ListBox>
               {scales.map((scale) => {
                 const label = `${Math.round(scale * 100)}%`;
@@ -97,6 +97,7 @@ export function ScaleSettings({
                   <ListBox.Item
                     key={scale}
                     id={String(scale)}
+                    className="hover:bg-accent-soft"
                     textValue={label}
                   >
                     {label}
@@ -116,7 +117,7 @@ export function ScaleSettings({
           isDisabled={currentIndex === scales.length - 1}
           onPress={increaseScale}
         >
-          <span aria-hidden="true" className="text-lg">
+          <span aria-hidden="true" className="text-lg text-center">
             +
           </span>
         </Button>

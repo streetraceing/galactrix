@@ -45,7 +45,7 @@ export function ApplicationFrame({
         onNavigate={onNavigate}
         onOpenChat={onOpenChat}
       />
-      <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
+      <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden bg-background">
         {!isMobile ? (
           <DesktopSidebar
             activeTab={activeTab}
@@ -77,7 +77,9 @@ export function ApplicationFrame({
           />
         ) : null}
 
-        <section className="relative flex min-w-0 flex-1 flex-col overflow-hidden rounded-tl-2xl border-l border-t border-separator/60 bg-background">
+        <section
+          className={`relative flex min-w-0 flex-1 flex-col overflow-hidden bg-background`}
+        >
           {loading ? (
             <div className="absolute inset-0 z-40 grid place-items-center bg-background/70 backdrop-blur-sm">
               <Spinner aria-label="Загрузка" />

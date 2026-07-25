@@ -36,6 +36,7 @@ export function ThemeSettings({
           <Label>Режим</Label>
           <Select
             aria-label="Режим темы"
+            variant="secondary"
             value={mode}
             onChange={(value) => {
               if (typeof value === 'string') {
@@ -47,13 +48,14 @@ export function ThemeSettings({
               <Select.Value />
               <Select.Indicator />
             </Select.Trigger>
-            <Select.Popover>
+            <Select.Popover className="bg-surface-secondary">
               <ListBox>
                 {modes.map((entry) => (
                   <ListBox.Item
                     key={entry.id}
                     id={entry.id}
                     textValue={entry.label}
+                    className="hover:bg-accent-soft"
                   >
                     {entry.label}
                     <ListBox.ItemIndicator />
@@ -68,6 +70,7 @@ export function ThemeSettings({
           <Select
             aria-label="Цветовой вариант темы"
             value={variant}
+            variant="secondary"
             onChange={(value) => {
               if (typeof value === 'string') {
                 onVariantChange(value as AppSettings['themeVariant']);
@@ -78,13 +81,14 @@ export function ThemeSettings({
               <Select.Value />
               <Select.Indicator />
             </Select.Trigger>
-            <Select.Popover>
+            <Select.Popover className="bg-surface-secondary">
               <ListBox>
                 {variants.map((entry) => (
                   <ListBox.Item
                     key={entry.id}
                     id={entry.id}
                     textValue={entry.label}
+                    className="hover:bg-accent-soft"
                   >
                     {entry.label}
                     <ListBox.ItemIndicator />

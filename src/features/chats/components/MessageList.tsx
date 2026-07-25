@@ -154,19 +154,39 @@ function MessageMenu({
   );
 }
 
+function getActiveVariantPosition(message: Message) {
+  const byIndex = message.variants.findIndex(
+    (variant) => variant.index === message.activeVariantIndex,
+  );
+  if (byIndex >= 0) return byIndex;
+
+  const byContent = message.variants.findIndex(
+    (variant) => variant.content === message.content,
+  );
+  if (byContent >= 0) return byContent;
+
+  return Math.max(0, message.variants.length - 1);
+}
+
 function VariantNavigator({
   message,
   compact = false,
   onSelect,
   onHistory,
+  onRegenerate,
 }: {
   message: Message;
   compact?: boolean;
   onSelect: (index: number) => void;
   onHistory: () => void;
+  onRegenerate?: () => void;
 }) {
   const count = message.variants.length;
   if (message.role !== 'assistant' || count === 0) return null;
+  const activePosition = getActiveVariantPosition(message);
+  const previousVariant = message.variants[activePosition - 1];
+  const nextVariant = message.variants[activePosition + 1];
+  const isLastVariant = !nextVariant;
 
   if (compact) {
     return (
@@ -177,7 +197,7 @@ function VariantNavigator({
         aria-label="Открыть историю ответов"
         onPress={onHistory}
       >
-        {message.activeVariantIndex + 1}/{count}
+        {activePosition + 1}/{count}
       </Button>
     );
   }
@@ -190,8 +210,10 @@ function VariantNavigator({
         variant="ghost"
         className="size-7 min-w-7"
         aria-label="Предыдущий вариант ответа"
-        isDisabled={message.activeVariantIndex <= 0}
-        onPress={() => onSelect(message.activeVariantIndex - 1)}
+        isDisabled={!previousVariant}
+        onPress={() => {
+          if (previousVariant) onSelect(previousVariant.index);
+        }}
       >
         <Icon name="chevron-left" className="size-3.5" />
       </Button>
@@ -202,16 +224,27 @@ function VariantNavigator({
         aria-label="Открыть историю ответов"
         onPress={onHistory}
       >
-        {message.activeVariantIndex + 1}/{count}
+        {activePosition + 1}/{count}
       </Button>
       <Button
         isIconOnly
         size="sm"
         variant="ghost"
         className="size-7 min-w-7"
-        aria-label="Следующий вариант ответа"
-        isDisabled={message.activeVariantIndex >= count - 1}
-        onPress={() => onSelect(message.activeVariantIndex + 1)}
+        aria-label={
+          isLastVariant
+            ? 'Сгенерировать новый вариант ответа'
+            : 'Следующий вариант ответа'
+        }
+        title={
+          isLastVariant ? 'Сгенерировать новый вариант' : 'Следующий вариант'
+        }
+        isDisabled={isLastVariant && !onRegenerate}
+        onPress={() =>
+          isLastVariant
+            ? onRegenerate?.()
+            : nextVariant && onSelect(nextVariant.index)
+        }
       >
         <Icon name="chevron-right" className="size-3.5" />
       </Button>
@@ -279,7 +312,7 @@ function DesktopMessageActions({
 
   return (
     <div className="mt-1 flex min-h-7 w-full items-center justify-between gap-3">
-      <div className="flex items-center gap-0.5 opacity-55 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+      <div className="pointer-events-none flex items-center gap-0.5 opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
         {actions.map((action) => (
           <Button
             key={action.label}
@@ -299,6 +332,7 @@ function DesktopMessageActions({
         message={message}
         onSelect={(index) => run(() => onSelectVariant(message.id, index))}
         onHistory={onHistoryRequest}
+        onRegenerate={() => run(() => onRegenerate(message.id))}
       />
     </div>
   );
@@ -330,10 +364,11 @@ function SwipeableMessage({
     const dy = touch.clientY - start.y;
     if (Math.abs(dx) < 48 || Math.abs(dx) <= Math.abs(dy) * 1.2) return;
 
-    const nextIndex =
-      dx > 0 ? message.activeVariantIndex - 1 : message.activeVariantIndex + 1;
-    if (nextIndex < 0 || nextIndex >= message.variants.length) return;
-    void onSelectVariant(message.id, nextIndex);
+    const activePosition = getActiveVariantPosition(message);
+    const nextPosition = dx > 0 ? activePosition - 1 : activePosition + 1;
+    const nextVariant = message.variants[nextPosition];
+    if (!nextVariant) return;
+    void onSelectVariant(message.id, nextVariant.index);
   };
 
   return (
@@ -346,6 +381,7 @@ function SwipeableMessage({
 export function MessageList({
   messages,
   provider,
+  assistantName,
   providersAvailable,
   scrollRef,
   onBranch,
@@ -357,6 +393,7 @@ export function MessageList({
 }: {
   messages: Message[];
   provider?: Provider;
+  assistantName: string;
   providersAvailable: boolean;
   scrollRef: RefObject<HTMLDivElement | null>;
   onBranch: (messageId: string) => Promise<void>;
@@ -475,7 +512,7 @@ export function MessageList({
                         {isUser
                           ? 'Вы'
                           : message.role === 'assistant'
-                            ? (provider?.name ?? 'Ассистент')
+                            ? assistantName
                             : 'Система'}
                       </strong>
                       <span className="shrink-0">{message.createdAt}</span>

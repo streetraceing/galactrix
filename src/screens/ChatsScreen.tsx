@@ -263,7 +263,7 @@ export function ChatsScreen({
             <div className="flex items-center gap-2">
               <h1 className="text-xl font-semibold tracking-tight">Чаты</h1>
               {chats.length > 0 && (
-                <Chip size="sm" variant="soft">
+                <Chip size="sm" variant="soft" className="bg-transparent">
                   {chats.length}
                 </Chip>
               )}
@@ -401,7 +401,11 @@ export function ChatsScreen({
                     <Icon name="pin" className="app-accent size-3.5 shrink-0" />
                   )}
                   {activeMessages.length > 0 && (
-                    <Chip size="sm" variant="soft" className="hidden sm:flex">
+                    <Chip
+                      size="sm"
+                      variant="soft"
+                      className="hidden bg-transparent sm:flex"
+                    >
                       {activeMessages.length}
                     </Chip>
                   )}

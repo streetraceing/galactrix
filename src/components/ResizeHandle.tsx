@@ -37,7 +37,7 @@ export function ResizeHandle({
       aria-valuemax={max}
       aria-valuenow={Math.round(value)}
       tabIndex={0}
-      className={`group relative block w-1 shrink-0 cursor-col-resize touch-none bg-background ${className}`}
+      className={`group relative block w-1 shrink-0 cursor-col-resize touch-none bg-transparent ${className}`}
       onPointerDown={(event: ReactPointerEvent<HTMLDivElement>) => {
         const startX = event.clientX;
         const startValue = value;

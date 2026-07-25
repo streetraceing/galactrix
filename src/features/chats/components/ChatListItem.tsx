@@ -28,7 +28,7 @@ export function ChatListItem({
         variant={isActive ? 'default' : 'transparent'}
         className={`group relative min-w-0 overflow-hidden rounded-xl border transition-colors before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-full ${
           isActive
-            ? 'md:border-separator md:before:bg-accent bg-transparent md:bg-surface border-0'
+            ? 'md:border-separator md:before:bg-accent bg-transparent md:bg-surface'
             : 'border-transparent before:bg-transparent hover:bg-surface'
         }`}
       >
@@ -46,7 +46,7 @@ export function ChatListItem({
                 {chat.title}
               </strong>
               {chat.pinned ? (
-                <Chip size="sm" variant="soft">
+                <Chip size="sm" variant="soft" className="bg-transparent">
                   <Icon name="pin" className="size-3" />
                 </Chip>
               ) : null}

@@ -287,6 +287,7 @@ export function TelescopeScreen({
                       <Chip
                         size="sm"
                         variant="soft"
+                        className="bg-transparent"
                         color={
                           provider.status === 'connected'
                             ? 'success'

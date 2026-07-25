@@ -1,6 +1,6 @@
-import { Button, Input, Surface } from '@heroui/react';
+import { Button, Kbd, SearchField, Surface } from '@heroui/react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { MouseEvent } from 'react';
 import { navigationItems } from '../../app/navigation';
 import { isMobilePlatform } from '../../lib/platform';
@@ -31,6 +31,7 @@ export function DesktopTitlebar({
   const [query, setQuery] = useState('');
   const [focused, setFocused] = useState(false);
   const [maximized, setMaximized] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
   const isMobile = isMobilePlatform();
   const appWindow = useMemo(() => getCurrentWindow(), []);
 
@@ -72,10 +73,7 @@ export function DesktopTitlebar({
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
-        const input = document.querySelector<HTMLInputElement>(
-          '[data-command-search="true"] input',
-        );
-        input?.focus();
+        searchInputRef.current?.focus();
       }
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'n') {
         event.preventDefault();
@@ -124,7 +122,11 @@ export function DesktopTitlebar({
 
   const toggleMaximize = (event: MouseEvent<HTMLElement>) => {
     const target = event.target as HTMLElement;
-    if (target.closest('button, input, [role="button"], [role="listbox"]')) {
+    if (
+      target.closest(
+        'button, input, [role="button"], [role="listbox"], [role="searchbox"]',
+      )
+    ) {
       return;
     }
     void appWindow.toggleMaximize();
@@ -138,12 +140,12 @@ export function DesktopTitlebar({
   return (
     <header
       data-tauri-drag-region
-      className="relative z-50 flex h-11 shrink-0 items-center border-b border-separator bg-surface pl-2"
+      className="relative z-50 grid h-11 shrink-0 grid-cols-[9rem_minmax(0,1fr)_9rem] items-center border-b border-separator bg-background app-drag-region"
       onDoubleClick={toggleMaximize}
     >
       <div
         data-tauri-drag-region
-        className="flex min-w-0 items-center gap-2 pr-2"
+        className="flex min-w-0 items-center gap-2 pl-3 pr-2"
       >
         <BrandMark size={24} />
         <span className="hidden truncate text-xs font-semibold min-[760px]:block">
@@ -151,71 +153,84 @@ export function DesktopTitlebar({
         </span>
       </div>
 
-      <div
-        data-command-search="true"
-        className="absolute left-1/2 top-1/2 w-[min(54vw,48rem)] min-w-64 -translate-x-1/2 -translate-y-1/2"
-      >
-        <Icon
-          name="search"
-          className="pointer-events-none absolute left-3 top-1/2 z-10 size-4 -translate-y-1/2 text-muted"
-        />
-        <Input
-          fullWidth
-          size="sm"
-          variant="secondary"
-          value={query}
-          placeholder="Поиск по чатам и команды"
-          aria-label="Поиск и команды"
-          className="[&_input]:pl-9 [&_input]:pr-24"
-          onFocus={() => setFocused(true)}
-          onBlur={() => window.setTimeout(() => setFocused(false), 120)}
-          onChange={(event) => setQuery(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter' && filtered[0]) run(filtered[0]);
-            if (event.key === 'Escape') {
-              setQuery('');
-              setFocused(false);
-              event.currentTarget.blur();
-            }
-          }}
-        />
-        <kbd className="pointer-events-none absolute right-2.5 top-1/2 hidden -translate-y-1/2 items-center gap-1 text-[0.625rem] font-semibold text-muted min-[720px]:flex">
-          <span className="rounded border border-separator bg-surface px-1.5 py-0.5 shadow-sm">
-            Ctrl
-          </span>
-          <span className="rounded border border-separator bg-surface px-1.5 py-0.5 shadow-sm">
-            K
-          </span>
-        </kbd>
-        {focused ? (
-          <Surface className="absolute inset-x-0 top-[calc(100%+0.4rem)] overflow-hidden rounded-xl border border-separator p-1 shadow-lg">
-            {filtered.slice(0, 7).map((command) => (
-              <Button
-                key={command.id}
-                fullWidth
-                variant="ghost"
-                className="h-auto justify-start gap-3 px-3 py-2 text-left"
-                onPress={() => run(command)}
+      <div className="min-w-0 px-2 sm:px-4" data-command-search="true">
+        <div
+          className="relative mx-auto w-full max-w-2xl"
+          onFocusCapture={() => setFocused(true)}
+          onBlurCapture={() => window.setTimeout(() => setFocused(false), 120)}
+        >
+          <SearchField
+            fullWidth
+            variant="secondary"
+            value={query}
+            onChange={setQuery}
+            onSubmit={() => {
+              if (filtered[0]) run(filtered[0]);
+            }}
+          >
+            <SearchField.Group className="h-8 w-full">
+              <SearchField.SearchIcon />
+              <SearchField.Input
+                ref={searchInputRef}
+                placeholder="Поиск по чатам и команды"
+                aria-label="Поиск и команды"
+                className="min-w-0"
+                onKeyDown={(event) => {
+                  if (event.key === 'Escape') {
+                    setQuery('');
+                    setFocused(false);
+                    event.currentTarget.blur();
+                  }
+                }}
+              />
+              <Kbd
+                variant="light"
+                className="mr-1 hidden shrink-0 min-[760px]:inline-flex"
               >
-                <Icon name={command.icon} className="size-4 shrink-0" />
-                <span className="min-w-0">
-                  <span className="block truncate text-sm font-medium">
-                    {command.label}
+                <Kbd.Abbr keyValue="ctrl" title="Control">
+                  Ctrl
+                </Kbd.Abbr>
+                <Kbd.Content>K</Kbd.Content>
+              </Kbd>
+              <SearchField.ClearButton aria-label="Очистить поиск" />
+            </SearchField.Group>
+          </SearchField>
+
+          {focused ? (
+            <Surface
+              className="absolute inset-x-0 top-[calc(100%+0.4rem)] overflow-hidden rounded-xl border border-separator p-1 shadow-lg"
+              variant="secondary"
+            >
+              {filtered.slice(0, 7).map((command) => (
+                <Button
+                  key={command.id}
+                  fullWidth
+                  variant="ghost"
+                  className="h-auto justify-start gap-3 px-3 py-2 text-left hover:bg-default-hover rounded-lg"
+                  onPress={() => run(command)}
+                >
+                  <Icon name={command.icon} className="size-4 shrink-0" />
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-medium">
+                      {command.label}
+                    </span>
+                    <span className="block truncate text-xs text-muted">
+                      {command.hint}
+                    </span>
                   </span>
-                  <span className="block truncate text-xs text-muted">
-                    {command.hint}
-                  </span>
-                </span>
-              </Button>
-            ))}
-            {filtered.length === 0 ? (
-              <p className="px-3 py-3 text-sm text-muted">Команды не найдены</p>
-            ) : null}
-          </Surface>
-        ) : null}
+                </Button>
+              ))}
+              {filtered.length === 0 ? (
+                <p className="px-3 py-3 text-sm text-muted">
+                  Команды не найдены
+                </p>
+              ) : null}
+            </Surface>
+          ) : null}
+        </div>
       </div>
 
-      <div className="absolute inset-y-0 right-0 flex items-stretch">
+      <div className="flex h-full w-36 items-stretch justify-self-end">
         <Button
           isIconOnly
           size="sm"

@@ -47,7 +47,7 @@ export function ConversationHeader({
             <div className="flex min-w-0 items-center gap-2">
               <h2 className="truncate text-base font-semibold">{chat.title}</h2>
               {contextNames.length > 0 ? (
-                <Chip size="sm" variant="soft">
+                <Chip size="sm" variant="soft" className="bg-transparent">
                   {contextNames.length}
                 </Chip>
               ) : null}

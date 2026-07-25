@@ -45,7 +45,11 @@ export function MessageHistoryModal({
                     Ответ {variant.index + 1}
                   </span>
                   {selected ? (
-                    <Chip size="sm" variant="soft" className="text-accent">
+                    <Chip
+                      size="sm"
+                      variant="soft"
+                      className="bg-transparent text-accent"
+                    >
                       Выбран
                     </Chip>
                   ) : null}

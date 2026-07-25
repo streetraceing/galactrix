@@ -47,6 +47,7 @@ export function ProviderCard({
                 <Chip
                   size="sm"
                   variant="soft"
+                  className="bg-transparent"
                   color={
                     provider.status === 'connected'
                       ? 'success'

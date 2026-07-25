@@ -25,7 +25,7 @@ export function DesktopSidebar({
 
   return (
     <aside
-      className="group/sidebar flex h-full w-[min(var(--sidebar-width),30vw)] shrink-0 flex-col border-r border-separator bg-surface transition-[width] min-[1300px]:w-(--sidebar-width)"
+      className="group/sidebar bg-background flex h-full w-[min(var(--sidebar-width),30vw)] shrink-0 flex-col border-r border-separator transition-[width] min-[1300px]:w-(--sidebar-width)"
       style={
         {
           '--sidebar-width': `${width}px`,
@@ -42,21 +42,21 @@ export function DesktopSidebar({
           <Button
             key={item.id}
             size="lg"
+            fullWidth
             variant={activeTab === item.id ? 'secondary' : 'ghost'}
-            className="w-full justify-start gap-3 px-3 group-data-[collapsed]/sidebar:justify-center group-data-[collapsed]/sidebar:px-0"
+            className="justify-start gap-3 px-3 group-data-collapsed/sidebar:justify-center group-data-collapsed/sidebar:px-0"
             aria-label={item.label}
-            title={compact ? item.label : undefined}
             onPress={() => onNavigate(item.id)}
           >
             <Icon name={item.icon} className="size-5 shrink-0" />
-            <span className="min-w-0 flex-1 truncate text-left text-sm font-medium group-data-[collapsed]/sidebar:hidden">
+            <span className="min-w-0 flex-1 truncate text-left text-sm font-medium group-data-collapsed/sidebar:hidden">
               {item.label}
             </span>
             {item.id === 'chats' && chatCount > 0 ? (
               <Chip
                 size="sm"
                 variant="soft"
-                className="group-data-[collapsed]/sidebar:hidden"
+                className="bg-transparent group-data-collapsed/sidebar:hidden"
               >
                 {chatCount}
               </Chip>
@@ -70,18 +70,17 @@ export function DesktopSidebar({
           <Button
             fullWidth
             size="sm"
-            variant="secondary"
-            className="justify-start gap-2 group-data-[collapsed]/sidebar:justify-center"
+            variant="tertiary"
+            className="justify-start gap-2 group-data-collapsed/sidebar:justify-center"
             aria-label={
               collapsed
                 ? 'Развернуть боковую панель'
                 : 'Свернуть боковую панель'
             }
-            title={collapsed ? 'Развернуть боковую панель' : undefined}
             onPress={onToggleCollapsed}
           >
             <Icon name="sidebar" className="size-4" />
-            <span className="group-data-[collapsed]/sidebar:hidden">
+            <span className="group-data-collapsed/sidebar:hidden">
               Свернуть панель
             </span>
           </Button>

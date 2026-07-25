@@ -51,7 +51,7 @@ export function ChatContextPicker({
             ворлдбуков.
           </p>
         </div>
-        <Chip size="sm" variant="soft" className="shrink-0">
+        <Chip size="sm" variant="soft" className="shrink-0 bg-transparent">
           {selectedCount}
         </Chip>
       </div>

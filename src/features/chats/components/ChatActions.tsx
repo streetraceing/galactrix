@@ -51,7 +51,7 @@ export function ChatActions({
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem
-          className="text-warning data-[highlighted]:bg-warning/10 data-[highlighted]:text-warning"
+          className="text-warning data-highlighted:bg-warning/10 data-highlighted:text-warning"
           onClick={() => onAction('clear', chat)}
         >
           <Icon name="clear" className="size-4" />

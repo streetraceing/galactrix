@@ -142,7 +142,7 @@ export function GalaxiesScreen({
                   onPress={() => setFilter(entry.id)}
                 >
                   {entry.label}
-                  <Chip size="sm" variant="soft">
+                  <Chip size="sm" variant="soft" className="bg-transparent">
                     {count}
                   </Chip>
                 </Button>
@@ -172,7 +172,7 @@ export function GalaxiesScreen({
                       <strong className="min-w-0 flex-1 truncate text-base font-semibold">
                         {item.name}
                       </strong>
-                      <Chip size="sm" variant="soft">
+                      <Chip size="sm" variant="soft" className="bg-transparent">
                         {kindLabels[item.kind]}
                       </Chip>
                     </span>
