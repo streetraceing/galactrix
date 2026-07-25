@@ -42,7 +42,7 @@ export function GalaxyCard({
                 <strong className="min-w-0 flex-1 truncate text-base font-semibold">
                   {item.name}
                 </strong>
-                <Chip size="sm" variant="soft">
+                <Chip size="sm" variant="soft" className="bg-transparent">
                   {galaxyKindLabels[item.kind]}
                 </Chip>
               </span>
@@ -77,7 +77,7 @@ export function GalaxyCard({
         <ContextMenuItem onClick={onDuplicate}>
           <Icon name="copy" className="size-4" /> Создать копию
         </ContextMenuItem>
-        <ContextMenuSeparator />
+        <ContextMenuSeparator className="bg-default-hover" />
         <ContextMenuItem variant="destructive" onClick={onDelete}>
           <Icon name="trash" className="size-4" /> Удалить
         </ContextMenuItem>

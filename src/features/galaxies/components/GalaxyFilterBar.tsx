@@ -50,7 +50,7 @@ export function GalaxyFilterBar({
                 textValue={filter.label}
               >
                 <span className="min-w-0 flex-1 truncate">{filter.label}</span>
-                <Chip size="sm" variant="soft">
+                <Chip size="sm" variant="soft" className="bg-transparent">
                   {getCount(filter.id)}
                 </Chip>
                 <ListBox.ItemIndicator />
@@ -78,7 +78,7 @@ export function GalaxyFilterBar({
           {galaxyFilters.map((filter) => (
             <ToggleButton key={filter.id} id={filter.id}>
               {filter.label}
-              <Chip size="sm" variant="soft">
+              <Chip size="sm" variant="soft" className="bg-transparent">
                 {getCount(filter.id)}
               </Chip>
             </ToggleButton>

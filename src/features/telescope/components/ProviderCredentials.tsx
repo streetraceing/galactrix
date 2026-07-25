@@ -23,11 +23,10 @@ export function ProviderCredentials({
   onTokenChange: (value: string) => void;
 }) {
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
+    <div className="flex flex-col gap-4">
       <FormField label="Название">
         <Input
           fullWidth
-          variant="secondary"
           value={form.name}
           onChange={(event: ChangeEvent<HTMLInputElement>) =>
             onPatch('name', event.target.value)
@@ -37,7 +36,6 @@ export function ProviderCredentials({
       <FormField label="API-ключ">
         <Input
           fullWidth
-          variant="secondary"
           type="password"
           value={token}
           onChange={(event: ChangeEvent<HTMLInputElement>) =>

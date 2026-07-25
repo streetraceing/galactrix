@@ -89,7 +89,7 @@ export function ProviderCard({
         <ContextMenuItem onClick={onEdit}>
           <Icon name="settings" className="size-4" /> Настроить
         </ContextMenuItem>
-        <ContextMenuSeparator />
+        <ContextMenuSeparator className="bg-default-hover" />
         <ContextMenuItem variant="destructive" onClick={onDelete}>
           <Icon name="trash" className="size-4" /> Удалить
         </ContextMenuItem>
