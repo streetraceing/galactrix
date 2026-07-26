@@ -236,9 +236,6 @@ function VariantNavigator({
             ? 'Сгенерировать новый вариант ответа'
             : 'Следующий вариант ответа'
         }
-        title={
-          isLastVariant ? 'Сгенерировать новый вариант' : 'Следующий вариант'
-        }
         isDisabled={isLastVariant && !onRegenerate}
         onPress={() =>
           isLastVariant
@@ -321,7 +318,6 @@ function DesktopMessageActions({
             variant="ghost"
             className={`size-7 min-w-7 ${action.danger ? 'text-danger' : ''}`}
             aria-label={action.label}
-            title={action.label}
             onPress={action.onPress}
           >
             <Icon name={action.icon} className="size-3.5" />
@@ -628,9 +624,7 @@ export function MessageList({
           fullWidth
           variant="secondary"
           value={editValue}
-          minRows={14}
-          maxRows={32}
-          className="[&_textarea]:min-h-[18rem]"
+          className="[&_textarea]:min-h-72 h-full"
           aria-label="Текст сообщения"
           onChange={(event) => setEditValue(event.target.value)}
         />

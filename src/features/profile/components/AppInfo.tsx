@@ -12,7 +12,7 @@ export function AppInfo({ version }: { version: string }) {
         <span className="mt-1 block text-xs text-muted">Версия приложения</span>
       </div>
       <span className="text-xs text-muted">
-        {version ? `v${version}` : '—'}
+        {version ? `v${version}` : '-'}
       </span>
     </Surface>
   );

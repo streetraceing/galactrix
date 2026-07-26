@@ -74,7 +74,7 @@ export function TelescopeScreen({
   };
 
   return (
-    <div className="page-scroll">
+    <div className="page-scroll flex-1">
       <div className="page-container">
         <PageHeader
           title="Телескоп"

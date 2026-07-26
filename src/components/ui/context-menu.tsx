@@ -45,7 +45,7 @@ function ContextMenuContent({
         <ContextMenuPrimitive.Popup
           data-slot="context-menu-content"
           className={cn(
-            'z-50 min-w-40 overflow-hidden rounded-xl border border-separator bg-overlay/90 p-1.5 text-overlay-foreground shadow-overlay outline-none backdrop-blur-xl supports-backdrop-filter:bg-overlay/85',
+            'ui-overlay-surface z-50 min-w-40 overflow-hidden p-1.5 outline-none',
             'max-h-(--available-height) overflow-y-auto',
             'transition-opacity duration-75 ease-out motion-reduce:transition-none',
             'data-starting-style:opacity-0 data-ending-style:opacity-0',
@@ -159,7 +159,7 @@ function ContextMenuSubContent({
         <ContextMenuPrimitive.Popup
           data-slot="context-menu-sub-content"
           className={cn(
-            'z-50 min-w-40 overflow-hidden rounded-xl border border-separator bg-overlay/90 p-1.5 text-overlay-foreground shadow-overlay outline-none backdrop-blur-xl supports-backdrop-filter:bg-overlay/85',
+            'ui-overlay-surface z-50 min-w-40 overflow-hidden p-1.5 outline-none',
             'max-h-(--available-height) overflow-y-auto',
             'transition-opacity duration-75 ease-out motion-reduce:transition-none',
             'data-starting-style:opacity-0 data-ending-style:opacity-0',

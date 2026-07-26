@@ -29,7 +29,7 @@ export function DesktopSidebar({
       style={
         {
           '--sidebar-width': `${width}px`,
-          ...(compact ? { width: 72 } : {}),
+          ...(compact ? { width: 57 } : {}),
         } as CSSProperties
       }
       data-collapsed={compact || undefined}
@@ -69,7 +69,7 @@ export function DesktopSidebar({
         <div className="p-2">
           <Button
             fullWidth
-            size="sm"
+            size="lg"
             variant="tertiary"
             className="justify-start gap-2 group-data-collapsed/sidebar:justify-center"
             aria-label={

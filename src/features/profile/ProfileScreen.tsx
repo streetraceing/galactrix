@@ -33,8 +33,8 @@ export function ProfileScreen({
     onChangeSettings({ ...settings, [key]: value });
 
   return (
-    <div className="page-scroll">
-      <div className="page-container">
+    <div className="page-scroll flex-1">
+      <div className="page-container flex">
         <PageHeader
           title="Профиль"
           description="Использование и настройки текущего устройства."

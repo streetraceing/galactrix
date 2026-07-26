@@ -88,7 +88,7 @@ export function GalaxyEditorModal({
       title={
         editing
           ? `Редактирование: ${editing.name}`
-          : `Новый объект — ${galaxyKindLabels[draft.kind]}`
+          : `Новый объект - ${galaxyKindLabels[draft.kind]}`
       }
       description="Структурированные параметры хранятся локально и становятся частью системного промпта только в выбранных чатах."
       size="lg"
@@ -113,7 +113,7 @@ export function GalaxyEditorModal({
       }
     >
       <div className="space-y-4">
-        <Surface className="rounded-2xl border border-separator p-4 sm:p-5">
+        <Surface className="rounded-2xl border border-separator p-4 sm:p-5 bg-surface-secondary/50">
           <div className="flex gap-4 flex-col">
             <div className="flex flex-col gap-1.5">
               <Label>Тип объекта</Label>

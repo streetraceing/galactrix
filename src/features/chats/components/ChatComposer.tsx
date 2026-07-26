@@ -67,7 +67,7 @@ export function ChatComposer({
                 : 'Настройки берутся из подключения'}
             </span>
             <span>
-              {sendOnEnter ? 'Enter — отправить' : 'Отправка кнопкой'}
+              {sendOnEnter ? 'Enter - отправить' : 'Отправка кнопкой'}
             </span>
           </div>
         </Surface>

@@ -13,7 +13,7 @@ export function ProviderTypePicker({
       {providerCatalog.map((provider) => (
         <Surface
           key={provider.kind}
-          className="overflow-hidden rounded-2xl border border-separator transition-colors hover:bg-surface-tertiary"
+          className="overflow-hidden rounded-2xl border border-separator transition-colors hover:bg-surface-secondary bg-surface-secondary/50"
         >
           <button
             type="button"

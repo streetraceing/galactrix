@@ -48,14 +48,13 @@ export function ThemeSettings({
               <Select.Value />
               <Select.Indicator />
             </Select.Trigger>
-            <Select.Popover className="bg-surface-secondary">
+            <Select.Popover>
               <ListBox>
                 {modes.map((entry) => (
                   <ListBox.Item
                     key={entry.id}
                     id={entry.id}
                     textValue={entry.label}
-                    className="hover:bg-accent-soft"
                   >
                     {entry.label}
                     <ListBox.ItemIndicator />
@@ -81,14 +80,13 @@ export function ThemeSettings({
               <Select.Value />
               <Select.Indicator />
             </Select.Trigger>
-            <Select.Popover className="bg-surface-secondary">
+            <Select.Popover>
               <ListBox>
                 {variants.map((entry) => (
                   <ListBox.Item
                     key={entry.id}
                     id={entry.id}
                     textValue={entry.label}
-                    className="hover:bg-accent-soft"
                   >
                     {entry.label}
                     <ListBox.ItemIndicator />

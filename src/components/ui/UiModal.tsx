@@ -26,7 +26,7 @@ export function UiModal({
         variant="blur"
       >
         <Modal.Container size={size} scroll="inside">
-          <Modal.Dialog className="max-h-[90dvh] min-w-0 bg-surface/75 backdrop-blur-md">
+          <Modal.Dialog className="max-h-[90dvh] min-w-0">
             <Modal.CloseTrigger />
             <Modal.Header className="pr-10">
               <Modal.Heading>{title}</Modal.Heading>

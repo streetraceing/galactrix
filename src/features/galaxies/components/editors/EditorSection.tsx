@@ -13,7 +13,7 @@ export function EditorSection({
   children: ReactNode;
 }) {
   return (
-    <Surface className="rounded-2xl border border-separator p-4 sm:p-5">
+    <Surface className="rounded-2xl border border-separator p-4 sm:p-5 bg-surface-secondary/50">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="text-sm font-semibold">{title}</h3>

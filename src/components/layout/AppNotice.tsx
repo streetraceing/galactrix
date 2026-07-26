@@ -11,9 +11,9 @@ export function AppNotice({
   if (!message) return null;
   return (
     <Surface
-      variant="tertiary"
+      variant="transparent"
       role="status"
-      className="absolute right-3 top-3 z-50 flex max-w-[min(28rem,calc(100%-1.5rem))] items-start gap-3 rounded-xl border border-separator p-3 shadow-overlay md:top-4"
+      className="ui-overlay-surface absolute right-3 top-3 z-50 flex max-w-[min(28rem,calc(100%-1.5rem))] items-start gap-3 p-3 md:top-4"
     >
       <span className="selectable min-w-0 flex-1 wrap-break-word text-sm">
         {message}

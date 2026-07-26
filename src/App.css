@@ -388,7 +388,7 @@
   }
 
   .page-container {
-    @apply flex w-full max-w-6xl flex-col gap-5 px-4 py-5 sm:gap-6 sm:px-6 sm:py-6 lg:px-8;
+    @apply flex flex-1 w-full max-w-7xl flex-col gap-5 px-4 py-5 sm:gap-6 sm:px-6 sm:py-6 lg:px-8;
   }
 
   .page-title {
@@ -406,4 +406,26 @@
   .section-description {
     @apply mt-1 text-sm text-muted;
   }
+
+  .select__popover,
+  .dropdown__popover,
+  .autocomplete__popover,
+  .popover,
+  .tooltip,
+  .modal__dialog,
+  .ui-overlay-surface {
+    @apply border border-separator bg-overlay/90 text-overlay-foreground shadow-overlay ring-1 ring-inset ring-foreground/10 backdrop-blur-xl;
+  }
+
+  .ui-overlay-surface {
+    @apply rounded-xl;
+  }
+
+  /*   .modal__header {
+    @apply border-b border-separator/80 pb-4;
+  }
+
+  .modal__footer {
+    @apply border-t border-separator/80 pt-4;
+  } */
 }

@@ -1047,9 +1047,9 @@ pub fn clone_chat(
         .ok_or_else(|| "Чат не найден".to_string())?;
 
     let suffix = if through_message_id.is_some() {
-        " — ветка"
+        " - ветка"
     } else {
-        " — копия"
+        " - копия"
     };
     let title = format!("{}{}", source.0, suffix);
     let now = now_unix();

@@ -87,7 +87,7 @@ export function ApplicationFrame({
           ) : null}
 
           <AppNotice message={notice} onClose={onCloseNotice} />
-          <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
+          <div className="min-h-0 min-w-0 flex-1 overflow-hidden flex">
             {children}
           </div>
           {isMobile ? (

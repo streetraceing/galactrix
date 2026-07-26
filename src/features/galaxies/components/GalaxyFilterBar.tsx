@@ -28,7 +28,7 @@ export function GalaxyFilterBar({
     <>
       <Select
         fullWidth
-        className="sm:hidden"
+        className="md:hidden"
         value={value}
         aria-label="Фильтр библиотеки"
         onChange={(key: Key | Key[] | null) => {
@@ -60,7 +60,7 @@ export function GalaxyFilterBar({
         </Select.Popover>
       </Select>
 
-      <Surface className="hidden overflow-x-auto rounded-2xl border-separator bg-transparent sm:block">
+      <Surface className="hidden overflow-x-auto rounded-2xl border-separator bg-transparent md:block">
         <ToggleButtonGroup
           className="min-w-max"
           size="sm"

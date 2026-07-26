@@ -231,7 +231,7 @@ export function ChatsScreen({
   };
 
   return (
-    <div className="flex h-full min-w-0 overflow-hidden bg-background">
+    <div className="flex flex-1 h-full min-w-0 overflow-hidden bg-background">
       <ChatSidebar
         chats={filteredChats}
         activeChatId={activeChat?.id ?? ''}

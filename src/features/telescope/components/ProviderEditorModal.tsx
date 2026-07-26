@@ -96,10 +96,7 @@ export function ProviderEditorModal({
       ) : (
         <div className="space-y-4">
           {form.kind === 'character-ai' ? (
-            <Surface
-              variant="tertiary"
-              className="rounded-2xl border border-separator p-4 text-sm leading-6 text-warning"
-            >
+            <Surface className="rounded-2xl border border-separator p-4 text-sm leading-6 text-warning bg-surface-secondary/50">
               Для Character.AI нужен отдельный адаптер авторизации и протокола.
               Несовместимое подключение не сохраняется.
             </Surface>

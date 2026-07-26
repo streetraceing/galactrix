@@ -140,7 +140,7 @@ export function DesktopTitlebar({
   return (
     <header
       data-tauri-drag-region
-      className="relative z-50 grid h-11 shrink-0 grid-cols-[9rem_minmax(0,1fr)_9rem] items-center border-b border-separator bg-background app-drag-region"
+      className="relative z-50 grid h-12 shrink-0 grid-cols-[9rem_minmax(0,1fr)_9rem] items-center border-b border-separator bg-background app-drag-region"
       onDoubleClick={toggleMaximize}
     >
       <div
@@ -198,8 +198,8 @@ export function DesktopTitlebar({
 
           {focused ? (
             <Surface
-              className="absolute inset-x-0 top-[calc(100%+0.4rem)] overflow-hidden rounded-xl border border-separator p-1 shadow-lg"
-              variant="secondary"
+              className="ui-overlay-surface absolute inset-x-0 top-[calc(100%+0.4rem)] overflow-hidden p-1"
+              variant="transparent"
             >
               {filtered.slice(0, 7).map((command) => (
                 <Button

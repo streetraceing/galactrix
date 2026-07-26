@@ -57,7 +57,7 @@ export function GalaxiesScreen({
     setDraft({
       ...copy,
       id: undefined,
-      name: `${item.name} — копия`,
+      name: `${item.name} - копия`,
     });
     setError('');
     setModalOpen(true);
@@ -97,7 +97,7 @@ export function GalaxiesScreen({
   };
 
   return (
-    <div className="page-scroll">
+    <div className="page-scroll flex-1">
       <div className="page-container">
         <PageHeader
           title="Галактики"
