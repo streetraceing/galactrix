@@ -24,3 +24,7 @@ dist-ssr
 *.sw?
 # heroui-agents-md
 .heroui-docs/
+
+*.tgz
+*.zip
+.package-backups/
