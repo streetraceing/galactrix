@@ -1,8 +1,11 @@
 import type {
+  GalaxyItem,
   PromptBlock,
   PromptConfig,
   PromptContextPriorities,
   PromptPresetId,
+  PromptPriority,
+  PromptSetData,
 } from '../../../../types';
 import { promptPriorities } from '../../promptConfig';
 
@@ -67,23 +70,81 @@ export function createPromptBlock(): PromptBlock {
 export function getPromptOrderPreview(
   value: PromptConfig,
   includeContext = true,
+  sets: GalaxyItem[] = [],
+  inheritedSetIds: string[] = [],
+  activeContextFields?: Array<keyof PromptContextPriorities>,
 ) {
+  const selectedIds = new Set([...(value.setIds ?? []), ...inheritedSetIds]);
+  const selectedSets = sets.filter((set) => selectedIds.has(set.id));
+  const setEntries = selectedSets.flatMap((set, setIndex) => {
+    const config = set.data as PromptSetData;
+    const entries: Array<{
+      id: string;
+      title: string;
+      description: string;
+      priority: PromptPriority;
+      order: number;
+    }> = [];
+
+    if (config.presetIds?.length) {
+      entries.push({
+        id: `set:${set.id}:rules`,
+        title: set.name,
+        description: `Набор · ${config.presetIds.length} правил`,
+        priority: config.contextPriorities?.presets ?? 'normal',
+        order: priorityFields.length + setIndex * 20,
+      });
+    }
+
+    for (const [blockIndex, block] of (config.customBlocks ?? []).entries()) {
+      if (!block.enabled || !block.content.trim()) continue;
+      entries.push({
+        id: `set:${set.id}:block:${block.id}`,
+        title: block.title || set.name,
+        description: `Набор «${set.name}»`,
+        priority: block.priority,
+        order: priorityFields.length + setIndex * 20 + blockIndex + 1,
+      });
+    }
+
+    if (entries.length === 0) {
+      entries.push({
+        id: `set:${set.id}:empty`,
+        title: set.name,
+        description: 'Подключённый набор пока пуст',
+        priority: 'normal',
+        order: priorityFields.length + setIndex * 20,
+      });
+    }
+
+    return entries;
+  });
+  const ownOrder = priorityFields.length + selectedSets.length * 20;
+
   return [
     ...(includeContext
-      ? priorityFields.map((field, order) => ({
-          id: field.id,
-          title: field.label,
-          priority: value.contextPriorities[field.id],
-          order,
-        }))
+      ? priorityFields
+          .filter(
+            (field) =>
+              !activeContextFields || activeContextFields.includes(field.id),
+          )
+          .map((field, order) => ({
+            id: field.id,
+            title: field.label,
+            description: field.description,
+            priority: value.contextPriorities[field.id],
+            order,
+          }))
       : []),
+    ...setEntries,
     ...value.customBlocks
-      .filter((block) => block.enabled)
+      .filter((block) => block.enabled && block.content.trim())
       .map((block, order) => ({
-        id: block.id,
+        id: `custom:${block.id}`,
         title: block.title,
+        description: 'Своя инструкция',
         priority: block.priority,
-        order: priorityFields.length + order,
+        order: ownOrder + order,
       })),
   ].sort((left, right) => {
     const leftPriority = promptPriorities.findIndex(

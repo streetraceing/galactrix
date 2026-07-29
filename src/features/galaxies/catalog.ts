@@ -38,6 +38,15 @@ export const galaxyKindLabels: Record<GalaxyKind, string> = {
   'prompt-set': 'Набор промптов',
 };
 
+export const galaxyKindCreateLabels: Record<GalaxyKind, string> = {
+  persona: 'персону',
+  character: 'персонажа',
+  universe: 'вселенную',
+  worldbook: 'ворлдбук',
+  style: 'стиль',
+  'prompt-set': 'набор промптов',
+};
+
 export const galaxyKindIcons: Record<
   GalaxyKind,
   'user' | 'brain' | 'planet' | 'book' | 'sparkles' | 'database'

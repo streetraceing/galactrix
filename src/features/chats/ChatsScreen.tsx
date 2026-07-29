@@ -82,6 +82,13 @@ export function ChatsScreen({
   const activeMessages = messages.filter(
     (message) => message.chatId === activeChat?.id,
   );
+  const configChatId =
+    configTarget && configTarget !== 'new' ? configTarget.id : undefined;
+  const configRememberedMessages = configChatId
+    ? messages.filter(
+        (message) => message.chatId === configChatId && message.remembered,
+      )
+    : [];
   const activeProvider = providers.find(
     (provider) => provider.id === activeChat?.providerId,
   );
@@ -363,6 +370,8 @@ export function ChatsScreen({
         chat={configTarget === 'new' ? null : configTarget}
         galaxyItems={galaxyItems}
         providers={providers}
+        profileName={profileName}
+        rememberedMessages={configRememberedMessages}
         saving={working}
         error={configError}
         onOpenChange={(open) => !open && setConfigTarget(null)}

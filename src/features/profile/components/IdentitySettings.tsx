@@ -175,7 +175,7 @@ export function IdentitySettings({
             })}
           </div>
         ) : (
-          <Surface className="rounded-2xl border border-dashed border-separator p-6 text-center">
+          <Surface className="rounded-2xl border border-dashed border-muted p-6 text-center">
             <p className="font-medium">Нет персон и персонажей</p>
             <p className="mt-1.5 text-sm text-muted">
               Создайте их во вкладке «Галактики», после чего здесь появится

@@ -1,5 +1,10 @@
 import { Modal } from '@heroui/react';
-import type { ReactNode } from 'react';
+import {
+  useLayoutEffect,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from 'react';
 import { useMobileBackEntry } from '../../hooks/useMobileBackEntry';
 import { isMobilePlatform } from '../../lib/platform';
 
@@ -21,8 +26,27 @@ export function UiModal({
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'cover' | 'full';
 }) {
   const isMobile = isMobilePlatform();
+  const [mobileHeight, setMobileHeight] = useState<number>();
 
   useMobileBackEntry(isOpen, () => onOpenChange(false));
+
+  useLayoutEffect(() => {
+    if (!isOpen || !isMobile) return;
+    setMobileHeight(
+      Math.round(
+        Math.max(window.innerHeight, document.documentElement.clientHeight),
+      ),
+    );
+  }, [isMobile, isOpen]);
+
+  const mobileViewportStyle: CSSProperties | undefined =
+    isMobile && mobileHeight
+      ? {
+          height: mobileHeight,
+          minHeight: mobileHeight,
+          maxHeight: mobileHeight,
+        }
+      : undefined;
 
   return (
     <Modal>
@@ -31,18 +55,21 @@ export function UiModal({
         onOpenChange={onOpenChange}
         variant="blur"
         className={isMobile ? 'h-full min-h-0' : undefined}
+        style={mobileViewportStyle}
       >
         <Modal.Container
           size={isMobile ? 'full' : size}
           scroll="inside"
           className={isMobile ? 'h-full min-h-0 w-full p-0' : undefined}
+          style={mobileViewportStyle}
         >
           <Modal.Dialog
             className={
               isMobile
-                ? 'h-full min-h-0 w-full max-w-none min-w-0 rounded-none ring-0'
+                ? 'h-full min-h-0 w-full max-w-none min-w-0 rounded-none border-0! shadow-none! ring-0!'
                 : 'max-h-[90dvh] min-w-0 border-transparent'
             }
+            style={mobileViewportStyle}
           >
             <Modal.CloseTrigger />
             <Modal.Header className="shrink-0 px-4 pb-3 pt-4 pr-12 sm:px-6 sm:pt-5">

@@ -1,7 +1,11 @@
 import { Accordion, Chip, Label, Surface } from '@heroui/react';
 import { Icon } from '../../../components/Icon';
 import { countRu } from '../../../lib/plural';
-import type { GalaxyItem, PromptConfig } from '../../../types';
+import type {
+  GalaxyItem,
+  PromptConfig,
+  PromptContextPriorities,
+} from '../../../types';
 import { PromptCustomBlocksSection } from './prompt-builder/PromptCustomBlocksSection';
 import { PromptOrderSection } from './prompt-builder/PromptOrderSection';
 import { PromptPrioritiesSection } from './prompt-builder/PromptPrioritiesSection';
@@ -13,11 +17,15 @@ export function PromptBuilder({
   value,
   onChange,
   sets = [],
+  inheritedSetIds = [],
+  activeContextFields,
   mode = 'chat',
 }: {
   value: PromptConfig;
   onChange: (value: PromptConfig) => void;
   sets?: GalaxyItem[];
+  inheritedSetIds?: string[];
+  activeContextFields?: Array<keyof PromptContextPriorities>;
   mode?: 'chat' | 'set';
 }) {
   return (
@@ -85,7 +93,13 @@ export function PromptBuilder({
           <PromptPrioritiesSection value={value} onChange={onChange} />
         ) : null}
         <PromptCustomBlocksSection value={value} onChange={onChange} />
-        <PromptOrderSection value={value} includeContext={mode === 'chat'} />
+        <PromptOrderSection
+          value={value}
+          includeContext={mode === 'chat'}
+          sets={sets}
+          inheritedSetIds={inheritedSetIds}
+          activeContextFields={activeContextFields}
+        />
       </Accordion>
     </Surface>
   );

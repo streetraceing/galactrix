@@ -165,6 +165,25 @@ export type GalaxyItemInput = {
   data: GalaxyItemData;
 };
 
+export type PromptPreviewInput = {
+  persona?: GalaxyItemInput;
+  character?: GalaxyItemInput;
+  universe?: GalaxyItemInput;
+  worldbooks: GalaxyItemInput[];
+  characterStyle?: GalaxyItemInput;
+  promptSets: GalaxyItemInput[];
+  promptConfig: PromptConfig;
+  rememberedMessages: Message[];
+  userName?: string;
+  characterName?: string;
+};
+
+export type PromptPreviewResult = {
+  prompt: string;
+  approximateTokens: number;
+  characters: number;
+};
+
 export type ProviderKind =
   | 'mistral'
   | 'character-ai'

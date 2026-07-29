@@ -9,6 +9,8 @@ import type {
   ProviderImportInput,
   ProviderInput,
   ProviderModelResult,
+  PromptPreviewInput,
+  PromptPreviewResult,
 } from '../types';
 
 function requireTauri() {
@@ -104,6 +106,11 @@ export async function selectMessageVariant(
 export async function regenerateMessage(messageId: string) {
   requireTauri();
   return invoke<void>('regenerate_message', { messageId });
+}
+
+export async function previewPrompt(input: PromptPreviewInput) {
+  requireTauri();
+  return invoke<PromptPreviewResult>('preview_prompt', { input });
 }
 
 export async function upsertGalaxyItem(input: GalaxyItemInput) {

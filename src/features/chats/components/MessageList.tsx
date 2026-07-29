@@ -223,7 +223,7 @@ function VariantNavigator({
 
   return (
     <div className="flex items-center gap-0.5">
-      <Tooltip>
+      <Tooltip delay={700} closeDelay={75}>
         <Tooltip.Trigger>
           <Button
             isIconOnly
@@ -241,7 +241,7 @@ function VariantNavigator({
         </Tooltip.Trigger>
         <Tooltip.Content>Предыдущий вариант</Tooltip.Content>
       </Tooltip>
-      <Tooltip>
+      <Tooltip delay={700} closeDelay={75}>
         <Tooltip.Trigger>
           <Button
             size="sm"
@@ -255,7 +255,7 @@ function VariantNavigator({
         </Tooltip.Trigger>
         <Tooltip.Content>История вариантов</Tooltip.Content>
       </Tooltip>
-      <Tooltip>
+      <Tooltip delay={700} closeDelay={75}>
         <Tooltip.Trigger>
           <Button
             isIconOnly
@@ -347,7 +347,7 @@ function DesktopMessageActions({
     <div className="mt-1 flex min-h-7 w-full items-center justify-between gap-3">
       <div className="pointer-events-none flex items-center gap-0.5 opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
         {actions.map((action) => (
-          <Tooltip key={action.label}>
+          <Tooltip key={action.label} delay={700} closeDelay={75}>
             <Tooltip.Trigger>
               <Button
                 isIconOnly
@@ -726,11 +726,11 @@ export function MessageList({
                   <AppAvatar
                     src={avatar}
                     name={displayName}
-                    className="size-8 sm:size-9"
+                    className={`size-8 sm:size-9`}
                     square
                   />
                   <div
-                    className={`flex min-w-0 max-w-[min(91%,44rem)] flex-col sm:max-w-[min(88%,44rem)] ${isUser ? 'items-end' : 'items-start'}`}
+                    className={`flex min-w-0 flex-col ${isUser ? 'items-end max-w-[min(91%,44rem)] sm:max-w-[min(88%,44rem)]' : 'w-full items-start'}`}
                   >
                     <div
                       className={`mb-1 flex min-w-0 items-center gap-2 text-xs text-muted ${isUser ? 'flex-row-reverse' : ''}`}
@@ -810,7 +810,7 @@ export function MessageList({
                 className="size-8 sm:size-9"
                 square
               />
-              <div className="flex min-w-0 max-w-[min(91%,44rem)] flex-col items-end sm:max-w-[min(88%,44rem)]">
+              <div className="flex min-w-0 w-full flex-col items-end">
                 <div className="mb-1 flex items-center gap-2 text-xs text-muted">
                   <span>Отправляется</span>
                   <strong className="font-medium text-foreground">

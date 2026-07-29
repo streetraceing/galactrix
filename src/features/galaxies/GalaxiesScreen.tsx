@@ -2,18 +2,30 @@ import { Button, Chip, Tabs, toast } from '@heroui/react';
 import { useEffect, useMemo, useState } from 'react';
 import { Icon } from '../../components/Icon';
 import { EmptyState } from '../../components/ui/EmptyState';
+import {
+  ExportDestinationPicker,
+  ExportSelectionList,
+} from '../../components/ui/ExportOptions';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { UiModal } from '../../components/ui/UiModal';
 import {
   datedJsonName,
+  defaultExportDestination,
   exportJsonFile,
   importJsonFile,
+  type ExportDestination,
 } from '../../lib/jsonTransfer';
 import { countRu } from '../../lib/plural';
-import type { GalaxyItem, GalaxyItemInput, GalaxyKind } from '../../types';
+import type {
+  CharacterData,
+  GalaxyItem,
+  GalaxyItemInput,
+  GalaxyKind,
+} from '../../types';
 import { GalaxyCard } from './components/GalaxyCard';
 import { GalaxyEditorModal } from './components/GalaxyEditorModal';
 import {
+  galaxyKindCreateLabels,
   galaxyKindDescriptions,
   galaxyKindLabels,
   galaxySections,
@@ -38,6 +50,12 @@ export function GalaxiesScreen({
   const [draft, setDraft] = useState<GalaxyItemInput>(createGalaxyDraft());
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportIds, setExportIds] = useState<string[]>([]);
+  const [exportDestination, setExportDestination] = useState<ExportDestination>(
+    defaultExportDestination,
+  );
   const [importing, setImporting] = useState(false);
   const [error, setError] = useState('');
 
@@ -59,21 +77,42 @@ export function GalaxiesScreen({
     () => items.filter((item) => item.kind === 'prompt-set'),
     [items],
   );
+  const includeExportDependencies = (ids: string[]) => {
+    const selected = new Set(ids);
+    for (const item of items) {
+      if (item.kind !== 'character' || !selected.has(item.id)) continue;
+      const data = item.data as CharacterData;
+      if (data.styleItemId) selected.add(data.styleItemId);
+      for (const setId of data.promptSetIds ?? []) selected.add(setId);
+    }
+    return items.filter((item) => selected.has(item.id)).map((item) => item.id);
+  };
 
   const exportItems = async () => {
+    if (exporting || exportIds.length === 0) return;
+    const selectedItems = items.filter((item) => exportIds.includes(item.id));
+    setExporting(true);
     try {
       const exported = await exportJsonFile(
         datedJsonName('galactrix-galaxies'),
-        createGalaxiesExport(items),
+        createGalaxiesExport(selectedItems),
+        exportDestination,
       );
       if (!exported) return;
+      setExportOpen(false);
       toast.success('Экспорт Галактик готов', {
-        description: `Объектов: ${items.length}`,
+        description: countRu(selectedItems.length, [
+          'объект',
+          'объекта',
+          'объектов',
+        ]),
       });
     } catch (caught) {
       toast.danger('Не удалось экспортировать Галактики', {
         description: caught instanceof Error ? caught.message : String(caught),
       });
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -183,7 +222,11 @@ export function GalaxiesScreen({
                 variant="secondary"
                 className="flex-1 sm:flex-none"
                 isDisabled={items.length === 0}
-                onPress={() => void exportItems()}
+                onPress={() => {
+                  setExportIds(items.map((item) => item.id));
+                  setExportDestination(defaultExportDestination());
+                  setExportOpen(true);
+                }}
               >
                 <Icon name="download" className="size-4" /> Экспорт
               </Button>
@@ -201,7 +244,7 @@ export function GalaxiesScreen({
                 onPress={() => openCreate(section)}
               >
                 <Icon name="plus" className="size-4" /> Создать{' '}
-                {galaxyKindLabels[section].toLocaleLowerCase('ru-RU')}
+                {galaxyKindCreateLabels[section]}
               </Button>
             </div>
           }
@@ -292,6 +335,53 @@ export function GalaxiesScreen({
         onDraftChange={setDraft}
         onSave={() => void save()}
       />
+
+      <UiModal
+        isOpen={exportOpen}
+        onOpenChange={(open) => !exporting && setExportOpen(open)}
+        title="Экспорт Галактики"
+        description="Выберите только нужные объекты и место, куда сохранить JSON."
+        size="lg"
+        footer={
+          <>
+            <Button
+              variant="ghost"
+              isDisabled={exporting}
+              onPress={() => setExportOpen(false)}
+            >
+              Отмена
+            </Button>
+            <Button
+              variant="primary"
+              isPending={exporting}
+              isDisabled={exportIds.length === 0}
+              onPress={() => void exportItems()}
+            >
+              Экспортировать
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-5">
+          <ExportSelectionList
+            items={items.map((item) => ({
+              id: item.id,
+              title: item.name,
+              description: galaxyKindLabels[item.kind],
+            }))}
+            selectedIds={exportIds}
+            onChange={(ids) => setExportIds(includeExportDependencies(ids))}
+          />
+          <p className="-mt-3 text-xs leading-5 text-muted">
+            Для выбранных персонажей связанные стили и наборы добавляются
+            автоматически, чтобы импорт не потерял настройки.
+          </p>
+          <ExportDestinationPicker
+            value={exportDestination}
+            onChange={setExportDestination}
+          />
+        </div>
+      </UiModal>
 
       <UiModal
         isOpen={Boolean(deleteTarget)}

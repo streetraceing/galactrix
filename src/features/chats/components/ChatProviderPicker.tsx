@@ -1,5 +1,6 @@
 import { Label, ListBox, Select } from '@heroui/react';
 import type { Key } from 'react';
+import { ProviderLogo } from '../../../components/ui/ProviderLogo';
 import type { Provider } from '../../../types';
 
 const NONE_KEY = '__none__';
@@ -31,8 +32,17 @@ export function ChatProviderPicker({
       >
         <Select.Trigger className="min-w-0 overflow-hidden">
           <Select.Value className="min-w-0 flex-1 overflow-hidden">
-            <span className="block min-w-0 truncate">
-              {selectedProvider?.name ?? 'Без провайдера'}
+            <span className="flex min-w-0 items-center gap-2">
+              {selectedProvider ? (
+                <ProviderLogo
+                  kind={selectedProvider.kind}
+                  name={selectedProvider.name}
+                  className="size-6 rounded-lg p-1"
+                />
+              ) : null}
+              <span className="block min-w-0 truncate">
+                {selectedProvider?.name ?? 'Без провайдера'}
+              </span>
             </span>
           </Select.Value>
           <Select.Indicator className="shrink-0" />
@@ -49,6 +59,11 @@ export function ChatProviderPicker({
                 id={provider.id}
                 textValue={provider.name}
               >
+                <ProviderLogo
+                  kind={provider.kind}
+                  name={provider.name}
+                  className="size-8 rounded-lg p-1.5"
+                />
                 <span className="min-w-0 flex-1">
                   <strong className="block truncate text-sm font-medium">
                     {provider.name}

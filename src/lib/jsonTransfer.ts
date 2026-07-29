@@ -11,17 +11,93 @@ export function datedJsonName(prefix: string) {
   return `${safeFilePart(prefix) || 'galactrix'}-${date}.json`;
 }
 
-export async function exportJsonFile(filename: string, value: unknown) {
+export type ExportDestination = 'choose-file' | 'share' | 'downloads';
+
+type WritableFile = {
+  write: (data: Blob) => Promise<void>;
+  close: () => Promise<void>;
+};
+
+type SaveFileHandle = {
+  createWritable: () => Promise<WritableFile>;
+};
+
+type SaveFilePickerWindow = Window & {
+  showSaveFilePicker?: (options: {
+    suggestedName: string;
+    types: Array<{
+      description: string;
+      accept: Record<string, string[]>;
+    }>;
+  }) => Promise<SaveFileHandle>;
+};
+
+export function canChooseExportFile() {
+  return (
+    typeof (window as SaveFilePickerWindow).showSaveFilePicker === 'function'
+  );
+}
+
+export function canShareExportFile() {
+  if (
+    typeof navigator.share !== 'function' ||
+    typeof navigator.canShare !== 'function'
+  ) {
+    return false;
+  }
+
+  try {
+    return navigator.canShare({
+      files: [new File(['{}'], 'galactrix.json', { type: 'application/json' })],
+    });
+  } catch {
+    return false;
+  }
+}
+
+export function defaultExportDestination(): ExportDestination {
+  if (canChooseExportFile()) return 'choose-file';
+  if (canShareExportFile()) return 'share';
+  return 'downloads';
+}
+
+export async function exportJsonFile(
+  filename: string,
+  value: unknown,
+  destination: ExportDestination = defaultExportDestination(),
+) {
   const json = JSON.stringify(value, null, 2);
   const file = new File([json], filename, {
     type: 'application/json;charset=utf-8',
   });
 
-  if (
-    typeof navigator.share === 'function' &&
-    typeof navigator.canShare === 'function' &&
-    navigator.canShare({ files: [file] })
-  ) {
+  if (destination === 'choose-file' && canChooseExportFile()) {
+    try {
+      const handle = await (
+        window as SaveFilePickerWindow
+      ).showSaveFilePicker?.({
+        suggestedName: filename,
+        types: [
+          {
+            description: 'Galactrix JSON',
+            accept: { 'application/json': ['.json'] },
+          },
+        ],
+      });
+      if (!handle) return false;
+      const writable = await handle.createWritable();
+      await writable.write(file);
+      await writable.close();
+      return true;
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        return false;
+      }
+      throw error;
+    }
+  }
+
+  if (destination === 'share' && canShareExportFile()) {
     try {
       await navigator.share({ files: [file], title: filename });
       return true;
@@ -29,6 +105,7 @@ export async function exportJsonFile(filename: string, value: unknown) {
       if (error instanceof DOMException && error.name === 'AbortError') {
         return false;
       }
+      throw error;
     }
   }
 

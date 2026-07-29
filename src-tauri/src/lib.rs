@@ -9,7 +9,8 @@ use std::{collections::HashMap, sync::Mutex};
 
 use models::{
     AppSettings, AppSnapshot, ChatConfigInput, CreatedChat, GalaxyItem, GalaxyItemInput, Provider,
-    ProviderImportInput, ProviderInput, ProviderModelResult,
+    PromptPreviewInput, PromptPreviewResult, ProviderImportInput, ProviderInput,
+    ProviderModelResult,
 };
 use rusqlite::Connection;
 use tauri::{Manager, State};
@@ -203,6 +204,93 @@ fn build_chat_system_prompt(
 ) -> Result<Option<String>, String> {
     let context = db::get_chat_prompt_context(database, chat_id)?;
     Ok(prompt_builder::build_system_prompt(&context, history))
+}
+
+fn preview_galaxy_item(input: GalaxyItemInput) -> GalaxyItem {
+    GalaxyItem {
+        id: input.id.unwrap_or_else(|| Uuid::new_v4().to_string()),
+        kind: input.kind,
+        name: input.name,
+        description: input.description,
+        data: input.data,
+        badge: String::new(),
+        accent: String::new(),
+        updated_at: String::new(),
+    }
+}
+
+fn approximate_token_count(value: &str) -> i64 {
+    if value.trim().is_empty() {
+        return 0;
+    }
+
+    value
+        .split_whitespace()
+        .map(|word| {
+            let characters = word.chars().count() as f64;
+            let divisor = if word.is_ascii() { 4.0 } else { 2.4 };
+            (characters / divisor).ceil().max(1.0) as i64
+        })
+        .sum()
+}
+
+#[tauri::command]
+fn preview_prompt(input: PromptPreviewInput) -> PromptPreviewResult {
+    let user_name = input
+        .user_name
+        .as_deref()
+        .map(str::trim)
+        .filter(|name| !name.is_empty())
+        .or_else(|| {
+            input
+                .persona
+                .as_ref()
+                .map(|item| item.name.trim())
+                .filter(|name| !name.is_empty())
+        })
+        .unwrap_or("Пользователь")
+        .to_owned();
+    let character_name = input
+        .character_name
+        .as_deref()
+        .map(str::trim)
+        .filter(|name| !name.is_empty())
+        .or_else(|| {
+            input
+                .character
+                .as_ref()
+                .map(|item| item.name.trim())
+                .filter(|name| !name.is_empty())
+        })
+        .unwrap_or("Ассистент")
+        .to_owned();
+    let context = models::ChatPromptContext {
+        persona: input.persona.map(preview_galaxy_item),
+        character: input.character.map(preview_galaxy_item),
+        universe: input.universe.map(preview_galaxy_item),
+        worldbooks: input
+            .worldbooks
+            .into_iter()
+            .map(preview_galaxy_item)
+            .collect(),
+        character_style: input.character_style.map(preview_galaxy_item),
+        prompt_sets: input
+            .prompt_sets
+            .into_iter()
+            .map(preview_galaxy_item)
+            .collect(),
+        prompt_config: input.prompt_config,
+    };
+    let prompt = prompt_builder::build_system_prompt(&context, &input.remembered_messages)
+        .unwrap_or_default()
+        .replace("{{user}}", &user_name)
+        .replace("{{char}}", &character_name);
+
+    PromptPreviewResult {
+        approximate_tokens: approximate_token_count(&prompt),
+        characters: prompt.chars().count() as i64,
+        prompt,
+    }
 }
 
 #[tauri::command]
@@ -724,6 +812,7 @@ pub fn run() {
             delete_message,
             set_message_remembered,
             select_message_variant,
+            preview_prompt,
             regenerate_message,
             send_chat_message,
             upsert_galaxy_item,

@@ -1,7 +1,9 @@
 import { Button, Input, Label, Surface, TextArea } from '@heroui/react';
 import { AvatarPicker } from '../../../components/ui/AvatarPicker';
 import { UiModal } from '../../../components/ui/UiModal';
+import { PromptPreviewCard } from '../../../components/ui/PromptPreviewCard';
 import { PromptBuilder } from '../../chats/components/PromptBuilder';
+import { promptPreviewFromDraft } from '../../chats/promptPreview';
 import { galaxyInputAvatar, withAvatar } from '../../../lib/avatar';
 import type {
   CharacterData,
@@ -196,6 +198,11 @@ export function GalaxyEditorModal({
             onChange={(data) => onDraftChange({ ...draft, data })}
           />
         ) : null}
+
+        <PromptPreviewCard
+          input={promptPreviewFromDraft(draft, [...styles, ...promptSets])}
+          title="Расчёт текущего промпта"
+        />
 
         {customStyleMissing ? (
           <p className="text-sm text-warning">

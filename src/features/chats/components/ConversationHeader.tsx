@@ -75,7 +75,10 @@ export function ConversationHeader({
               </p>
             </div>
           </Popover.Trigger>
-          <Popover.Content placement="bottom start" className="w-72">
+          <Popover.Content
+            placement="bottom start"
+            className="max-w-sm md:max-w-md lg:max-w-xl"
+          >
             <Popover.Dialog>
               <Popover.Heading className="flex items-center gap-3">
                 <AppAvatar

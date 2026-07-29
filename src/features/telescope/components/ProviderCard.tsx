@@ -1,5 +1,6 @@
 import { Chip, Surface } from '@heroui/react';
 import { Icon } from '../../../components/Icon';
+import { ProviderLogo } from '../../../components/ui/ProviderLogo';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -36,9 +37,7 @@ export function ProviderCard({
             className="flex h-full w-full min-w-0 items-center gap-3 p-4 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus sm:p-5"
             onClick={onEdit}
           >
-            <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-accent/10 text-xs font-semibold text-accent">
-              {provider.name.slice(0, 2).toUpperCase()}
-            </span>
+            <ProviderLogo kind={provider.kind} name={provider.name} />
             <span className="min-w-0 flex-1">
               <span className="flex min-w-0 flex-wrap items-center gap-2">
                 <strong className="min-w-0 flex-1 truncate text-base font-semibold">

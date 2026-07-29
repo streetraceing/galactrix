@@ -9,7 +9,6 @@ export const providerCatalog: Array<{
   requiresAccountId?: boolean;
   requiresApiKey: boolean;
   supportsAutomaticModels: boolean;
-  freeTier?: boolean;
   available?: boolean;
 }> = [
   {
@@ -39,30 +38,27 @@ export const providerCatalog: Array<{
   {
     kind: 'google-gemini',
     name: 'Google Gemini',
-    description: 'Gemini API с бесплатным тарифом и OpenAI-совместимым API',
+    description: 'Gemini API через OpenAI-совместимый endpoint',
     defaultBaseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
     requiresApiKey: true,
     supportsAutomaticModels: true,
-    freeTier: true,
   },
   {
     kind: 'groq',
     name: 'Groq',
-    description: 'Быстрый OpenAI-совместимый API с бесплатными лимитами',
+    description: 'Высокоскоростной OpenAI-совместимый API',
     defaultBaseUrl: 'https://api.groq.com/openai/v1',
     requiresApiKey: true,
     supportsAutomaticModels: true,
-    freeTier: true,
   },
   {
     kind: 'openrouter',
     name: 'OpenRouter',
-    description: 'Много провайдеров, бесплатные модели и автоматический роутер',
+    description: 'Модели разных провайдеров и автоматический роутер',
     defaultBaseUrl: 'https://openrouter.ai/api/v1',
     defaultModel: 'openrouter/free',
     requiresApiKey: true,
     supportsAutomaticModels: true,
-    freeTier: true,
   },
   {
     kind: 'huggingface',
@@ -71,7 +67,6 @@ export const providerCatalog: Array<{
     defaultBaseUrl: 'https://router.huggingface.co/v1',
     requiresApiKey: true,
     supportsAutomaticModels: true,
-    freeTier: true,
   },
   {
     kind: 'ollama',
@@ -80,7 +75,6 @@ export const providerCatalog: Array<{
     defaultBaseUrl: 'http://localhost:11434/api',
     requiresApiKey: false,
     supportsAutomaticModels: true,
-    freeTier: true,
   },
   {
     kind: 'ollama-cloud',

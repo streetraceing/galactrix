@@ -2,14 +2,20 @@ import { Button, Checkbox, Surface, toast } from '@heroui/react';
 import { useEffect, useState } from 'react';
 import { Icon } from '../../components/Icon';
 import { EmptyState } from '../../components/ui/EmptyState';
+import {
+  ExportDestinationPicker,
+  ExportSelectionList,
+} from '../../components/ui/ExportOptions';
 import { MetricGrid } from '../../components/ui/MetricGrid';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { SectionHeader } from '../../components/ui/SectionHeader';
 import { UiModal } from '../../components/ui/UiModal';
 import {
   datedJsonName,
+  defaultExportDestination,
   exportJsonFile,
   importJsonFile,
+  type ExportDestination,
 } from '../../lib/jsonTransfer';
 import type {
   Provider,
@@ -48,6 +54,10 @@ export function TelescopeScreen({
   const [deleteError, setDeleteError] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [exportIds, setExportIds] = useState<string[]>([]);
+  const [exportDestination, setExportDestination] = useState<ExportDestination>(
+    defaultExportDestination,
+  );
   const [includeSecrets, setIncludeSecrets] = useState(false);
   const [transferring, setTransferring] = useState(false);
   const editor = useProviderEditor({ onFetchModels, onSave });
@@ -150,22 +160,24 @@ export function TelescopeScreen({
   };
 
   const exportConnections = async () => {
-    if (transferring) return;
+    if (transferring || exportIds.length === 0) return;
+    const selectedProviders = providers.filter((provider) =>
+      exportIds.includes(provider.id),
+    );
     setTransferring(true);
     try {
-      const secrets = includeSecrets
-        ? await onExportSecrets(providers.map((provider) => provider.id))
-        : {};
+      const secrets = includeSecrets ? await onExportSecrets(exportIds) : {};
       const exported = await exportJsonFile(
         datedJsonName('galactrix-telescope'),
-        createTelescopeExport(providers, secrets),
+        createTelescopeExport(selectedProviders, secrets),
+        exportDestination,
       );
       if (!exported) return;
       setExportOpen(false);
       toast.success('Экспорт Телескопа готов', {
         description: includeSecrets
           ? `Подключения и API-ключи в JSON: ${Object.keys(secrets).length}`
-          : 'API-ключи не включены',
+          : `Подключений без API-ключей: ${selectedProviders.length}`,
       });
     } catch (error) {
       toast.danger('Не удалось экспортировать подключения', {
@@ -210,6 +222,8 @@ export function TelescopeScreen({
                 isDisabled={providers.length === 0}
                 onPress={() => {
                   setIncludeSecrets(false);
+                  setExportIds(providers.map((provider) => provider.id));
+                  setExportDestination(defaultExportDestination());
                   setExportOpen(true);
                 }}
               >
@@ -316,6 +330,7 @@ export function TelescopeScreen({
         onOpenChange={(open) => !transferring && setExportOpen(open)}
         title="Экспорт подключений"
         description="JSON можно импортировать в Galactrix на другом устройстве."
+        size="lg"
         footer={
           <>
             <Button
@@ -328,6 +343,7 @@ export function TelescopeScreen({
             <Button
               variant="primary"
               isPending={transferring}
+              isDisabled={exportIds.length === 0}
               onPress={() => void exportConnections()}
             >
               Экспортировать
@@ -335,31 +351,49 @@ export function TelescopeScreen({
           </>
         }
       >
-        <Checkbox
-          isSelected={includeSecrets}
-          variant="secondary"
-          className="w-full rounded-xl border border-separator"
-          onChange={setIncludeSecrets}
-        >
-          <Checkbox.Content className="w-full items-start px-4 py-4">
-            <Checkbox.Control className="mt-0.5">
-              <Checkbox.Indicator />
-            </Checkbox.Control>
-            <span className="min-w-0">
-              <strong className="block text-sm">Включить API-ключи</strong>
-              <span className="mt-1 block text-xs leading-5 text-muted">
-                По умолчанию ключи остаются только в защищённом хранилище этого
-                устройства.
-              </span>
-            </span>
-          </Checkbox.Content>
-        </Checkbox>
-        {includeSecrets ? (
-          <Surface className="mt-3 rounded-xl border border-warning/30 bg-warning/10 p-3 text-xs leading-5 text-warning">
-            Файл будет содержать ключи открытым текстом. Храните его как пароль
-            и не отправляйте посторонним.
-          </Surface>
-        ) : null}
+        <div className="space-y-5">
+          <ExportSelectionList
+            items={providers.map((provider) => ({
+              id: provider.id,
+              title: provider.name,
+              description: provider.model || 'Модель не выбрана',
+            }))}
+            selectedIds={exportIds}
+            onChange={setExportIds}
+          />
+          <section>
+            <h3 className="mb-2 text-sm font-semibold">Данные подключения</h3>
+            <Checkbox
+              isSelected={includeSecrets}
+              variant="secondary"
+              className="w-full rounded-xl border border-separator"
+              onChange={setIncludeSecrets}
+            >
+              <Checkbox.Content className="w-full items-start px-4 py-4">
+                <Checkbox.Control className="mt-0.5">
+                  <Checkbox.Indicator />
+                </Checkbox.Control>
+                <span className="min-w-0">
+                  <strong className="block text-sm">Включить API-ключи</strong>
+                  <span className="mt-1 block text-xs leading-5 text-muted">
+                    По умолчанию ключи остаются только в защищённом хранилище
+                    этого устройства.
+                  </span>
+                </span>
+              </Checkbox.Content>
+            </Checkbox>
+            {includeSecrets ? (
+              <Surface className="mt-3 rounded-xl border border-warning/30 bg-warning/10 p-3 text-xs leading-5 text-warning">
+                Файл будет содержать ключи открытым текстом. Храните его как
+                пароль и не отправляйте посторонним.
+              </Surface>
+            ) : null}
+          </section>
+          <ExportDestinationPicker
+            value={exportDestination}
+            onChange={setExportDestination}
+          />
+        </div>
       </UiModal>
 
       <UiModal

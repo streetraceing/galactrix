@@ -60,7 +60,7 @@ export function PromptRulesSection({
                 presetIds: presetIds as PromptPresetId[],
               })
             }
-            className="grid gap-2 sm:grid-cols-2"
+            className="flex flex-col gap-2"
             name="prompt-rules"
           >
             {promptPresets.map((preset) => (
@@ -68,7 +68,7 @@ export function PromptRulesSection({
                 key={preset.id}
                 value={preset.id}
                 variant="secondary"
-                className="w-full rounded-xl border border-separator bg-surface transition-colors data-[selected=true]:border-accent/40 data-[selected=true]:bg-accent/5"
+                className="w-full rounded-xl border border-separator bg-surface transition-colors data-[selected=true]:border-accent/40 data-[selected=true]:bg-accent/5 m-0"
               >
                 <Checkbox.Content className="w-full items-start px-3 py-3">
                   <Checkbox.Control className="mt-0.5">

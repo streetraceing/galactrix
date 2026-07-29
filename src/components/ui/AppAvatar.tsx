@@ -26,7 +26,9 @@ export function AppAvatar({
 
   return (
     <Avatar
-      className={`${className} ${shapeClass} shrink-0 bg-accent/10 ring-1 ring-separator`}
+      variant="soft"
+      color="default"
+      className={`${className} ${shapeClass} shrink-0 border border-separator`}
     >
       {src ? (
         <Avatar.Image
@@ -36,7 +38,7 @@ export function AppAvatar({
         />
       ) : null}
       <Avatar.Fallback
-        className={`${shapeClass} border-none bg-accent/10 font-semibold text-accent`}
+        className={`${shapeClass} border-none bg-default font-medium text-muted`}
       >
         {fallback || <Icon name="user" className="size-1/2" />}
       </Avatar.Fallback>

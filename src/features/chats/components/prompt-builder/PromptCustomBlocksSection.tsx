@@ -85,10 +85,6 @@ export function PromptCustomBlocksSection({
       <Accordion.Panel>
         <Accordion.Body className="px-4 pb-5 sm:px-5">
           <div className="mb-3 flex items-center justify-between gap-3">
-            <p className="text-xs text-muted">
-              До 16 блоков. На ПК перетаскивайте их за маркер, на телефоне
-              используйте стрелки.
-            </p>
             <Button
               size="sm"
               variant="secondary"
@@ -107,7 +103,7 @@ export function PromptCustomBlocksSection({
 
           <div className="space-y-3">
             {value.customBlocks.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-separator px-4 py-6 text-center text-sm text-muted">
+              <div className="rounded-xl border border-dashed border-muted px-4 py-6 text-center text-sm text-muted">
                 Пользовательских инструкций пока нет.
               </div>
             ) : null}

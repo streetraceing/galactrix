@@ -317,6 +317,33 @@ pub struct ChatPromptContext {
     pub prompt_config: PromptConfig,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PromptPreviewInput {
+    pub persona: Option<GalaxyItemInput>,
+    pub character: Option<GalaxyItemInput>,
+    pub universe: Option<GalaxyItemInput>,
+    #[serde(default)]
+    pub worldbooks: Vec<GalaxyItemInput>,
+    pub character_style: Option<GalaxyItemInput>,
+    #[serde(default)]
+    pub prompt_sets: Vec<GalaxyItemInput>,
+    #[serde(default)]
+    pub prompt_config: PromptConfig,
+    #[serde(default)]
+    pub remembered_messages: Vec<Message>,
+    pub user_name: Option<String>,
+    pub character_name: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PromptPreviewResult {
+    pub prompt: String,
+    pub approximate_tokens: i64,
+    pub characters: i64,
+}
+
 #[derive(Debug, Clone)]
 pub struct CompletionResult {
     pub content: String,

@@ -1,13 +1,18 @@
 import { Button, Input, Label } from '@heroui/react';
 import { useEffect, useState } from 'react';
 import { UiModal } from '../../../components/ui/UiModal';
+import { PromptPreviewCard } from '../../../components/ui/PromptPreviewCard';
 import type {
+  CharacterData,
   Chat,
   ChatConfigInput,
   GalaxyItem,
+  Message,
+  PromptContextPriorities,
   Provider,
 } from '../../../types';
 import { clonePromptConfig, defaultPromptConfig } from '../promptConfig';
+import { promptPreviewFromChat } from '../promptPreview';
 import { ChatContextPicker } from './ChatContextPicker';
 import { ChatProviderPicker } from './ChatProviderPicker';
 import { PromptBuilder } from './PromptBuilder';
@@ -35,6 +40,8 @@ export function ChatSetupModal({
   chat,
   galaxyItems,
   providers,
+  profileName,
+  rememberedMessages = [],
   saving,
   error,
   onOpenChange,
@@ -44,6 +51,8 @@ export function ChatSetupModal({
   chat: Chat | null;
   galaxyItems: GalaxyItem[];
   providers: Provider[];
+  profileName?: string;
+  rememberedMessages?: Message[];
   saving: boolean;
   error: string;
   onOpenChange: (open: boolean) => void;
@@ -67,6 +76,14 @@ export function ChatSetupModal({
     (block) =>
       !block.enabled || Boolean(block.title.trim() && block.content.trim()),
   );
+  const activePromptSources: Array<keyof PromptContextPriorities> = [
+    ...(form.personaId ? (['persona'] as const) : []),
+    ...(form.characterId ? (['character'] as const) : []),
+    ...(form.universeId ? (['universe'] as const) : []),
+    ...(form.worldbookIds.length ? (['worldbooks'] as const) : []),
+    ...(rememberedMessages.length ? (['remembered'] as const) : []),
+    ...(form.promptConfig.presetIds.length ? (['presets'] as const) : []),
+  ];
 
   return (
     <UiModal
@@ -133,9 +150,25 @@ export function ChatSetupModal({
         <PromptBuilder
           value={form.promptConfig}
           sets={galaxyItems.filter((item) => item.kind === 'prompt-set')}
+          inheritedSetIds={
+            (
+              galaxyItems.find((item) => item.id === form.characterId)?.data as
+                CharacterData | undefined
+            )?.promptSetIds ?? []
+          }
+          activeContextFields={activePromptSources}
           onChange={(promptConfig) =>
             setForm((current) => ({ ...current, promptConfig }))
           }
+        />
+        <PromptPreviewCard
+          input={promptPreviewFromChat(
+            form,
+            galaxyItems,
+            profileName,
+            rememberedMessages,
+          )}
+          title="Расчёт промпта чата"
         />
 
         {error ? (

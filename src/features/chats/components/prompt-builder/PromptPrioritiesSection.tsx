@@ -28,10 +28,12 @@ export function PromptPrioritiesSection({
           {priorityFields.map((field) => (
             <div
               key={field.id}
-              className="grid min-w-0 gap-3 rounded-xl border border-separator bg-surface p-3 sm:grid-cols-[minmax(0,1fr)_9rem] sm:items-center"
+              className="grid min-w-0 gap-3 rounded-xl border border-separator bg-surface p-3 sm:grid-cols-[minmax(0,1fr)] sm:items-center"
             >
               <span className="min-w-0">
-                <strong className="block text-sm">{field.label}</strong>
+                <strong className="block text-sm text-foreground">
+                  {field.label}
+                </strong>
                 <span className="mt-0.5 block text-xs leading-5 text-muted">
                   {field.description}
                 </span>

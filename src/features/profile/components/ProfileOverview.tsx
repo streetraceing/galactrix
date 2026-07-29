@@ -139,7 +139,7 @@ export function ProfileOverview({
             ].map((item) => (
               <div
                 key={item.label}
-                className="flex items-center gap-3 rounded-xl border border-separator px-3 py-3"
+                className="flex items-center gap-3 rounded-xl border border-surface-hover px-3 py-3"
               >
                 <strong className="min-w-10 text-center text-lg tabular-nums grid place-items-center min-h-10 bg-surface-hover rounded-full">
                   {item.value}
