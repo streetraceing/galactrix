@@ -13,6 +13,8 @@ import type { GalaxyItem } from '../../../types';
 import { galaxyItemAvatar } from '../../../lib/avatar';
 import { galaxyKindIcons, galaxyKindLabels } from '../catalog';
 import { galaxyItemDetails } from '../summary';
+import { formatRelativeTime } from '../../../i18n';
+import { useTranslation } from 'react-i18next';
 
 export function GalaxyCard({
   item,
@@ -25,6 +27,7 @@ export function GalaxyCard({
   onDuplicate: () => void;
   onDelete: () => void;
 }) {
+  const { t } = useTranslation('galaxies');
   const details = galaxyItemDetails(item);
   const avatar = galaxyItemAvatar(item);
   const hasIdentityAvatar =
@@ -61,7 +64,7 @@ export function GalaxyCard({
                 </Chip>
               </span>
               <span className="mt-1.5 line-clamp-3 text-sm leading-6 text-muted">
-                {item.description || 'Описание пока не добавлено.'}
+                {item.description || t('galaxyCard.noDescriptionYet')}
               </span>
 
               {details.length > 0 ? (
@@ -73,7 +76,10 @@ export function GalaxyCard({
               ) : null}
 
               <span className="mt-auto flex items-center justify-between gap-3 pt-4 text-xs text-muted">
-                <span>Изменено {item.updatedAt}</span>
+                <span>
+                  {t('galaxyCard.modified')}
+                  {formatRelativeTime(item.updatedAt)}
+                </span>
                 <Icon
                   name="chevron"
                   className="size-4 transition-transform group-hover:translate-x-0.5"
@@ -86,14 +92,14 @@ export function GalaxyCard({
       <ContextMenuContent className="w-56">
         <ContextMenuLabel>{item.name}</ContextMenuLabel>
         <ContextMenuItem onClick={onEdit}>
-          <Icon name="edit" className="size-4" /> Редактировать
+          <Icon name="edit" className="size-4" /> {t('galaxyCard.edit')}
         </ContextMenuItem>
         <ContextMenuItem onClick={onDuplicate}>
-          <Icon name="copy" className="size-4" /> Создать копию
+          <Icon name="copy" className="size-4" /> {t('galaxyCard.createACopy')}
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem variant="destructive" onClick={onDelete}>
-          <Icon name="trash" className="size-4" /> Удалить
+          <Icon name="trash" className="size-4" /> {t('galaxyCard.delete')}
         </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>

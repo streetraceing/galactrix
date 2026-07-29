@@ -3,6 +3,7 @@ import { Icon } from '../../../../components/Icon';
 import type { WorldbookData, WorldbookEntry } from '../../../../types';
 import { createId } from '../../model';
 import { EditorSection } from './EditorSection';
+import { useTranslation } from 'react-i18next';
 
 export function WorldbookEditor({
   data,
@@ -11,6 +12,7 @@ export function WorldbookEditor({
   data: WorldbookData;
   onChange: (data: WorldbookData) => void;
 }) {
+  const { t } = useTranslation('galaxies');
   const patchEntry = <K extends keyof WorldbookEntry>(
     id: string,
     key: K,
@@ -25,8 +27,10 @@ export function WorldbookEditor({
 
   return (
     <EditorSection
-      title="Записи ворлдбука"
-      description="Включённые записи передаются модели вместе с остальным контекстом чата."
+      title={t('worldbookEditor.worldbookEntries')}
+      description={t(
+        'worldbookEditor.enabledEntriesAreSentToTheModelWithTheRest',
+      )}
       action={
         <Button
           size="sm"
@@ -47,13 +51,14 @@ export function WorldbookEditor({
             })
           }
         >
-          <Icon name="plus" className="size-4" /> Запись
+          <Icon name="plus" className="size-4" />{' '}
+          {t('definitionSectionsEditor.entry')}
         </Button>
       }
     >
       {data.entries.length === 0 ? (
         <p className="rounded-xl bg-surface-secondary px-4 py-5 text-center text-sm text-muted">
-          Добавьте первую запись ворлдбука.
+          {t('worldbookEditor.addTheFirstWorldbookEntry')}
         </p>
       ) : (
         <div className="space-y-3">
@@ -65,7 +70,9 @@ export function WorldbookEditor({
               <div className="flex items-center gap-2">
                 <Checkbox
                   isSelected={entry.enabled}
-                  aria-label={`Включить запись ${index + 1}`}
+                  aria-label={t('worldbookEditor.enableEntryLabel', {
+                    value1: index + 1,
+                  })}
                   onChange={(enabled) =>
                     patchEntry(entry.id, 'enabled', enabled)
                   }
@@ -75,8 +82,10 @@ export function WorldbookEditor({
                   fullWidth
                   variant="secondary"
                   value={entry.title}
-                  placeholder="Название записи"
-                  aria-label={`Название записи ${index + 1}`}
+                  placeholder={t('worldbookEditor.entryName')}
+                  aria-label={t('worldbookEditor.entryNameLabel', {
+                    value1: index + 1,
+                  })}
                   onChange={(event) =>
                     patchEntry(entry.id, 'title', event.target.value)
                   }
@@ -85,7 +94,7 @@ export function WorldbookEditor({
                   isIconOnly
                   size="sm"
                   variant="ghost"
-                  aria-label="Удалить запись"
+                  aria-label={t('definitionSectionsEditor.deleteEntry')}
                   onPress={() =>
                     onChange({
                       ...data,
@@ -103,8 +112,10 @@ export function WorldbookEditor({
                 fullWidth
                 variant="secondary"
                 value={entry.keywords}
-                placeholder="Ключевые слова через запятую"
-                aria-label={`Ключевые слова записи ${index + 1}`}
+                placeholder={t('worldbookEditor.commaSeparatedKeywords')}
+                aria-label={t('worldbookEditor.entryKeywordsLabel', {
+                  value1: index + 1,
+                })}
                 onChange={(event) =>
                   patchEntry(entry.id, 'keywords', event.target.value)
                 }
@@ -115,8 +126,10 @@ export function WorldbookEditor({
                 variant="secondary"
                 rows={5}
                 value={entry.content}
-                placeholder="Содержимое записи"
-                aria-label={`Содержимое записи ${index + 1}`}
+                placeholder={t('definitionSectionsEditor.entryContent')}
+                aria-label={t('definitionSectionsEditor.entryContentLabel', {
+                  value1: index + 1,
+                })}
                 onChange={(event) =>
                   patchEntry(entry.id, 'content', event.target.value)
                 }

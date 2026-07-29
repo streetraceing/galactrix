@@ -2,10 +2,10 @@ import { Button, Chip, Popover, Tooltip } from '@heroui/react';
 import { Icon } from '../../../components/Icon';
 import { AppAvatar } from '../../../components/ui/AppAvatar';
 import { galaxyItemAvatar } from '../../../lib/avatar';
-import { countRu } from '../../../lib/plural';
 import type { Chat, GalaxyItem } from '../../../types';
 import type { ChatAction } from '../types';
 import { ChatActionsButton } from './ChatActions';
+import { useTranslation } from 'react-i18next';
 
 export function ConversationHeader({
   chat,
@@ -20,6 +20,7 @@ export function ConversationHeader({
   onBack: () => void;
   onAction: (action: ChatAction, chat: Chat) => void;
 }) {
+  const { t } = useTranslation('chats');
   const contextNames = [
     galaxyItems.find((item) => item.id === chat.personaId)?.name,
     galaxyItems.find((item) => item.id === chat.characterId)?.name,
@@ -41,7 +42,7 @@ export function ConversationHeader({
             size="sm"
             variant="ghost"
             className="shrink-0"
-            aria-label="К списку чатов"
+            aria-label={t('conversationHeader.backToChats')}
             onPress={onBack}
           >
             <Icon name="back" className="size-5" />
@@ -71,7 +72,11 @@ export function ConversationHeader({
               <p className="mt-0.5 truncate text-xs text-muted">
                 {contextNames.length > 0
                   ? contextNames.join(' · ')
-                  : `${countRu(chat.messageCount, ['сообщение', 'сообщения', 'сообщений'])} · контекст не выбран`}
+                  : t('conversationHeader.noContextSummary', {
+                      value1: t('count.message', {
+                        count: chat.messageCount,
+                      }),
+                    })}
               </p>
             </div>
           </Popover.Trigger>
@@ -90,16 +95,13 @@ export function ConversationHeader({
                 <span className="min-w-0">
                   <strong className="block truncate">{chat.title}</strong>
                   <span className="mt-0.5 block text-xs text-muted">
-                    {countRu(chat.messageCount, [
-                      'сообщение',
-                      'сообщения',
-                      'сообщений',
-                    ])}
+                    {t('count.message', { count: chat.messageCount })}
                   </span>
                 </span>
               </Popover.Heading>
               <p className="mt-3 line-clamp-3 text-sm leading-5 text-muted">
-                {chat.preview || 'В этом чате пока нет сообщений.'}
+                {chat.preview ||
+                  t('conversationHeader.thereAreNoMessagesInThisChatYet')}
               </p>
               <div className="mt-3 flex flex-wrap gap-1.5">
                 {contextNames.length > 0 ? (
@@ -110,7 +112,7 @@ export function ConversationHeader({
                   ))
                 ) : (
                   <Chip size="sm" variant="soft">
-                    Контекст не выбран
+                    {t('conversationHeader.noContextSelected')}
                   </Chip>
                 )}
               </div>
@@ -125,13 +127,13 @@ export function ConversationHeader({
               size="sm"
               variant="ghost"
               className="ml-auto shrink-0"
-              aria-label="Настроить контекст чата"
+              aria-label={t('conversationHeader.configureChatContext')}
               onPress={() => onAction('configure', chat)}
             >
               <Icon name="settings" className="size-5" />
             </Button>
           </Tooltip.Trigger>
-          <Tooltip.Content>Настройки чата</Tooltip.Content>
+          <Tooltip.Content>{t('chatSetupModal.chatSettings')}</Tooltip.Content>
         </Tooltip>
         <ChatActionsButton chat={chat} onAction={onAction} />
       </div>

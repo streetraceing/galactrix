@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { toast } from '../../i18n/toast';
 import type {
   Provider,
@@ -19,6 +20,7 @@ export function useProviderEditor({
   ) => Promise<ProviderModelResult>;
   onSave: (provider: ProviderInput, apiKey?: string) => Promise<Provider>;
 }) {
+  const { t } = useTranslation('telescope');
   const [isOpen, setIsOpen] = useState(false);
   const [step, setStep] = useState<1 | 2>(1);
   const [form, setForm] = useState<ProviderInput>(
@@ -114,7 +116,7 @@ export function useProviderEditor({
         },
         token.trim() || undefined,
       );
-      toast.success(`«${saved.name}» сохранено`, {
+      toast.success(t('toast.connectionSaved', { name: saved.name }), {
         description: saved.model,
       });
       setIsOpen(false);

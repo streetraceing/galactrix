@@ -13,7 +13,6 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "jsxImportSource": "@galactrix/i18n",
 
     /* Linting */
     "strict": true,
@@ -23,8 +22,7 @@
 
     /* Import alias */
     "paths": {
-      "@/*": ["./src/*"],
-      "@galactrix/i18n/*": ["./src/i18n/*"]
+      "@/*": ["./src/*"]
     }
   },
   "include": ["src"],

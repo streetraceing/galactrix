@@ -7,6 +7,7 @@ import { AppNotice } from './AppNotice';
 import { DesktopSidebar } from './DesktopSidebar';
 import { DesktopTitlebar } from './DesktopTitlebar';
 import { MobileBottomNavigation } from './MobileBottomNavigation';
+import { useTranslation } from 'react-i18next';
 
 export function ApplicationFrame({
   activeTab,
@@ -35,6 +36,7 @@ export function ApplicationFrame({
   onSettingsPreview: (settings: AppSettings) => void;
   onSettingsCommit: (settings: AppSettings) => void;
 }) {
+  const { t } = useTranslation('common');
   const isMobile = isMobilePlatform();
 
   return (
@@ -75,7 +77,7 @@ export function ApplicationFrame({
             min={196}
             max={420}
             className="max-[1300px]:hidden"
-            label="Изменить ширину основной панели"
+            label={t('applicationFrame.changeMainSidebarWidth')}
             onChange={(sidebarWidth) =>
               onSettingsPreview({ ...settings, sidebarWidth })
             }
@@ -88,7 +90,7 @@ export function ApplicationFrame({
         <section className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-background">
           {loading ? (
             <div className="absolute inset-0 z-40 grid place-items-center bg-background/70 backdrop-blur-sm">
-              <Spinner aria-label="Загрузка" />
+              <Spinner aria-label={t('applicationFrame.loading')} />
             </div>
           ) : null}
 

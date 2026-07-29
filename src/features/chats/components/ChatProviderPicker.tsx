@@ -2,6 +2,7 @@ import { Label, ListBox, Select } from '@heroui/react';
 import type { Key } from 'react';
 import { ProviderLogo } from '../../../components/ui/ProviderLogo';
 import type { Provider } from '../../../types';
+import { useTranslation } from 'react-i18next';
 
 const NONE_KEY = '__none__';
 
@@ -14,16 +15,17 @@ export function ChatProviderPicker({
   value?: string;
   onChange: (value?: string) => void;
 }) {
+  const { t } = useTranslation('chats');
   const selectedProvider = providers.find((provider) => provider.id === value);
 
   return (
     <div className="flex min-w-0 flex-col gap-1.5">
-      <Label>Провайдер</Label>
+      <Label>{t('chatProviderPicker.provider')}</Label>
       <Select
         fullWidth
         variant="secondary"
         value={value ?? NONE_KEY}
-        placeholder="Выберите подключение"
+        placeholder={t('chatProviderPicker.selectAConnection')}
         onChange={(key: Key | Key[] | null) => {
           if (Array.isArray(key)) return;
           const next = key == null ? NONE_KEY : String(key);
@@ -41,7 +43,7 @@ export function ChatProviderPicker({
                 />
               ) : null}
               <span className="block min-w-0 truncate">
-                {selectedProvider?.name ?? 'Без провайдера'}
+                {selectedProvider?.name ?? t('chatProviderPicker.noProvider')}
               </span>
             </span>
           </Select.Value>
@@ -49,8 +51,13 @@ export function ChatProviderPicker({
         </Select.Trigger>
         <Select.Popover>
           <ListBox>
-            <ListBox.Item id={NONE_KEY} textValue="Без провайдера">
-              <span className="text-muted">Без провайдера</span>
+            <ListBox.Item
+              id={NONE_KEY}
+              textValue={t('chatProviderPicker.noProvider')}
+            >
+              <span className="text-muted">
+                {t('chatProviderPicker.noProvider')}
+              </span>
               <ListBox.ItemIndicator />
             </ListBox.Item>
             {providers.map((provider) => (

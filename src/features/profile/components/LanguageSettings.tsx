@@ -1,17 +1,22 @@
 import { Label, ListBox, Select, Surface } from '@heroui/react';
 import type { AppSettings } from '../../../types';
+import { useTranslation } from 'react-i18next';
 
 const languages = [
   {
     id: 'system',
-    label: 'Системный язык',
-    description: 'Автоматически использовать язык устройства',
+    labelKey: 'language.system.label',
+    descriptionKey: 'language.system.description',
   },
-  { id: 'ru', label: 'Русский', description: 'Русский язык интерфейса' },
+  {
+    id: 'ru',
+    labelKey: 'language.ru.label',
+    descriptionKey: 'language.ru.description',
+  },
   {
     id: 'en',
-    label: 'Английский',
-    description: 'Английский язык интерфейса',
+    labelKey: 'language.en.label',
+    descriptionKey: 'language.en.description',
   },
 ] as const;
 
@@ -22,16 +27,19 @@ export function LanguageSettings({
   value: AppSettings['language'];
   onChange: (value: AppSettings['language']) => void;
 }) {
+  const { t } = useTranslation('profile');
   return (
     <Surface className="rounded-2xl border border-separator p-4 sm:p-5">
-      <h2 className="section-title">Язык интерфейса</h2>
+      <h2 className="section-title">
+        {t('languageSettings.interfaceLanguage')}
+      </h2>
       <p className="section-description">
-        По умолчанию Galactrix следует языку устройства.
+        {t('languageSettings.byDefaultGalactrixFollowsTheDeviceLanguage')}
       </p>
       <div className="mt-4 flex max-w-md flex-col gap-1.5">
-        <Label>Язык</Label>
+        <Label>{t('languageSettings.language')}</Label>
         <Select
-          aria-label="Язык интерфейса"
+          aria-label={t('languageSettings.interfaceLanguage')}
           variant="secondary"
           value={value}
           onChange={(nextValue) => {
@@ -50,14 +58,14 @@ export function LanguageSettings({
                 <ListBox.Item
                   key={language.id}
                   id={language.id}
-                  textValue={language.label}
+                  textValue={t(language.labelKey)}
                 >
                   <span className="min-w-0">
                     <strong className="block text-sm font-medium">
-                      {language.label}
+                      {t(language.labelKey)}
                     </strong>
                     <span className="block text-xs text-muted">
-                      {language.description}
+                      {t(language.descriptionKey)}
                     </span>
                   </span>
                   <ListBox.ItemIndicator />

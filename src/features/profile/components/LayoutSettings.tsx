@@ -1,4 +1,5 @@
 import { Button, Surface } from '@heroui/react';
+import { useTranslation } from 'react-i18next';
 
 export function LayoutSettings({
   sidebarWidth,
@@ -9,12 +10,14 @@ export function LayoutSettings({
   chatSidebarWidth: number;
   onReset: () => void;
 }) {
+  const { t } = useTranslation('profile');
   return (
     <Surface className="h-full flex-col rounded-2xl border border-separator p-4 sm:p-5 hidden sm:flex">
       <div>
-        <h2 className="section-title">Ширина панелей</h2>
+        <h2 className="section-title">{t('layoutSettings.panelWidths')}</h2>
         <p className="section-description">
-          Основная {Math.round(sidebarWidth)} px · Чаты{' '}
+          {t('layoutSettings.main')}
+          {Math.round(sidebarWidth)} {t('layoutSettings.pxChats')}{' '}
           {Math.round(chatSidebarWidth)} px
         </p>
       </div>
@@ -24,7 +27,7 @@ export function LayoutSettings({
         className="mt-5 self-start md:mt-auto"
         onPress={onReset}
       >
-        Сбросить ширину
+        {t('layoutSettings.resetWidths')}
       </Button>
     </Surface>
   );

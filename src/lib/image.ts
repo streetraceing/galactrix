@@ -1,3 +1,5 @@
+import { i18next } from '../i18n';
+
 const MAX_SOURCE_BYTES = 12 * 1024 * 1024;
 const MAX_AVATAR_LENGTH = 600_000;
 
@@ -23,7 +25,7 @@ function loadImage(file: File) {
     };
     image.onerror = () => {
       URL.revokeObjectURL(source);
-      reject(new Error('Не удалось прочитать изображение'));
+      reject(new Error(i18next.t('errors.image.read')));
     };
     image.src = source;
   });
@@ -37,7 +39,9 @@ function renderSquare(
   canvas.width = size;
   canvas.height = size;
   const context = canvas.getContext('2d');
-  if (!context) throw new Error('Обработка изображений недоступна');
+  if (!context) {
+    throw new Error(i18next.t('errors.image.processingUnavailable'));
+  }
 
   const sourceSize = Math.min(image.naturalWidth, image.naturalHeight);
   const sourceX = (image.naturalWidth - sourceSize) / 2;
@@ -62,15 +66,15 @@ function renderSquare(
 
 export async function prepareAvatar(file: File) {
   if (!file.type.startsWith('image/')) {
-    throw new Error('Выберите изображение');
+    throw new Error(i18next.t('errors.image.select'));
   }
   if (file.size > MAX_SOURCE_BYTES) {
-    throw new Error('Исходный файл должен быть меньше 12 МБ');
+    throw new Error(i18next.t('errors.image.tooLarge'));
   }
 
   const image = await loadImage(file);
   if (!image.naturalWidth || !image.naturalHeight) {
-    throw new Error('Изображение повреждено');
+    throw new Error(i18next.t('errors.image.corrupt'));
   }
 
   for (const attempt of attempts) {
@@ -78,5 +82,5 @@ export async function prepareAvatar(file: File) {
     if (avatar.length <= MAX_AVATAR_LENGTH) return avatar;
   }
 
-  throw new Error('Не удалось достаточно уменьшить изображение');
+  throw new Error(i18next.t('errors.image.compress'));
 }

@@ -8,6 +8,7 @@ import { useMediaQuery } from '../../hooks/useMediaQuery';
 import type { TabId } from '../../types';
 import { Icon } from '../Icon';
 import { AppAvatar } from '../ui/AppAvatar';
+import { useTranslation } from 'react-i18next';
 
 export function DesktopSidebar({
   activeTab,
@@ -28,6 +29,7 @@ export function DesktopSidebar({
   onNavigate: (tab: TabId) => void;
   onToggleCollapsed: () => void;
 }) {
+  const { t } = useTranslation('common');
   const forcedCompact = useMediaQuery('(max-width: 920px)');
   const compact = collapsed || forcedCompact;
 
@@ -44,7 +46,7 @@ export function DesktopSidebar({
     >
       <nav
         className="flex flex-1 flex-col gap-1 px-2 pt-3"
-        aria-label="Основная навигация"
+        aria-label={t('desktopSidebar.mainNavigation')}
       >
         {primaryNavigationItems.map((item) => (
           <Button
@@ -90,14 +92,14 @@ export function DesktopSidebar({
             className="justify-start gap-2 group-data-collapsed/sidebar:justify-center"
             aria-label={
               collapsed
-                ? 'Развернуть боковую панель'
-                : 'Свернуть боковую панель'
+                ? t('desktopSidebar.expandSidebar')
+                : t('desktopSidebar.collapseSidebar')
             }
             onPress={onToggleCollapsed}
           >
             <Icon name="sidebar" className="size-4" />
             <span className="group-data-collapsed/sidebar:hidden">
-              Свернуть панель
+              {t('desktopSidebar.collapsePanel')}
             </span>
           </Button>
         ) : null}

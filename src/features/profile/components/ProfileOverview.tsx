@@ -1,9 +1,9 @@
 import { Surface } from '@heroui/react';
 import { MetricGrid } from '../../../components/ui/MetricGrid';
-import { formatNumber } from '../../../i18n';
-import { pluralRu } from '../../../lib/plural';
+import { formatNumber, i18next } from '../../../i18n';
 import type { GalaxyItem, UsagePoint } from '../../../types';
 import { formatTokenCount, formatTokens } from '../format';
+import { useTranslation } from 'react-i18next';
 
 function sum(
   points: UsagePoint[],
@@ -13,10 +13,17 @@ function sum(
 }
 
 function comparison(current: number, previous: number) {
-  if (current === 0 && previous === 0) return 'без изменений';
-  if (previous === 0) return 'первые данные за период';
+  if (current === 0 && previous === 0) {
+    return i18next.t('trend.unchanged', { ns: 'profile' });
+  }
+  if (previous === 0) {
+    return i18next.t('trend.firstData', { ns: 'profile' });
+  }
   const change = Math.round(((current - previous) / previous) * 100);
-  return `${change > 0 ? '+' : ''}${change}% к прошлой неделе`;
+  return i18next.t('trend.comparedToLastWeek', {
+    ns: 'profile',
+    value: `${change > 0 ? '+' : ''}${change}`,
+  });
 }
 
 export function ProfileOverview({
@@ -32,6 +39,7 @@ export function ProfileOverview({
   providerCount: number;
   galaxyItems: GalaxyItem[];
 }) {
+  const { t } = useTranslation('profile');
   const current = usage.slice(-7);
   const previous = usage.slice(-14, -7);
   const tokens = sum(current, 'tokens');
@@ -54,43 +62,49 @@ export function ProfileOverview({
       <MetricGrid
         metrics={[
           {
-            label: 'Токены за 7 дней',
+            label: t('profileOverview.tokensOver7Days'),
             value: formatTokens(tokens),
             note: comparison(tokens, sum(previous, 'tokens')),
           },
           {
-            label: 'Запросы к моделям',
+            label: t('profileOverview.modelRequests'),
             value: formatNumber(requests),
             note: comparison(requests, sum(previous, 'requests')),
           },
           {
-            label: 'Среднее на запрос',
+            label: t('profileOverview.averagePerRequest'),
             value: formatTokens(average),
-            note: `${outputShare}% приходится на ответы`,
+            note: t('profileOverview.responseShare', { value1: outputShare }),
           },
           {
-            label: 'Активные дни',
+            label: t('profileOverview.activeDays'),
             value: `${activeDays} / 7`,
             note:
               activeDays > 0
-                ? `${formatTokenCount(input)} контекста`
-                : 'нет запросов',
+                ? t('profileOverview.contextUsage', {
+                    value1: formatTokenCount(input),
+                  })
+                : t('profileOverview.noRequests'),
           },
         ]}
       />
 
       <div className="grid gap-4 md:grid-cols-2">
         <Surface className="rounded-2xl border border-separator p-4 sm:p-5">
-          <h2 className="section-title">Библиотека и диалоги</h2>
+          <h2 className="section-title">
+            {t('profileOverview.libraryAndChats')}
+          </h2>
           <p className="section-description">
-            Сколько контекста уже подготовлено для общения.
+            {t(
+              'profileOverview.howMuchContextIsAlreadyPreparedForConversation',
+            )}
           </p>
           <dl className="mt-4 grid grid-cols-2 gap-3">
             {[
-              ['Чаты', chatCount],
-              ['Сообщения', messageCount],
-              ['Персоны', personas],
-              ['Персонажи', characters],
+              [t('profileOverview.chats'), chatCount],
+              [t('profileOverview.messages'), messageCount],
+              [t('profileOverview.personas'), personas],
+              [t('profileOverview.characters'), characters],
             ].map(([label, value]) => (
               <div
                 key={label}
@@ -106,36 +120,34 @@ export function ProfileOverview({
         </Surface>
 
         <Surface className="rounded-2xl border border-separator p-4 sm:p-5">
-          <h2 className="section-title">Готовность приложения</h2>
+          <h2 className="section-title">{t('profileOverview.appReadiness')}</h2>
           <p className="section-description">
-            Быстрый срез настроенного окружения.
+            {t('profileOverview.aQuickSummaryOfTheConfiguredEnvironment')}
           </p>
           <div className="mt-4 space-y-3">
             {[
               {
-                label: 'Подключения',
+                label: t('profileOverview.connections'),
                 value: providerCount,
                 detail:
                   providerCount > 0
-                    ? 'можно отправлять запросы'
-                    : 'нужно добавить провайдера',
+                    ? t('profileOverview.readyToSendRequests')
+                    : t('profileOverview.aProviderMustBeAdded'),
               },
               {
-                label: 'Лор и стили',
+                label: t('profileOverview.loreAndStyles'),
                 value: lore,
                 detail:
                   lore > 0
-                    ? 'готовы к подключению к чатам'
-                    : 'контекст мира пока пуст',
+                    ? t('profileOverview.readyToConnectToChats')
+                    : t('profileOverview.worldContextIsEmpty'),
               },
               {
-                label: 'Средняя длина чата',
+                label: t('profileOverview.averageChatLength'),
                 value: averageChatLength,
-                detail: pluralRu(averageChatLength, [
-                  'сообщение на диалог',
-                  'сообщения на диалог',
-                  'сообщений на диалог',
-                ]),
+                detail: t('count.messagePerChat', {
+                  count: averageChatLength,
+                }),
               },
             ].map((item) => (
               <div

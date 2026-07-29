@@ -393,7 +393,7 @@ fn list_chats(connection: &Connection) -> Result<Vec<Chat>, String> {
                 id,
                 title,
                 preview,
-                updated_at: relative_time(updated_at),
+                updated_at,
                 message_count,
                 pinned,
                 provider_id,
@@ -508,7 +508,7 @@ fn list_galaxy_items(connection: &Connection) -> Result<Vec<GalaxyItem>, String>
                 data: serde_json::from_str(&data_json).unwrap_or(Value::Object(Default::default())),
                 badge: row.get(5)?,
                 accent: row.get(6)?,
-                updated_at: relative_time(row.get(7)?),
+                updated_at: row.get(7)?,
             })
         })
         .map_err(|error| error.to_string())?
@@ -581,15 +581,6 @@ fn get_settings(connection: &Connection) -> Result<AppSettings, String> {
 
 fn usage_history(connection: &Connection) -> Result<Vec<UsagePoint>, String> {
     const DAY_SECONDS: i64 = 86_400;
-    const LABELS: [&str; 7] = [
-        "weekday.mon",
-        "weekday.tue",
-        "weekday.wed",
-        "weekday.thu",
-        "weekday.fri",
-        "weekday.sat",
-        "weekday.sun",
-    ];
 
     let today = now_unix().div_euclid(DAY_SECONDS);
     let earliest_timestamp = connection
@@ -634,10 +625,8 @@ fn usage_history(connection: &Connection) -> Result<Vec<UsagePoint>, String> {
     for day in first_day..=today {
         let (input_tokens, output_tokens, requests) =
             totals.get(&day).copied().unwrap_or_default();
-        let weekday = (day + 3).rem_euclid(7) as usize;
         points.push(UsagePoint {
             day,
-            label: LABELS[weekday].into(),
             input_tokens,
             output_tokens,
             tokens: input_tokens + output_tokens,
@@ -1563,7 +1552,7 @@ pub fn upsert_galaxy_item(
         data: input.data.clone(),
         badge: badge.into(),
         accent: accent.into(),
-        updated_at: relative_time(now),
+        updated_at: now,
     })
 }
 
@@ -1717,7 +1706,7 @@ fn get_galaxy_item(connection: &Connection, id: &str) -> Result<GalaxyItem, Stri
                         .unwrap_or(Value::Object(Default::default())),
                     badge: row.get(5)?,
                     accent: row.get(6)?,
-                    updated_at: relative_time(row.get(7)?),
+                    updated_at: row.get(7)?,
                 })
             },
         )
@@ -2023,17 +2012,6 @@ fn now_unix() -> i64 {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs() as i64
-}
-
-fn relative_time(timestamp: i64) -> String {
-    let seconds = now_unix().saturating_sub(timestamp);
-    match seconds {
-        0..=59 => "time.now".into(),
-        60..=3_599 => format!("time.minutes:{}", seconds / 60),
-        3_600..=86_399 => format!("time.hours:{}", seconds / 3_600),
-        86_400..=604_799 => format!("time.days:{}", seconds / 86_400),
-        _ => "time.longAgo".into(),
-    }
 }
 
 fn clock_time(timestamp: i64) -> String {

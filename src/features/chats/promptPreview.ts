@@ -6,6 +6,7 @@ import type {
   Message,
   PromptPreviewInput,
 } from '../../types';
+import { i18next } from '../../i18n';
 import { clonePromptConfig, defaultPromptConfig } from './promptConfig';
 
 function asInput(item: GalaxyItem): GalaxyItemInput {
@@ -106,7 +107,7 @@ export function promptPreviewFromDraft(
     case 'style':
       input.character = {
         kind: 'character',
-        name: 'Персонаж',
+        name: i18next.t('preview.character', { ns: 'chats' }),
         description: '',
         data: {
           definitionSections: [],

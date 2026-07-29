@@ -2,6 +2,7 @@ import { Button, Input } from '@heroui/react';
 import type { ChangeEvent, KeyboardEvent } from 'react';
 import { UiModal } from '../../../components/ui/UiModal';
 import type { Chat } from '../../../types';
+import { useTranslation } from 'react-i18next';
 
 export function ChatDialogs({
   renameTarget,
@@ -26,13 +27,14 @@ export function ChatDialogs({
   onCloseRename: () => void;
   onCloseConfirm: () => void;
 }) {
+  const { t } = useTranslation('chats');
   return (
     <>
       <UiModal
         isOpen={Boolean(renameTarget)}
         onOpenChange={(open) => !open && !working && onCloseRename()}
-        title="Переименовать чат"
-        description="Введите новое название."
+        title={t('chatDialogs.renameChat')}
+        description={t('chatDialogs.enterANewName')}
         footer={
           <>
             <Button
@@ -40,7 +42,7 @@ export function ChatDialogs({
               isDisabled={working}
               onPress={onCloseRename}
             >
-              Отмена
+              {t('chatDialogs.cancel')}
             </Button>
             <Button
               variant="primary"
@@ -48,7 +50,7 @@ export function ChatDialogs({
               isDisabled={!renameValue.trim()}
               onPress={onCommitRename}
             >
-              Сохранить
+              {t('chatDialogs.save')}
             </Button>
           </>
         }
@@ -66,7 +68,7 @@ export function ChatDialogs({
           onKeyDown={(event: KeyboardEvent<HTMLInputElement>) => {
             if (event.key === 'Enter') onCommitRename();
           }}
-          aria-label="Новое название чата"
+          aria-label={t('chatDialogs.newChatName')}
         />
         {error ? (
           <p className="selectable mt-2 text-sm text-danger">{error}</p>
@@ -78,13 +80,17 @@ export function ChatDialogs({
         onOpenChange={(open) => !open && !working && onCloseConfirm()}
         title={
           confirmTarget?.type === 'delete'
-            ? 'Удалить чат?'
-            : 'Очистить историю?'
+            ? t('chatDialogs.deleteChat')
+            : t('chatDialogs.clearHistory')
         }
         description={
           confirmTarget?.type === 'delete'
-            ? `Чат «${confirmTarget.chat.title}» и все сообщения будут удалены.`
-            : `Все сообщения из чата «${confirmTarget?.chat.title ?? ''}» будут удалены.`
+            ? t('chatDialogs.chatValue1AndAllItsMessagesWillBeDeleted', {
+                value1: confirmTarget.chat.title,
+              })
+            : t('chatDialogs.allMessagesInValue1WillBeDeleted', {
+                value1: confirmTarget?.chat.title ?? '',
+              })
         }
         footer={
           <>
@@ -93,20 +99,22 @@ export function ChatDialogs({
               isDisabled={working}
               onPress={onCloseConfirm}
             >
-              Отмена
+              {t('chatDialogs.cancel')}
             </Button>
             <Button
               variant="danger"
               isPending={working}
               onPress={onCommitDestructive}
             >
-              {confirmTarget?.type === 'delete' ? 'Удалить' : 'Очистить'}
+              {confirmTarget?.type === 'delete'
+                ? t('chatDialogs.delete')
+                : t('chatDialogs.clear')}
             </Button>
           </>
         }
       >
         <p className="text-sm leading-6 text-muted">
-          Это действие нельзя отменить.
+          {t('chatDialogs.thisActionCannotBeUndone')}
         </p>
         {error ? (
           <p className="selectable mt-2 text-sm text-danger">{error}</p>

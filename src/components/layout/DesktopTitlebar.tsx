@@ -8,6 +8,7 @@ import type { Chat, TabId } from '../../types';
 import { BrandMark } from '../BrandMark';
 import { Icon } from '../Icon';
 import type { IconName } from '../Icon';
+import { useTranslation } from 'react-i18next';
 
 type Command = {
   id: string;
@@ -31,6 +32,7 @@ export function DesktopTitlebar({
   onOpenChat: (chatId: string) => void;
   onToggleSidebar: () => void;
 }) {
+  const { t } = useTranslation('common');
   const [query, setQuery] = useState('');
   const [focused, setFocused] = useState(false);
   const [maximized, setMaximized] = useState(false);
@@ -42,8 +44,8 @@ export function DesktopTitlebar({
     () => [
       {
         id: 'new-chat',
-        label: 'Начать новый чат',
-        hint: 'Создать чат с провайдером и ролевым контекстом',
+        label: t('desktopTitlebar.startANewChat'),
+        hint: t('desktopTitlebar.createAChatWithAProviderAndRoleplayContext'),
         icon: 'plus',
         shortcut: 'Ctrl+N',
         run: () => {
@@ -56,24 +58,27 @@ export function DesktopTitlebar({
       },
       ...navigationItems.map((item, index) => ({
         id: item.id,
-        label: `Открыть: ${item.label}`,
-        hint: item.id === activeTab ? 'Текущая вкладка' : 'Перейти к разделу',
+        label: t('desktopTitlebar.openSection', { value1: item.label }),
+        hint:
+          item.id === activeTab
+            ? t('desktopTitlebar.currentTab')
+            : t('desktopTitlebar.goToSection'),
         icon: item.icon,
         shortcut: `Ctrl+${index + 1}`,
         run: () => onNavigate(item.id),
       })),
       {
         id: 'toggle-sidebar',
-        label: 'Переключить боковую панель',
-        hint: 'Свернуть или развернуть навигацию',
+        label: t('desktopTitlebar.toggleSidebar'),
+        hint: t('desktopTitlebar.collapseOrExpandNavigation'),
         icon: 'sidebar',
         shortcut: 'Ctrl+B',
         run: onToggleSidebar,
       },
       {
         id: 'new-galaxy-item',
-        label: 'Создать объект Галактики',
-        hint: 'Открыть редактор в текущем разделе библиотеки',
+        label: t('desktopTitlebar.createGalaxyObject'),
+        hint: t('desktopTitlebar.openTheEditorInTheCurrentLibrarySection'),
         icon: 'galaxies',
         shortcut: 'Ctrl+Shift+G',
         run: () => {
@@ -86,8 +91,8 @@ export function DesktopTitlebar({
       },
       {
         id: 'new-provider',
-        label: 'Добавить подключение',
-        hint: 'Открыть выбор провайдера в Телескопе',
+        label: t('desktopTitlebar.addConnection'),
+        hint: t('desktopTitlebar.openProviderSelectionInTelescope'),
         icon: 'telescope',
         shortcut: 'Ctrl+Shift+P',
         run: () => {
@@ -100,15 +105,15 @@ export function DesktopTitlebar({
       },
       {
         id: 'toggle-maximize',
-        label: 'Развернуть или восстановить окно',
-        hint: 'Изменить режим главного окна',
+        label: t('desktopTitlebar.maximizeOrRestoreWindow'),
+        hint: t('desktopTitlebar.changeMainWindowMode'),
         icon: 'maximize',
         run: () => void appWindow.toggleMaximize(),
       },
       {
         id: 'minimize-window',
-        label: 'Свернуть окно',
-        hint: 'Оставить Galactrix в панели задач',
+        label: t('desktopTitlebar.minimizeWindow'),
+        hint: t('desktopTitlebar.keepGalactrixInTheTaskbar'),
         icon: 'minimize',
         run: () => void appWindow.minimize(),
       },
@@ -261,8 +266,8 @@ export function DesktopTitlebar({
               <SearchField.SearchIcon />
               <SearchField.Input
                 ref={searchInputRef}
-                placeholder="Команда или поиск по чатам"
-                aria-label="Поиск и команды"
+                placeholder={t('desktopTitlebar.commandOrChatSearch')}
+                aria-label={t('desktopTitlebar.searchAndCommands')}
                 autoComplete="off"
                 className="min-w-0"
                 onKeyDown={(event) => {
@@ -282,7 +287,9 @@ export function DesktopTitlebar({
                 </Kbd.Abbr>
                 <Kbd.Content>K</Kbd.Content>
               </Kbd>
-              <SearchField.ClearButton aria-label="Очистить поиск" />
+              <SearchField.ClearButton
+                aria-label={t('desktopTitlebar.clearSearch')}
+              />
             </SearchField.Group>
           </SearchField>
 
@@ -292,7 +299,7 @@ export function DesktopTitlebar({
               variant="transparent"
             >
               <p className="px-3 pb-1 pt-2 text-[0.65rem] font-semibold uppercase tracking-wide text-muted">
-                Команды
+                {t('desktopTitlebar.commands')}
               </p>
               {filteredCommands.slice(0, 9).map((command) => (
                 <Button
@@ -322,7 +329,7 @@ export function DesktopTitlebar({
                 <>
                   <div className="mx-2 my-1 h-px bg-separator" />
                   <p className="px-3 pb-1 pt-1 text-[0.65rem] font-semibold uppercase tracking-wide text-muted">
-                    Чаты
+                    {t('desktopTitlebar.chats')}
                   </p>
                   {filteredChats.map((chat) => (
                     <Button
@@ -342,7 +349,7 @@ export function DesktopTitlebar({
                           {chat.title}
                         </span>
                         <span className="block truncate text-xs text-muted">
-                          {chat.preview || 'Открыть чат'}
+                          {chat.preview || t('desktopTitlebar.openChat')}
                         </span>
                       </span>
                     </Button>
@@ -351,7 +358,7 @@ export function DesktopTitlebar({
               ) : null}
               {filteredCommands.length === 0 && filteredChats.length === 0 ? (
                 <p className="px-3 py-3 text-sm text-muted">
-                  Команды не найдены
+                  {t('desktopTitlebar.noCommandsFound')}
                 </p>
               ) : null}
             </Surface>
@@ -365,7 +372,7 @@ export function DesktopTitlebar({
           size="sm"
           variant="ghost"
           className="h-full w-12 min-w-12 rounded-none"
-          aria-label="Свернуть окно"
+          aria-label={t('desktopTitlebar.minimizeWindow')}
           onPress={() => void appWindow.minimize()}
         >
           <Icon name="minimize" className="size-4" />
@@ -375,7 +382,11 @@ export function DesktopTitlebar({
           size="sm"
           variant="ghost"
           className="h-full w-12 min-w-12 rounded-none"
-          aria-label={maximized ? 'Восстановить окно' : 'Развернуть окно'}
+          aria-label={
+            maximized
+              ? t('desktopTitlebar.restoreWindow')
+              : t('desktopTitlebar.maximizeWindow')
+          }
           onPress={() => void toggleWindowMaximize()}
         >
           <Icon
@@ -388,7 +399,7 @@ export function DesktopTitlebar({
           size="sm"
           variant="ghost"
           className="h-full w-12 min-w-12 rounded-none hover:bg-danger hover:text-danger-foreground"
-          aria-label="Закрыть окно"
+          aria-label={t('desktopTitlebar.closeWindow')}
           onPress={() => void appWindow.close()}
         >
           <Icon name="close" className="size-4" />

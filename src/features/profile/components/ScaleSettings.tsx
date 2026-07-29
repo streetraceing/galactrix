@@ -1,4 +1,5 @@
 import { Button, ListBox, Select, Surface } from '@heroui/react';
+import { useTranslation } from 'react-i18next';
 
 const scales = [0.8, 0.9, 1, 1.1, 1.25, 1.4, 1.5];
 
@@ -9,6 +10,7 @@ export function ScaleSettings({
   value: number;
   onChange: (value: number) => void;
 }) {
+  const { t } = useTranslation('profile');
   const currentIndex = scales.reduce((closestIndex, scale, index) => {
     const currentDifference = Math.abs(scales[closestIndex] - value);
     const nextDifference = Math.abs(scale - value);
@@ -38,9 +40,10 @@ export function ScaleSettings({
     <Surface className="h-full rounded-2xl border border-separator p-4 sm:p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="section-title">Масштаб интерфейса</h2>
+          <h2 className="section-title">{t('scaleSettings.interfaceScale')}</h2>
           <p className="section-description">
-            Текущий масштаб: {Math.round(value * 100)}%.
+            {t('scaleSettings.currentScale')}
+            {Math.round(value * 100)}%.
           </p>
         </div>
 
@@ -50,13 +53,13 @@ export function ScaleSettings({
           isDisabled={value === 1}
           onPress={() => onChange(1)}
         >
-          Сбросить
+          {t('scaleSettings.reset')}
         </Button>
       </div>
 
       <div className="mt-4 flex items-center gap-2">
         <Button
-          aria-label="Уменьшить масштаб"
+          aria-label={t('scaleSettings.decreaseScale')}
           size="sm"
           variant="secondary"
           isIconOnly
@@ -69,7 +72,7 @@ export function ScaleSettings({
         </Button>
 
         <Select
-          aria-label="Масштаб интерфейса"
+          aria-label={t('scaleSettings.interfaceScale')}
           className="min-w-0 flex-1"
           variant="secondary"
           value={String(currentScale)}
@@ -110,7 +113,7 @@ export function ScaleSettings({
         </Select>
 
         <Button
-          aria-label="Увеличить масштаб"
+          aria-label={t('scaleSettings.increaseScale')}
           size="sm"
           variant="secondary"
           isIconOnly

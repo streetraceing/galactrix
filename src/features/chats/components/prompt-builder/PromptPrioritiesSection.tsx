@@ -2,6 +2,7 @@ import { Accordion } from '@heroui/react';
 import type { PromptConfig } from '../../../../types';
 import { priorityFields } from './promptBuilderModel';
 import { PromptPrioritySelect } from './PromptPrioritySelect';
+import { useTranslation } from 'react-i18next';
 
 export function PromptPrioritiesSection({
   value,
@@ -10,14 +11,19 @@ export function PromptPrioritiesSection({
   value: PromptConfig;
   onChange: (value: PromptConfig) => void;
 }) {
+  const { t } = useTranslation('chats');
   return (
     <Accordion.Item id="priorities">
       <Accordion.Heading>
         <Accordion.Trigger className="px-4 sm:px-5">
           <span className="min-w-0 flex-1 text-left">
-            <strong className="block text-sm">Приоритеты источников</strong>
+            <strong className="block text-sm">
+              {t('promptPrioritiesSection.sourcePriorities')}
+            </strong>
             <span className="mt-0.5 block text-xs font-normal text-muted">
-              Управляют порядком и силой частей системного промпта
+              {t(
+                'promptPrioritiesSection.controlsTheOrderAndStrengthOfSystemPromptParts',
+              )}
             </span>
           </span>
           <Accordion.Indicator />
@@ -40,7 +46,9 @@ export function PromptPrioritiesSection({
               </span>
               <PromptPrioritySelect
                 value={value.contextPriorities[field.id]}
-                label={`Приоритет: ${field.label}`}
+                label={t('promptPrioritiesSection.priorityValue1', {
+                  value1: field.label,
+                })}
                 onChange={(priority) =>
                   onChange({
                     ...value,

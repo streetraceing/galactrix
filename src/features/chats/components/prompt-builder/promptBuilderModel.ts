@@ -8,6 +8,14 @@ import type {
   PromptSetData,
 } from '../../../../types';
 import { promptPriorities } from '../../promptConfig';
+import { translate, type TranslationKey } from '../../../../i18n';
+
+function promptText(
+  key: TranslationKey<'chats'>,
+  variables?: Record<string, string | number>,
+) {
+  return translate('chats', key, variables);
+}
 
 export const priorityFields: Array<{
   id: keyof PromptContextPriorities;
@@ -16,33 +24,57 @@ export const priorityFields: Array<{
 }> = [
   {
     id: 'persona',
-    label: 'Персона пользователя',
-    description: 'Сведения о {{user}}',
+    get label() {
+      return promptText('source.persona.label');
+    },
+    get description() {
+      return promptText('source.persona.description');
+    },
   },
   {
     id: 'character',
-    label: 'Персонаж',
-    description: 'Личность и поведение {{char}}',
+    get label() {
+      return promptText('source.character.label');
+    },
+    get description() {
+      return promptText('source.character.description');
+    },
   },
   {
     id: 'universe',
-    label: 'Вселенная',
-    description: 'Законы и факты мира',
+    get label() {
+      return promptText('source.universe.label');
+    },
+    get description() {
+      return promptText('source.universe.description');
+    },
   },
   {
     id: 'worldbooks',
-    label: 'Ворлдбуки',
-    description: 'Подключённые записи лора',
+    get label() {
+      return promptText('source.worldbooks.label');
+    },
+    get description() {
+      return promptText('source.worldbooks.description');
+    },
   },
   {
     id: 'remembered',
-    label: 'Память',
-    description: 'Сообщения, отмеченные как важные',
+    get label() {
+      return promptText('source.memory.label');
+    },
+    get description() {
+      return promptText('source.memory.description');
+    },
   },
   {
     id: 'presets',
-    label: 'Правила ответа',
-    description: 'Выбранные ограничения формата',
+    get label() {
+      return promptText('source.rules.label');
+    },
+    get description() {
+      return promptText('source.rules.description');
+    },
   },
 ];
 
@@ -60,7 +92,7 @@ export function createPromptBlock(): PromptBlock {
       typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
         ? crypto.randomUUID()
         : `prompt-${Date.now()}`,
-    title: 'Новая инструкция',
+    title: promptText('customBlock.defaultTitle'),
     content: '',
     priority: 'high',
     enabled: true,
@@ -90,7 +122,9 @@ export function getPromptOrderPreview(
       entries.push({
         id: `set:${set.id}:rules`,
         title: set.name,
-        description: `Набор · ${config.presetIds.length} правил`,
+        description: promptText('promptSet.ruleCount', {
+          count: config.presetIds.length,
+        }),
         priority: config.contextPriorities?.presets ?? 'normal',
         order: priorityFields.length + setIndex * 20,
       });
@@ -101,7 +135,7 @@ export function getPromptOrderPreview(
       entries.push({
         id: `set:${set.id}:block:${block.id}`,
         title: block.title || set.name,
-        description: `Набор «${set.name}»`,
+        description: promptText('promptSet.named', { name: set.name }),
         priority: block.priority,
         order: priorityFields.length + setIndex * 20 + blockIndex + 1,
       });
@@ -111,7 +145,7 @@ export function getPromptOrderPreview(
       entries.push({
         id: `set:${set.id}:empty`,
         title: set.name,
-        description: 'Подключённый набор пока пуст',
+        description: promptText('promptSet.empty'),
         priority: 'normal',
         order: priorityFields.length + setIndex * 20,
       });
@@ -142,7 +176,7 @@ export function getPromptOrderPreview(
       .map((block, order) => ({
         id: `custom:${block.id}`,
         title: block.title,
-        description: 'Своя инструкция',
+        description: promptText('promptSet.customInstruction'),
         priority: block.priority,
         order: ownOrder + order,
       })),

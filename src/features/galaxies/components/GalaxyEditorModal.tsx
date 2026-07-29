@@ -22,21 +22,23 @@ import { PersonaEditor } from './editors/PersonaEditor';
 import { StyleEditor } from './editors/StyleEditor';
 import { UniverseEditor } from './editors/UniverseEditor';
 import { WorldbookEditor } from './editors/WorldbookEditor';
+import { useTranslation } from 'react-i18next';
+import { i18next } from '../../../i18n';
 
 function descriptionPlaceholder(kind: GalaxyKind) {
   switch (kind) {
     case 'persona':
-      return 'Краткое описание пользователя, которое модель должна помнить';
+      return i18next.t('editor.description.persona', { ns: 'galaxies' });
     case 'character':
-      return 'Короткое описание персонажа';
+      return i18next.t('editor.description.character', { ns: 'galaxies' });
     case 'universe':
-      return 'Общее описание мира и текущего сеттинга';
+      return i18next.t('editor.description.universe', { ns: 'galaxies' });
     case 'worldbook':
-      return 'Краткое назначение этого ворлдбука';
+      return i18next.t('editor.description.worldbook', { ns: 'galaxies' });
     case 'style':
-      return 'Краткое описание стиля переписки';
+      return i18next.t('editor.description.style', { ns: 'galaxies' });
     case 'prompt-set':
-      return 'Когда и для каких персонажей стоит использовать этот набор';
+      return i18next.t('editor.description.promptSet', { ns: 'galaxies' });
   }
 }
 
@@ -63,6 +65,7 @@ export function GalaxyEditorModal({
   onDraftChange: (draft: GalaxyItemInput) => void;
   onSave: () => void;
 }) {
+  const { t } = useTranslation('galaxies');
   const characterData =
     draft.kind === 'character' ? (draft.data as CharacterData) : null;
   const customStyleMissing = Boolean(
@@ -76,8 +79,10 @@ export function GalaxyEditorModal({
       onOpenChange={onOpenChange}
       title={
         editing
-          ? `Редактирование: ${editing.name}`
-          : `Новый объект - ${galaxyKindLabels[draft.kind]}`
+          ? t('galaxyEditorModal.editingValue1', { value1: editing.name })
+          : t('galaxyEditorModal.newObjectValue1', {
+              value1: galaxyKindLabels[draft.kind],
+            })
       }
       description={galaxyKindDescriptions[draft.kind]}
       size="lg"
@@ -88,7 +93,7 @@ export function GalaxyEditorModal({
             isDisabled={saving}
             onPress={() => onOpenChange(false)}
           >
-            Отмена
+            {t('galaxyEditorModal.cancel')}
           </Button>
           <Button
             variant="primary"
@@ -96,7 +101,7 @@ export function GalaxyEditorModal({
             isDisabled={!canSave}
             onPress={onSave}
           >
-            Сохранить
+            {t('galaxyEditorModal.save')}
           </Button>
         </>
       }
@@ -107,7 +112,9 @@ export function GalaxyEditorModal({
             <AvatarPicker
               value={galaxyInputAvatar(draft.data)}
               name={draft.name || galaxyKindLabels[draft.kind]}
-              description="Фото будет показываться в библиотеке, заголовке чата и рядом с сообщениями."
+              description={t(
+                'galaxyEditorModal.thePhotoAppearsInTheLibraryChatHeaderAndNext',
+              )}
               disabled={saving}
               onChange={(avatar) =>
                 onDraftChange({
@@ -125,13 +132,13 @@ export function GalaxyEditorModal({
         <Surface className="rounded-2xl border border-separator p-4 sm:p-5 bg-surface-secondary/50">
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="galaxy-name">Название</Label>
+              <Label htmlFor="galaxy-name">{t('galaxyEditorModal.name')}</Label>
               <Input
                 id="galaxy-name"
                 fullWidth
                 variant="secondary"
                 value={draft.name}
-                placeholder="Название объекта"
+                placeholder={t('galaxyEditorModal.objectName')}
                 autoFocus
                 autoComplete="off"
                 maxLength={120}
@@ -143,7 +150,9 @@ export function GalaxyEditorModal({
           </div>
 
           <div className="mt-4 flex flex-col gap-1.5">
-            <Label htmlFor="galaxy-description">Краткое описание</Label>
+            <Label htmlFor="galaxy-description">
+              {t('galaxyEditorModal.shortDescription')}
+            </Label>
             <TextArea
               id="galaxy-description"
               fullWidth
@@ -201,12 +210,12 @@ export function GalaxyEditorModal({
 
         <PromptPreviewCard
           input={promptPreviewFromDraft(draft, [...styles, ...promptSets])}
-          title="Расчёт текущего промпта"
+          title={t('galaxyEditorModal.currentPromptEstimate')}
         />
 
         {customStyleMissing ? (
           <p className="text-sm text-warning">
-            Для кастомного стиля выберите сохранённый пресет из библиотеки.
+            {t('galaxyEditorModal.forACustomStyleSelectASavedPresetFromThe')}
           </p>
         ) : null}
         {error ? (

@@ -28,6 +28,7 @@ import { ProviderCard } from './components/ProviderCard';
 import { ProviderEditorModal } from './components/ProviderEditorModal';
 import { useProviderEditor } from './useProviderEditor';
 import { createTelescopeExport, parseTelescopeExport } from './transfer';
+import { useTranslation } from 'react-i18next';
 
 export function TelescopeScreen({
   providers,
@@ -49,6 +50,7 @@ export function TelescopeScreen({
   onCheck: (id: string) => Promise<Provider>;
   onDelete: (id: string) => Promise<void>;
 }) {
+  const { t } = useTranslation('telescope');
   const [checkingAll, setCheckingAll] = useState(false);
   const [checkingId, setCheckingId] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<Provider | null>(null);
@@ -75,34 +77,49 @@ export function TelescopeScreen({
 
   const checkOne = async (id: string) => {
     const providerName =
-      providers.find((provider) => provider.id === id)?.name ?? 'Подключение';
-    const toastId = toast(`Проверяем «${providerName}»`, {
-      isLoading: true,
-      timeout: 0,
-    });
+      providers.find((provider) => provider.id === id)?.name ??
+      t('telescopeScreen.connection');
+    const toastId = toast(
+      t('telescopeScreen.checkingProvider', { value1: providerName }),
+      {
+        isLoading: true,
+        timeout: 0,
+      },
+    );
     setCheckingId(id);
     try {
       const checked = await onCheck(id);
       toast.close(toastId);
       if (checked.status === 'connected') {
-        toast.success(`«${checked.name}» доступно`, {
-          description:
-            checked.latencyMs != null
-              ? `Ответ за ${checked.latencyMs} мс`
-              : 'Проверка завершена',
-        });
+        toast.success(
+          t('telescopeScreen.providerAvailable', { value1: checked.name }),
+          {
+            description:
+              checked.latencyMs != null
+                ? t('telescopeScreen.responseLatency', {
+                    value1: checked.latencyMs,
+                  })
+                : t('telescopeScreen.checkComplete'),
+          },
+        );
       } else {
-        toast.danger(`«${checked.name}» не отвечает`, {
-          description: checked.hasSecret
-            ? 'Проверьте адрес, модель и доступность API.'
-            : 'Добавьте или обновите ключ доступа.',
-        });
+        toast.danger(
+          t('telescopeScreen.providerUnavailable', { value1: checked.name }),
+          {
+            description: checked.hasSecret
+              ? t('telescopeScreen.checkTheAddressModelAndApiAvailability')
+              : t('telescopeScreen.addOrUpdateTheAccessKey'),
+          },
+        );
       }
     } catch (error) {
       toast.close(toastId);
-      toast.danger(`Не удалось проверить «${providerName}»`, {
-        description: error instanceof Error ? error.message : String(error),
-      });
+      toast.danger(
+        t('telescopeScreen.checkProviderFailed', { value1: providerName }),
+        {
+          description: error instanceof Error ? error.message : String(error),
+        },
+      );
     } finally {
       setCheckingId('');
     }
@@ -111,8 +128,10 @@ export function TelescopeScreen({
   const checkAll = async () => {
     if (checkingAll) return;
     setCheckingAll(true);
-    const toastId = toast('Проверяем все подключения', {
-      description: `Всего: ${providers.length}`,
+    const toastId = toast(t('telescopeScreen.checkingAllConnections'), {
+      description: t('telescopeScreen.connectionTotal', {
+        value1: providers.length,
+      }),
       isLoading: true,
       timeout: 0,
     });
@@ -129,16 +148,23 @@ export function TelescopeScreen({
     }
     toast.close(toastId);
     if (failed === 0) {
-      toast.success('Все подключения доступны', {
-        description: `Успешно проверено: ${connected}`,
+      toast.success(t('telescopeScreen.allConnectionsAreAvailable'), {
+        description: t('telescopeScreen.checkSuccessCount', {
+          value1: connected,
+        }),
       });
     } else if (connected === 0) {
-      toast.danger('Нет доступных подключений', {
-        description: `Проблем обнаружено: ${failed}`,
+      toast.danger(t('telescopeScreen.noConnectionsAreAvailable'), {
+        description: t('telescopeScreen.checkFailureCount', {
+          value1: failed,
+        }),
       });
     } else {
-      toast.warning('Проверка завершена с ошибками', {
-        description: `Доступно: ${connected} · с ошибкой: ${failed}`,
+      toast.warning(t('telescopeScreen.checkCompletedWithErrors'), {
+        description: t('telescopeScreen.checkSummary', {
+          value1: connected,
+          value2: failed,
+        }),
       });
     }
     setCheckingAll(false);
@@ -152,7 +178,9 @@ export function TelescopeScreen({
       const removedName = deleteTarget.name;
       await onDelete(deleteTarget.id);
       setDeleteTarget(null);
-      toast.success('Подключение удалено', { description: removedName });
+      toast.success(t('telescopeScreen.connectionRemoved'), {
+        description: removedName,
+      });
     } catch (error) {
       setDeleteError(error instanceof Error ? error.message : String(error));
     } finally {
@@ -175,13 +203,17 @@ export function TelescopeScreen({
       );
       if (!exported) return;
       setExportOpen(false);
-      toast.success('Экспорт Телескопа готов', {
+      toast.success(t('telescopeScreen.telescopeExportIsReady'), {
         description: includeSecrets
-          ? `Подключения и API-ключи в JSON: ${Object.keys(secrets).length}`
-          : `Подключений без API-ключей: ${selectedProviders.length}`,
+          ? t('telescopeScreen.exportedWithKeys', {
+              value1: Object.keys(secrets).length,
+            })
+          : t('telescopeScreen.exportedWithoutKeys', {
+              value1: selectedProviders.length,
+            }),
       });
     } catch (error) {
-      toast.danger('Не удалось экспортировать подключения', {
+      toast.danger(t('telescopeScreen.couldNotExportConnections'), {
         description: error instanceof Error ? error.message : String(error),
       });
     } finally {
@@ -197,11 +229,13 @@ export function TelescopeScreen({
       if (raw == null) return;
       const imported = parseTelescopeExport(raw);
       const importedCount = await onImport(imported);
-      toast.success('Импорт Телескопа завершён', {
-        description: `Добавлено или обновлено: ${importedCount}`,
+      toast.success(t('telescopeScreen.telescopeImportComplete'), {
+        description: t('telescopeScreen.importCount', {
+          value1: importedCount,
+        }),
       });
     } catch (error) {
-      toast.danger('Не удалось импортировать подключения', {
+      toast.danger(t('telescopeScreen.couldNotImportConnections'), {
         description: error instanceof Error ? error.message : String(error),
       });
     } finally {
@@ -213,8 +247,10 @@ export function TelescopeScreen({
     <div className="page-scroll mobile-screen-enter flex-1">
       <div className="page-container">
         <PageHeader
-          title="Телескоп"
-          description="Подключения, модели и параметры генерации."
+          title={t('telescopeScreen.telescope')}
+          description={t(
+            'telescopeScreen.connectionsModelsAndGenerationSettings',
+          )}
           actions={
             <div className="flex w-full flex-wrap gap-2 sm:w-auto">
               <Button
@@ -228,7 +264,8 @@ export function TelescopeScreen({
                   setExportOpen(true);
                 }}
               >
-                <Icon name="download" className="size-4" /> Экспорт
+                <Icon name="download" className="size-4" />{' '}
+                {t('telescopeScreen.export')}
               </Button>
               <Button
                 variant="secondary"
@@ -236,14 +273,16 @@ export function TelescopeScreen({
                 isPending={transferring}
                 onPress={() => void importConnections()}
               >
-                <Icon name="upload" className="size-4" /> Импорт
+                <Icon name="upload" className="size-4" />{' '}
+                {t('telescopeScreen.import')}
               </Button>
               <Button
                 variant="primary"
                 className="w-full sm:w-auto"
                 onPress={editor.openCreate}
               >
-                <Icon name="plus" className="size-4" /> Добавить
+                <Icon name="plus" className="size-4" />{' '}
+                {t('telescopeScreen.add')}
               </Button>
             </div>
           }
@@ -251,14 +290,17 @@ export function TelescopeScreen({
 
         <MetricGrid
           metrics={[
-            { label: 'Доступны', value: connectedCount },
-            { label: 'Подключения', value: providers.length },
+            { label: t('telescopeScreen.available'), value: connectedCount },
             {
-              label: 'Настроено моделей',
+              label: t('telescopeScreen.connections'),
+              value: providers.length,
+            },
+            {
+              label: t('telescopeScreen.configuredModels'),
               value: providers.filter((provider) => provider.model).length,
             },
             {
-              label: 'Сохранено ключей',
+              label: t('telescopeScreen.savedKeys'),
               value: providers.filter((provider) => provider.hasSecret).length,
             },
           ]}
@@ -266,8 +308,10 @@ export function TelescopeScreen({
 
         <section className="space-y-4">
           <SectionHeader
-            title="Подключения"
-            description="Статус отражает последнюю фактическую проверку API."
+            title={t('telescopeScreen.connections')}
+            description={t(
+              'telescopeScreen.statusReflectsTheLatestActualApiCheck',
+            )}
             actions={
               providers.length > 0 ? (
                 <Button
@@ -276,7 +320,8 @@ export function TelescopeScreen({
                   isPending={checkingAll}
                   onPress={() => void checkAll()}
                 >
-                  <Icon name="refresh" className="size-4" /> Проверить все
+                  <Icon name="refresh" className="size-4" />{' '}
+                  {t('telescopeScreen.checkAll')}
                 </Button>
               ) : undefined
             }
@@ -298,8 +343,10 @@ export function TelescopeScreen({
           ) : (
             <EmptyState
               icon="telescope"
-              title="Подключений пока нет"
-              description="Добавьте провайдера и загрузите доступные модели из его API."
+              title={t('telescopeScreen.noConnectionsYet')}
+              description={t(
+                'telescopeScreen.addAProviderAndLoadTheModelsAvailableFromIts',
+              )}
               compact
             />
           )}
@@ -329,8 +376,10 @@ export function TelescopeScreen({
       <UiModal
         isOpen={exportOpen}
         onOpenChange={(open) => !transferring && setExportOpen(open)}
-        title="Экспорт подключений"
-        description="JSON можно импортировать в Galactrix на другом устройстве."
+        title={t('telescopeScreen.exportConnections')}
+        description={t(
+          'telescopeScreen.theJsonFileCanBeImportedIntoGalactrixOnAnother',
+        )}
         size="lg"
         footer={
           <>
@@ -339,7 +388,7 @@ export function TelescopeScreen({
               isDisabled={transferring}
               onPress={() => setExportOpen(false)}
             >
-              Отмена
+              {t('telescopeScreen.cancel')}
             </Button>
             <Button
               variant="primary"
@@ -347,7 +396,7 @@ export function TelescopeScreen({
               isDisabled={exportIds.length === 0}
               onPress={() => void exportConnections()}
             >
-              Экспортировать
+              {t('telescopeScreen.export2')}
             </Button>
           </>
         }
@@ -357,13 +406,15 @@ export function TelescopeScreen({
             items={providers.map((provider) => ({
               id: provider.id,
               title: provider.name,
-              description: provider.model || 'Модель не выбрана',
+              description: provider.model || t('providerCard.noModelSelected'),
             }))}
             selectedIds={exportIds}
             onChange={setExportIds}
           />
           <section>
-            <h3 className="mb-2 text-sm font-semibold">Данные подключения</h3>
+            <h3 className="mb-2 text-sm font-semibold">
+              {t('telescopeScreen.connectionData')}
+            </h3>
             <Checkbox
               isSelected={includeSecrets}
               variant="secondary"
@@ -375,18 +426,20 @@ export function TelescopeScreen({
                   <Checkbox.Indicator />
                 </Checkbox.Control>
                 <span className="min-w-0">
-                  <strong className="block text-sm">Включить API-ключи</strong>
+                  <strong className="block text-sm">
+                    {t('telescopeScreen.includeApiKeys')}
+                  </strong>
                   <span className="mt-1 block text-xs leading-5 text-muted">
-                    По умолчанию ключи остаются только в защищённом хранилище
-                    этого устройства.
+                    {t(
+                      'telescopeScreen.byDefaultKeysRemainOnlyInSecureStorageOnThis',
+                    )}
                   </span>
                 </span>
               </Checkbox.Content>
             </Checkbox>
             {includeSecrets ? (
               <Surface className="mt-3 rounded-xl border border-warning/30 bg-warning/10 p-3 text-xs leading-5 text-warning">
-                Файл будет содержать ключи открытым текстом. Храните его как
-                пароль и не отправляйте посторонним.
+                {t('telescopeScreen.theFileWillContainKeysAsPlainTextTreatIt')}
               </Surface>
             ) : null}
           </section>
@@ -400,10 +453,12 @@ export function TelescopeScreen({
       <UiModal
         isOpen={Boolean(deleteTarget)}
         onOpenChange={(open) => !open && !deleting && setDeleteTarget(null)}
-        title="Удалить подключение?"
+        title={t('telescopeScreen.deleteConnection')}
         description={
           deleteTarget
-            ? `Подключение «${deleteTarget.name}» и сохранённый ключ будут удалены.`
+            ? t('telescopeScreen.deleteConnectionDescription', {
+                value1: deleteTarget.name,
+              })
             : undefined
         }
         footer={
@@ -413,19 +468,21 @@ export function TelescopeScreen({
               isDisabled={deleting}
               onPress={() => setDeleteTarget(null)}
             >
-              Отмена
+              {t('telescopeScreen.cancel')}
             </Button>
             <Button
               variant="danger"
               isPending={deleting}
               onPress={() => void removeProvider()}
             >
-              Удалить
+              {t('providerCard.delete')}
             </Button>
           </>
         }
       >
-        <p className="text-sm text-muted">Это действие нельзя отменить.</p>
+        <p className="text-sm text-muted">
+          {t('telescopeScreen.thisActionCannotBeUndone')}
+        </p>
         {deleteError ? (
           <p className="selectable mt-2 text-sm text-danger">{deleteError}</p>
         ) : null}

@@ -1,4 +1,9 @@
 import type { ProviderKind } from '../../types';
+import { translate, type TranslationKey } from '../../i18n';
+
+function providerText(key: TranslationKey<'telescope'>) {
+  return translate('telescope', key);
+}
 
 export const providerCatalog: Array<{
   kind: ProviderKind;
@@ -38,7 +43,9 @@ export const providerCatalog: Array<{
   {
     kind: 'google-gemini',
     name: 'Google Gemini',
-    description: 'Gemini API через OpenAI-совместимый endpoint',
+    get description() {
+      return providerText('provider.gemini.description');
+    },
     defaultBaseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
     requiresApiKey: true,
     supportsAutomaticModels: true,
@@ -46,7 +53,9 @@ export const providerCatalog: Array<{
   {
     kind: 'groq',
     name: 'Groq',
-    description: 'Высокоскоростной OpenAI-совместимый API',
+    get description() {
+      return providerText('provider.groq.description');
+    },
     defaultBaseUrl: 'https://api.groq.com/openai/v1',
     requiresApiKey: true,
     supportsAutomaticModels: true,
@@ -54,7 +63,9 @@ export const providerCatalog: Array<{
   {
     kind: 'openrouter',
     name: 'OpenRouter',
-    description: 'Модели разных провайдеров и автоматический роутер',
+    get description() {
+      return providerText('provider.openrouter.description');
+    },
     defaultBaseUrl: 'https://openrouter.ai/api/v1',
     defaultModel: 'openrouter/free',
     requiresApiKey: true,
@@ -63,7 +74,9 @@ export const providerCatalog: Array<{
   {
     kind: 'huggingface',
     name: 'Hugging Face',
-    description: 'Inference Providers через единый OpenAI-совместимый Router',
+    get description() {
+      return providerText('provider.huggingface.description');
+    },
     defaultBaseUrl: 'https://router.huggingface.co/v1',
     requiresApiKey: true,
     supportsAutomaticModels: true,
@@ -71,7 +84,9 @@ export const providerCatalog: Array<{
   {
     kind: 'ollama',
     name: 'Ollama Local',
-    description: 'Локальные модели без API-ключа',
+    get description() {
+      return providerText('provider.ollama.description');
+    },
     defaultBaseUrl: 'http://localhost:11434/api',
     requiresApiKey: false,
     supportsAutomaticModels: true,
@@ -79,7 +94,9 @@ export const providerCatalog: Array<{
   {
     kind: 'ollama-cloud',
     name: 'Ollama Cloud',
-    description: 'Облачные модели Ollama с Bearer API-ключом',
+    get description() {
+      return providerText('provider.ollamaCloud.description');
+    },
     defaultBaseUrl: 'https://ollama.com/api',
     requiresApiKey: true,
     supportsAutomaticModels: true,
@@ -95,14 +112,18 @@ export const providerCatalog: Array<{
   {
     kind: 'custom',
     name: 'OpenAI-compatible',
-    description: 'Совместимый endpoint с /models и /chat/completions',
+    get description() {
+      return providerText('provider.custom.description');
+    },
     requiresApiKey: false,
     supportsAutomaticModels: true,
   },
   {
     kind: 'character-ai',
     name: 'Character.AI',
-    description: 'Поддержка появится после отдельного адаптера авторизации',
+    get description() {
+      return providerText('provider.characterAi.description');
+    },
     requiresApiKey: true,
     supportsAutomaticModels: false,
     available: false,

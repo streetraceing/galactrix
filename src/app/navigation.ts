@@ -1,4 +1,5 @@
 import type { TabId } from '../types';
+import { i18next } from '../i18n';
 
 export type NavigationItem = {
   id: TabId;
@@ -7,15 +8,41 @@ export type NavigationItem = {
 };
 
 export const primaryNavigationItems: NavigationItem[] = [
-  { id: 'chats', label: 'Чаты', icon: 'chats' },
-  { id: 'galaxies', label: 'Галактики', icon: 'galaxies' },
-  { id: 'telescope', label: 'Телескоп', icon: 'telescope' },
-  { id: 'profile', label: 'Профиль', icon: 'profile' },
+  {
+    id: 'chats',
+    get label() {
+      return i18next.t('navigation.chats');
+    },
+    icon: 'chats',
+  },
+  {
+    id: 'galaxies',
+    get label() {
+      return i18next.t('navigation.galaxies');
+    },
+    icon: 'galaxies',
+  },
+  {
+    id: 'telescope',
+    get label() {
+      return i18next.t('navigation.telescope');
+    },
+    icon: 'telescope',
+  },
+  {
+    id: 'profile',
+    get label() {
+      return i18next.t('navigation.profile');
+    },
+    icon: 'profile',
+  },
 ];
 
 export const settingsNavigationItem: NavigationItem = {
   id: 'settings',
-  label: 'Настройки',
+  get label() {
+    return i18next.t('navigation.settings');
+  },
   icon: 'settings',
 };
 

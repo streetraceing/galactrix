@@ -10,6 +10,7 @@ import type {
 import { IdentitySettings } from './components/IdentitySettings';
 import { ProfileOverview } from './components/ProfileOverview';
 import { UsageTimeline } from './components/UsageTimeline';
+import { useTranslation } from 'react-i18next';
 
 type ProfileSection = 'overview' | 'tokens' | 'requests' | 'identities';
 
@@ -32,14 +33,15 @@ export function ProfileScreen({
   onChangeSettings: (settings: AppSettings) => Promise<boolean>;
   onSaveGalaxyItem: (item: GalaxyItemInput) => Promise<void>;
 }) {
+  const { t } = useTranslation('profile');
   const [section, setSection] = useState<ProfileSection>('overview');
 
   return (
     <div className="page-scroll mobile-screen-enter flex-1">
       <div className="page-container">
         <PageHeader
-          title="Профиль"
-          description="Активность и образы для общения."
+          title={t('profileScreen.profile')}
+          description={t('profileScreen.activityAndChatIdentities')}
         />
 
         <Tabs
@@ -49,23 +51,23 @@ export function ProfileScreen({
         >
           <Tabs.ListContainer className="w-full">
             <Tabs.List
-              aria-label="Разделы профиля"
+              aria-label={t('profileScreen.profileSections')}
               className="w-full *:min-w-0 *:flex-1 *:px-2 sm:*:px-4"
             >
               <Tabs.Tab id="overview">
-                Обзор
+                {t('profileScreen.overview')}
                 <Tabs.Indicator />
               </Tabs.Tab>
               <Tabs.Tab id="tokens">
-                Токены
+                {t('profileScreen.tokens')}
                 <Tabs.Indicator />
               </Tabs.Tab>
               <Tabs.Tab id="requests">
-                Запросы
+                {t('profileScreen.requests')}
                 <Tabs.Indicator />
               </Tabs.Tab>
               <Tabs.Tab id="identities">
-                Образы
+                {t('profileScreen.identities')}
                 <Tabs.Indicator />
               </Tabs.Tab>
             </Tabs.List>

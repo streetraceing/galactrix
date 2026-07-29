@@ -2,6 +2,7 @@ import { Input, Surface } from '@heroui/react';
 import type { ChangeEvent } from 'react';
 import type { ProviderInput } from '../../../types';
 import { FormField } from './FormField';
+import { useTranslation } from 'react-i18next';
 
 export function GenerationSettings({
   form,
@@ -13,9 +14,12 @@ export function GenerationSettings({
     value: ProviderInput[K],
   ) => void;
 }) {
+  const { t } = useTranslation('telescope');
   return (
     <Surface className="rounded-2xl border border-separator p-4 bg-surface-secondary/50">
-      <strong className="text-sm font-medium">Параметры генерации</strong>
+      <strong className="text-sm font-medium">
+        {t('generationSettings.generationSettings')}
+      </strong>
       <div className="mt-4 grid gap-4 sm:grid-cols-3">
         <FormField label="Temperature">
           <Input

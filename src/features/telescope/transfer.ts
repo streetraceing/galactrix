@@ -1,4 +1,5 @@
 import type { Provider, ProviderImportInput, ProviderKind } from '../../types';
+import { i18next } from '../../i18n';
 import { providerToInput } from './providerHelpers';
 
 const PROVIDER_KINDS: ProviderKind[] = [
@@ -49,7 +50,9 @@ export function parseTelescopeExport(value: unknown): TelescopeImportEntry[] {
     bundle.version !== 1 ||
     !Array.isArray(bundle.providers)
   ) {
-    throw new Error('Выбранный файл не является экспортом Телескопа Galactrix');
+    throw new Error(
+      i18next.t('errors.notTelescopeExport', { ns: 'telescope' }),
+    );
   }
 
   return bundle.providers.map((raw, index) => {
@@ -60,7 +63,10 @@ export function parseTelescopeExport(value: unknown): TelescopeImportEntry[] {
     const model = stringValue(provider.model).trim();
     if (!PROVIDER_KINDS.includes(kind) || !name || !model) {
       throw new Error(
-        `Некорректное подключение в экспорте: строка ${index + 1}`,
+        i18next.t('errors.invalidExportProvider', {
+          ns: 'telescope',
+          row: index + 1,
+        }),
       );
     }
     return {

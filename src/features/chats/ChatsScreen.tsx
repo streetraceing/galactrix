@@ -15,6 +15,7 @@ import { ConversationHeader } from './components/ConversationHeader';
 import { MessageList } from './components/MessageList';
 import type { ChatAction, ChatsScreenProps } from './types';
 import { draftKey } from './utils';
+import { useTranslation } from 'react-i18next';
 
 export function ChatsScreen({
   chats,
@@ -48,6 +49,7 @@ export function ChatsScreen({
   saveDrafts,
   sending,
 }: ChatsScreenProps) {
+  const { t } = useTranslation('chats');
   const isMobile = isMobilePlatform();
   const usesNativeImeInsets = isAndroidPlatform();
   const isNarrowDesktop = useMediaQuery('(max-width: 820px)');
@@ -98,8 +100,10 @@ export function ChatsScreen({
   const activePersona = galaxyItems.find(
     (item) => item.kind === 'persona' && item.id === activeChat?.personaId,
   );
-  const activeCharacterName = activeCharacter?.name ?? 'Ассистент';
-  const activeUserName = (activePersona?.name ?? profileName.trim()) || 'Вы';
+  const activeCharacterName =
+    activeCharacter?.name ?? t('chatsScreen.assistant');
+  const activeUserName =
+    (activePersona?.name ?? profileName.trim()) || t('chatsScreen.you');
 
   useEffect(() => {
     const openNewChat = () => {
@@ -194,7 +198,7 @@ export function ChatsScreen({
     if (action === 'duplicate' || action === 'duplicate-with-messages') {
       setWorking(true);
       void onCloneChat(chat.id, action === 'duplicate-with-messages')
-        .then(() => toast.success('Копия чата создана'))
+        .then(() => toast.success(t('chatsScreen.chatCopyCreated')))
         .catch((error) => setActionError(String(error)))
         .finally(() => setWorking(false));
       return;
@@ -208,7 +212,11 @@ export function ChatsScreen({
       setWorking(true);
       void onSetPinned(chat.id, !chat.pinned)
         .then(() =>
-          toast.success(chat.pinned ? 'Чат откреплён' : 'Чат закреплён'),
+          toast.success(
+            chat.pinned
+              ? t('chatsScreen.chatUnpinned')
+              : t('chatsScreen.chatPinned'),
+          ),
         )
         .catch((error) => setActionError(String(error)))
         .finally(() => setWorking(false));
@@ -224,10 +232,10 @@ export function ChatsScreen({
     try {
       if (configTarget === 'new') {
         await onNewChat(input);
-        toast.success('Новый чат создан');
+        toast.success(t('chatsScreen.newChatCreated'));
       } else {
         await onUpdateChat(configTarget.id, input);
-        toast.success('Настройки чата сохранены');
+        toast.success(t('chatsScreen.chatSettingsSaved'));
       }
       setConfigTarget(null);
     } catch (error) {
@@ -245,7 +253,7 @@ export function ChatsScreen({
     try {
       await onRenameChat(renameTarget.id, title);
       setRenameTarget(null);
-      toast.success('Чат переименован');
+      toast.success(t('chatsScreen.chatRenamed'));
     } catch (error) {
       setActionError(error instanceof Error ? error.message : String(error));
     } finally {
@@ -261,10 +269,10 @@ export function ChatsScreen({
       if (confirmTarget.type === 'delete') {
         localStorage.removeItem(draftKey(confirmTarget.chat.id));
         await onDeleteChat(confirmTarget.chat.id);
-        toast.success('Чат удалён');
+        toast.success(t('chatsScreen.chatDeleted'));
       } else {
         await onClearChat(confirmTarget.chat.id);
-        toast.success('История чата очищена');
+        toast.success(t('chatsScreen.chatHistoryCleared'));
       }
       setConfirmTarget(null);
     } catch (error) {
@@ -299,7 +307,7 @@ export function ChatsScreen({
           min={260}
           max={520}
           className="max-[1300px]:hidden"
-          label="Изменить ширину списка чатов"
+          label={t('chatsScreen.changeChatListWidth')}
           onChange={onChatSidebarWidthPreview}
           onCommit={onChatSidebarWidthCommit}
         />
@@ -358,8 +366,10 @@ export function ChatsScreen({
           <div className="grid h-full place-items-center p-4 sm:p-6">
             <EmptyState
               icon="chats"
-              title="Нет чатов"
-              description="Создайте чат и сразу выберите его ролевой контекст."
+              title={t('chatsScreen.noChats')}
+              description={t(
+                'chatsScreen.createAChatAndChooseItsRoleplayContextImmediately',
+              )}
             />
           </div>
         )}

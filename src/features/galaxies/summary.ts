@@ -7,8 +7,15 @@ import type {
   UniverseData,
   WorldbookData,
 } from '../../types';
-import { countRu } from '../../lib/plural';
+import { translate, type TranslationKey } from '../../i18n';
 import { normalizeData, stylePresets } from './model';
+
+function summary(
+  key: TranslationKey<'galaxies'>,
+  variables?: Record<string, string | number>,
+) {
+  return translate('galaxies', key, variables);
+}
 
 export function galaxyItemDetails(item: GalaxyItem): string[] {
   const normalized = normalizeData(item.kind, item.data);
@@ -24,19 +31,9 @@ export function galaxyItemDetails(item: GalaxyItem): string[] {
       const facts = data.attributes.length;
       return [
         identity > 0
-          ? countRu(identity, [
-              'основное поле',
-              'основных поля',
-              'основных полей',
-            ])
+          ? summary('summary.primaryField', { count: identity })
           : '',
-        facts > 0
-          ? countRu(facts, [
-              'доп. параметр',
-              'доп. параметра',
-              'доп. параметров',
-            ])
-          : '',
+        facts > 0 ? summary('summary.attribute', { count: facts }) : '',
       ].filter(Boolean);
     }
     case 'character': {
@@ -45,45 +42,37 @@ export function galaxyItemDetails(item: GalaxyItem): string[] {
         (entry) => entry.id === data.stylePreset,
       )?.label;
       return [
-        countRu(data.definitionSections.length, [
-          'раздел',
-          'раздела',
-          'разделов',
-        ]),
-        style ? `Стиль: ${style}` : '',
+        summary('summary.section', { count: data.definitionSections.length }),
+        style ? summary('summary.style', { style }) : '',
       ].filter(Boolean);
     }
     case 'universe': {
       const data = normalized as UniverseData;
-      return [
-        countRu(data.rules.length, [
-          'правило или факт',
-          'правила или факта',
-          'правил и фактов',
-        ]),
-      ];
+      return [summary('summary.ruleFact', { count: data.rules.length })];
     }
     case 'worldbook': {
       const data = normalized as WorldbookData;
       const enabled = data.entries.filter((entry) => entry.enabled).length;
       return [
-        countRu(data.entries.length, ['запись', 'записи', 'записей']),
-        countRu(enabled, [
-          'запись включена',
-          'записи включены',
-          'записей включено',
-        ]),
+        summary('summary.entry', { count: data.entries.length }),
+        summary('summary.enabledEntry', { count: enabled }),
       ];
     }
     case 'style': {
       const data = normalized as StyleData;
-      return [data.example.trim() ? 'Есть пример' : 'Только инструкции'];
+      return [
+        summary(
+          data.example.trim()
+            ? 'summary.hasExample'
+            : 'summary.instructionsOnly',
+        ),
+      ];
     }
     case 'prompt-set': {
       const data = normalized as PromptSetData;
       return [
-        countRu(data.presetIds.length, ['правило', 'правила', 'правил']),
-        countRu(data.customBlocks.length, ['блок', 'блока', 'блоков']),
+        summary('summary.rule', { count: data.presetIds.length }),
+        summary('summary.block', { count: data.customBlocks.length }),
       ];
     }
   }

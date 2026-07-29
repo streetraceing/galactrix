@@ -3,6 +3,7 @@ import type { Key } from 'react';
 import { Icon } from '../../../components/Icon';
 import type { ChatConfigInput, GalaxyItem } from '../../../types';
 import { GalaxySelectField } from './GalaxySelectField';
+import { useTranslation } from 'react-i18next';
 
 function ofKind(items: GalaxyItem[], kind: GalaxyItem['kind']) {
   return items.filter((item) => item.kind === kind);
@@ -17,6 +18,7 @@ export function ChatContextPicker({
   value: ChatConfigInput;
   onChange: (value: ChatConfigInput) => void;
 }) {
+  const { t } = useTranslation('chats');
   const personas = ofKind(galaxyItems, 'persona');
   const characters = ofKind(galaxyItems, 'character');
   const universes = ofKind(galaxyItems, 'universe');
@@ -31,7 +33,7 @@ export function ChatContextPicker({
     value.worldbookIds.length;
   const worldbookLabel =
     selectedWorldbooks.length === 0
-      ? 'Без ворлдбуков'
+      ? t('chatContextPicker.noWorldbooks')
       : selectedWorldbooks.length === 1
         ? selectedWorldbooks[0].name
         : `${selectedWorldbooks[0].name} +${selectedWorldbooks.length - 1}`;
@@ -44,11 +46,14 @@ export function ChatContextPicker({
             <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-accent/10 text-accent">
               <Icon name="galaxies" className="size-4" />
             </span>
-            <h3 className="truncate text-sm font-semibold">Ролевой контекст</h3>
+            <h3 className="truncate text-sm font-semibold">
+              {t('chatContextPicker.roleplayContext')}
+            </h3>
           </div>
           <p className="mt-2 text-xs leading-5 text-muted">
-            Одна персона пользователя, один персонаж, одна вселенная и несколько
-            ворлдбуков.
+            {t(
+              'chatContextPicker.oneUserPersonaOneCharacterOneUniverseAndMultipleWorldbooks',
+            )}
           </p>
         </div>
         <Chip size="sm" variant="soft" className="shrink-0 bg-transparent">
@@ -58,34 +63,34 @@ export function ChatContextPicker({
 
       <div className="flex flex-col gap-4 min-w-0">
         <GalaxySelectField
-          label="Персона пользователя"
-          placeholder="Без персоны"
+          label={t('chatContextPicker.userPersona')}
+          placeholder={t('chatContextPicker.noPersona')}
           items={personas}
           value={value.personaId}
           onChange={(personaId) => onChange({ ...value, personaId })}
         />
         <GalaxySelectField
-          label="Персонаж ассистента"
-          placeholder="Без персонажа"
+          label={t('chatContextPicker.assistantCharacter')}
+          placeholder={t('chatContextPicker.noCharacter')}
           items={characters}
           value={value.characterId}
           onChange={(characterId) => onChange({ ...value, characterId })}
         />
         <GalaxySelectField
-          label="Вселенная"
-          placeholder="Без вселенной"
+          label={t('chatContextPicker.universe')}
+          placeholder={t('chatContextPicker.noUniverse')}
           items={universes}
           value={value.universeId}
           onChange={(universeId) => onChange({ ...value, universeId })}
         />
         <div className="flex min-w-0 flex-col gap-1.5">
-          <Label>Ворлдбуки</Label>
+          <Label>{t('chatContextPicker.worldbooks')}</Label>
           <Select
             fullWidth
             variant="secondary"
             selectionMode="multiple"
             value={value.worldbookIds}
-            placeholder="Выберите ворлдбуки"
+            placeholder={t('chatContextPicker.selectWorldbooks')}
             onChange={(keys: Key | Key[] | null) =>
               onChange({
                 ...value,
@@ -124,8 +129,9 @@ export function ChatContextPicker({
       {galaxyItems.length === 0 ? (
         <div className="mt-4 flex items-start gap-2 border-t border-separator pt-4 text-xs leading-5 text-muted">
           <Icon name="info" className="mt-0.5 size-4 shrink-0 text-accent" />
-          Создайте персоны, персонажей и лор во вкладке «Галактики», чтобы
-          подключать их к чатам.
+          {t(
+            'chatContextPicker.createPersonasCharactersAndLoreInGalaxiesToConnectThem',
+          )}
         </div>
       ) : null}
     </Surface>

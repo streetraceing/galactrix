@@ -12,6 +12,7 @@ import {
 } from '../../../components/ui/context-menu';
 import type { Chat } from '../../../types';
 import type { ChatAction } from '../types';
+import { useTranslation } from 'react-i18next';
 
 export function ChatActions({
   chat,
@@ -22,6 +23,7 @@ export function ChatActions({
   children: ReactNode;
   onAction: (action: ChatAction, chat: Chat) => void;
 }) {
+  const { t } = useTranslation('chats');
   return (
     <ContextMenu>
       <ContextMenuTrigger className="block min-w-0">
@@ -31,25 +33,25 @@ export function ChatActions({
         <ContextMenuLabel>{chat.title}</ContextMenuLabel>
         <ContextMenuItem onClick={() => onAction('configure', chat)}>
           <Icon name="settings" className="size-4 text-accent" />
-          Настроить контекст
+          {t('chatActions.configureContext')}
         </ContextMenuItem>
         <ContextMenuItem onClick={() => onAction('duplicate', chat)}>
           <Icon name="copy" className="size-4" />
-          Копия без сообщений
+          {t('chatActions.copyWithoutMessages')}
         </ContextMenuItem>
         <ContextMenuItem
           onClick={() => onAction('duplicate-with-messages', chat)}
         >
           <Icon name="branch" className="size-4" />
-          Копия с сообщениями
+          {t('chatActions.copyWithMessages')}
         </ContextMenuItem>
         <ContextMenuItem onClick={() => onAction('rename', chat)}>
           <Icon name="edit" className="size-4" />
-          Переименовать
+          {t('chatActions.rename')}
         </ContextMenuItem>
         <ContextMenuItem onClick={() => onAction('pin', chat)}>
           <Icon name="pin" className="size-4" />
-          {chat.pinned ? 'Открепить' : 'Закрепить'}
+          {chat.pinned ? t('chatActions.unpin') : t('chatActions.pin')}
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem
@@ -57,14 +59,14 @@ export function ChatActions({
           onClick={() => onAction('clear', chat)}
         >
           <Icon name="clear" className="size-4" />
-          Очистить историю
+          {t('chatActions.clearHistory')}
         </ContextMenuItem>
         <ContextMenuItem
           variant="destructive"
           onClick={() => onAction('delete', chat)}
         >
           <Icon name="trash" className="size-4" />
-          Удалить чат
+          {t('chatActions.deleteChat')}
         </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>
@@ -78,6 +80,7 @@ export function ChatActionsButton({
   chat: Chat;
   onAction: (action: ChatAction, chat: Chat) => void;
 }) {
+  const { t } = useTranslation('chats');
   const [open, setOpen] = useState(false);
   const run = (action: ChatAction) => {
     setOpen(false);
@@ -91,7 +94,7 @@ export function ChatActionsButton({
         size="sm"
         variant="ghost"
         className="shrink-0"
-        aria-label="Действия с чатом"
+        aria-label={t('chatActions.chatActions')}
       >
         <Icon name="more" className="size-5" />
       </Button>
@@ -108,7 +111,7 @@ export function ChatActionsButton({
               onPress={() => run('duplicate')}
             >
               <Icon name="copy" className="size-4" />
-              Копия без сообщений
+              {t('chatActions.copyWithoutMessages')}
             </Button>
             <Button
               size="sm"
@@ -117,7 +120,7 @@ export function ChatActionsButton({
               onPress={() => run('duplicate-with-messages')}
             >
               <Icon name="branch" className="size-4" />
-              Копия с сообщениями
+              {t('chatActions.copyWithMessages')}
             </Button>
             <Button
               size="sm"
@@ -126,7 +129,7 @@ export function ChatActionsButton({
               onPress={() => run('rename')}
             >
               <Icon name="edit" className="size-4" />
-              Переименовать
+              {t('chatActions.rename')}
             </Button>
             <Button
               size="sm"
@@ -135,7 +138,7 @@ export function ChatActionsButton({
               onPress={() => run('pin')}
             >
               <Icon name="pin" className="size-4" />
-              {chat.pinned ? 'Открепить' : 'Закрепить'}
+              {chat.pinned ? t('chatActions.unpin') : t('chatActions.pin')}
             </Button>
             <div className="my-1 h-px bg-separator" />
             <Button
@@ -145,7 +148,7 @@ export function ChatActionsButton({
               onPress={() => run('clear')}
             >
               <Icon name="clear" className="size-4" />
-              Очистить историю
+              {t('chatActions.clearHistory')}
             </Button>
             <Button
               size="sm"
@@ -154,7 +157,7 @@ export function ChatActionsButton({
               onPress={() => run('delete')}
             >
               <Icon name="trash" className="size-4" />
-              Удалить чат
+              {t('chatActions.deleteChat')}
             </Button>
           </div>
         </Popover.Dialog>

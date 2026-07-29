@@ -1,6 +1,7 @@
 import { TextArea } from '@heroui/react';
 import type { StyleData } from '../../../../types';
 import { EditorSection } from './EditorSection';
+import { useTranslation } from 'react-i18next';
 
 export function StyleEditor({
   data,
@@ -9,10 +10,13 @@ export function StyleEditor({
   data: StyleData;
   onChange: (data: StyleData) => void;
 }) {
+  const { t } = useTranslation('galaxies');
   return (
     <EditorSection
-      title="Инструкции стиля"
-      description="Пресет можно выбрать в настройках любого персонажа."
+      title={t('styleEditor.styleInstructions')}
+      description={t(
+        'styleEditor.thePresetCanBeSelectedInAnyCharacterSSettings',
+      )}
     >
       <div className="space-y-3">
         <TextArea
@@ -21,8 +25,10 @@ export function StyleEditor({
           variant="secondary"
           rows={6}
           value={data.instructions}
-          placeholder="Длина ответов, тон, формат действий, лексика, частота эмодзи..."
-          aria-label="Инструкции стиля"
+          placeholder={t(
+            'styleEditor.responseLengthToneActionFormatVocabularyEmojiFrequency',
+          )}
+          aria-label={t('styleEditor.styleInstructions')}
           onChange={(event) =>
             onChange({ ...data, instructions: event.target.value })
           }
@@ -33,8 +39,8 @@ export function StyleEditor({
           variant="secondary"
           rows={5}
           value={data.example}
-          placeholder="Необязательный пример сообщения в этом стиле"
-          aria-label="Пример стиля"
+          placeholder={t('styleEditor.optionalExampleMessageInThisStyle')}
+          aria-label={t('styleEditor.styleExample')}
           onChange={(event) =>
             onChange({ ...data, example: event.target.value })
           }

@@ -6,6 +6,7 @@ import { ScaleSettings } from './ScaleSettings';
 import { SettingsCard } from './SettingsCard';
 import { SettingSwitchRow } from './SettingSwitchRow';
 import { ThemeSettings } from './ThemeSettings';
+import { useTranslation } from 'react-i18next';
 
 export function ProfilePreferences({
   settings,
@@ -16,6 +17,7 @@ export function ProfilePreferences({
   appVersion: string;
   onChangeSettings: (settings: AppSettings) => Promise<boolean>;
 }) {
+  const { t } = useTranslation('profile');
   const patch = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) =>
     void onChangeSettings({ ...settings, [key]: value });
 
@@ -24,24 +26,28 @@ export function ProfilePreferences({
       <div className="grid gap-4 md:grid-cols-2">
         <SettingsCard
           icon="settings"
-          title="Интерфейс"
-          description="Отображение и отклик приложения."
+          title={t('profilePreferences.interface')}
+          description={t('profilePreferences.appAppearanceAndFeedback')}
         >
           <SettingSwitchRow
-            label="Анимации"
-            description="Переходы, появление элементов и жесты"
+            label={t('profilePreferences.animations')}
+            description={t(
+              'profilePreferences.transitionsElementEntrancesAndGestures',
+            )}
             value={settings.animations}
             onChange={(value) => patch('animations', value)}
           />
           <SettingSwitchRow
-            label="Компактный режим"
-            description="Меньше отступов и больше информации на экране"
+            label={t('profilePreferences.compactMode')}
+            description={t(
+              'profilePreferences.lessSpacingAndMoreInformationOnScreen',
+            )}
             value={settings.compactMode}
             onChange={(value) => patch('compactMode', value)}
           />
           <SettingSwitchRow
-            label="Виброотклик"
-            description="Используется на поддерживаемых устройствах"
+            label={t('profilePreferences.hapticFeedback')}
+            description={t('profilePreferences.usedOnSupportedDevices')}
             value={settings.haptics}
             onChange={(value) => patch('haptics', value)}
           />
@@ -49,18 +55,18 @@ export function ProfilePreferences({
 
         <SettingsCard
           icon="chats"
-          title="Чаты"
-          description="Поведение редактора сообщений."
+          title={t('profileOverview.chats')}
+          description={t('profilePreferences.messageEditorBehavior')}
         >
           <SettingSwitchRow
-            label="Enter отправляет сообщение"
-            description="Shift+Enter добавляет новую строку"
+            label={t('profilePreferences.enterSendsMessage')}
+            description={t('profilePreferences.shiftEnterInsertsANewLine')}
             value={settings.sendOnEnter}
             onChange={(value) => patch('sendOnEnter', value)}
           />
           <SettingSwitchRow
-            label="Сохранять черновики"
-            description="Отдельный черновик для каждого чата"
+            label={t('profilePreferences.saveDrafts')}
+            description={t('profilePreferences.aSeparateDraftForEachChat')}
             value={settings.saveDrafts}
             onChange={(value) => patch('saveDrafts', value)}
           />

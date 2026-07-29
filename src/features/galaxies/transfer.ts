@@ -1,4 +1,5 @@
 import type { GalaxyItem, GalaxyItemInput, GalaxyKind } from '../../types';
+import { i18next } from '../../i18n';
 import { normalizeData } from './model';
 
 const GALAXY_KINDS: GalaxyKind[] = [
@@ -39,7 +40,7 @@ export function parseGalaxiesExport(value: unknown): GalaxyItemInput[] {
     bundle.version !== 1 ||
     !Array.isArray(bundle.items)
   ) {
-    throw new Error('Выбранный файл не является экспортом Галактик Galactrix');
+    throw new Error(i18next.t('errors.notGalaxyExport', { ns: 'galaxies' }));
   }
 
   return bundle.items
@@ -48,7 +49,12 @@ export function parseGalaxiesExport(value: unknown): GalaxyItemInput[] {
       const kind = stringValue(item.kind) as GalaxyKind;
       const name = stringValue(item.name).trim();
       if (!GALAXY_KINDS.includes(kind) || !name) {
-        throw new Error(`Некорректный объект в экспорте: строка ${index + 1}`);
+        throw new Error(
+          i18next.t('errors.invalidExportItem', {
+            ns: 'galaxies',
+            row: index + 1,
+          }),
+        );
       }
       return {
         id: stringValue(item.id) || undefined,

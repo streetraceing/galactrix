@@ -11,6 +11,7 @@ import {
 } from '../../../components/ui/context-menu';
 import type { Provider } from '../../../types';
 import { providerStatusLabels } from '../providerHelpers';
+import { useTranslation } from 'react-i18next';
 
 export function ProviderCard({
   provider,
@@ -25,6 +26,7 @@ export function ProviderCard({
   onEdit: () => void;
   onDelete: () => void;
 }) {
+  const { t } = useTranslation('telescope');
   return (
     <ContextMenu>
       <ContextMenuTrigger className="block h-full">
@@ -56,21 +58,23 @@ export function ProviderCard({
                   }
                 >
                   {checking
-                    ? 'Проверка…'
+                    ? t('providerCard.checking')
                     : providerStatusLabels[provider.status]}
                 </Chip>
               </span>
               <span className="mt-1 block truncate text-sm text-muted">
-                {provider.model || 'Модель не выбрана'}
+                {provider.model || t('providerCard.noModelSelected')}
               </span>
               <span className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
                 <span>
-                  {provider.hasSecret ? 'Ключ сохранён' : 'Без ключа'}
+                  {provider.hasSecret
+                    ? t('providerCard.keySaved')
+                    : t('providerCard.noKey')}
                 </span>
                 <span>
                   {provider.latencyMs != null
-                    ? `${provider.latencyMs} мс`
-                    : 'Не проверено'}
+                    ? t('providerCard.latency', { value1: provider.latencyMs })
+                    : t('providerCard.notChecked')}
                 </span>
               </span>
             </span>
@@ -84,14 +88,16 @@ export function ProviderCard({
       <ContextMenuContent className="w-56">
         <ContextMenuLabel>{provider.name}</ContextMenuLabel>
         <ContextMenuItem onClick={onCheck}>
-          <Icon name="refresh" className="size-4" /> Проверить API
+          <Icon name="refresh" className="size-4" />{' '}
+          {t('providerCard.checkApi')}
         </ContextMenuItem>
         <ContextMenuItem onClick={onEdit}>
-          <Icon name="settings" className="size-4" /> Настроить
+          <Icon name="settings" className="size-4" />{' '}
+          {t('providerCard.configure')}
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem variant="destructive" onClick={onDelete}>
-          <Icon name="trash" className="size-4" /> Удалить
+          <Icon name="trash" className="size-4" /> {t('providerCard.delete')}
         </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>

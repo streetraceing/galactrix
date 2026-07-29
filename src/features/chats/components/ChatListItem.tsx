@@ -5,7 +5,9 @@ import { galaxyItemAvatar } from '../../../lib/avatar';
 import type { Chat, GalaxyItem } from '../../../types';
 import type { ChatAction } from '../types';
 import { markdownToPreview } from '../utils';
+import { formatRelativeTime } from '../../../i18n';
 import { ChatActions } from './ChatActions';
+import { useTranslation } from 'react-i18next';
 
 export function ChatListItem({
   chat,
@@ -20,6 +22,7 @@ export function ChatListItem({
   onSelect: (id: string) => void;
   onAction: (action: ChatAction, chat: Chat) => void;
 }) {
+  const { t } = useTranslation('chats');
   const character = galaxyItems.find(
     (item) => item.kind === 'character' && item.id === chat.characterId,
   );
@@ -50,7 +53,7 @@ export function ChatListItem({
               <strong className="min-w-0 flex-1 truncate text-sm font-semibold flex items-center gap-2">
                 {chat.title}
                 <span className="block truncate text-[0.7rem] text-muted">
-                  {character?.name ?? 'Персонаж не выбран'}
+                  {character?.name ?? t('chatListItem.noCharacterSelected')}
                 </span>
               </strong>
               {chat.pinned ? (
@@ -61,9 +64,12 @@ export function ChatListItem({
             </span>
             <span className="mt-1 flex min-w-0 items-center gap-2 text-xs text-muted">
               <span className="min-w-0 flex-1 truncate">
-                {markdownToPreview(chat.preview) || 'Сообщений пока нет'}
+                {markdownToPreview(chat.preview) ||
+                  t('chatListItem.noMessagesYet')}
               </span>
-              <span className="shrink-0">{chat.updatedAt}</span>
+              <span className="shrink-0">
+                {formatRelativeTime(chat.updatedAt)}
+              </span>
             </span>
           </span>
         </button>

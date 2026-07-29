@@ -1,10 +1,17 @@
 import type { Provider, ProviderInput, ProviderKind } from '../../types';
+import { i18next } from '../../i18n';
 import { providerCatalog } from './catalog';
 
 export const providerStatusLabels = {
-  connected: 'Доступен',
-  disabled: 'Не проверен',
-  error: 'Ошибка',
+  get connected() {
+    return i18next.t('status.connected', { ns: 'telescope' });
+  },
+  get disabled() {
+    return i18next.t('status.disabled', { ns: 'telescope' });
+  },
+  get error() {
+    return i18next.t('status.error', { ns: 'telescope' });
+  },
 } as const;
 
 export function defaultProviderInput(kind: ProviderKind): ProviderInput {

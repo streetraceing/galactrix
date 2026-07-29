@@ -2,18 +2,20 @@ import { Button, Chip, Surface } from '@heroui/react';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from '../../i18n/toast';
 import { previewPrompt } from '../../lib/backend';
-import { countRu } from '../../lib/plural';
 import type { PromptPreviewInput, PromptPreviewResult } from '../../types';
 import { Icon } from '../Icon';
 import { UiModal } from './UiModal';
+import { useTranslation } from 'react-i18next';
 
 export function PromptPreviewCard({
   input,
-  title = 'Расчёт промпта',
+  title,
 }: {
   input: PromptPreviewInput;
   title?: string;
 }) {
+  const { t } = useTranslation('common');
+  const resolvedTitle = title ?? t('promptPreviewCard.promptEstimate');
   const [result, setResult] = useState<PromptPreviewResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -49,12 +51,12 @@ export function PromptPreviewCard({
     if (!result?.prompt) return;
     try {
       if (!navigator.clipboard?.writeText) {
-        throw new Error('Буфер обмена недоступен');
+        throw new Error(t('promptPreviewCard.clipboardIsUnavailable'));
       }
       await navigator.clipboard.writeText(result.prompt);
-      toast.success('Промпт скопирован');
+      toast.success(t('promptPreviewCard.promptCopied'));
     } catch (caught) {
-      toast.danger('Не удалось скопировать промпт', {
+      toast.danger(t('promptPreviewCard.couldNotCopyPrompt'), {
         description: caught instanceof Error ? caught.message : String(caught),
       });
     }
@@ -69,9 +71,13 @@ export function PromptPreviewCard({
               <Icon name="database" className="size-4" />
             </span>
             <span className="min-w-0 flex-1">
-              <strong className="block break-words text-sm">{title}</strong>
+              <strong className="block break-words text-sm">
+                {resolvedTitle}
+              </strong>
               <span className="mt-0.5 block break-words text-xs leading-5 text-muted">
-                Итог после подстановки имён вместо {'{{user}}'} и {'{{char}}'}.
+                {t('promptPreviewCard.resultAfterSubstitutingNamesFor')}
+                {'{{user}}'} {t('promptPreviewCard.and')}
+                {'{{char}}'}.
               </span>
             </span>
           </div>
@@ -82,26 +88,21 @@ export function PromptPreviewCard({
             isDisabled={!result?.prompt || loading}
             onPress={() => setPreviewOpen(true)}
           >
-            <Icon name="info" className="size-4" /> Полный промпт
+            <Icon name="info" className="size-4" />{' '}
+            {t('promptPreviewCard.fullPrompt')}
           </Button>
         </div>
 
         <div className="mt-3 flex min-w-0 flex-wrap gap-2">
           <Chip size="sm" variant="soft" color="accent">
             {loading
-              ? 'Считаем…'
-              : `≈ ${countRu(result?.approximateTokens ?? 0, [
-                  'токен',
-                  'токена',
-                  'токенов',
-                ])}`}
+              ? t('promptPreviewCard.calculating')
+              : `≈ ${t('count.token', {
+                  count: result?.approximateTokens ?? 0,
+                })}`}
           </Chip>
           <Chip size="sm" variant="soft">
-            {countRu(result?.characters ?? 0, [
-              'символ',
-              'символа',
-              'символов',
-            ])}
+            {t('count.character', { count: result?.characters ?? 0 })}
           </Chip>
         </div>
         {error ? (
@@ -112,26 +113,30 @@ export function PromptPreviewCard({
       <UiModal
         isOpen={previewOpen}
         onOpenChange={setPreviewOpen}
-        title="Полный системный промпт"
-        description="Это именно тот порядок секций, который получит модель; переменные уже подставлены."
+        title={t('promptPreviewCard.fullSystemPrompt')}
+        description={t(
+          'promptPreviewCard.thisIsTheExactSectionOrderTheModelReceivesVariables',
+        )}
         size="cover"
         footer={
           <>
             <Button variant="ghost" onPress={() => setPreviewOpen(false)}>
-              Закрыть
+              {t('promptPreviewCard.close')}
             </Button>
             <Button
               variant="primary"
               isDisabled={!result?.prompt}
               onPress={() => void copyPrompt()}
             >
-              <Icon name="copy" className="size-4" /> Копировать
+              <Icon name="copy" className="size-4" />{' '}
+              {t('promptPreviewCard.copy')}
             </Button>
           </>
         }
       >
         <pre className="selectable min-h-48 whitespace-pre-wrap break-words rounded-2xl border border-separator bg-default/50 p-4 font-mono text-xs leading-5">
-          {result?.prompt || 'В промпте пока нет активных источников.'}
+          {result?.prompt ||
+            t('promptPreviewCard.thereAreNoActiveSourcesInThePromptYet')}
         </pre>
       </UiModal>
     </>

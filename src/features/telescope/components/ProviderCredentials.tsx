@@ -3,6 +3,7 @@ import type { ChangeEvent } from 'react';
 import type { ProviderInput } from '../../../types';
 import type { providerCatalog } from '../catalog';
 import { FormField } from './FormField';
+import { useTranslation } from 'react-i18next';
 
 type CatalogEntry = (typeof providerCatalog)[number];
 
@@ -22,9 +23,10 @@ export function ProviderCredentials({
   ) => void;
   onTokenChange: (value: string) => void;
 }) {
+  const { t } = useTranslation('telescope');
   return (
     <div className="flex flex-col gap-4">
-      <FormField label="Название">
+      <FormField label={t('providerCredentials.name')}>
         <Input
           fullWidth
           variant="secondary"
@@ -36,7 +38,7 @@ export function ProviderCredentials({
         />
       </FormField>
       {form.kind !== 'ollama' ? (
-        <FormField label="API-ключ">
+        <FormField label={t('providerCredentials.apiKey')}>
           <Input
             fullWidth
             variant="secondary"
@@ -48,10 +50,10 @@ export function ProviderCredentials({
             }
             placeholder={
               form.id
-                ? 'Оставьте пустым, чтобы не менять'
+                ? t('providerCredentials.leaveEmptyToKeepUnchanged')
                 : catalog.requiresApiKey
-                  ? 'Можно добавить позже'
-                  : 'Необязательно'
+                  ? t('providerCredentials.canBeAddedLater')
+                  : t('providerCredentials.optional')
             }
           />
         </FormField>
@@ -91,8 +93,7 @@ export function ProviderCredentials({
       ) : null}
       {form.kind === 'ollama' ? (
         <p className="text-xs leading-5 text-muted">
-          На Android укажите LAN-адрес компьютера с Ollama вместо localhost,
-          например http://192.168.1.10:11434/api.
+          {t('providerCredentials.onAndroidUseTheComputerSLanAddressForOllama')}
         </p>
       ) : null}
     </div>

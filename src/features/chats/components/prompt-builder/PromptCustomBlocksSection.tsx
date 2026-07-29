@@ -14,6 +14,7 @@ import { formatNumber } from '../../../../i18n';
 import type { PromptBlock, PromptConfig } from '../../../../types';
 import { createPromptBlock } from './promptBuilderModel';
 import { PromptPrioritySelect } from './PromptPrioritySelect';
+import { useTranslation } from 'react-i18next';
 
 export function PromptCustomBlocksSection({
   value,
@@ -22,6 +23,7 @@ export function PromptCustomBlocksSection({
   value: PromptConfig;
   onChange: (value: PromptConfig) => void;
 }) {
+  const { t } = useTranslation('chats');
   const [draggedId, setDraggedId] = useState('');
   const [dropTargetId, setDropTargetId] = useState('');
   const patchBlock = (id: string, patch: Partial<PromptBlock>) => {
@@ -75,9 +77,13 @@ export function PromptCustomBlocksSection({
       <Accordion.Heading>
         <Accordion.Trigger className="px-4 sm:px-5">
           <span className="min-w-0 flex-1 text-left">
-            <strong className="block text-sm">Свои блоки</strong>
+            <strong className="block text-sm">
+              {t('promptCustomBlocksSection.customBlocks')}
+            </strong>
             <span className="mt-0.5 block text-xs font-normal text-muted">
-              Постоянные инструкции для конкретного чата
+              {t(
+                'promptCustomBlocksSection.persistentInstructionsForASpecificChat',
+              )}
             </span>
           </span>
           <Accordion.Indicator />
@@ -98,14 +104,14 @@ export function PromptCustomBlocksSection({
               }
             >
               <Icon name="plus" className="size-4" />
-              Добавить блок
+              {t('promptCustomBlocksSection.addBlock')}
             </Button>
           </div>
 
           <div className="space-y-3">
             {value.customBlocks.length === 0 ? (
               <div className="rounded-xl border border-dashed border-muted px-4 py-6 text-center text-sm text-muted">
-                Пользовательских инструкций пока нет.
+                {t('promptCustomBlocksSection.noCustomInstructionsYet')}
               </div>
             ) : null}
 
@@ -143,7 +149,10 @@ export function PromptCustomBlocksSection({
                       draggable
                       role="button"
                       tabIndex={0}
-                      aria-label={`Перетащить блок «${block.title || index + 1}»`}
+                      aria-label={t(
+                        'promptCustomBlocksSection.dragBlockValue1',
+                        { value1: block.title || index + 1 },
+                      )}
                       className="hidden cursor-grab touch-none rounded-lg p-1.5 text-muted outline-none hover:bg-default-hover hover:text-foreground focus-visible:ring-2 focus-visible:ring-focus active:cursor-grabbing sm:inline-flex"
                       onDragStart={(event) => startDragging(event, block.id)}
                       onDragEnd={finishDragging}
@@ -159,7 +168,7 @@ export function PromptCustomBlocksSection({
                         <Checkbox.Control>
                           <Checkbox.Indicator />
                         </Checkbox.Control>
-                        Включён
+                        {t('promptCustomBlocksSection.enabled')}
                       </Checkbox.Content>
                     </Checkbox>
                     <span className="ml-auto flex items-center gap-0.5">
@@ -168,7 +177,7 @@ export function PromptCustomBlocksSection({
                         size="sm"
                         variant="ghost"
                         isDisabled={index === 0}
-                        aria-label="Переместить блок выше"
+                        aria-label={t('promptCustomBlocksSection.moveBlockUp')}
                         onPress={() => moveBlock(index, -1)}
                       >
                         <Icon
@@ -181,7 +190,9 @@ export function PromptCustomBlocksSection({
                         size="sm"
                         variant="ghost"
                         isDisabled={index === value.customBlocks.length - 1}
-                        aria-label="Переместить блок ниже"
+                        aria-label={t(
+                          'promptCustomBlocksSection.moveBlockDown',
+                        )}
                         onPress={() => moveBlock(index, 1)}
                       >
                         <Icon
@@ -194,7 +205,7 @@ export function PromptCustomBlocksSection({
                         size="sm"
                         variant="ghost"
                         className="text-danger"
-                        aria-label="Удалить блок"
+                        aria-label={t('promptCustomBlocksSection.deleteBlock')}
                         onPress={() =>
                           onChange({
                             ...value,
@@ -212,7 +223,7 @@ export function PromptCustomBlocksSection({
                   <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_10rem]">
                     <div className="flex flex-col gap-1.5">
                       <Label htmlFor={`prompt-title-${block.id}`}>
-                        Название
+                        {t('chatSetupModal.name')}
                       </Label>
                       <Input
                         id={`prompt-title-${block.id}`}
@@ -229,10 +240,12 @@ export function PromptCustomBlocksSection({
                       />
                     </div>
                     <div className="flex flex-col gap-1.5">
-                      <Label>Приоритет</Label>
+                      <Label>{t('promptCustomBlocksSection.priority')}</Label>
                       <PromptPrioritySelect
                         value={block.priority}
-                        label={`Приоритет блока ${block.title}`}
+                        label={t('promptCustomBlocksSection.blockPriority', {
+                          value1: block.title,
+                        })}
                         onChange={(priority) =>
                           patchBlock(block.id, { priority })
                         }
@@ -241,7 +254,7 @@ export function PromptCustomBlocksSection({
                   </div>
                   <div className="mt-3 flex flex-col gap-1.5">
                     <Label htmlFor={`prompt-content-${block.id}`}>
-                      Инструкция
+                      {t('promptCustomBlocksSection.instruction')}
                     </Label>
                     <TextArea
                       id={`prompt-content-${block.id}`}
@@ -250,7 +263,9 @@ export function PromptCustomBlocksSection({
                       rows={5}
                       maxLength={12_000}
                       value={block.content}
-                      placeholder="Опишите обязательное поведение, ограничения, формат или цель ответа."
+                      placeholder={t(
+                        'promptCustomBlocksSection.describeRequiredBehaviorConstraintsFormatOrResponseGoal',
+                      )}
                       className="min-h-32 resize-y"
                       autoComplete="off"
                       onChange={(event) =>
@@ -264,7 +279,9 @@ export function PromptCustomBlocksSection({
                     </span>
                     {missingRequired ? (
                       <span className="text-xs text-danger">
-                        Заполните название и инструкцию или выключите этот блок.
+                        {t(
+                          'promptCustomBlocksSection.fillInTheTitleAndInstructionOrDisableThisBlock',
+                        )}
                       </span>
                     ) : null}
                   </div>

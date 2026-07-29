@@ -1,50 +1,120 @@
 import type { GalaxyKind } from '../../types';
+import { translate, type TranslationKey } from '../../i18n';
+
+function galaxyText(key: TranslationKey<'galaxies'>) {
+  return translate('galaxies', key);
+}
 
 export const galaxySections: Array<{ id: GalaxyKind; label: string }> = [
-  { id: 'persona', label: 'Персоны' },
-  { id: 'character', label: 'Персонажи' },
-  { id: 'universe', label: 'Вселенные' },
-  { id: 'worldbook', label: 'Ворлдбуки' },
-  { id: 'style', label: 'Стили' },
-  { id: 'prompt-set', label: 'Наборы промптов' },
+  {
+    id: 'persona',
+    get label() {
+      return galaxyText('section.persona');
+    },
+  },
+  {
+    id: 'character',
+    get label() {
+      return galaxyText('section.character');
+    },
+  },
+  {
+    id: 'universe',
+    get label() {
+      return galaxyText('section.universe');
+    },
+  },
+  {
+    id: 'worldbook',
+    get label() {
+      return galaxyText('section.worldbook');
+    },
+  },
+  {
+    id: 'style',
+    get label() {
+      return galaxyText('section.style');
+    },
+  },
+  {
+    id: 'prompt-set',
+    get label() {
+      return galaxyText('section.promptSet');
+    },
+  },
 ];
 
 export const galaxyFilters: Array<{ id: 'all' | GalaxyKind; label: string }> = [
-  { id: 'all', label: 'Все' },
+  {
+    id: 'all',
+    get label() {
+      return galaxyText('section.all');
+    },
+  },
   ...galaxySections,
 ];
 
 export const galaxyKindDescriptions: Record<GalaxyKind, string> = {
-  persona:
-    'Описывает пользователя: его устойчивые факты, привычки, предпочтения и особенности общения.',
-  character:
-    'Задаёт личность ассистента, подробное определение и постоянный стиль его сообщений.',
-  universe:
-    'Хранит правила мира, сеттинг и общие факты, действующие на протяжении всего чата.',
-  worldbook:
-    'Содержит отдельные записи лора, которые можно подключать к одному или нескольким чатам.',
-  style:
-    'Сохраняет переиспользуемые инструкции по тону, формату и манере переписки персонажа.',
-  'prompt-set':
-    'Объединяет правила и свои блоки промпта в переиспользуемый набор с заданным порядком и приоритетами.',
+  get persona() {
+    return galaxyText('description.persona');
+  },
+  get character() {
+    return galaxyText('description.character');
+  },
+  get universe() {
+    return galaxyText('description.universe');
+  },
+  get worldbook() {
+    return galaxyText('description.worldbook');
+  },
+  get style() {
+    return galaxyText('description.style');
+  },
+  get 'prompt-set'() {
+    return galaxyText('description.promptSet');
+  },
 };
 
 export const galaxyKindLabels: Record<GalaxyKind, string> = {
-  persona: 'Персона',
-  character: 'Персонаж',
-  universe: 'Вселенная',
-  worldbook: 'Ворлдбук',
-  style: 'Стиль',
-  'prompt-set': 'Набор промптов',
+  get persona() {
+    return translate('common', 'galaxy.kind.persona');
+  },
+  get character() {
+    return translate('common', 'galaxy.kind.character');
+  },
+  get universe() {
+    return translate('common', 'galaxy.kind.universe');
+  },
+  get worldbook() {
+    return translate('common', 'galaxy.kind.worldbook');
+  },
+  get style() {
+    return translate('common', 'galaxy.kind.style');
+  },
+  get 'prompt-set'() {
+    return translate('common', 'galaxy.kind.promptSet');
+  },
 };
 
 export const galaxyKindCreateLabels: Record<GalaxyKind, string> = {
-  persona: 'персону',
-  character: 'персонажа',
-  universe: 'вселенную',
-  worldbook: 'ворлдбук',
-  style: 'стиль',
-  'prompt-set': 'набор промптов',
+  get persona() {
+    return galaxyText('create.persona');
+  },
+  get character() {
+    return galaxyText('create.character');
+  },
+  get universe() {
+    return galaxyText('create.universe');
+  },
+  get worldbook() {
+    return galaxyText('create.worldbook');
+  },
+  get style() {
+    return galaxyText('create.style');
+  },
+  get 'prompt-set'() {
+    return galaxyText('create.promptSet');
+  },
 };
 
 export const galaxyKindIcons: Record<

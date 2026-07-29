@@ -3,6 +3,7 @@ import { useLayoutEffect, useRef } from 'react';
 import type { ChangeEvent, KeyboardEvent } from 'react';
 import { Icon } from '../../../components/Icon';
 import type { Provider } from '../../../types';
+import { useTranslation } from 'react-i18next';
 
 export function ChatComposer({
   draft,
@@ -21,6 +22,7 @@ export function ChatComposer({
   onDraftChange: (value: string) => void;
   onSend: () => void;
 }) {
+  const { t } = useTranslation('chats');
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
 
   useLayoutEffect(() => {
@@ -55,8 +57,8 @@ export function ChatComposer({
                 }
               }}
               enterKeyHint={sendOnEnter ? 'send' : 'enter'}
-              placeholder={`Сообщение...`}
-              aria-label="Сообщение"
+              placeholder={t('chatComposer.placeholder')}
+              aria-label={t('chatComposer.label')}
               disabled={!provider || sending}
               className="max-h-48 min-h-12 resize-none overflow-y-auto"
             />
@@ -69,23 +71,25 @@ export function ChatComposer({
                   className="shrink-0"
                   isDisabled={!draft.trim() || !provider || sending}
                   isPending={sending}
-                  aria-label="Отправить сообщение"
+                  aria-label={t('chatComposer.sendMessage')}
                   onPress={onSend}
                 >
                   <Icon name="send" className="size-5" />
                 </Button>
               </Tooltip.Trigger>
-              <Tooltip.Content>Отправить сообщение</Tooltip.Content>
+              <Tooltip.Content>{t('chatComposer.sendMessage')}</Tooltip.Content>
             </Tooltip>
           </div>
           <div className="hidden flex-wrap items-center justify-between gap-2 px-2 pb-1 pt-2 text-[0.7rem] text-muted sm:flex">
             <span>
               {provider
                 ? `${provider.model} · max ${provider.maxTokens}`
-                : 'Настройки берутся из подключения'}
+                : t('chatComposer.usesConnectionSettings')}
             </span>
             <span>
-              {sendOnEnter ? 'Enter - отправить' : 'Отправка кнопкой'}
+              {sendOnEnter
+                ? t('chatComposer.enterSend')
+                : t('chatComposer.sendWithButton')}
             </span>
           </div>
         </Surface>

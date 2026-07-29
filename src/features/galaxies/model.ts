@@ -16,14 +16,45 @@ import type {
   WorldbookData,
   WorldbookEntry,
 } from '../../types';
+import { i18next } from '../../i18n';
 
 export const stylePresets = [
-  { id: 'neutral', label: 'Нейтральный' },
-  { id: 'warm', label: 'Тёплый' },
-  { id: 'concise', label: 'Краткий' },
-  { id: 'roleplay', label: 'Ролевой' },
-  { id: 'literary', label: 'Литературный' },
-  { id: 'custom', label: 'Свой пресет' },
+  {
+    id: 'neutral',
+    get label() {
+      return i18next.t('style.neutral', { ns: 'galaxies' });
+    },
+  },
+  {
+    id: 'warm',
+    get label() {
+      return i18next.t('style.warm', { ns: 'galaxies' });
+    },
+  },
+  {
+    id: 'concise',
+    get label() {
+      return i18next.t('style.concise', { ns: 'galaxies' });
+    },
+  },
+  {
+    id: 'roleplay',
+    get label() {
+      return i18next.t('style.roleplay', { ns: 'galaxies' });
+    },
+  },
+  {
+    id: 'literary',
+    get label() {
+      return i18next.t('style.literary', { ns: 'galaxies' });
+    },
+  },
+  {
+    id: 'custom',
+    get label() {
+      return i18next.t('style.custom', { ns: 'galaxies' });
+    },
+  },
 ] as const;
 
 type StylePreset = CharacterData['stylePreset'];
@@ -225,8 +256,12 @@ function normalizeGender(value: unknown): PersonaData['gender'] {
 }
 
 export function pronounsForGender(gender: PersonaData['gender']) {
-  if (gender === 'male') return 'он/его';
-  if (gender === 'female') return 'она/её';
+  if (gender === 'male') {
+    return i18next.t('gender.pronouns.male', { ns: 'galaxies' });
+  }
+  if (gender === 'female') {
+    return i18next.t('gender.pronouns.female', { ns: 'galaxies' });
+  }
   return '';
 }
 

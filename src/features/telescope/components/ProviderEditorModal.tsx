@@ -6,6 +6,7 @@ import { GenerationSettings } from './GenerationSettings';
 import { ProviderCredentials } from './ProviderCredentials';
 import { ProviderModelSection } from './ProviderModelSection';
 import { ProviderTypePicker } from './ProviderTypePicker';
+import { useTranslation } from 'react-i18next';
 
 type CatalogEntry = (typeof providerCatalog)[number];
 
@@ -49,6 +50,7 @@ export function ProviderEditorModal({
   onLoadModels: () => void;
   onSave: () => void;
 }) {
+  const { t } = useTranslation('telescope');
   return (
     <UiModal
       isOpen={isOpen}
@@ -56,12 +58,16 @@ export function ProviderEditorModal({
       size="lg"
       title={
         step === 1
-          ? 'Новое подключение'
+          ? t('providerEditorModal.newConnection')
           : form.id
-            ? 'Настройки подключения'
+            ? t('providerEditorModal.connectionSettings')
             : catalog.name
       }
-      description={step === 1 ? 'Выберите тип API.' : catalog.description}
+      description={
+        step === 1
+          ? t('providerEditorModal.selectAnApiType')
+          : catalog.description
+      }
       footer={
         step === 2 ? (
           <>
@@ -72,7 +78,7 @@ export function ProviderEditorModal({
                 isDisabled={saving}
                 onPress={() => onStepChange(1)}
               >
-                Назад
+                {t('providerEditorModal.back')}
               </Button>
             ) : null}
             <Button
@@ -85,7 +91,7 @@ export function ProviderEditorModal({
               }
               onPress={onSave}
             >
-              Сохранить
+              {t('providerEditorModal.save')}
             </Button>
           </>
         ) : undefined
@@ -97,8 +103,9 @@ export function ProviderEditorModal({
         <div className="space-y-4">
           {form.kind === 'character-ai' ? (
             <Surface className="rounded-2xl border border-separator p-4 text-sm leading-6 text-warning bg-surface-secondary/50">
-              Для Character.AI нужен отдельный адаптер авторизации и протокола.
-              Несовместимое подключение не сохраняется.
+              {t(
+                'providerEditorModal.characterAiNeedsADedicatedAuthenticationAndProtocolAdapterAn',
+              )}
             </Surface>
           ) : null}
 

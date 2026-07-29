@@ -2,9 +2,9 @@ import { Button, Chip, Surface } from '@heroui/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '../../../components/Icon';
 import { formatDate, formatNumber } from '../../../i18n';
-import { countRu, pluralRu } from '../../../lib/plural';
 import type { UsagePoint } from '../../../types';
 import { formatTokens } from '../format';
+import { useTranslation } from 'react-i18next';
 
 type UsageMetric = 'tokens' | 'requests';
 
@@ -26,6 +26,13 @@ function shortDate(day: number) {
   });
 }
 
+function weekday(day: number) {
+  return formatDate(day * 86_400_000, {
+    weekday: 'short',
+    timeZone: 'UTC',
+  });
+}
+
 function valueFor(point: UsagePoint, metric: UsageMetric) {
   return metric === 'tokens' ? point.tokens : point.requests;
 }
@@ -41,6 +48,7 @@ export function UsageTimeline({
   usage: UsagePoint[];
   metric: UsageMetric;
 }) {
+  const { t } = useTranslation('profile');
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [selectedDay, setSelectedDay] = useState(() => usage.at(-1)?.day ?? 0);
   const selected =
@@ -92,7 +100,7 @@ export function UsageTimeline({
   if (!selected) {
     return (
       <Surface className="grid min-h-64 place-items-center rounded-2xl border border-separator p-6 text-center text-muted">
-        Статистика появится после первого запроса к модели.
+        {t('usageTimeline.statisticsWillAppearAfterTheFirstModelRequest')}
       </Surface>
     );
   }
@@ -112,16 +120,8 @@ export function UsageTimeline({
           </p>
           <p className="mt-1 text-sm text-muted">
             {metric === 'tokens'
-              ? pluralRu(selected.tokens, [
-                  'токен использован',
-                  'токена использовано',
-                  'токенов использовано',
-                ])
-              : pluralRu(selected.requests, [
-                  'запрос отправлен',
-                  'запроса отправлено',
-                  'запросов отправлено',
-                ])}
+              ? t('count.tokensUsed', { count: selected.tokens })
+              : t('count.requestsSent', { count: selected.requests })}
           </p>
         </div>
 
@@ -130,19 +130,19 @@ export function UsageTimeline({
             isIconOnly
             size="sm"
             variant="ghost"
-            aria-label="Показать предыдущий период"
+            aria-label={t('usageTimeline.showPreviousPeriod')}
             onPress={() => scrollPeriod(-1)}
           >
             <Icon name="chevron-left" className="size-4" />
           </Button>
           <Button size="sm" variant="secondary" onPress={goToLatest}>
-            Сегодня
+            {t('usageTimeline.today')}
           </Button>
           <Button
             isIconOnly
             size="sm"
             variant="ghost"
-            aria-label="Показать следующий период"
+            aria-label={t('usageTimeline.showNextPeriod')}
             onPress={() => scrollPeriod(1)}
           >
             <Icon name="chevron-right" className="size-4" />
@@ -155,8 +155,8 @@ export function UsageTimeline({
         className="scrollbar-thin usage-timeline flex h-64 snap-x snap-mandatory items-end gap-1 overflow-x-auto px-3 pb-3 pt-6 sm:h-72 sm:px-5"
         aria-label={
           metric === 'tokens'
-            ? 'Использование токенов по дням'
-            : 'Количество запросов по дням'
+            ? t('usageTimeline.dailyTokenUsage')
+            : t('usageTimeline.dailyRequestCount')
         }
       >
         {usage.map((point, index) => {
@@ -222,7 +222,7 @@ export function UsageTimeline({
                   isSelected ? 'text-accent' : 'text-foreground'
                 }`}
               >
-                {point.label}
+                {weekday(point.day)}
               </span>
               <span
                 className={`text-[0.6rem] tabular-nums ${
@@ -241,28 +241,32 @@ export function UsageTimeline({
           <>
             <Chip variant="soft" className="justify-center">
               <span className="size-2 rounded-full bg-accent" />
-              Контекст {formatTokens(selected.inputTokens)}
+              {t('usageTimeline.context')}
+              {formatTokens(selected.inputTokens)}
             </Chip>
             <Chip variant="soft" className="justify-center">
               <span className="size-2 rounded-full bg-success" />
-              Ответы {formatTokens(selected.outputTokens)}
+              {t('usageTimeline.responses')}
+              {formatTokens(selected.outputTokens)}
             </Chip>
             <Chip variant="soft" className="justify-center">
-              В среднем {formatTokens(average)} / запрос
+              {t('usageTimeline.average')}
+              {formatTokens(average)} {t('usageTimeline.request')}
             </Chip>
           </>
         ) : (
           <>
             <Chip variant="soft" className="justify-center">
-              За день{' '}
-              {countRu(selected.requests, ['запрос', 'запроса', 'запросов'])}
+              {t('usageTimeline.perDay')}{' '}
+              {t('count.request', { count: selected.requests })}
             </Chip>
             <Chip variant="soft" className="justify-center">
-              Токенов {formatTokens(selected.tokens)}
+              {t('usageTimeline.tokens')}
+              {formatTokens(selected.tokens)}
             </Chip>
             <Chip variant="soft" className="justify-center">
-              Всего за период{' '}
-              {countRu(total, ['запрос', 'запроса', 'запросов'])}
+              {t('usageTimeline.periodTotal')}{' '}
+              {t('count.request', { count: total })}
             </Chip>
           </>
         )}

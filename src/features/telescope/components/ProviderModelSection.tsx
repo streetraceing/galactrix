@@ -3,6 +3,7 @@ import type { ChangeEvent, Key } from 'react';
 import { Icon } from '../../../components/Icon';
 import type { ProviderInput } from '../../../types';
 import { FormField } from './FormField';
+import { useTranslation } from 'react-i18next';
 
 export function ProviderModelSection({
   form,
@@ -22,19 +23,23 @@ export function ProviderModelSection({
   ) => void;
   onLoadModels: () => void;
 }) {
+  const { t } = useTranslation('telescope');
   return (
     <Surface className="rounded-2xl border border-separator p-4 bg-surface-secondary/50 ">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <strong className="text-sm font-medium">Модель</strong>
+          <strong className="text-sm font-medium">
+            {t('providerModelSection.model')}
+          </strong>
           <p className="mt-1 text-xs text-muted">
             {latency != null
-              ? `API ответил за ${latency} мс`
-              : 'Список ещё не загружен'}
+              ? t('providerModelSection.apiLatency', { value1: latency })
+              : t('providerModelSection.theListHasNotBeenLoadedYet')}
           </p>
         </div>
         <Button variant="secondary" isPending={loading} onPress={onLoadModels}>
-          <Icon name="refresh" className="size-4" /> Получить модели
+          <Icon name="refresh" className="size-4" />{' '}
+          {t('providerModelSection.loadModels')}
         </Button>
       </div>
 
@@ -47,8 +52,8 @@ export function ProviderModelSection({
           onChange={(value: Key | Key[] | null) =>
             onPatch('model', String(value ?? ''))
           }
-          placeholder="Выберите модель"
-          aria-label="Доступные модели"
+          placeholder={t('providerModelSection.selectAModel')}
+          aria-label={t('providerModelSection.availableModels')}
         >
           <Select.Trigger>
             <Select.Value />
@@ -67,7 +72,7 @@ export function ProviderModelSection({
       ) : null}
 
       <div className="mt-4">
-        <FormField label="Идентификатор модели">
+        <FormField label={t('providerModelSection.modelId')}>
           <Input
             autoComplete="off"
             fullWidth
@@ -76,7 +81,7 @@ export function ProviderModelSection({
             onChange={(event: ChangeEvent<HTMLInputElement>) =>
               onPatch('model', event.target.value)
             }
-            placeholder="Можно указать вручную"
+            placeholder={t('providerModelSection.canBeEnteredManually')}
           />
         </FormField>
       </div>

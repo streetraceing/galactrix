@@ -5,32 +5,34 @@ import {
   canShareExportFile,
   type ExportDestination,
 } from '../../lib/jsonTransfer';
+import type { TranslationKey } from '../../i18n';
+import { useTranslation } from 'react-i18next';
 
 const destinationOptions: Array<{
   id: ExportDestination;
-  title: string;
-  description: string;
+  titleKey: TranslationKey<'common'>;
+  descriptionKey: TranslationKey<'common'>;
   icon: IconName;
   available: () => boolean;
 }> = [
   {
     id: 'choose-file',
-    title: 'Выбрать папку и имя',
-    description: 'Откроется системное окно сохранения файла.',
+    titleKey: 'export.destination.chooseFile.title',
+    descriptionKey: 'export.destination.chooseFile.description',
     icon: 'download',
     available: canChooseExportFile,
   },
   {
     id: 'share',
-    title: 'Поделиться или отправить',
-    description: 'Выберите приложение или хранилище в системном меню.',
+    titleKey: 'export.destination.share.title',
+    descriptionKey: 'export.destination.share.description',
     icon: 'upload',
     available: canShareExportFile,
   },
   {
     id: 'downloads',
-    title: 'Сохранить в загрузки',
-    description: 'Файл будет скачан с автоматически созданным именем.',
+    titleKey: 'export.destination.downloads.title',
+    descriptionKey: 'export.destination.downloads.description',
     icon: 'download',
     available: () => true,
   },
@@ -43,9 +45,12 @@ export function ExportDestinationPicker({
   value: ExportDestination;
   onChange: (value: ExportDestination) => void;
 }) {
+  const { t } = useTranslation('common');
   return (
     <section>
-      <h3 className="text-sm font-semibold">Куда экспортировать</h3>
+      <h3 className="text-sm font-semibold">
+        {t('exportOptions.exportDestination')}
+      </h3>
       <div className="mt-2 flex flex-col gap-2">
         {destinationOptions
           .filter((option) => option.available())
@@ -73,9 +78,11 @@ export function ExportDestinationPicker({
                   <Icon name={option.icon} className="size-4" />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <strong className="block text-sm">{option.title}</strong>
+                  <strong className="block text-sm">
+                    {t(option.titleKey)}
+                  </strong>
                   <span className="mt-0.5 block text-xs leading-5 text-muted">
-                    {option.description}
+                    {t(option.descriptionKey)}
                   </span>
                 </span>
                 {selected ? (
@@ -100,13 +107,16 @@ export function ExportSelectionList({
   selectedIds: string[];
   onChange: (ids: string[]) => void;
 }) {
+  const { t } = useTranslation('common');
   const selected = new Set(selectedIds);
   const allSelected = items.length > 0 && selectedIds.length === items.length;
 
   return (
     <section>
       <div className="flex items-center justify-between gap-3">
-        <h3 className="text-sm font-semibold">Что экспортировать</h3>
+        <h3 className="text-sm font-semibold">
+          {t('exportOptions.whatToExport')}
+        </h3>
         <Button
           size="sm"
           variant="ghost"
@@ -114,7 +124,9 @@ export function ExportSelectionList({
             onChange(allSelected ? [] : items.map((item) => item.id))
           }
         >
-          {allSelected ? 'Снять выбор' : 'Выбрать всё'}
+          {allSelected
+            ? t('exportOptions.clearSelection')
+            : t('exportOptions.selectAll')}
         </Button>
       </div>
       <Surface className="mt-2 max-h-64 overflow-y-auto rounded-xl border border-separator p-1">
@@ -151,7 +163,9 @@ export function ExportSelectionList({
         ))}
       </Surface>
       <p className="mt-2 text-xs text-muted">
-        Выбрано: {selectedIds.length} из {items.length}
+        {t('exportOptions.selected')}
+        {selectedIds.length} {t('exportOptions.of')}
+        {items.length}
       </p>
     </section>
   );

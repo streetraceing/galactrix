@@ -16,12 +16,16 @@ import { promptPreviewFromChat } from '../promptPreview';
 import { ChatContextPicker } from './ChatContextPicker';
 import { ChatProviderPicker } from './ChatProviderPicker';
 import { PromptBuilder } from './PromptBuilder';
+import { useTranslation } from 'react-i18next';
+import { i18next } from '../../../i18n';
 
-const newChatConfig: ChatConfigInput = {
-  title: 'Новый чат',
-  worldbookIds: [],
-  promptConfig: clonePromptConfig(defaultPromptConfig),
-};
+function newChatConfig(): ChatConfigInput {
+  return {
+    title: i18next.t('setup.defaultTitle', { ns: 'chats' }),
+    worldbookIds: [],
+    promptConfig: clonePromptConfig(defaultPromptConfig),
+  };
+}
 
 function configFromChat(chat: Chat): ChatConfigInput {
   return {
@@ -58,6 +62,7 @@ export function ChatSetupModal({
   onOpenChange: (open: boolean) => void;
   onSubmit: (input: ChatConfigInput) => void;
 }) {
+  const { t } = useTranslation('chats');
   const [form, setForm] = useState<ChatConfigInput>(newChatConfig);
 
   useEffect(() => {
@@ -66,7 +71,7 @@ export function ChatSetupModal({
       chat
         ? configFromChat(chat)
         : {
-            ...newChatConfig,
+            ...newChatConfig(),
             promptConfig: clonePromptConfig(defaultPromptConfig),
           },
     );
@@ -90,8 +95,12 @@ export function ChatSetupModal({
       isOpen={isOpen}
       onOpenChange={(open) => !saving && onOpenChange(open)}
       size="cover"
-      title={chat ? 'Настройки чата' : 'Новый чат'}
-      description="Провайдер, ролевой контекст и стиль ответа можно изменить в любое время."
+      title={
+        chat ? t('chatSetupModal.chatSettings') : t('chatSetupModal.newChat')
+      }
+      description={t(
+        'chatSetupModal.youCanChangeTheProviderRoleplayContextAndResponseStyle',
+      )}
       footer={
         <div className="flex w-full flex-wrap items-center justify-end gap-2">
           <Button
@@ -99,7 +108,7 @@ export function ChatSetupModal({
             isDisabled={saving}
             onPress={() => onOpenChange(false)}
           >
-            Отмена
+            {t('chatDialogs.cancel')}
           </Button>
           <Button
             variant="primary"
@@ -107,7 +116,7 @@ export function ChatSetupModal({
             isDisabled={!form.title.trim() || !promptIsValid}
             onPress={() => onSubmit({ ...form, title: form.title.trim() })}
           >
-            {chat ? 'Сохранить' : 'Создать чат'}
+            {chat ? t('chatDialogs.save') : t('chatSetupModal.createChat')}
           </Button>
         </div>
       }
@@ -115,7 +124,7 @@ export function ChatSetupModal({
       <div className="min-w-0 space-y-5">
         <div className="grid min-w-0 gap-4 sm:grid-cols-2">
           <div className="flex min-w-0 flex-col gap-1.5">
-            <Label htmlFor="chat-title">Название</Label>
+            <Label htmlFor="chat-title">{t('chatSetupModal.name')}</Label>
             <Input
               id="chat-title"
               fullWidth
@@ -168,7 +177,7 @@ export function ChatSetupModal({
             profileName,
             rememberedMessages,
           )}
-          title="Расчёт промпта чата"
+          title={t('chatSetupModal.chatPromptEstimate')}
         />
 
         {error ? (

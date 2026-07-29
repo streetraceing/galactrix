@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
+import { i18next } from '../i18n';
 import { localizeBackendError } from '../i18n/backend';
 import type {
   AppSettings,
@@ -16,7 +17,7 @@ import type {
 
 function requireTauri() {
   if (typeof window === 'undefined' || !('__TAURI_INTERNALS__' in window)) {
-    throw new Error('Приложение запущено без Tauri backend');
+    throw new Error(i18next.t('errors.tauriUnavailable'));
   }
 }
 

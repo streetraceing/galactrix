@@ -7,7 +7,7 @@ pub struct Chat {
     pub id: String,
     pub title: String,
     pub preview: String,
-    pub updated_at: String,
+    pub updated_at: i64,
     pub message_count: i64,
     pub pinned: bool,
     pub provider_id: Option<String>,
@@ -160,7 +160,7 @@ pub struct GalaxyItem {
     pub data: Value,
     pub badge: String,
     pub accent: String,
-    pub updated_at: String,
+    pub updated_at: i64,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -282,7 +282,6 @@ impl Default for AppSettings {
 #[serde(rename_all = "camelCase")]
 pub struct UsagePoint {
     pub day: i64,
-    pub label: String,
     pub input_tokens: i64,
     pub output_tokens: i64,
     pub tokens: i64,

@@ -226,7 +226,7 @@ fn preview_galaxy_item(input: GalaxyItemInput) -> GalaxyItem {
         data: input.data,
         badge: String::new(),
         accent: String::new(),
-        updated_at: String::new(),
+        updated_at: 0,
     }
 }
 

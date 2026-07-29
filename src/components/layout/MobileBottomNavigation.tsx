@@ -2,6 +2,7 @@ import { navigationItems } from '../../app/navigation';
 import type { TabId } from '../../types';
 import { Icon } from '../Icon';
 import { AppAvatar } from '../ui/AppAvatar';
+import { useTranslation } from 'react-i18next';
 
 export function MobileBottomNavigation({
   activeTab,
@@ -14,10 +15,11 @@ export function MobileBottomNavigation({
   profileAvatar?: string;
   onNavigate: (tab: TabId) => void;
 }) {
+  const { t } = useTranslation('common');
   return (
     <nav
       className="shrink-0 border-t border-separator bg-surface pb-[env(safe-area-inset-bottom)]"
-      aria-label="Мобильная навигация"
+      aria-label={t('mobileBottomNavigation.mobileNavigation')}
     >
       <div className="grid h-16 w-full grid-cols-5">
         {navigationItems.map((item) => {

@@ -1,4 +1,5 @@
 import type { PromptConfig, PromptPresetId, PromptPriority } from '../../types';
+import { i18next } from '../../i18n';
 
 export const promptPresets: Array<{
   id: PromptPresetId;
@@ -7,49 +8,79 @@ export const promptPresets: Array<{
 }> = [
   {
     id: 'human',
-    label: 'Живой язык',
-    description:
-      'Естественный ритм, конкретные формулировки и минимум ассистентского тона.',
+    get label() {
+      return i18next.t('promptRule.livingLanguage.label', { ns: 'chats' });
+    },
+    get description() {
+      return i18next.t('promptRule.livingLanguage.description', {
+        ns: 'chats',
+      });
+    },
   },
   {
     id: 'dialogue-only',
-    label: 'Только реплики',
-    description:
-      'Без действий, ремарок, звёздочек и повествования от третьего лица.',
+    get label() {
+      return i18next.t('promptRule.dialogueOnly.label', { ns: 'chats' });
+    },
+    get description() {
+      return i18next.t('promptRule.dialogueOnly.description', { ns: 'chats' });
+    },
   },
   {
     id: 'no-emoji',
-    label: 'Без эмодзи',
-    description: 'Запрещает эмодзи, эмотиконы и декоративные символы.',
+    get label() {
+      return i18next.t('promptRule.noEmoji.label', { ns: 'chats' });
+    },
+    get description() {
+      return i18next.t('promptRule.noEmoji.description', { ns: 'chats' });
+    },
   },
   {
     id: 'first-person',
-    label: 'От первого лица',
-    description:
-      'Персонаж говорит от своего имени и не решает действия пользователя.',
+    get label() {
+      return i18next.t('promptRule.firstPerson.label', { ns: 'chats' });
+    },
+    get description() {
+      return i18next.t('promptRule.firstPerson.description', { ns: 'chats' });
+    },
   },
   {
     id: 'concise',
-    label: 'Лаконичность',
-    description: 'Убирает повторы, лишние резюме и необязательные отступления.',
+    get label() {
+      return i18next.t('promptRule.concise.label', { ns: 'chats' });
+    },
+    get description() {
+      return i18next.t('promptRule.concise.description', { ns: 'chats' });
+    },
   },
   {
     id: 'immersive',
-    label: 'Погружение',
-    description:
-      'Поддерживает атмосферу сцены, детали мира и эмоциональную непрерывность.',
+    get label() {
+      return i18next.t('promptRule.immersive.label', { ns: 'chats' });
+    },
+    get description() {
+      return i18next.t('promptRule.immersive.description', { ns: 'chats' });
+    },
   },
   {
     id: 'initiative',
-    label: 'Инициативность',
-    description:
-      'Позволяет персонажу двигать разговор вперёд без управления пользователем.',
+    get label() {
+      return i18next.t('promptRule.proactive.label', { ns: 'chats' });
+    },
+    get description() {
+      return i18next.t('promptRule.proactive.description', { ns: 'chats' });
+    },
   },
   {
     id: 'continuity',
-    label: 'Строгая непрерывность',
-    description:
-      'Проверяет ответ на соответствие фактам, отношениям и текущей сцене.',
+    get label() {
+      return i18next.t('promptRule.strictContinuity.label', { ns: 'chats' });
+    },
+    get description() {
+      return i18next.t('promptRule.strictContinuity.description', {
+        ns: 'chats',
+      });
+    },
   },
 ];
 
@@ -58,13 +89,41 @@ export const promptPriorities: Array<{
   label: string;
   description: string;
 }> = [
-  { id: 'low', label: 'Низкий', description: 'Фоновая рекомендация' },
-  { id: 'normal', label: 'Обычный', description: 'Стандартное правило' },
-  { id: 'high', label: 'Высокий', description: 'Важное ограничение' },
+  {
+    id: 'low',
+    get label() {
+      return i18next.t('priority.low.label', { ns: 'chats' });
+    },
+    get description() {
+      return i18next.t('priority.low.description', { ns: 'chats' });
+    },
+  },
+  {
+    id: 'normal',
+    get label() {
+      return i18next.t('priority.normal.label', { ns: 'chats' });
+    },
+    get description() {
+      return i18next.t('priority.normal.description', { ns: 'chats' });
+    },
+  },
+  {
+    id: 'high',
+    get label() {
+      return i18next.t('priority.high.label', { ns: 'chats' });
+    },
+    get description() {
+      return i18next.t('priority.high.description', { ns: 'chats' });
+    },
+  },
   {
     id: 'critical',
-    label: 'Критический',
-    description: 'Главное правило конфигурации',
+    get label() {
+      return i18next.t('priority.critical.label', { ns: 'chats' });
+    },
+    get description() {
+      return i18next.t('priority.critical.description', { ns: 'chats' });
+    },
   },
 ];
 

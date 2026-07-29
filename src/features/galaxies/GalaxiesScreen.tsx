@@ -16,7 +16,6 @@ import {
   importJsonFile,
   type ExportDestination,
 } from '../../lib/jsonTransfer';
-import { countRu } from '../../lib/plural';
 import type {
   CharacterData,
   GalaxyItem,
@@ -33,6 +32,7 @@ import {
 } from './catalog';
 import { createGalaxyDraft, draftFromItem } from './model';
 import { createGalaxiesExport, parseGalaxiesExport } from './transfer';
+import { useTranslation } from 'react-i18next';
 
 export function GalaxiesScreen({
   items,
@@ -45,6 +45,7 @@ export function GalaxiesScreen({
   onImport: (items: GalaxyItemInput[]) => Promise<number>;
   onDelete: (id: string) => Promise<void>;
 }) {
+  const { t } = useTranslation('galaxies');
   const [section, setSection] = useState<GalaxyKind>('persona');
   const [editing, setEditing] = useState<GalaxyItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<GalaxyItem | null>(null);
@@ -101,15 +102,11 @@ export function GalaxiesScreen({
       );
       if (!exported) return;
       setExportOpen(false);
-      toast.success('Экспорт Галактик готов', {
-        description: countRu(selectedItems.length, [
-          'объект',
-          'объекта',
-          'объектов',
-        ]),
+      toast.success(t('galaxiesScreen.galaxiesExportIsReady'), {
+        description: t('count.object', { count: selectedItems.length }),
       });
     } catch (caught) {
-      toast.danger('Не удалось экспортировать Галактики', {
+      toast.danger(t('galaxiesScreen.couldNotExportGalaxies'), {
         description: caught instanceof Error ? caught.message : String(caught),
       });
     } finally {
@@ -125,11 +122,13 @@ export function GalaxiesScreen({
       if (raw == null) return;
       const imported = parseGalaxiesExport(raw);
       const importedCount = await onImport(imported);
-      toast.success('Импорт Галактик завершён', {
-        description: `Добавлено или обновлено: ${importedCount}`,
+      toast.success(t('galaxiesScreen.galaxiesImportComplete'), {
+        description: t('galaxiesScreen.importCount', {
+          value1: importedCount,
+        }),
       });
     } catch (caught) {
-      toast.danger('Не удалось импортировать Галактики', {
+      toast.danger(t('galaxiesScreen.couldNotImportGalaxies'), {
         description: caught instanceof Error ? caught.message : String(caught),
       });
     } finally {
@@ -167,7 +166,7 @@ export function GalaxiesScreen({
     setDraft({
       ...copy,
       id: undefined,
-      name: `${item.name} - копия`,
+      name: t('galaxiesScreen.copyName', { value1: item.name }),
     });
     setError('');
     setModalOpen(true);
@@ -184,9 +183,14 @@ export function GalaxiesScreen({
         description: draft.description.trim(),
       });
       setModalOpen(false);
-      toast.success(editing ? 'Объект обновлён' : 'Объект добавлен', {
-        description: draft.name.trim(),
-      });
+      toast.success(
+        editing
+          ? t('galaxiesScreen.objectUpdated')
+          : t('galaxiesScreen.objectAdded'),
+        {
+          description: draft.name.trim(),
+        },
+      );
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : String(caught));
     } finally {
@@ -203,7 +207,9 @@ export function GalaxiesScreen({
       await onDelete(deleteTarget.id);
       setDeleteTarget(null);
       if (editing?.id === deleteTarget.id) setModalOpen(false);
-      toast.success('Объект удалён', { description: removedName });
+      toast.success(t('galaxiesScreen.objectDeleted'), {
+        description: removedName,
+      });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : String(caught));
     } finally {
@@ -215,8 +221,10 @@ export function GalaxiesScreen({
     <div className="page-scroll mobile-screen-enter flex-1">
       <div className="page-container">
         <PageHeader
-          title="Галактики"
-          description="Персоны, персонажи, вселенные, ворлдбуки, стили и наборы промптов."
+          title={t('galaxiesScreen.galaxies')}
+          description={t(
+            'galaxiesScreen.personasCharactersUniversesWorldbooksStylesAndPromptSets',
+          )}
           actions={
             <div className="flex w-full flex-wrap gap-2 sm:w-auto">
               <Button
@@ -229,7 +237,8 @@ export function GalaxiesScreen({
                   setExportOpen(true);
                 }}
               >
-                <Icon name="download" className="size-4" /> Экспорт
+                <Icon name="download" className="size-4" />{' '}
+                {t('galaxiesScreen.export')}
               </Button>
               <Button
                 variant="secondary"
@@ -237,15 +246,16 @@ export function GalaxiesScreen({
                 isPending={importing}
                 onPress={() => void importItems()}
               >
-                <Icon name="upload" className="size-4" /> Импорт
+                <Icon name="upload" className="size-4" />{' '}
+                {t('galaxiesScreen.import')}
               </Button>
               <Button
                 variant="primary"
                 className="w-full sm:w-auto"
                 onPress={() => openCreate(section)}
               >
-                <Icon name="plus" className="size-4" /> Создать{' '}
-                {galaxyKindCreateLabels[section]}
+                <Icon name="plus" className="size-4" />{' '}
+                {t('galaxiesScreen.create')} {galaxyKindCreateLabels[section]}
               </Button>
             </div>
           }
@@ -258,7 +268,7 @@ export function GalaxiesScreen({
         >
           <Tabs.ListContainer className="w-full">
             <Tabs.List
-              aria-label="Разделы Галактики"
+              aria-label={t('galaxiesScreen.galaxySections')}
               className="w-max min-w-full *:min-w-max *:flex-1 *:gap-2"
             >
               {galaxySections.map((entry) => (
@@ -285,11 +295,9 @@ export function GalaxiesScreen({
                     </p>
                   </div>
                   <span className="text-xs text-muted">
-                    {countRu(sectionItems.length, [
-                      'объект в библиотеке',
-                      'объекта в библиотеке',
-                      'объектов в библиотеке',
-                    ])}
+                    {t('count.libraryObject', {
+                      count: sectionItems.length,
+                    })}
                   </span>
                 </div>
 
@@ -313,7 +321,9 @@ export function GalaxiesScreen({
                 ) : (
                   <EmptyState
                     icon="galaxies"
-                    title={`Раздел «${entry.label}» пуст`}
+                    title={t('galaxiesScreen.theValue1SectionIsEmpty', {
+                      value1: entry.label,
+                    })}
                     description={galaxyKindDescriptions[entry.id]}
                     compact
                   />
@@ -340,8 +350,10 @@ export function GalaxiesScreen({
       <UiModal
         isOpen={exportOpen}
         onOpenChange={(open) => !exporting && setExportOpen(open)}
-        title="Экспорт Галактики"
-        description="Выберите только нужные объекты и место, куда сохранить JSON."
+        title={t('galaxiesScreen.exportGalaxies')}
+        description={t(
+          'galaxiesScreen.selectOnlyTheObjectsYouNeedAndWhereToSave',
+        )}
         size="lg"
         footer={
           <>
@@ -350,7 +362,7 @@ export function GalaxiesScreen({
               isDisabled={exporting}
               onPress={() => setExportOpen(false)}
             >
-              Отмена
+              {t('galaxyEditorModal.cancel')}
             </Button>
             <Button
               variant="primary"
@@ -358,7 +370,7 @@ export function GalaxiesScreen({
               isDisabled={exportIds.length === 0}
               onPress={() => void exportItems()}
             >
-              Экспортировать
+              {t('galaxiesScreen.export2')}
             </Button>
           </>
         }
@@ -374,8 +386,9 @@ export function GalaxiesScreen({
             onChange={(ids) => setExportIds(includeExportDependencies(ids))}
           />
           <p className="-mt-3 text-xs leading-5 text-muted">
-            Для выбранных персонажей связанные стили и наборы добавляются
-            автоматически, чтобы импорт не потерял настройки.
+            {t(
+              'galaxiesScreen.linkedStylesAndSetsAreAddedAutomaticallyForSelectedCharacters',
+            )}
           </p>
           <ExportDestinationPicker
             value={exportDestination}
@@ -387,10 +400,12 @@ export function GalaxiesScreen({
       <UiModal
         isOpen={Boolean(deleteTarget)}
         onOpenChange={(open) => !open && !saving && setDeleteTarget(null)}
-        title="Удалить объект?"
+        title={t('galaxiesScreen.deleteObject')}
         description={
           deleteTarget
-            ? `«${deleteTarget.name}» будет удалён из библиотеки и отвязан от чатов.`
+            ? t('galaxiesScreen.deleteObjectDescription', {
+                value1: deleteTarget.name,
+              })
             : undefined
         }
         footer={
@@ -400,19 +415,21 @@ export function GalaxiesScreen({
               isDisabled={saving}
               onPress={() => setDeleteTarget(null)}
             >
-              Отмена
+              {t('galaxyEditorModal.cancel')}
             </Button>
             <Button
               variant="danger"
               isPending={saving}
               onPress={() => void remove()}
             >
-              Удалить
+              {t('galaxyCard.delete')}
             </Button>
           </>
         }
       >
-        <p className="text-sm text-muted">Это действие нельзя отменить.</p>
+        <p className="text-sm text-muted">
+          {t('galaxiesScreen.thisActionCannotBeUndone')}
+        </p>
         {error ? (
           <p className="selectable mt-2 text-sm text-danger">{error}</p>
         ) : null}

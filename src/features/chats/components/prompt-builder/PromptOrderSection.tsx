@@ -6,6 +6,7 @@ import type {
 } from '../../../../types';
 import { promptPriorities } from '../../promptConfig';
 import { getPromptOrderPreview } from './promptBuilderModel';
+import { useTranslation } from 'react-i18next';
 
 export function PromptOrderSection({
   value,
@@ -20,6 +21,7 @@ export function PromptOrderSection({
   inheritedSetIds?: string[];
   activeContextFields?: Array<keyof PromptContextPriorities>;
 }) {
+  const { t } = useTranslation('chats');
   const preview = getPromptOrderPreview(
     value,
     includeContext,
@@ -33,9 +35,13 @@ export function PromptOrderSection({
       <Accordion.Heading>
         <Accordion.Trigger className="px-4 sm:px-5">
           <span className="min-w-0 flex-1 text-left">
-            <strong className="block text-sm">Схема сборки</strong>
+            <strong className="block text-sm">
+              {t('promptOrderSection.assemblyOrder')}
+            </strong>
             <span className="mt-0.5 block text-xs font-normal text-muted">
-              Подключённые источники идут от фоновых к самым важным
+              {t(
+                'promptOrderSection.connectedSourcesAreOrderedFromBackgroundToMostImportant',
+              )}
             </span>
           </span>
           <Accordion.Indicator />
@@ -79,8 +85,9 @@ export function PromptOrderSection({
             </ol>
           ) : (
             <p className="rounded-xl border border-dashed border-separator p-4 text-sm leading-6 text-muted">
-              Активных источников пока нет. Выберите правила, набор или
-              заполните свою инструкцию.
+              {t(
+                'promptOrderSection.thereAreNoActiveSourcesYetSelectRulesAPrompt',
+              )}
             </p>
           )}
         </Accordion.Body>

@@ -1,10 +1,11 @@
 import { Label, ListBox, Select, Surface } from '@heroui/react';
 import type { AppSettings } from '../../../types';
+import { useTranslation } from 'react-i18next';
 
 const modes = [
-  { id: 'system', label: 'Системная' },
-  { id: 'dark', label: 'Тёмная' },
-  { id: 'light', label: 'Светлая' },
+  { id: 'system', labelKey: 'theme.system' },
+  { id: 'dark', labelKey: 'theme.dark' },
+  { id: 'light', labelKey: 'theme.light' },
 ] as const;
 
 const variants = [
@@ -25,17 +26,18 @@ export function ThemeSettings({
   onModeChange: (value: AppSettings['themeMode']) => void;
   onVariantChange: (value: AppSettings['themeVariant']) => void;
 }) {
+  const { t } = useTranslation('profile');
   return (
     <Surface className="rounded-2xl border border-separator p-4 sm:p-5">
-      <h2 className="section-title">Оформление</h2>
+      <h2 className="section-title">{t('themeSettings.appearance')}</h2>
       <p className="section-description">
-        Светлая или тёмная схема выбирается отдельно от цветового варианта.
+        {t('themeSettings.theLightOrDarkModeIsSelectedSeparatelyFromThe')}
       </p>
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">
-          <Label>Режим</Label>
+          <Label>{t('themeSettings.mode')}</Label>
           <Select
-            aria-label="Режим темы"
+            aria-label={t('themeSettings.themeMode')}
             variant="secondary"
             value={mode}
             onChange={(value) => {
@@ -54,9 +56,9 @@ export function ThemeSettings({
                   <ListBox.Item
                     key={entry.id}
                     id={entry.id}
-                    textValue={entry.label}
+                    textValue={t(entry.labelKey)}
                   >
-                    {entry.label}
+                    {t(entry.labelKey)}
                     <ListBox.ItemIndicator />
                   </ListBox.Item>
                 ))}
@@ -65,9 +67,9 @@ export function ThemeSettings({
           </Select>
         </div>
         <div className="flex flex-col gap-1.5">
-          <Label>Цветовой вариант</Label>
+          <Label>{t('themeSettings.colorTheme')}</Label>
           <Select
-            aria-label="Цветовой вариант темы"
+            aria-label={t('themeSettings.themeColorVariant')}
             value={variant}
             variant="secondary"
             onChange={(value) => {

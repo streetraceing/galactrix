@@ -8,6 +8,7 @@ import type {
 import { Icon } from '../../../components/Icon';
 import { AppAvatar } from '../../../components/ui/AppAvatar';
 import { toast } from '../../../i18n/toast';
+import { i18next } from '../../../i18n';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -24,6 +25,7 @@ import { UiModal } from '../../../components/ui/UiModal';
 import { isMobilePlatform } from '../../../lib/platform';
 import type { Message, Provider } from '../../../types';
 import { MessageHistoryModal } from './MessageHistoryModal';
+import { useTranslation } from 'react-i18next';
 
 type MessageActionProps = {
   message: Message;
@@ -40,7 +42,7 @@ type MessageActionProps = {
 async function copyText(content: string) {
   if (navigator.clipboard?.writeText) {
     await navigator.clipboard.writeText(content);
-    toast.success('Сообщение скопировано');
+    toast.success(i18next.t('copy.messageSuccess', { ns: 'chats' }));
     return;
   }
 
@@ -54,8 +56,10 @@ async function copyText(content: string) {
   const copied = document.execCommand('copy');
   textarea.remove();
 
-  if (!copied) throw new Error('Буфер обмена недоступен');
-  toast.success('Сообщение скопировано');
+  if (!copied) {
+    throw new Error(i18next.t('errors.clipboardUnavailable', { ns: 'chats' }));
+  }
+  toast.success(i18next.t('copy.messageSuccess', { ns: 'chats' }));
 }
 
 function MessageMenu({
@@ -70,6 +74,7 @@ function MessageMenu({
   onHistoryRequest,
   onError,
 }: MessageActionProps & { children: ReactNode }) {
+  const { t } = useTranslation('chats');
   const run = (action: () => Promise<void>) => {
     onError('');
     void action().catch((error) => onError(String(error)));
@@ -83,7 +88,9 @@ function MessageMenu({
       </ContextMenuTrigger>
       <ContextMenuContent className="w-64">
         <ContextMenuLabel>
-          {isAssistant ? 'Ответ ассистента' : 'Сообщение'}
+          {isAssistant
+            ? t('messageList.assistantResponse')
+            : t('chatComposer.label')}
         </ContextMenuLabel>
         {isAssistant ? (
           <>
@@ -91,18 +98,20 @@ function MessageMenu({
               onClick={() => run(() => onRegenerate(message.id))}
             >
               <Icon name="regenerate" className="size-4 text-accent" />
-              Перегенерировать
+              {t('messageList.regenerate')}
             </ContextMenuItem>
             <ContextMenuSub>
               <ContextMenuSubTrigger>
                 <Icon name="history" className="size-4" />
-                История ответов
+                {t('messageHistoryModal.responseHistory')}
                 <span className="ml-auto mr-1 text-xs tabular-nums text-muted">
                   {message.activeVariantIndex + 1}/{message.variants.length}
                 </span>
               </ContextMenuSubTrigger>
               <ContextMenuSubContent className="w-72">
-                <ContextMenuLabel>Сохранённые варианты</ContextMenuLabel>
+                <ContextMenuLabel>
+                  {t('messageList.savedVariants')}
+                </ContextMenuLabel>
                 {message.variants.map((variant) => (
                   <ContextMenuItem
                     key={variant.id}
@@ -127,7 +136,7 @@ function MessageMenu({
                 <ContextMenuSeparator />
                 <ContextMenuItem onClick={onHistoryRequest}>
                   <Icon name="history" className="size-4" />
-                  Открыть полную историю
+                  {t('messageList.openFullHistory')}
                 </ContextMenuItem>
               </ContextMenuSubContent>
             </ContextMenuSub>
@@ -136,26 +145,28 @@ function MessageMenu({
         ) : null}
         <ContextMenuItem onClick={() => run(() => onBranch(message.id))}>
           <Icon name="branch" className="size-4" />
-          Ветка отсюда
+          {t('messageList.branchFromHere')}
         </ContextMenuItem>
         <ContextMenuItem onClick={() => run(() => copyText(message.content))}>
           <Icon name="copy" className="size-4" />
-          Копировать
+          {t('messageList.copy')}
         </ContextMenuItem>
         <ContextMenuItem onClick={onEditRequest}>
           <Icon name="edit" className="size-4" />
-          Редактировать
+          {t('messageList.edit')}
         </ContextMenuItem>
         <ContextMenuItem
           onClick={() => run(() => onRemember(message.id, !message.remembered))}
         >
           <Icon name="memory" className="size-4" />
-          {message.remembered ? 'Не запоминать' : 'Запомнить'}
+          {message.remembered
+            ? t('messageList.forget')
+            : t('messageList.remember')}
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem variant="destructive" onClick={onDeleteRequest}>
           <Icon name="trash" className="size-4" />
-          Удалить
+          {t('chatDialogs.delete')}
         </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>
@@ -189,6 +200,7 @@ function VariantNavigator({
   onHistory: () => void;
   onRegenerate?: () => void;
 }) {
+  const { t } = useTranslation('chats');
   const count = message.variants.length;
   if (message.role !== 'assistant' || count === 0) return null;
   const activePosition = getActiveVariantPosition(message);
@@ -204,7 +216,7 @@ function VariantNavigator({
             name={isLastVariant ? 'regenerate' : 'chevron-left'}
             className="size-3"
           />
-          свайп влево
+          {t('messageList.swipeLeft')}
           {activePosition > 0 ? (
             <Icon name="chevron-right" className="size-3" />
           ) : null}
@@ -213,7 +225,7 @@ function VariantNavigator({
           size="sm"
           variant="ghost"
           className="h-6 min-w-0 px-2 text-xs text-muted"
-          aria-label="Открыть историю ответов"
+          aria-label={t('messageList.openResponseHistory')}
           onPress={onHistory}
         >
           {activePosition + 1}/{count}
@@ -231,7 +243,7 @@ function VariantNavigator({
             size="sm"
             variant="ghost"
             className="size-7 min-w-7"
-            aria-label="Предыдущий вариант ответа"
+            aria-label={t('messageList.previousResponseVariant')}
             isDisabled={!previousVariant}
             onPress={() => {
               if (previousVariant) onSelect(previousVariant.index);
@@ -240,7 +252,7 @@ function VariantNavigator({
             <Icon name="chevron-left" className="size-3.5" />
           </Button>
         </Tooltip.Trigger>
-        <Tooltip.Content>Предыдущий вариант</Tooltip.Content>
+        <Tooltip.Content>{t('messageList.previousVariant')}</Tooltip.Content>
       </Tooltip>
       <Tooltip delay={700} closeDelay={75}>
         <Tooltip.Trigger>
@@ -248,13 +260,13 @@ function VariantNavigator({
             size="sm"
             variant="ghost"
             className="h-7 min-w-14 px-2 text-xs tabular-nums text-muted"
-            aria-label="Открыть историю ответов"
+            aria-label={t('messageList.openResponseHistory')}
             onPress={onHistory}
           >
             {activePosition + 1}/{count}
           </Button>
         </Tooltip.Trigger>
-        <Tooltip.Content>История вариантов</Tooltip.Content>
+        <Tooltip.Content>{t('messageList.variantHistory')}</Tooltip.Content>
       </Tooltip>
       <Tooltip delay={700} closeDelay={75}>
         <Tooltip.Trigger>
@@ -265,8 +277,8 @@ function VariantNavigator({
             className="size-7 min-w-7"
             aria-label={
               isLastVariant
-                ? 'Сгенерировать новый вариант ответа'
-                : 'Следующий вариант ответа'
+                ? t('messageList.generateANewResponseVariant')
+                : t('messageList.nextResponseVariant')
             }
             isDisabled={isLastVariant && !onRegenerate}
             onPress={() =>
@@ -279,7 +291,9 @@ function VariantNavigator({
           </Button>
         </Tooltip.Trigger>
         <Tooltip.Content>
-          {isLastVariant ? 'Новый вариант ответа' : 'Следующий вариант'}
+          {isLastVariant
+            ? t('messageList.newResponseVariant')
+            : t('messageList.nextVariant')}
         </Tooltip.Content>
       </Tooltip>
     </div>
@@ -297,6 +311,7 @@ function DesktopMessageActions({
   onHistoryRequest,
   onError,
 }: MessageActionProps) {
+  const { t } = useTranslation('chats');
   const run = (action: () => Promise<void>) => {
     onError('');
     void action().catch((error) => onError(String(error)));
@@ -305,39 +320,41 @@ function DesktopMessageActions({
     ...(message.role === 'assistant'
       ? [
           {
-            label: 'Перегенерировать ответ',
+            label: t('messageList.regenerateResponse'),
             icon: 'regenerate' as const,
             onPress: () => run(() => onRegenerate(message.id)),
           },
           {
-            label: 'История ответов',
+            label: t('messageHistoryModal.responseHistory'),
             icon: 'history' as const,
             onPress: onHistoryRequest,
           },
         ]
       : []),
     {
-      label: 'Разветвить чат с этого сообщения',
+      label: t('messageList.branchChatFromThisMessage'),
       icon: 'branch' as const,
       onPress: () => run(() => onBranch(message.id)),
     },
     {
-      label: 'Копировать сообщение',
+      label: t('messageList.copyMessage'),
       icon: 'copy' as const,
       onPress: () => run(() => copyText(message.content)),
     },
     {
-      label: 'Редактировать сообщение',
+      label: t('messageList.editMessage'),
       icon: 'edit' as const,
       onPress: onEditRequest,
     },
     {
-      label: message.remembered ? 'Убрать из памяти' : 'Запомнить сообщение',
+      label: message.remembered
+        ? t('messageList.removeFromMemory')
+        : t('messageList.rememberMessage'),
       icon: 'memory' as const,
       onPress: () => run(() => onRemember(message.id, !message.remembered)),
     },
     {
-      label: 'Удалить сообщение',
+      label: t('messageList.deleteMessage'),
       icon: 'trash' as const,
       onPress: onDeleteRequest,
       danger: true,
@@ -388,6 +405,7 @@ function SwipeableMessage({
   onRegenerate: (messageId: string) => Promise<void>;
   onError: (message: string) => void;
 }) {
+  const { t } = useTranslation('chats');
   const pointerStart = useRef<{
     id: number;
     x: number;
@@ -550,8 +568,8 @@ function SwipeableMessage({
           {revealVariant
             ? `${revealPosition + 1}/${message.variants.length}`
             : revealsRegeneration
-              ? 'Новый ответ'
-              : 'Край'}
+              ? t('messageList.newResponse')
+              : t('messageList.edge')}
         </span>
       </div>
       <div
@@ -603,6 +621,7 @@ export function MessageList({
   onRegenerate: (messageId: string) => Promise<void>;
   onSelectVariant: (messageId: string, variantIndex: number) => Promise<void>;
 }) {
+  const { t } = useTranslation('chats');
   const isMobile = isMobilePlatform();
   const [editing, setEditing] = useState<Message | null>(null);
   const [editValue, setEditValue] = useState('');
@@ -691,7 +710,7 @@ export function MessageList({
               ? userName
               : message.role === 'assistant'
                 ? assistantName
-                : 'Система';
+                : t('messageList.system');
             const avatar = isUser
               ? userAvatar
               : message.role === 'assistant'
@@ -742,7 +761,8 @@ export function MessageList({
                       <span className="shrink-0">{message.createdAt}</span>
                       {message.remembered ? (
                         <span className="inline-flex shrink-0 items-center gap-1 text-accent">
-                          <Icon name="memory" className="size-3" />В памяти
+                          <Icon name="memory" className="size-3" />
+                          {t('messageList.remembered')}
                         </span>
                       ) : null}
                     </div>
@@ -813,7 +833,7 @@ export function MessageList({
               />
               <div className="flex min-w-0 w-full flex-col items-end">
                 <div className="mb-1 flex items-center gap-2 text-xs text-muted">
-                  <span>Отправляется</span>
+                  <span>{t('messageList.sending')}</span>
                   <strong className="font-medium text-foreground">
                     {userName}
                   </strong>
@@ -838,7 +858,7 @@ export function MessageList({
               />
               <div className="flex flex-col items-start">
                 <span className="mb-1 text-xs font-medium text-muted">
-                  {assistantName} отвечает
+                  {assistantName} {t('messageList.isTyping')}
                 </span>
                 <Surface className="flex h-11 items-center gap-1 rounded-2xl border border-separator px-4">
                   {[0, 1, 2].map((index) => (
@@ -859,13 +879,17 @@ export function MessageList({
                 <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-accent/10 text-accent">
                   <Icon name="chats" className="size-6" />
                 </span>
-                <h3 className="mt-4 text-lg font-semibold">Начните разговор</h3>
+                <h3 className="mt-4 text-lg font-semibold">
+                  {t('messageList.startTheConversation')}
+                </h3>
                 <p className="mt-1.5 text-sm leading-6 text-muted">
                   {providersAvailable
                     ? provider
-                      ? `Сообщения будут отправляться через ${provider.name}.`
-                      : 'Откройте настройки чата и выберите провайдера.'
-                    : 'Сначала добавьте провайдера во вкладке «Телескоп».'}
+                      ? t('messageList.providerReady', {
+                          value1: provider.name,
+                        })
+                      : t('messageList.openChatSettingsAndSelectAProvider')
+                    : t('messageList.firstAddAProviderInTelescope')}
                 </p>
               </div>
             </div>
@@ -882,11 +906,11 @@ export function MessageList({
       <UiModal
         isOpen={Boolean(editing)}
         onOpenChange={(open) => !open && !working && setEditing(null)}
-        title="Редактировать сообщение"
+        title={t('messageList.editMessage')}
         description={
           editing?.role === 'assistant'
-            ? 'Изменённый текст сохранится как новый вариант ответа.'
-            : 'Изменение применяется к текущей истории диалога.'
+            ? t('messageList.theEditedTextWillBeSavedAsANewResponse')
+            : t('messageList.theChangeAppliesToTheCurrentConversationHistory')
         }
         size={isMobile ? 'full' : 'cover'}
         footer={
@@ -896,7 +920,7 @@ export function MessageList({
               isDisabled={working}
               onPress={() => setEditing(null)}
             >
-              Отмена
+              {t('chatDialogs.cancel')}
             </Button>
             <Button
               variant="primary"
@@ -904,7 +928,7 @@ export function MessageList({
               isDisabled={!editValue.trim()}
               onPress={() => void commitEdit()}
             >
-              Сохранить
+              {t('chatDialogs.save')}
             </Button>
           </>
         }
@@ -915,7 +939,7 @@ export function MessageList({
           variant="secondary"
           value={editValue}
           className="[&_textarea]:min-h-72 h-full"
-          aria-label="Текст сообщения"
+          aria-label={t('messageList.messageText')}
           onChange={(event) => setEditValue(event.target.value)}
         />
         {error ? <p className="mt-2 text-sm text-danger">{error}</p> : null}
@@ -924,8 +948,10 @@ export function MessageList({
       <UiModal
         isOpen={Boolean(deleting)}
         onOpenChange={(open) => !open && !working && setDeleting(null)}
-        title="Удалить сообщение?"
-        description="Сообщение и вся история его вариантов исчезнут из этого чата."
+        title={t('messageList.deleteMessage2')}
+        description={t(
+          'messageList.theMessageAndItsEntireVariantHistoryWillBeRemoved',
+        )}
         footer={
           <>
             <Button
@@ -933,14 +959,14 @@ export function MessageList({
               isDisabled={working}
               onPress={() => setDeleting(null)}
             >
-              Отмена
+              {t('chatDialogs.cancel')}
             </Button>
             <Button
               variant="danger"
               isPending={working}
               onPress={() => void commitDelete()}
             >
-              Удалить
+              {t('chatDialogs.delete')}
             </Button>
           </>
         }

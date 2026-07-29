@@ -2,7 +2,7 @@ import { Button, Chip, Surface } from '@heroui/react';
 import { MarkdownContent } from '../../../components/ui/MarkdownContent';
 import { UiModal } from '../../../components/ui/UiModal';
 import type { Message } from '../../../types';
-import { countRu } from '../../../lib/plural';
+import { useTranslation } from 'react-i18next';
 
 export function MessageHistoryModal({
   message,
@@ -15,20 +15,26 @@ export function MessageHistoryModal({
   onSelect: (variantIndex: number) => void;
   onClose: () => void;
 }) {
+  const { t } = useTranslation('chats');
   return (
     <UiModal
       isOpen={message != null}
       onOpenChange={(open) => !open && !isWorking && onClose()}
-      title="История ответов"
+      title={t('messageHistoryModal.responseHistory')}
       description={
         message
-          ? `Сохранено: ${countRu(message.variants.length, ['вариант', 'варианта', 'вариантов'])}. Выбран ${message.activeVariantIndex + 1}.`
+          ? t('messageHistoryModal.savedVariantsSummary', {
+              value1: t('count.variant', {
+                count: message.variants.length,
+              }),
+              value2: message.activeVariantIndex + 1,
+            })
           : undefined
       }
       size="cover"
       footer={
         <Button variant="ghost" isDisabled={isWorking} onPress={onClose}>
-          Закрыть
+          {t('messageHistoryModal.close')}
         </Button>
       }
     >
@@ -43,7 +49,8 @@ export function MessageHistoryModal({
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-2">
                   <span className="text-sm font-semibold">
-                    Ответ {variant.index + 1}
+                    {t('messageHistoryModal.response')}
+                    {variant.index + 1}
                   </span>
                   {selected ? (
                     <Chip
@@ -51,7 +58,7 @@ export function MessageHistoryModal({
                       variant="soft"
                       className="bg-transparent text-accent"
                     >
-                      Выбран
+                      {t('messageHistoryModal.selected')}
                     </Chip>
                   ) : null}
                 </div>
@@ -70,7 +77,7 @@ export function MessageHistoryModal({
                   isDisabled={isWorking}
                   onPress={() => onSelect(variant.index)}
                 >
-                  Выбрать этот ответ
+                  {t('messageHistoryModal.selectThisResponse')}
                 </Button>
               ) : null}
             </Surface>

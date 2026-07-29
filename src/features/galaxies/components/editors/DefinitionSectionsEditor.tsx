@@ -3,6 +3,7 @@ import { Icon } from '../../../../components/Icon';
 import type { DefinitionSection } from '../../../../types';
 import { createId } from '../../model';
 import { EditorSection } from './EditorSection';
+import { useTranslation } from 'react-i18next';
 
 export function DefinitionSectionsEditor({
   title,
@@ -15,6 +16,7 @@ export function DefinitionSectionsEditor({
   sections: DefinitionSection[];
   onChange: (sections: DefinitionSection[]) => void;
 }) {
+  const { t } = useTranslation('galaxies');
   const patch = (
     id: string,
     key: keyof Pick<DefinitionSection, 'title' | 'content'>,
@@ -38,13 +40,14 @@ export function DefinitionSectionsEditor({
             onChange([...sections, { id: createId(), title: '', content: '' }])
           }
         >
-          <Icon name="plus" className="size-4" /> Запись
+          <Icon name="plus" className="size-4" />{' '}
+          {t('definitionSectionsEditor.entry')}
         </Button>
       }
     >
       {sections.length === 0 ? (
         <p className="rounded-xl bg-surface-secondary px-4 py-5 text-center text-sm text-muted">
-          Добавьте первую запись определения.
+          {t('definitionSectionsEditor.addTheFirstDefinitionEntry')}
         </p>
       ) : (
         <div className="space-y-3">
@@ -62,8 +65,10 @@ export function DefinitionSectionsEditor({
                   fullWidth
                   variant="secondary"
                   value={section.title}
-                  placeholder="Заголовок записи"
-                  aria-label={`Заголовок записи ${index + 1}`}
+                  placeholder={t('definitionSectionsEditor.entryTitle')}
+                  aria-label={t('definitionSectionsEditor.entryTitleLabel', {
+                    value1: index + 1,
+                  })}
                   onChange={(event) =>
                     patch(section.id, 'title', event.target.value)
                   }
@@ -72,7 +77,7 @@ export function DefinitionSectionsEditor({
                   isIconOnly
                   size="sm"
                   variant="ghost"
-                  aria-label="Удалить запись"
+                  aria-label={t('definitionSectionsEditor.deleteEntry')}
                   onPress={() =>
                     onChange(sections.filter((item) => item.id !== section.id))
                   }
@@ -87,8 +92,10 @@ export function DefinitionSectionsEditor({
                 className="mt-3"
                 rows={4}
                 value={section.content}
-                placeholder="Содержимое записи"
-                aria-label={`Содержимое записи ${index + 1}`}
+                placeholder={t('definitionSectionsEditor.entryContent')}
+                aria-label={t('definitionSectionsEditor.entryContentLabel', {
+                  value1: index + 1,
+                })}
                 onChange={(event) =>
                   patch(section.id, 'content', event.target.value)
                 }

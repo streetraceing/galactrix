@@ -4,6 +4,7 @@ import type { CharacterData, GalaxyItem } from '../../../../types';
 import { stylePresets } from '../../model';
 import { DefinitionSectionsEditor } from './DefinitionSectionsEditor';
 import { EditorSection } from './EditorSection';
+import { useTranslation } from 'react-i18next';
 
 const NONE_KEY = '__none__';
 
@@ -18,6 +19,7 @@ export function CharacterEditor({
   promptSets: GalaxyItem[];
   onChange: (data: CharacterData) => void;
 }) {
+  const { t } = useTranslation('galaxies');
   const patch = <K extends keyof CharacterData>(
     key: K,
     value: CharacterData[K],
@@ -26,12 +28,12 @@ export function CharacterEditor({
   return (
     <div className="space-y-4">
       <EditorSection
-        title="Стиль переписки"
-        description="Встроенный стиль или собственный пресет из библиотеки «Галактики»."
+        title={t('characterEditor.messagingStyle')}
+        description={t('characterEditor.aBuiltInStyleOrACustomPresetFromThe')}
       >
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-1.5">
-            <Label>Пресет</Label>
+            <Label>{t('characterEditor.preset')}</Label>
             <Select
               fullWidth
               variant="secondary"
@@ -70,12 +72,12 @@ export function CharacterEditor({
 
           {data.stylePreset === 'custom' ? (
             <div className="flex flex-col gap-1.5">
-              <Label>Сохранённый стиль</Label>
+              <Label>{t('characterEditor.savedStyle')}</Label>
               <Select
                 fullWidth
                 variant="secondary"
                 value={data.styleItemId ?? NONE_KEY}
-                placeholder="Выберите стиль"
+                placeholder={t('characterEditor.selectAStyle')}
                 onChange={(key: Key | Key[] | null) => {
                   if (Array.isArray(key)) return;
                   const value = key == null ? NONE_KEY : String(key);
@@ -88,8 +90,13 @@ export function CharacterEditor({
                 </Select.Trigger>
                 <Select.Popover>
                   <ListBox>
-                    <ListBox.Item id={NONE_KEY} textValue="Стиль не выбран">
-                      <span className="text-muted">Стиль не выбран</span>
+                    <ListBox.Item
+                      id={NONE_KEY}
+                      textValue={t('characterEditor.noStyleSelected')}
+                    >
+                      <span className="text-muted">
+                        {t('characterEditor.noStyleSelected')}
+                      </span>
                       <ListBox.ItemIndicator />
                     </ListBox.Item>
                     {styles.map((style) => (
@@ -111,21 +118,23 @@ export function CharacterEditor({
 
         {data.stylePreset === 'custom' && styles.length === 0 ? (
           <p className="mt-3 text-xs leading-5 text-muted">
-            Сначала создайте объект типа «Стиль» в библиотеке.
+            {t('characterEditor.firstCreateAStyleObjectInTheLibrary')}
           </p>
         ) : null}
       </EditorSection>
 
       <EditorSection
-        title="Наборы промптов"
-        description="Переиспользуемые правила подключаются ко всем чатам с этим персонажем."
+        title={t('characterEditor.promptSets')}
+        description={t(
+          'characterEditor.reusableRulesAreConnectedToEveryChatWithThisCharacter',
+        )}
       >
         <Select
           fullWidth
           variant="secondary"
           selectionMode="multiple"
           value={data.promptSetIds}
-          placeholder="Наборы не выбраны"
+          placeholder={t('characterEditor.noPromptSetsSelected')}
           onChange={(keys: Key | Key[] | null) =>
             patch(
               'promptSetIds',
@@ -137,7 +146,7 @@ export function CharacterEditor({
             )
           }
         >
-          <Label>Подключённые наборы</Label>
+          <Label>{t('characterEditor.connectedSets')}</Label>
           <Select.Trigger>
             <Select.Value />
             <Select.Indicator />
@@ -164,15 +173,16 @@ export function CharacterEditor({
         </Select>
         {promptSets.length === 0 ? (
           <p className="mt-2 text-xs leading-5 text-muted">
-            Создайте набор во вкладке «Наборы промптов», чтобы подключить его
-            здесь.
+            {t('characterEditor.createASetInPromptSetsToConnectItHere')}
           </p>
         ) : null}
       </EditorSection>
 
       <DefinitionSectionsEditor
-        title="Определение персонажа"
-        description="Разделы объединяются по порядку в единое определение {{char}}."
+        title={t('characterEditor.characterDefinition')}
+        description={t(
+          'characterEditor.sectionsAreCombinedInOrderIntoASingleDefinitionOf',
+        )}
         sections={data.definitionSections}
         onChange={(definitionSections) =>
           patch('definitionSections', definitionSections)

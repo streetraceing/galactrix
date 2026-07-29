@@ -3,6 +3,7 @@ import { useRef, useState } from 'react';
 import { prepareAvatar } from '../../lib/image';
 import { Icon } from '../Icon';
 import { AppAvatar } from './AppAvatar';
+import { useTranslation } from 'react-i18next';
 
 export function AvatarPicker({
   value,
@@ -19,6 +20,7 @@ export function AvatarPicker({
   compact?: boolean;
   onChange: (value?: string) => void | Promise<void>;
 }) {
+  const { t } = useTranslation('common');
   const inputRef = useRef<HTMLInputElement>(null);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState('');
@@ -69,7 +71,7 @@ export function AvatarPicker({
             onPress={() => inputRef.current?.click()}
           >
             <Icon name={value ? 'edit' : 'plus'} className="size-4" />
-            {value ? 'Заменить' : 'Выбрать фото'}
+            {value ? t('avatarPicker.replace') : t('avatarPicker.choosePhoto')}
           </Button>
           {value ? (
             <Button
@@ -80,7 +82,7 @@ export function AvatarPicker({
               onPress={() => void remove()}
             >
               <Icon name="trash" className="size-4" />
-              Удалить
+              {t('avatarPicker.delete')}
             </Button>
           ) : null}
         </div>

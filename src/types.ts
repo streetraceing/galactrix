@@ -4,7 +4,7 @@ export type Chat = {
   id: string;
   title: string;
   preview: string;
-  updatedAt: string;
+  updatedAt: number;
   messageCount: number;
   pinned: boolean;
   providerId?: string;
@@ -154,7 +154,7 @@ export type GalaxyItem = {
   data: GalaxyItemData;
   badge: string;
   accent: string;
-  updatedAt: string;
+  updatedAt: number;
 };
 
 export type GalaxyItemInput = {
@@ -251,7 +251,6 @@ export type AppSettings = {
 
 export type UsagePoint = {
   day: number;
-  label: string;
   inputTokens: number;
   outputTokens: number;
   tokens: number;

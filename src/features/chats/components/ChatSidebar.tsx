@@ -4,6 +4,7 @@ import { Icon } from '../../../components/Icon';
 import type { Chat, GalaxyItem } from '../../../types';
 import type { ChatAction } from '../types';
 import { ChatListItem } from './ChatListItem';
+import { useTranslation } from 'react-i18next';
 
 export function ChatSidebar({
   chats,
@@ -30,6 +31,7 @@ export function ChatSidebar({
   onNewChat: () => void;
   onAction: (action: ChatAction, chat: Chat) => void;
 }) {
+  const { t } = useTranslation('chats');
   return (
     <aside
       className={`${isSinglePane ? (isVisibleMobile ? 'mobile-screen-enter flex w-full' : 'hidden') : 'flex w-[min(var(--chat-sidebar-width),36vw)] min-[1300px]:w-(--chat-sidebar-width)'} h-full shrink-0 flex-col border-separator bg-background`}
@@ -38,20 +40,24 @@ export function ChatSidebar({
       <header className="flex items-start gap-3 px-4 pb-3 pt-4">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-semibold tracking-tight">Чаты</h1>
+            <h1 className="text-xl font-semibold tracking-tight">
+              {t('chatSidebar.chats')}
+            </h1>
             {chats.length > 0 ? (
               <Chip size="sm" variant="secondary" className="bg-transparent">
                 {chats.length}
               </Chip>
             ) : null}
           </div>
-          <p className="mt-1 text-xs text-muted">История разговоров</p>
+          <p className="mt-1 text-xs text-muted">
+            {t('chatSidebar.conversationHistory')}
+          </p>
         </div>
         <Button
           isIconOnly
           size="lg"
           variant="primary"
-          aria-label="Новый чат"
+          aria-label={t('chatSetupModal.newChat')}
           onPress={onNewChat}
         >
           <Icon name="plus" className="size-5" />
@@ -69,10 +75,12 @@ export function ChatSidebar({
             <SearchField.SearchIcon />
             <SearchField.Input
               autoComplete="off"
-              placeholder="Поиск по чатам"
-              aria-label="Поиск по чатам"
+              placeholder={t('chatSidebar.searchChats')}
+              aria-label={t('chatSidebar.searchChats')}
             />
-            <SearchField.ClearButton aria-label="Очистить поиск" />
+            <SearchField.ClearButton
+              aria-label={t('chatSidebar.clearSearch')}
+            />
           </SearchField.Group>
         </SearchField>
       </div>
@@ -91,9 +99,11 @@ export function ChatSidebar({
         {chats.length === 0 ? (
           <div className="grid flex-1 place-items-center px-4 text-center">
             <div>
-              <p className="text-sm font-medium">Чаты не найдены</p>
+              <p className="text-sm font-medium">
+                {t('chatSidebar.noChatsFound')}
+              </p>
               <p className="mt-1 text-xs leading-5 text-muted">
-                Измените запрос или создайте новый чат.
+                {t('chatSidebar.changeTheQueryOrCreateANewChat')}
               </p>
             </div>
           </div>

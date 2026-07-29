@@ -1,5 +1,6 @@
 import type { UniverseData } from '../../../../types';
 import { DefinitionSectionsEditor } from './DefinitionSectionsEditor';
+import { useTranslation } from 'react-i18next';
 
 export function UniverseEditor({
   data,
@@ -8,10 +9,13 @@ export function UniverseEditor({
   data: UniverseData;
   onChange: (data: UniverseData) => void;
 }) {
+  const { t } = useTranslation('galaxies');
   return (
     <DefinitionSectionsEditor
-      title="Правила и факты вселенной"
-      description="Опишите физику мира, эпоху, фракции, ограничения и важные правила."
+      title={t('universeEditor.universeRulesAndFacts')}
+      description={t(
+        'universeEditor.describeTheWorldSPhysicsEraFactionsConstraintsAndImportant',
+      )}
       sections={data.rules}
       onChange={(rules) => onChange({ ...data, rules })}
     />

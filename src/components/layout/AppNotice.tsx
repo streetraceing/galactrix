@@ -1,5 +1,6 @@
 import { Button, Surface } from '@heroui/react';
 import { Icon } from '../Icon';
+import { useTranslation } from 'react-i18next';
 
 export function AppNotice({
   message,
@@ -8,6 +9,7 @@ export function AppNotice({
   message: string;
   onClose: () => void;
 }) {
+  const { t } = useTranslation('common');
   if (!message) return null;
   return (
     <Surface
@@ -22,7 +24,7 @@ export function AppNotice({
         isIconOnly
         size="sm"
         variant="ghost"
-        aria-label="Закрыть уведомление"
+        aria-label={t('appNotice.dismissNotification')}
         onPress={onClose}
       >
         <Icon name="close" className="size-4" />

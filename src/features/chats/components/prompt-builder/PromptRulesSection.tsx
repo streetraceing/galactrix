@@ -3,6 +3,7 @@ import { Icon } from '../../../../components/Icon';
 import type { PromptConfig, PromptPresetId } from '../../../../types';
 import { promptPresets } from '../../promptConfig';
 import { livingDialogueBundle } from './promptBuilderModel';
+import { useTranslation } from 'react-i18next';
 
 export function PromptRulesSection({
   value,
@@ -11,14 +12,17 @@ export function PromptRulesSection({
   value: PromptConfig;
   onChange: (value: PromptConfig) => void;
 }) {
+  const { t } = useTranslation('chats');
   return (
     <Accordion.Item id="rules">
       <Accordion.Heading>
         <Accordion.Trigger className="px-4 sm:px-5">
           <span className="min-w-0 flex-1 text-left">
-            <strong className="block text-sm">Правила ответа</strong>
+            <strong className="block text-sm">
+              {t('promptRulesSection.responseRules')}
+            </strong>
             <span className="mt-0.5 block text-xs font-normal text-muted">
-              Можно выбрать несколько совместимых правил
+              {t('promptRulesSection.youCanSelectMultipleCompatibleRules')}
             </span>
           </span>
           <Accordion.Indicator />
@@ -38,7 +42,7 @@ export function PromptRulesSection({
               }
             >
               <Icon name="sparkles" className="size-4" />
-              Набор «Живой диалог»
+              {t('promptRulesSection.naturalDialogueSet')}
             </Button>
             {value.presetIds.length > 0 ? (
               <Button
@@ -46,13 +50,13 @@ export function PromptRulesSection({
                 variant="ghost"
                 onPress={() => onChange({ ...value, presetIds: [] })}
               >
-                Сбросить правила
+                {t('promptRulesSection.resetRules')}
               </Button>
             ) : null}
           </div>
 
           <CheckboxGroup
-            aria-label="Правила ответа"
+            aria-label={t('promptRulesSection.responseRules')}
             value={value.presetIds}
             onChange={(presetIds) =>
               onChange({

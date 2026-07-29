@@ -1,6 +1,7 @@
 import { Label, ListBox, Select } from '@heroui/react';
 import type { Key } from 'react';
 import type { GalaxyItem } from '../../../../types';
+import { useTranslation } from 'react-i18next';
 
 export function PromptSetsField({
   sets,
@@ -11,6 +12,7 @@ export function PromptSetsField({
   value: string[];
   onChange: (ids: string[]) => void;
 }) {
+  const { t } = useTranslation('chats');
   return (
     <div className="border-b border-separator px-4 py-4 sm:px-5">
       <Select
@@ -18,7 +20,7 @@ export function PromptSetsField({
         variant="secondary"
         selectionMode="multiple"
         value={value}
-        placeholder="Наборы не выбраны"
+        placeholder={t('promptSetsField.noPromptSetsSelected')}
         onChange={(keys: Key | Key[] | null) =>
           onChange(
             Array.isArray(keys)
@@ -29,7 +31,7 @@ export function PromptSetsField({
           )
         }
       >
-        <Label>Подключённые наборы промптов</Label>
+        <Label>{t('promptSetsField.connectedPromptSets')}</Label>
         <Select.Trigger>
           <Select.Value />
           <Select.Indicator />
@@ -53,8 +55,7 @@ export function PromptSetsField({
         </Select.Popover>
       </Select>
       <p className="mt-1.5 text-xs leading-5 text-muted">
-        Наборы дополняют правила и блоки этого чата. Их можно переиспользовать у
-        разных персонажей.
+        {t('promptSetsField.promptSetsExtendThisChatSRulesAndBlocksThey')}
       </p>
     </div>
   );
