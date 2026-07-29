@@ -1,4 +1,5 @@
 import { Button, Surface, TextArea } from '@heroui/react';
+import { useLayoutEffect, useRef } from 'react';
 import type { ChangeEvent, KeyboardEvent } from 'react';
 import { Icon } from '../../../components/Icon';
 import type { Provider } from '../../../types';
@@ -17,12 +18,20 @@ export function ChatComposer({
   sending: boolean;
   sendOnEnter: boolean;
   error: string;
-  providersAvailable: boolean;
   onDraftChange: (value: string) => void;
   onSend: () => void;
 }) {
+  const textAreaRef = useRef<HTMLTextAreaElement>(null);
+
+  useLayoutEffect(() => {
+    const textArea = textAreaRef.current;
+    if (!textArea) return;
+    textArea.style.height = 'auto';
+    textArea.style.height = `${Math.min(textArea.scrollHeight, 192)}px`;
+  }, [draft]);
+
   return (
-    <div className="shrink-0 border-t border-separator bg-background/95 px-3 py-3 backdrop-blur sm:px-5 sm:py-4">
+    <div className="shrink-0 border-t border-separator bg-background/95 px-3 py-2 backdrop-blur sm:px-5 sm:py-4">
       <div className="mx-auto w-full max-w-3xl">
         {error ? (
           <p className="selectable mb-2 px-1 text-sm text-danger">{error}</p>
@@ -30,6 +39,7 @@ export function ChatComposer({
         <Surface className="rounded-2xl border border-separator p-2">
           <div className="flex items-end gap-2">
             <TextArea
+              ref={textAreaRef}
               fullWidth
               variant="secondary"
               rows={1}
@@ -43,9 +53,11 @@ export function ChatComposer({
                   onSend();
                 }
               }}
+              enterKeyHint={sendOnEnter ? 'send' : 'enter'}
               placeholder={`Сообщение...`}
+              aria-label="Сообщение"
               disabled={!provider || sending}
-              className="max-h-48 min-h-12 resize-y"
+              className="max-h-48 min-h-12 resize-none overflow-y-auto"
             />
             <Button
               isIconOnly
@@ -60,7 +72,7 @@ export function ChatComposer({
               <Icon name="send" className="size-5" />
             </Button>
           </div>
-          <div className="flex flex-wrap items-center justify-between gap-2 px-2 pb-1 pt-2 text-[0.7rem] text-muted">
+          <div className="hidden flex-wrap items-center justify-between gap-2 px-2 pb-1 pt-2 text-[0.7rem] text-muted sm:flex">
             <span>
               {provider
                 ? `${provider.model} · max ${provider.maxTokens}`

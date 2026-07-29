@@ -21,10 +21,12 @@ export type ChatsScreenProps = {
   providers: Provider[];
   galaxyItems: GalaxyItem[];
   activeChatId: string;
+  isChatOpen: boolean;
   chatSidebarWidth: number;
   onChatSidebarWidthPreview: (width: number) => void;
   onChatSidebarWidthCommit: (width: number) => void;
   onSelectChat: (id: string) => void;
+  onCloseChat: () => void;
   onNewChat: (input: ChatConfigInput) => Promise<void>;
   onUpdateChat: (chatId: string, input: ChatConfigInput) => Promise<void>;
   onRenameChat: (chatId: string, title: string) => Promise<void>;

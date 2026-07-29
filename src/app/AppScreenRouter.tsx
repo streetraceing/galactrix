@@ -17,6 +17,7 @@ export function AppScreenRouter({ controller }: { controller: Controller }) {
         providers={snapshot.providers}
         galaxyItems={snapshot.galaxyItems}
         activeChatId={controller.activeChatId}
+        isChatOpen={controller.isChatOpen}
         chatSidebarWidth={snapshot.settings.chatSidebarWidth}
         onChatSidebarWidthPreview={(chatSidebarWidth) =>
           controller.previewSettings({ ...snapshot.settings, chatSidebarWidth })
@@ -27,7 +28,8 @@ export function AppScreenRouter({ controller }: { controller: Controller }) {
             chatSidebarWidth,
           })
         }
-        onSelectChat={controller.setActiveChatId}
+        onSelectChat={controller.openChat}
+        onCloseChat={controller.closeChat}
         onNewChat={controller.createNewChat}
         onUpdateChat={controller.updateExistingChat}
         onRenameChat={controller.renameExistingChat}

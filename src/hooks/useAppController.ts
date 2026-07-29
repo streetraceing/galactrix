@@ -32,6 +32,7 @@ import type {
   ProviderInput,
   TabId,
 } from '../types';
+import { useMobileBackEntry } from './useMobileBackEntry';
 
 const defaultSettings: AppSettings = {
   animations: true,
@@ -66,6 +67,7 @@ export function useAppController() {
   const [activeTab, setActiveTab] = useState<TabId>('chats');
   const [snapshot, setSnapshot] = useState<AppSnapshot>(emptySnapshot);
   const [activeChatId, setActiveChatId] = useState('');
+  const [isChatOpen, setIsChatOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [fatalError, setFatalError] = useState('');
   const [notice, setNotice] = useState('');
@@ -130,17 +132,28 @@ export function useAppController() {
       navigator.vibrate(12);
   }, [snapshot.settings.haptics]);
 
+  const closeChat = useCallback(() => {
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+    setIsChatOpen(false);
+  }, []);
+
+  useMobileBackEntry(isChatOpen, closeChat);
+
   const navigate = useCallback(
     (tab: TabId) => {
       haptic();
+      closeChat();
       setActiveTab(tab);
     },
-    [haptic],
+    [closeChat, haptic],
   );
 
   const openChat = useCallback(
     (chatId: string) => {
       setActiveChatId(chatId);
+      setIsChatOpen(true);
       setActiveTab('chats');
       haptic();
     },
@@ -172,6 +185,7 @@ export function useAppController() {
         const created = await createChat(input);
         await refresh();
         setActiveChatId(created.id);
+        setIsChatOpen(true);
         setActiveTab('chats');
         haptic();
       } catch (error) {
@@ -202,11 +216,12 @@ export function useAppController() {
 
   const removeChat = useCallback(
     async (chatId: string) => {
+      if (chatId === activeChatId) closeChat();
       await deleteChat(chatId);
       await refresh();
       haptic();
     },
-    [haptic, refresh],
+    [activeChatId, closeChat, haptic, refresh],
   );
 
   const pinChat = useCallback(
@@ -255,6 +270,7 @@ export function useAppController() {
       const created = await cloneChat(chatId, includeMessages, input);
       await refresh();
       setActiveChatId(created.id);
+      setIsChatOpen(true);
       setActiveTab('chats');
       haptic();
     },
@@ -266,6 +282,7 @@ export function useAppController() {
       const created = await branchChat(messageId);
       await refresh();
       setActiveChatId(created.id);
+      setIsChatOpen(true);
       setActiveTab('chats');
       haptic();
     },
@@ -367,15 +384,16 @@ export function useAppController() {
     activeTab,
     snapshot,
     activeChatId,
+    isChatOpen,
     loading,
     fatalError,
     notice,
     sending,
     navigate,
     openChat,
+    closeChat,
     boot,
     setNotice,
-    setActiveChatId,
     previewSettings,
     saveSettings,
     createNewChat,

@@ -4,7 +4,12 @@ import js from '@eslint/js';
 import { defineConfig } from 'eslint/config';
 import tseslint from 'typescript-eslint';
 
-export default defineConfig({
-  files: ['src/**/*.{js,ts}'],
-  extends: [js.configs.recommended, tseslint.configs.recommended],
-});
+export default defineConfig(
+  {
+    ignores: ['dist/**', 'src-tauri/**', '.heroui-docs/**'],
+  },
+  {
+    files: ['src/**/*.{js,jsx,ts,tsx}'],
+    extends: [js.configs.recommended, tseslint.configs.recommended],
+  },
+);

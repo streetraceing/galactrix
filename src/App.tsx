@@ -15,6 +15,9 @@ function App() {
       chatCount={controller.snapshot.chats.length}
       loading={controller.loading}
       notice={controller.notice}
+      mobileNavigationVisible={
+        controller.activeTab !== 'chats' || !controller.isChatOpen
+      }
       onNavigate={controller.navigate}
       onOpenChat={controller.openChat}
       onCloseNotice={() => controller.setNotice('')}

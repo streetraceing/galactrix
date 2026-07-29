@@ -108,7 +108,7 @@
   }
 
   body {
-    @apply min-w-80 overscroll-none leading-normal bg-background text-foreground;
+    @apply min-w-0 overscroll-none leading-normal bg-background text-foreground;
   }
 
   *,

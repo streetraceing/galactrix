@@ -1,5 +1,7 @@
 import { Modal } from '@heroui/react';
-import type { ReactNode } from 'react';
+import { useLayoutEffect, useState } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
+import { useMobileBackEntry } from '../../hooks/useMobileBackEntry';
 import { isMobilePlatform } from '../../lib/platform';
 
 export function UiModal({
@@ -20,6 +22,26 @@ export function UiModal({
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'cover' | 'full';
 }) {
   const isMobile = isMobilePlatform();
+  const [mobileHeight, setMobileHeight] = useState<number | null>(null);
+
+  useMobileBackEntry(isOpen, () => onOpenChange(false));
+
+  useLayoutEffect(() => {
+    if (!isOpen || !isMobile) {
+      setMobileHeight(null);
+      return;
+    }
+    setMobileHeight(Math.round(window.innerHeight));
+  }, [isMobile, isOpen]);
+
+  const mobileStyle =
+    isMobile && mobileHeight
+      ? ({
+          '--ui-modal-height': `${mobileHeight}px`,
+        } as CSSProperties)
+      : undefined;
+  const mobileHeightClass =
+    'h-(--ui-modal-height)! min-h-(--ui-modal-height)! max-h-(--ui-modal-height)!';
 
   return (
     <Modal>
@@ -27,22 +49,23 @@ export function UiModal({
         isOpen={isOpen}
         onOpenChange={onOpenChange}
         variant="blur"
-        className={isMobile ? 'h-full! min-h-full! max-h-full!' : undefined}
+        style={mobileStyle}
+        className={isMobile ? mobileHeightClass : undefined}
       >
         <Modal.Container
           size={isMobile ? 'full' : size}
           scroll="inside"
-          className={isMobile ? 'h-full! min-h-full! max-h-full!' : undefined}
+          className={isMobile ? mobileHeightClass : undefined}
         >
           <Modal.Dialog
             className={
               isMobile
-                ? 'h-full min-h-full max-h-full min-w-0 rounded-none ring-0'
+                ? `${mobileHeightClass} min-w-0 rounded-none ring-0`
                 : 'max-h-[90dvh] min-w-0 border-transparent'
             }
           >
             <Modal.CloseTrigger />
-            <Modal.Header className="pr-10">
+            <Modal.Header className="shrink-0 pr-10">
               <Modal.Heading>{title}</Modal.Heading>
               {description ? (
                 <p className="mt-1 text-sm text-muted">{description}</p>
@@ -51,7 +74,9 @@ export function UiModal({
             <Modal.Body className="scrollbar-thin min-w-0 overflow-x-hidden overflow-y-auto scrollbar-gutter-stable">
               {children}
             </Modal.Body>
-            {footer ? <Modal.Footer>{footer}</Modal.Footer> : null}
+            {footer ? (
+              <Modal.Footer className="shrink-0">{footer}</Modal.Footer>
+            ) : null}
           </Modal.Dialog>
         </Modal.Container>
       </Modal.Backdrop>

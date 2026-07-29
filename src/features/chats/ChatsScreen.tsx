@@ -19,10 +19,12 @@ export function ChatsScreen({
   providers,
   galaxyItems,
   activeChatId,
+  isChatOpen,
   chatSidebarWidth,
   onChatSidebarWidthPreview,
   onChatSidebarWidthCommit,
   onSelectChat,
+  onCloseChat,
   onNewChat,
   onUpdateChat,
   onRenameChat,
@@ -46,7 +48,6 @@ export function ChatsScreen({
   const isSinglePane = isMobile || isNarrowDesktop;
   const [query, setQuery] = useState('');
   const [draft, setDraft] = useState('');
-  const [showHistoryMobile, setShowHistoryMobile] = useState(true);
   const [sendError, setSendError] = useState('');
   const [working, setWorking] = useState(false);
   const [actionError, setActionError] = useState('');
@@ -85,7 +86,6 @@ export function ChatsScreen({
     const openNewChat = () => {
       setConfigError('');
       setConfigTarget('new');
-      setShowHistoryMobile(true);
     };
     window.addEventListener('galactrix:new-chat', openNewChat);
     return () => window.removeEventListener('galactrix:new-chat', openNewChat);
@@ -94,7 +94,6 @@ export function ChatsScreen({
   useEffect(() => {
     if (!activeChat?.id) {
       setDraft('');
-      setShowHistoryMobile(true);
       return;
     }
     setDraft(
@@ -111,7 +110,7 @@ export function ChatsScreen({
 
   useEffect(() => {
     if (!activeChat?.id) return;
-    if (isSinglePane && showHistoryMobile) return;
+    if (isSinglePane && !isChatOpen) return;
 
     let secondFrame = 0;
     const firstFrame = window.requestAnimationFrame(() => {
@@ -127,11 +126,10 @@ export function ChatsScreen({
       window.cancelAnimationFrame(firstFrame);
       if (secondFrame) window.cancelAnimationFrame(secondFrame);
     };
-  }, [activeMessages.length, activeChat?.id, isSinglePane, showHistoryMobile]);
+  }, [activeMessages.length, activeChat?.id, isChatOpen, isSinglePane]);
 
   const selectChat = (id: string) => {
     onSelectChat(id);
-    setShowHistoryMobile(false);
   };
 
   const send = async () => {
@@ -157,7 +155,6 @@ export function ChatsScreen({
     if (action === 'duplicate' || action === 'duplicate-with-messages') {
       setWorking(true);
       void onCloneChat(chat.id, action === 'duplicate-with-messages')
-        .then(() => setShowHistoryMobile(false))
         .catch((error) => setActionError(String(error)))
         .finally(() => setWorking(false));
       return;
@@ -184,7 +181,6 @@ export function ChatsScreen({
     try {
       if (configTarget === 'new') {
         await onNewChat(input);
-        setShowHistoryMobile(false);
       } else {
         await onUpdateChat(configTarget.id, input);
       }
@@ -237,7 +233,7 @@ export function ChatsScreen({
         activeChatId={activeChat?.id ?? ''}
         query={query}
         width={chatSidebarWidth}
-        isVisibleMobile={showHistoryMobile}
+        isVisibleMobile={!isChatOpen}
         isSinglePane={isSinglePane}
         onQueryChange={setQuery}
         onSelect={selectChat}
@@ -261,7 +257,7 @@ export function ChatsScreen({
       ) : null}
 
       <section
-        className={`${isSinglePane && showHistoryMobile ? 'hidden' : 'flex'} min-w-0 flex-1 flex-col`}
+        className={`${isSinglePane && !isChatOpen ? 'hidden' : 'flex'} min-w-0 flex-1 flex-col`}
       >
         {activeChat ? (
           <>
@@ -269,7 +265,7 @@ export function ChatsScreen({
               chat={activeChat}
               galaxyItems={galaxyItems}
               showBack={isSinglePane}
-              onBack={() => setShowHistoryMobile(true)}
+              onBack={onCloseChat}
               onAction={handleAction}
             />
             <MessageList
@@ -280,7 +276,6 @@ export function ChatsScreen({
               scrollRef={messageScrollRef}
               onBranch={async (messageId) => {
                 await onBranchMessage(messageId);
-                setShowHistoryMobile(false);
               }}
               onEdit={onEditMessage}
               onDelete={onDeleteMessage}
@@ -294,7 +289,6 @@ export function ChatsScreen({
               sending={sending}
               sendOnEnter={sendOnEnter}
               error={sendError}
-              providersAvailable={providers.length > 0}
               onDraftChange={setDraft}
               onSend={() => void send()}
             />
@@ -326,7 +320,6 @@ export function ChatsScreen({
                 void onCloneChat(configTarget.id, true, input)
                   .then(() => {
                     setConfigTarget(null);
-                    setShowHistoryMobile(false);
                   })
                   .catch((error) => setConfigError(String(error)))
                   .finally(() => setWorking(false));

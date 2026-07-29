@@ -1,6 +1,10 @@
 import { Button, Surface, TextArea } from '@heroui/react';
 import { useMemo, useRef, useState } from 'react';
-import type { ReactNode, RefObject, TouchEvent } from 'react';
+import type {
+  PointerEvent as ReactPointerEvent,
+  ReactNode,
+  RefObject,
+} from 'react';
 import { Icon } from '../../../components/Icon';
 import {
   ContextMenu,
@@ -338,37 +342,77 @@ function SwipeableMessage({
   message,
   children,
   onSelectVariant,
+  onError,
 }: {
   message: Message;
   children: ReactNode;
   onSelectVariant: (messageId: string, variantIndex: number) => Promise<void>;
+  onError: (message: string) => void;
 }) {
-  const touchStart = useRef<{ x: number; y: number } | null>(null);
+  const pointerStart = useRef<{
+    id: number;
+    x: number;
+    y: number;
+  } | null>(null);
+  const selectingVariant = useRef(false);
 
-  const onTouchStart = (event: TouchEvent<HTMLElement>) => {
-    const touch = event.touches[0];
-    if (touch) touchStart.current = { x: touch.clientX, y: touch.clientY };
+  const resetPointer = () => {
+    pointerStart.current = null;
   };
 
-  const onTouchEnd = (event: TouchEvent<HTMLElement>) => {
-    const start = touchStart.current;
-    touchStart.current = null;
-    const touch = event.changedTouches[0];
-    if (!start || !touch || message.role !== 'assistant') return;
+  const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (
+      event.pointerType !== 'touch' ||
+      message.role !== 'assistant' ||
+      message.variants.length < 2
+    ) {
+      return;
+    }
 
-    const dx = touch.clientX - start.x;
-    const dy = touch.clientY - start.y;
+    pointerStart.current = {
+      id: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const onPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const start = pointerStart.current;
+    resetPointer();
+    if (!start || start.id !== event.pointerId || selectingVariant.current) {
+      return;
+    }
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+
+    const dx = event.clientX - start.x;
+    const dy = event.clientY - start.y;
     if (Math.abs(dx) < 48 || Math.abs(dx) <= Math.abs(dy) * 1.2) return;
 
     const activePosition = getActiveVariantPosition(message);
     const nextPosition = dx > 0 ? activePosition - 1 : activePosition + 1;
     const nextVariant = message.variants[nextPosition];
     if (!nextVariant) return;
-    void onSelectVariant(message.id, nextVariant.index);
+
+    selectingVariant.current = true;
+    void onSelectVariant(message.id, nextVariant.index)
+      .catch((error) => onError(String(error)))
+      .finally(() => {
+        selectingVariant.current = false;
+      });
   };
 
   return (
-    <div onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+    <div
+      className="touch-pan-y"
+      onPointerDown={onPointerDown}
+      onPointerUp={onPointerUp}
+      onPointerCancel={resetPointer}
+      onLostPointerCapture={resetPointer}
+    >
       {children}
     </div>
   );
@@ -556,6 +600,7 @@ export function MessageList({
                 key={message.id}
                 message={message}
                 onSelectVariant={onSelectVariant}
+                onError={reportError}
               >
                 {content}
               </SwipeableMessage>

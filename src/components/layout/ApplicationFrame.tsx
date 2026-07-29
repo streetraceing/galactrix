@@ -15,6 +15,7 @@ export function ApplicationFrame({
   chatCount,
   loading,
   notice,
+  mobileNavigationVisible,
   children,
   onNavigate,
   onOpenChat,
@@ -28,6 +29,7 @@ export function ApplicationFrame({
   chatCount: number;
   loading: boolean;
   notice: string;
+  mobileNavigationVisible: boolean;
   children: ReactNode;
   onNavigate: (tab: TabId) => void;
   onOpenChat: (chatId: string) => void;
@@ -90,7 +92,7 @@ export function ApplicationFrame({
           <div className="min-h-0 min-w-0 flex-1 overflow-hidden flex">
             {children}
           </div>
-          {isMobile ? (
+          {isMobile && mobileNavigationVisible ? (
             <MobileBottomNavigation
               activeTab={activeTab}
               onNavigate={onNavigate}
