@@ -1,13 +1,15 @@
-import type { ProviderKind } from './types';
+import type { ProviderKind } from '../../types';
 
 export const providerCatalog: Array<{
   kind: ProviderKind;
   name: string;
   description: string;
   defaultBaseUrl?: string;
+  defaultModel?: string;
   requiresAccountId?: boolean;
   requiresApiKey: boolean;
   supportsAutomaticModels: boolean;
+  freeTier?: boolean;
   available?: boolean;
 }> = [
   {
@@ -35,11 +37,57 @@ export const providerCatalog: Array<{
     supportsAutomaticModels: true,
   },
   {
-    kind: 'ollama-cloud',
-    name: 'Ollama',
-    description: 'Локальный Ollama или Ollama Cloud',
+    kind: 'google-gemini',
+    name: 'Google Gemini',
+    description: 'Gemini API с бесплатным тарифом и OpenAI-совместимым API',
+    defaultBaseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
+    requiresApiKey: true,
+    supportsAutomaticModels: true,
+    freeTier: true,
+  },
+  {
+    kind: 'groq',
+    name: 'Groq',
+    description: 'Быстрый OpenAI-совместимый API с бесплатными лимитами',
+    defaultBaseUrl: 'https://api.groq.com/openai/v1',
+    requiresApiKey: true,
+    supportsAutomaticModels: true,
+    freeTier: true,
+  },
+  {
+    kind: 'openrouter',
+    name: 'OpenRouter',
+    description: 'Много провайдеров, бесплатные модели и автоматический роутер',
+    defaultBaseUrl: 'https://openrouter.ai/api/v1',
+    defaultModel: 'openrouter/free',
+    requiresApiKey: true,
+    supportsAutomaticModels: true,
+    freeTier: true,
+  },
+  {
+    kind: 'huggingface',
+    name: 'Hugging Face',
+    description: 'Inference Providers через единый OpenAI-совместимый Router',
+    defaultBaseUrl: 'https://router.huggingface.co/v1',
+    requiresApiKey: true,
+    supportsAutomaticModels: true,
+    freeTier: true,
+  },
+  {
+    kind: 'ollama',
+    name: 'Ollama Local',
+    description: 'Локальные модели без API-ключа',
     defaultBaseUrl: 'http://localhost:11434/api',
     requiresApiKey: false,
+    supportsAutomaticModels: true,
+    freeTier: true,
+  },
+  {
+    kind: 'ollama-cloud',
+    name: 'Ollama Cloud',
+    description: 'Облачные модели Ollama с Bearer API-ключом',
+    defaultBaseUrl: 'https://ollama.com/api',
+    requiresApiKey: true,
     supportsAutomaticModels: true,
   },
   {

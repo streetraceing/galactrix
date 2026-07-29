@@ -45,6 +45,7 @@ export type PromptBlock = {
 };
 
 export type PromptConfig = {
+  setIds: string[];
   presetIds: PromptPresetId[];
   contextPriorities: PromptContextPriorities;
   customBlocks: PromptBlock[];
@@ -79,7 +80,7 @@ export type Message = {
 };
 
 export type GalaxyKind =
-  'persona' | 'character' | 'universe' | 'worldbook' | 'style';
+  'persona' | 'character' | 'universe' | 'worldbook' | 'style' | 'prompt-set';
 
 export type NamedValue = {
   id: string;
@@ -103,7 +104,7 @@ export type WorldbookEntry = {
 
 export type PersonaData = {
   avatar?: string;
-  gender: string;
+  gender: 'male' | 'female' | 'unspecified';
   age: string;
   pronouns: string;
   habits: string;
@@ -118,6 +119,7 @@ export type CharacterData = {
   stylePreset:
     'neutral' | 'warm' | 'concise' | 'roleplay' | 'literary' | 'custom';
   styleItemId?: string;
+  promptSetIds: string[];
 };
 
 export type UniverseData = {
@@ -133,12 +135,15 @@ export type StyleData = {
   example: string;
 };
 
+export type PromptSetData = PromptConfig;
+
 export type GalaxyItemData =
   | PersonaData
   | CharacterData
   | UniverseData
   | WorldbookData
   | StyleData
+  | PromptSetData
   | Record<string, unknown>;
 
 export type GalaxyItem = {
@@ -165,6 +170,11 @@ export type ProviderKind =
   | 'character-ai'
   | 'cerebras'
   | 'nvidia-nim'
+  | 'google-gemini'
+  | 'groq'
+  | 'openrouter'
+  | 'huggingface'
+  | 'ollama'
   | 'ollama-cloud'
   | 'cloudflare-workers-ai'
   | 'custom';
@@ -196,6 +206,11 @@ export type ProviderInput = {
   temperature: number;
   topP: number;
   maxTokens: number;
+};
+
+export type ProviderImportInput = {
+  provider: ProviderInput;
+  apiKey?: string;
 };
 
 export type AppSettings = {

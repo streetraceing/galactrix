@@ -10,10 +10,12 @@ const NONE_KEY = '__none__';
 export function CharacterEditor({
   data,
   styles,
+  promptSets,
   onChange,
 }: {
   data: CharacterData;
   styles: GalaxyItem[];
+  promptSets: GalaxyItem[];
   onChange: (data: CharacterData) => void;
 }) {
   const patch = <K extends keyof CharacterData>(
@@ -110,6 +112,60 @@ export function CharacterEditor({
         {data.stylePreset === 'custom' && styles.length === 0 ? (
           <p className="mt-3 text-xs leading-5 text-muted">
             Сначала создайте объект типа «Стиль» в библиотеке.
+          </p>
+        ) : null}
+      </EditorSection>
+
+      <EditorSection
+        title="Наборы промптов"
+        description="Переиспользуемые правила подключаются ко всем чатам с этим персонажем."
+      >
+        <Select
+          fullWidth
+          variant="secondary"
+          selectionMode="multiple"
+          value={data.promptSetIds}
+          placeholder="Наборы не выбраны"
+          onChange={(keys: Key | Key[] | null) =>
+            patch(
+              'promptSetIds',
+              Array.isArray(keys)
+                ? keys.map(String)
+                : keys == null
+                  ? []
+                  : [String(keys)],
+            )
+          }
+        >
+          <Label>Подключённые наборы</Label>
+          <Select.Trigger>
+            <Select.Value />
+            <Select.Indicator />
+          </Select.Trigger>
+          <Select.Popover>
+            <ListBox selectionMode="multiple">
+              {promptSets.map((set) => (
+                <ListBox.Item key={set.id} id={set.id} textValue={set.name}>
+                  <span className="min-w-0 flex-1">
+                    <strong className="block truncate text-sm">
+                      {set.name}
+                    </strong>
+                    {set.description ? (
+                      <span className="mt-0.5 block truncate text-xs text-muted">
+                        {set.description}
+                      </span>
+                    ) : null}
+                  </span>
+                  <ListBox.ItemIndicator />
+                </ListBox.Item>
+              ))}
+            </ListBox>
+          </Select.Popover>
+        </Select>
+        {promptSets.length === 0 ? (
+          <p className="mt-2 text-xs leading-5 text-muted">
+            Создайте набор во вкладке «Наборы промптов», чтобы подключить его
+            здесь.
           </p>
         ) : null}
       </EditorSection>

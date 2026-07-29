@@ -58,6 +58,7 @@ export function DefinitionSectionsEditor({
                   {index + 1}
                 </span>
                 <Input
+                  autoComplete="off"
                   fullWidth
                   variant="secondary"
                   value={section.title}
@@ -80,6 +81,7 @@ export function DefinitionSectionsEditor({
                 </Button>
               </div>
               <TextArea
+                autoComplete="off"
                 fullWidth
                 variant="secondary"
                 className="mt-3"

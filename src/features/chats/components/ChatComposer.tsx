@@ -1,4 +1,4 @@
-import { Button, Surface, TextArea } from '@heroui/react';
+import { Button, Surface, TextArea, Tooltip } from '@heroui/react';
 import { useLayoutEffect, useRef } from 'react';
 import type { ChangeEvent, KeyboardEvent } from 'react';
 import { Icon } from '../../../components/Icon';
@@ -39,6 +39,7 @@ export function ChatComposer({
         <Surface className="rounded-2xl border border-separator p-2">
           <div className="flex items-end gap-2">
             <TextArea
+              autoComplete="off"
               ref={textAreaRef}
               fullWidth
               variant="secondary"
@@ -59,18 +60,23 @@ export function ChatComposer({
               disabled={!provider || sending}
               className="max-h-48 min-h-12 resize-none overflow-y-auto"
             />
-            <Button
-              isIconOnly
-              size="lg"
-              variant="primary"
-              className="shrink-0"
-              isDisabled={!draft.trim() || !provider || sending}
-              isPending={sending}
-              aria-label="Отправить сообщение"
-              onPress={onSend}
-            >
-              <Icon name="send" className="size-5" />
-            </Button>
+            <Tooltip>
+              <Tooltip.Trigger>
+                <Button
+                  isIconOnly
+                  size="lg"
+                  variant="primary"
+                  className="shrink-0"
+                  isDisabled={!draft.trim() || !provider || sending}
+                  isPending={sending}
+                  aria-label="Отправить сообщение"
+                  onPress={onSend}
+                >
+                  <Icon name="send" className="size-5" />
+                </Button>
+              </Tooltip.Trigger>
+              <Tooltip.Content>Отправить сообщение</Tooltip.Content>
+            </Tooltip>
           </div>
           <div className="hidden flex-wrap items-center justify-between gap-2 px-2 pb-1 pt-2 text-[0.7rem] text-muted sm:flex">
             <span>

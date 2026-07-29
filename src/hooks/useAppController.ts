@@ -11,7 +11,10 @@ import {
   deleteMessage,
   deleteProvider,
   editMessage,
+  exportProviderSecrets,
   fetchProviderModels,
+  importProviderConnections,
+  importGalaxyItems,
   loadSnapshot,
   regenerateMessage,
   renameChat,
@@ -30,6 +33,7 @@ import type {
   ChatConfigInput,
   GalaxyItemInput,
   ProviderInput,
+  ProviderImportInput,
   TabId,
 } from '../types';
 import { useMobileBackEntry } from './useMobileBackEntry';
@@ -363,12 +367,32 @@ export function useAppController() {
     [haptic, refresh],
   );
 
+  const importGalaxyLibrary = useCallback(
+    async (inputs: GalaxyItemInput[]) => {
+      const imported = await importGalaxyItems(inputs);
+      await refresh();
+      haptic();
+      return imported;
+    },
+    [haptic, refresh],
+  );
+
   const saveProviderConnection = useCallback(
     async (provider: ProviderInput, apiKey?: string) => {
       const saved = await saveProvider(provider, apiKey);
       await refresh();
       haptic();
       return saved;
+    },
+    [haptic, refresh],
+  );
+
+  const importProviders = useCallback(
+    async (entries: ProviderImportInput[]) => {
+      const imported = await importProviderConnections(entries);
+      await refresh();
+      haptic();
+      return imported;
     },
     [haptic, refresh],
   );
@@ -422,8 +446,11 @@ export function useAppController() {
     regenerateExistingMessage,
     chooseMessageVariant,
     saveGalaxyItem,
+    importGalaxyLibrary,
     removeGalaxyItem,
     fetchProviderModels,
+    exportProviderSecrets,
+    importProviders,
     saveProviderConnection,
     checkProviderConnection,
     removeProviderConnection,

@@ -1,4 +1,4 @@
-import { Button, Surface, TextArea, toast } from '@heroui/react';
+import { Button, Surface, TextArea, toast, Tooltip } from '@heroui/react';
 import { useMemo, useRef, useState } from 'react';
 import type {
   PointerEvent as ReactPointerEvent,
@@ -223,47 +223,64 @@ function VariantNavigator({
 
   return (
     <div className="flex items-center gap-0.5">
-      <Button
-        isIconOnly
-        size="sm"
-        variant="ghost"
-        className="size-7 min-w-7"
-        aria-label="Предыдущий вариант ответа"
-        isDisabled={!previousVariant}
-        onPress={() => {
-          if (previousVariant) onSelect(previousVariant.index);
-        }}
-      >
-        <Icon name="chevron-left" className="size-3.5" />
-      </Button>
-      <Button
-        size="sm"
-        variant="ghost"
-        className="h-7 min-w-14 px-2 text-xs tabular-nums text-muted"
-        aria-label="Открыть историю ответов"
-        onPress={onHistory}
-      >
-        {activePosition + 1}/{count}
-      </Button>
-      <Button
-        isIconOnly
-        size="sm"
-        variant="ghost"
-        className="size-7 min-w-7"
-        aria-label={
-          isLastVariant
-            ? 'Сгенерировать новый вариант ответа'
-            : 'Следующий вариант ответа'
-        }
-        isDisabled={isLastVariant && !onRegenerate}
-        onPress={() =>
-          isLastVariant
-            ? onRegenerate?.()
-            : nextVariant && onSelect(nextVariant.index)
-        }
-      >
-        <Icon name="chevron-right" className="size-3.5" />
-      </Button>
+      <Tooltip>
+        <Tooltip.Trigger>
+          <Button
+            isIconOnly
+            size="sm"
+            variant="ghost"
+            className="size-7 min-w-7"
+            aria-label="Предыдущий вариант ответа"
+            isDisabled={!previousVariant}
+            onPress={() => {
+              if (previousVariant) onSelect(previousVariant.index);
+            }}
+          >
+            <Icon name="chevron-left" className="size-3.5" />
+          </Button>
+        </Tooltip.Trigger>
+        <Tooltip.Content>Предыдущий вариант</Tooltip.Content>
+      </Tooltip>
+      <Tooltip>
+        <Tooltip.Trigger>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 min-w-14 px-2 text-xs tabular-nums text-muted"
+            aria-label="Открыть историю ответов"
+            onPress={onHistory}
+          >
+            {activePosition + 1}/{count}
+          </Button>
+        </Tooltip.Trigger>
+        <Tooltip.Content>История вариантов</Tooltip.Content>
+      </Tooltip>
+      <Tooltip>
+        <Tooltip.Trigger>
+          <Button
+            isIconOnly
+            size="sm"
+            variant="ghost"
+            className="size-7 min-w-7"
+            aria-label={
+              isLastVariant
+                ? 'Сгенерировать новый вариант ответа'
+                : 'Следующий вариант ответа'
+            }
+            isDisabled={isLastVariant && !onRegenerate}
+            onPress={() =>
+              isLastVariant
+                ? onRegenerate?.()
+                : nextVariant && onSelect(nextVariant.index)
+            }
+          >
+            <Icon name="chevron-right" className="size-3.5" />
+          </Button>
+        </Tooltip.Trigger>
+        <Tooltip.Content>
+          {isLastVariant ? 'Новый вариант ответа' : 'Следующий вариант'}
+        </Tooltip.Content>
+      </Tooltip>
     </div>
   );
 }
@@ -330,17 +347,21 @@ function DesktopMessageActions({
     <div className="mt-1 flex min-h-7 w-full items-center justify-between gap-3">
       <div className="pointer-events-none flex items-center gap-0.5 opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
         {actions.map((action) => (
-          <Button
-            key={action.label}
-            isIconOnly
-            size="sm"
-            variant="ghost"
-            className={`size-7 min-w-7 ${action.danger ? 'text-danger' : ''}`}
-            aria-label={action.label}
-            onPress={action.onPress}
-          >
-            <Icon name={action.icon} className="size-3.5" />
-          </Button>
+          <Tooltip key={action.label}>
+            <Tooltip.Trigger>
+              <Button
+                isIconOnly
+                size="sm"
+                variant="ghost"
+                className={`size-7 min-w-7 ${action.danger ? 'text-danger' : ''}`}
+                aria-label={action.label}
+                onPress={action.onPress}
+              >
+                <Icon name={action.icon} className="size-3.5" />
+              </Button>
+            </Tooltip.Trigger>
+            <Tooltip.Content>{action.label}</Tooltip.Content>
+          </Tooltip>
         ))}
       </div>
       <VariantNavigator
@@ -888,6 +909,7 @@ export function MessageList({
         }
       >
         <TextArea
+          autoComplete="off"
           fullWidth
           variant="secondary"
           value={editValue}

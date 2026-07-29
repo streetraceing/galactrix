@@ -65,7 +65,7 @@ export function ProviderEditorModal({
       footer={
         step === 2 ? (
           <>
-            <span className="flex-1" />
+            <span className="hidden flex-1 sm:block" />
             {!form.id ? (
               <Button
                 variant="ghost"

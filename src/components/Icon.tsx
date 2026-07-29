@@ -38,6 +38,9 @@ export type IconName =
   | 'restore'
   | 'history'
   | 'regenerate'
+  | 'grip'
+  | 'download'
+  | 'upload'
   | 'chevron-left'
   | 'chevron-right';
 
@@ -245,6 +248,30 @@ export function Icon({
       <>
         <path d="M20 7v5h-5" />
         <path d="M19 12a7 7 0 1 0-2 5" />
+      </>
+    ),
+    grip: (
+      <>
+        <circle cx="9" cy="5" r="1" />
+        <circle cx="15" cy="5" r="1" />
+        <circle cx="9" cy="12" r="1" />
+        <circle cx="15" cy="12" r="1" />
+        <circle cx="9" cy="19" r="1" />
+        <circle cx="15" cy="19" r="1" />
+      </>
+    ),
+    download: (
+      <>
+        <path d="M12 3v12" />
+        <path d="m7 10 5 5 5-5" />
+        <path d="M4 21h16" />
+      </>
+    ),
+    upload: (
+      <>
+        <path d="M12 21V9" />
+        <path d="m7 14 5-5 5 5" />
+        <path d="M4 3h16" />
       </>
     ),
     'chevron-left': <path d="m15 18-6-6 6-6" />,

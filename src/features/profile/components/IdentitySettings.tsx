@@ -98,6 +98,7 @@ export function IdentitySettings({
             </label>
             <div className="mt-2 flex flex-col gap-2 sm:flex-row">
               <Input
+                autoComplete="off"
                 id="profile-display-name"
                 fullWidth
                 variant="secondary"

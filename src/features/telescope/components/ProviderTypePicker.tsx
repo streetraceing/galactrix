@@ -1,4 +1,4 @@
-import { Surface } from '@heroui/react';
+import { Chip, Surface } from '@heroui/react';
 import { Icon } from '../../../components/Icon';
 import type { ProviderKind } from '../../../types';
 import { providerCatalog } from '../catalog';
@@ -26,9 +26,16 @@ export function ProviderTypePicker({
                 {provider.name.slice(0, 2).toUpperCase()}
               </span>
               <span className="min-w-0 flex-1">
-                <strong className="block text-sm font-medium">
-                  {provider.name}
-                </strong>
+                <span className="flex flex-wrap items-center gap-2">
+                  <strong className="text-sm font-medium">
+                    {provider.name}
+                  </strong>
+                  {provider.freeTier ? (
+                    <Chip size="sm" variant="soft" color="success">
+                      Есть бесплатно
+                    </Chip>
+                  ) : null}
+                </span>
                 <span className="mt-1 block text-xs leading-5 text-muted">
                   {provider.description}
                 </span>

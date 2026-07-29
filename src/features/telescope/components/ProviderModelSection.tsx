@@ -69,6 +69,7 @@ export function ProviderModelSection({
       <div className="mt-4">
         <FormField label="Идентификатор модели">
           <Input
+            autoComplete="off"
             fullWidth
             variant="secondary"
             value={form.model}

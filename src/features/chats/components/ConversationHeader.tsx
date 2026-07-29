@@ -1,4 +1,4 @@
-import { Button, Chip, Popover } from '@heroui/react';
+import { Button, Chip, Popover, Tooltip } from '@heroui/react';
 import { Icon } from '../../../components/Icon';
 import { AppAvatar } from '../../../components/ui/AppAvatar';
 import { galaxyItemAvatar } from '../../../lib/avatar';
@@ -115,16 +115,21 @@ export function ConversationHeader({
           </Popover.Content>
         </Popover>
 
-        <Button
-          isIconOnly
-          size="sm"
-          variant="ghost"
-          className="ml-auto shrink-0"
-          aria-label="Настроить контекст чата"
-          onPress={() => onAction('configure', chat)}
-        >
-          <Icon name="settings" className="size-5" />
-        </Button>
+        <Tooltip>
+          <Tooltip.Trigger>
+            <Button
+              isIconOnly
+              size="sm"
+              variant="ghost"
+              className="ml-auto shrink-0"
+              aria-label="Настроить контекст чата"
+              onPress={() => onAction('configure', chat)}
+            >
+              <Icon name="settings" className="size-5" />
+            </Button>
+          </Tooltip.Trigger>
+          <Tooltip.Content>Настройки чата</Tooltip.Content>
+        </Tooltip>
         <ChatActionsButton chat={chat} onAction={onAction} />
       </div>
     </header>

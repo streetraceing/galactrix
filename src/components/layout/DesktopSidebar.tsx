@@ -86,7 +86,7 @@ export function DesktopSidebar({
           <Button
             fullWidth
             size="lg"
-            variant="tertiary"
+            variant="ghost"
             className="justify-start gap-2 group-data-collapsed/sidebar:justify-center"
             aria-label={
               collapsed
@@ -105,7 +105,7 @@ export function DesktopSidebar({
           fullWidth
           size="lg"
           variant={
-            activeTab === settingsNavigationItem.id ? 'secondary' : 'tertiary'
+            activeTab === settingsNavigationItem.id ? 'secondary' : 'ghost'
           }
           className="justify-start gap-2 group-data-collapsed/sidebar:justify-center"
           aria-label={settingsNavigationItem.label}

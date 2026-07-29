@@ -2,6 +2,7 @@ import type {
   CharacterData,
   GalaxyItem,
   PersonaData,
+  PromptSetData,
   StyleData,
   UniverseData,
   WorldbookData,
@@ -15,9 +16,11 @@ export function galaxyItemDetails(item: GalaxyItem): string[] {
   switch (item.kind) {
     case 'persona': {
       const data = normalized as PersonaData;
-      const identity = [data.gender, data.age, data.pronouns].filter(
-        Boolean,
-      ).length;
+      const identity = [
+        data.gender === 'unspecified' ? '' : data.gender,
+        data.age,
+        data.pronouns,
+      ].filter(Boolean).length;
       const facts = data.attributes.length;
       return [
         identity > 0
@@ -75,6 +78,13 @@ export function galaxyItemDetails(item: GalaxyItem): string[] {
     case 'style': {
       const data = normalized as StyleData;
       return [data.example.trim() ? 'Есть пример' : 'Только инструкции'];
+    }
+    case 'prompt-set': {
+      const data = normalized as PromptSetData;
+      return [
+        countRu(data.presetIds.length, ['правило', 'правила', 'правил']),
+        countRu(data.customBlocks.length, ['блок', 'блока', 'блоков']),
+      ];
     }
   }
 }

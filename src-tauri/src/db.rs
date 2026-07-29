@@ -736,6 +736,9 @@ fn validate_chat_links(connection: &Connection, input: &ChatConfigInput) -> Resu
     for id in &input.worldbook_ids {
         validate_optional_galaxy(connection, Some(id), "worldbook")?;
     }
+    for id in &input.prompt_config.set_ids {
+        validate_optional_galaxy(connection, Some(id), "prompt-set")?;
+    }
     validate_prompt_config(&input.prompt_config)?;
     Ok(())
 }
@@ -752,6 +755,16 @@ fn validate_prompt_config(config: &PromptConfig) -> Result<(), String> {
         "continuity",
     ];
     const PRIORITIES: [&str; 4] = ["low", "normal", "high", "critical"];
+
+    if config.set_ids.len() > 16 {
+        return Err("Можно подключить не больше 16 наборов промптов".into());
+    }
+    let mut set_ids = std::collections::HashSet::new();
+    for id in &config.set_ids {
+        if id.trim().is_empty() || !set_ids.insert(id.trim()) {
+            return Err("Наборы промптов не должны повторяться".into());
+        }
+    }
 
     let mut preset_ids = std::collections::HashSet::new();
     for preset in &config.preset_ids {
@@ -1542,31 +1555,49 @@ fn validate_galaxy_data(
     connection: &Connection,
     input: &GalaxyItemInput,
 ) -> Result<(), String> {
-    if input.kind != "character" {
-        return Ok(());
+    if input.kind == "prompt-set" {
+        let config = serde_json::from_value::<PromptConfig>(input.data.clone())
+            .map_err(|_| "Некорректная структура набора промптов".to_string())?;
+        if !config.set_ids.is_empty() {
+            return Err("Набор промптов не может подключать другие наборы".into());
+        }
+        return validate_prompt_config(&config);
     }
 
-    let preset = input
-        .data
-        .get("stylePreset")
-        .and_then(Value::as_str)
-        .unwrap_or("neutral");
-    if !matches!(
-        preset,
-        "neutral" | "warm" | "concise" | "roleplay" | "literary" | "custom"
-    ) {
-        return Err("Неизвестный пресет стиля персонажа".into());
-    }
-
-    if preset == "custom" {
-        let style_id = input
+    if input.kind == "character" {
+        let preset = input
             .data
-            .get("styleItemId")
+            .get("stylePreset")
             .and_then(Value::as_str)
-            .map(str::trim)
-            .filter(|value| !value.is_empty())
-            .ok_or_else(|| "Выберите сохранённый стиль переписки".to_string())?;
-        validate_optional_galaxy(connection, Some(style_id), "style")?;
+            .unwrap_or("neutral");
+        if !matches!(
+            preset,
+            "neutral" | "warm" | "concise" | "roleplay" | "literary" | "custom"
+        ) {
+            return Err("Неизвестный пресет стиля персонажа".into());
+        }
+
+        if preset == "custom" {
+            let style_id = input
+                .data
+                .get("styleItemId")
+                .and_then(Value::as_str)
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .ok_or_else(|| "Выберите сохранённый стиль переписки".to_string())?;
+            validate_optional_galaxy(connection, Some(style_id), "style")?;
+        }
+
+        if let Some(ids) = input.data.get("promptSetIds").and_then(Value::as_array) {
+            for id in ids {
+                let id = id
+                    .as_str()
+                    .map(str::trim)
+                    .filter(|value| !value.is_empty())
+                    .ok_or_else(|| "Некорректная ссылка на набор промптов".to_string())?;
+                validate_optional_galaxy(connection, Some(id), "prompt-set")?;
+            }
+        }
     }
 
     Ok(())
@@ -1625,13 +1656,31 @@ pub fn get_chat_prompt_context(
         .and_then(|id| get_galaxy_item(connection, id).ok())
         .filter(|item| item.kind == "style");
 
+    let prompt_config = parse_prompt_config(&raw_prompt_config, &legacy_preset);
+    let mut prompt_set_ids = prompt_config.set_ids.clone();
+    if let Some(ids) = character
+        .as_ref()
+        .and_then(|item| item.data.get("promptSetIds"))
+        .and_then(Value::as_array)
+    {
+        prompt_set_ids.extend(ids.iter().filter_map(Value::as_str).map(str::to_owned));
+    }
+    let mut seen_prompt_sets = std::collections::HashSet::new();
+    let prompt_sets = prompt_set_ids
+        .iter()
+        .filter(|id| seen_prompt_sets.insert(id.as_str()))
+        .filter_map(|id| get_galaxy_item(connection, id).ok())
+        .filter(|item| item.kind == "prompt-set")
+        .collect();
+
     Ok(ChatPromptContext {
         persona,
         character,
         universe,
         worldbooks,
         character_style,
-        prompt_config: parse_prompt_config(&raw_prompt_config, &legacy_preset),
+        prompt_sets,
+        prompt_config,
     })
 }
 
@@ -1691,6 +1740,9 @@ pub fn delete_galaxy_item(connection: &Connection, id: &str) -> Result<(), Strin
     if kind == "style" {
         clear_character_style_references(&transaction, id)?;
     }
+    if kind == "prompt-set" {
+        clear_prompt_set_references(&transaction, id)?;
+    }
 
     transaction
         .execute("DELETE FROM galaxy_items WHERE id = ?1", params![id])
@@ -1736,6 +1788,78 @@ fn clear_character_style_references(
             .map_err(|error| error.to_string())?;
     }
 
+    Ok(())
+}
+
+fn clear_prompt_set_references(
+    connection: &Connection,
+    prompt_set_id: &str,
+) -> Result<(), String> {
+    let mut statement = connection
+        .prepare("SELECT id, data_json FROM galaxy_items WHERE kind = 'character'")
+        .map_err(|error| error.to_string())?;
+    let characters = statement
+        .query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })
+        .map_err(|error| error.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| error.to_string())?;
+    drop(statement);
+
+    for (character_id, data_json) in characters {
+        let mut data = serde_json::from_str::<Value>(&data_json)
+            .unwrap_or(Value::Object(Default::default()));
+        let Some(ids) = data.get_mut("promptSetIds").and_then(Value::as_array_mut) else {
+            continue;
+        };
+        let before = ids.len();
+        ids.retain(|value| value.as_str() != Some(prompt_set_id));
+        if ids.len() == before {
+            continue;
+        }
+        connection
+            .execute(
+                "UPDATE galaxy_items SET data_json = ?1, updated_at = ?2 WHERE id = ?3",
+                params![
+                    serde_json::to_string(&data).map_err(|error| error.to_string())?,
+                    now_unix(),
+                    character_id
+                ],
+            )
+            .map_err(|error| error.to_string())?;
+    }
+
+    let mut statement = connection
+        .prepare("SELECT id, prompt_config_json, response_preset FROM chats")
+        .map_err(|error| error.to_string())?;
+    let chats = statement
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+            ))
+        })
+        .map_err(|error| error.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| error.to_string())?;
+    drop(statement);
+
+    for (chat_id, raw_config, legacy_preset) in chats {
+        let mut config = parse_prompt_config(&raw_config, &legacy_preset);
+        let before = config.set_ids.len();
+        config.set_ids.retain(|id| id != prompt_set_id);
+        if config.set_ids.len() == before {
+            continue;
+        }
+        connection
+            .execute(
+                "UPDATE chats SET prompt_config_json = ?1 WHERE id = ?2",
+                params![prompt_config_json(&config)?, chat_id],
+            )
+            .map_err(|error| error.to_string())?;
+    }
     Ok(())
 }
 
@@ -1871,6 +1995,7 @@ fn galaxy_presentation(kind: &str) -> Result<(&'static str, &'static str), Strin
         "universe" => Ok(("Вселенная", "indigo")),
         "worldbook" => Ok(("Ворлдбук", "amber")),
         "style" => Ok(("Стиль", "violet")),
+        "prompt-set" => Ok(("Набор", "emerald")),
         _ => Err("Неизвестный тип объекта галактики".into()),
     }
 }

@@ -68,9 +68,9 @@ export function PromptRulesSection({
                 key={preset.id}
                 value={preset.id}
                 variant="secondary"
-                className="rounded-xl border border-separator bg-surface px-3 py-3 transition-colors data-[selected=true]:border-accent/40 data-[selected=true]:bg-accent/5"
+                className="w-full rounded-xl border border-separator bg-surface transition-colors data-[selected=true]:border-accent/40 data-[selected=true]:bg-accent/5"
               >
-                <Checkbox.Content className="items-start">
+                <Checkbox.Content className="w-full items-start px-3 py-3">
                   <Checkbox.Control className="mt-0.5">
                     <Checkbox.Indicator />
                   </Checkbox.Control>

@@ -7,6 +7,10 @@ import type {
   GalaxyKind,
   NamedValue,
   PersonaData,
+  PromptBlock,
+  PromptConfig,
+  PromptPresetId,
+  PromptPriority,
   StyleData,
   UniverseData,
   WorldbookData,
@@ -32,7 +36,7 @@ export function emptyData(kind: GalaxyKind): GalaxyItemData {
   switch (kind) {
     case 'persona':
       return {
-        gender: '',
+        gender: 'unspecified',
         age: '',
         pronouns: '',
         habits: '',
@@ -44,6 +48,7 @@ export function emptyData(kind: GalaxyKind): GalaxyItemData {
       return {
         definitionSections: [],
         stylePreset: 'neutral',
+        promptSetIds: [],
       } satisfies CharacterData;
     case 'universe':
       return { rules: [] } satisfies UniverseData;
@@ -51,6 +56,8 @@ export function emptyData(kind: GalaxyKind): GalaxyItemData {
       return { entries: [] } satisfies WorldbookData;
     case 'style':
       return { instructions: '', example: '' } satisfies StyleData;
+    case 'prompt-set':
+      return defaultPromptSet();
   }
 }
 
@@ -83,14 +90,15 @@ export function normalizeData(
     typeof data === 'object' && data !== null && !Array.isArray(data)
       ? (data as Record<string, unknown>)
       : {};
+  const personaGender = normalizeGender(value.gender);
 
   switch (kind) {
     case 'persona':
       return {
         avatar: imageValue(value.avatar),
-        gender: stringValue(value.gender),
+        gender: personaGender,
         age: stringValue(value.age),
-        pronouns: stringValue(value.pronouns),
+        pronouns: pronounsForGender(personaGender),
         habits: stringValue(value.habits),
         preferences: stringValue(value.preferences),
         communicationNotes: stringValue(value.communicationNotes),
@@ -110,6 +118,7 @@ export function normalizeData(
         definitionSections: normalizeSections(value.definitionSections),
         stylePreset: normalizeStylePreset(value.stylePreset),
         styleItemId: stringValue(value.styleItemId) || undefined,
+        promptSetIds: stringArray(value.promptSetIds),
       } satisfies CharacterData;
 
     case 'universe':
@@ -137,7 +146,111 @@ export function normalizeData(
         instructions: stringValue(value.instructions),
         example: stringValue(value.example),
       } satisfies StyleData;
+    case 'prompt-set':
+      return normalizePromptSet(value);
   }
+}
+
+export function defaultPromptSet(): PromptConfig {
+  return {
+    setIds: [],
+    presetIds: [],
+    contextPriorities: {
+      persona: 'normal',
+      character: 'critical',
+      universe: 'high',
+      worldbooks: 'normal',
+      remembered: 'high',
+      presets: 'high',
+    },
+    customBlocks: [],
+  };
+}
+
+function normalizePromptSet(value: Record<string, unknown>): PromptConfig {
+  const defaults = defaultPromptSet();
+  const priorities =
+    typeof value.contextPriorities === 'object' &&
+    value.contextPriorities !== null &&
+    !Array.isArray(value.contextPriorities)
+      ? (value.contextPriorities as Record<string, unknown>)
+      : {};
+  return {
+    setIds: [],
+    presetIds: stringArray(value.presetIds).filter(isPromptPreset),
+    contextPriorities: {
+      persona: normalizePriority(
+        priorities.persona,
+        defaults.contextPriorities.persona,
+      ),
+      character: normalizePriority(
+        priorities.character,
+        defaults.contextPriorities.character,
+      ),
+      universe: normalizePriority(
+        priorities.universe,
+        defaults.contextPriorities.universe,
+      ),
+      worldbooks: normalizePriority(
+        priorities.worldbooks,
+        defaults.contextPriorities.worldbooks,
+      ),
+      remembered: normalizePriority(
+        priorities.remembered,
+        defaults.contextPriorities.remembered,
+      ),
+      presets: normalizePriority(
+        priorities.presets,
+        defaults.contextPriorities.presets,
+      ),
+    },
+    customBlocks: objectArray(value.customBlocks).map(
+      (block) =>
+        ({
+          id: stringValue(block.id) || createId(),
+          title: stringValue(block.title),
+          content: stringValue(block.content),
+          priority: normalizePriority(block.priority, 'normal'),
+          enabled: typeof block.enabled === 'boolean' ? block.enabled : true,
+        }) satisfies PromptBlock,
+    ),
+  };
+}
+
+function normalizeGender(value: unknown): PersonaData['gender'] {
+  const gender = stringValue(value).trim().toLocaleLowerCase('ru-RU');
+  if (['male', 'мужской', 'мужчина'].includes(gender)) return 'male';
+  if (['female', 'женский', 'женщина'].includes(gender)) return 'female';
+  return 'unspecified';
+}
+
+export function pronounsForGender(gender: PersonaData['gender']) {
+  if (gender === 'male') return 'он/его';
+  if (gender === 'female') return 'она/её';
+  return '';
+}
+
+function normalizePriority(
+  value: unknown,
+  fallback: PromptPriority,
+): PromptPriority {
+  const priority = stringValue(value);
+  return ['low', 'normal', 'high', 'critical'].includes(priority)
+    ? (priority as PromptPriority)
+    : fallback;
+}
+
+function isPromptPreset(value: string): value is PromptPresetId {
+  return [
+    'human',
+    'dialogue-only',
+    'no-emoji',
+    'first-person',
+    'concise',
+    'immersive',
+    'initiative',
+    'continuity',
+  ].includes(value);
 }
 
 function normalizeSections(value: unknown): DefinitionSection[] {
@@ -157,6 +270,12 @@ function normalizeStylePreset(value: unknown): StylePreset {
 
 function stringValue(value: unknown) {
   return typeof value === 'string' ? value : '';
+}
+
+function stringArray(value: unknown) {
+  return Array.isArray(value)
+    ? value.filter((entry): entry is string => typeof entry === 'string')
+    : [];
 }
 
 function imageValue(value: unknown) {

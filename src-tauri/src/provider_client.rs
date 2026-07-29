@@ -8,7 +8,12 @@ use crate::models::{CompletionResult, Message, Provider, ProviderInput, Provider
 const DEFAULT_MISTRAL_URL: &str = "https://api.mistral.ai/v1";
 const DEFAULT_CEREBRAS_URL: &str = "https://api.cerebras.ai/v1";
 const DEFAULT_NVIDIA_URL: &str = "https://integrate.api.nvidia.com/v1";
-const DEFAULT_OLLAMA_URL: &str = "http://localhost:11434/api";
+const DEFAULT_GEMINI_URL: &str = "https://generativelanguage.googleapis.com/v1beta/openai";
+const DEFAULT_GROQ_URL: &str = "https://api.groq.com/openai/v1";
+const DEFAULT_OPENROUTER_URL: &str = "https://openrouter.ai/api/v1";
+const DEFAULT_HUGGINGFACE_URL: &str = "https://router.huggingface.co/v1";
+const DEFAULT_OLLAMA_LOCAL_URL: &str = "http://localhost:11434/api";
+const DEFAULT_OLLAMA_CLOUD_URL: &str = "https://ollama.com/api";
 
 pub async fn list_models(
     provider: &ProviderInput,
@@ -19,7 +24,7 @@ pub async fn list_models(
     let started = Instant::now();
 
     let response = match provider.kind.as_str() {
-        "ollama-cloud" => {
+        "ollama" | "ollama-cloud" => {
             let url = format!("{}/tags", ollama_base(provider));
             authenticated(client.get(url), api_key).send().await
         }
@@ -45,7 +50,7 @@ pub async fn list_models(
 
     let value = response_json(response).await?;
     let mut models = match provider.kind.as_str() {
-        "ollama-cloud" => value
+        "ollama" | "ollama-cloud" => value
             .get("models")
             .and_then(Value::as_array)
             .into_iter()
@@ -119,7 +124,7 @@ pub async fn complete(
     let started = Instant::now();
 
     let response = match provider.kind.as_str() {
-        "ollama-cloud" => {
+        "ollama" | "ollama-cloud" => {
             let url = format!("{}/chat", ollama_base_saved(provider));
             let body = json!({
                 "model": provider.model,
@@ -156,7 +161,7 @@ pub async fn complete(
     let value = response_json(response).await?;
     let latency_ms = started.elapsed().as_millis().min(i64::MAX as u128) as i64;
 
-    if provider.kind == "ollama-cloud" {
+    if matches!(provider.kind.as_str(), "ollama" | "ollama-cloud") {
         let content = value
             .pointer("/message/content")
             .and_then(Value::as_str)
@@ -282,6 +287,11 @@ fn validate_kind(kind: &str) -> Result<(), String> {
         | "character-ai"
         | "cerebras"
         | "nvidia-nim"
+        | "google-gemini"
+        | "groq"
+        | "openrouter"
+        | "huggingface"
+        | "ollama"
         | "ollama-cloud"
         | "cloudflare-workers-ai"
         | "custom" => Ok(()),
@@ -292,7 +302,16 @@ fn validate_kind(kind: &str) -> Result<(), String> {
 fn validate_auth(kind: &str, api_key: Option<&str>, existing_id: bool) -> Result<(), String> {
     let requires_key = matches!(
         kind,
-        "mistral" | "character-ai" | "cerebras" | "nvidia-nim" | "cloudflare-workers-ai"
+        "mistral"
+            | "character-ai"
+            | "cerebras"
+            | "nvidia-nim"
+            | "google-gemini"
+            | "groq"
+            | "openrouter"
+            | "huggingface"
+            | "ollama-cloud"
+            | "cloudflare-workers-ai"
     );
     if requires_key
         && !existing_id
@@ -308,6 +327,13 @@ fn openai_base(provider: &ProviderInput) -> Result<String, String> {
         "mistral" => provider.base_url.as_deref().unwrap_or(DEFAULT_MISTRAL_URL),
         "cerebras" => provider.base_url.as_deref().unwrap_or(DEFAULT_CEREBRAS_URL),
         "nvidia-nim" => provider.base_url.as_deref().unwrap_or(DEFAULT_NVIDIA_URL),
+        "google-gemini" => provider.base_url.as_deref().unwrap_or(DEFAULT_GEMINI_URL),
+        "groq" => provider.base_url.as_deref().unwrap_or(DEFAULT_GROQ_URL),
+        "openrouter" => provider.base_url.as_deref().unwrap_or(DEFAULT_OPENROUTER_URL),
+        "huggingface" => provider
+            .base_url
+            .as_deref()
+            .unwrap_or(DEFAULT_HUGGINGFACE_URL),
         "cloudflare-workers-ai" => {
             let account_id = required_text(provider.account_id.as_deref(), "Cloudflare Account ID")?;
             return Ok(format!(
@@ -336,11 +362,21 @@ fn openai_base_saved(provider: &Provider) -> Result<String, String> {
 }
 
 fn ollama_base(provider: &ProviderInput) -> String {
-    normalize_ollama_base(provider.base_url.as_deref().unwrap_or(DEFAULT_OLLAMA_URL))
+    let default = if provider.kind == "ollama-cloud" {
+        DEFAULT_OLLAMA_CLOUD_URL
+    } else {
+        DEFAULT_OLLAMA_LOCAL_URL
+    };
+    normalize_ollama_base(provider.base_url.as_deref().unwrap_or(default))
 }
 
 fn ollama_base_saved(provider: &Provider) -> String {
-    normalize_ollama_base(provider.base_url.as_deref().unwrap_or(DEFAULT_OLLAMA_URL))
+    let default = if provider.kind == "ollama-cloud" {
+        DEFAULT_OLLAMA_CLOUD_URL
+    } else {
+        DEFAULT_OLLAMA_LOCAL_URL
+    };
+    normalize_ollama_base(provider.base_url.as_deref().unwrap_or(default))
 }
 
 fn normalize_ollama_base(base: &str) -> String {

@@ -64,6 +64,8 @@ impl Default for PromptContextPriorities {
 #[serde(rename_all = "camelCase")]
 pub struct PromptConfig {
     #[serde(default)]
+    pub set_ids: Vec<String>,
+    #[serde(default)]
     pub preset_ids: Vec<String>,
     #[serde(default)]
     pub context_priorities: PromptContextPriorities,
@@ -203,6 +205,13 @@ pub struct ProviderInput {
     pub max_tokens: i64,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderImportInput {
+    pub provider: ProviderInput,
+    pub api_key: Option<String>,
+}
+
 impl ProviderInput {
     pub fn into_provider(self, id: String, status: String, latency_ms: Option<i64>) -> Provider {
         Provider {
@@ -304,6 +313,7 @@ pub struct ChatPromptContext {
     pub universe: Option<GalaxyItem>,
     pub worldbooks: Vec<GalaxyItem>,
     pub character_style: Option<GalaxyItem>,
+    pub prompt_sets: Vec<GalaxyItem>,
     pub prompt_config: PromptConfig,
 }
 

@@ -1,9 +1,15 @@
 import { Button, Chip, Tabs, toast } from '@heroui/react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Icon } from '../../components/Icon';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { UiModal } from '../../components/ui/UiModal';
+import {
+  datedJsonName,
+  exportJsonFile,
+  importJsonFile,
+} from '../../lib/jsonTransfer';
+import { countRu } from '../../lib/plural';
 import type { GalaxyItem, GalaxyItemInput, GalaxyKind } from '../../types';
 import { GalaxyCard } from './components/GalaxyCard';
 import { GalaxyEditorModal } from './components/GalaxyEditorModal';
@@ -13,14 +19,17 @@ import {
   galaxySections,
 } from './catalog';
 import { createGalaxyDraft, draftFromItem } from './model';
+import { createGalaxiesExport, parseGalaxiesExport } from './transfer';
 
 export function GalaxiesScreen({
   items,
   onSave,
+  onImport,
   onDelete,
 }: {
   items: GalaxyItem[];
   onSave: (item: GalaxyItemInput) => Promise<void>;
+  onImport: (items: GalaxyItemInput[]) => Promise<number>;
   onDelete: (id: string) => Promise<void>;
 }) {
   const [section, setSection] = useState<GalaxyKind>('persona');
@@ -29,6 +38,7 @@ export function GalaxiesScreen({
   const [draft, setDraft] = useState<GalaxyItemInput>(createGalaxyDraft());
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [error, setError] = useState('');
 
   const byKind = useMemo(
@@ -45,6 +55,47 @@ export function GalaxiesScreen({
     () => items.filter((item) => item.kind === 'style'),
     [items],
   );
+  const promptSets = useMemo(
+    () => items.filter((item) => item.kind === 'prompt-set'),
+    [items],
+  );
+
+  const exportItems = async () => {
+    try {
+      const exported = await exportJsonFile(
+        datedJsonName('galactrix-galaxies'),
+        createGalaxiesExport(items),
+      );
+      if (!exported) return;
+      toast.success('Экспорт Галактик готов', {
+        description: `Объектов: ${items.length}`,
+      });
+    } catch (caught) {
+      toast.danger('Не удалось экспортировать Галактики', {
+        description: caught instanceof Error ? caught.message : String(caught),
+      });
+    }
+  };
+
+  const importItems = async () => {
+    if (importing) return;
+    setImporting(true);
+    try {
+      const raw = await importJsonFile();
+      if (raw == null) return;
+      const imported = parseGalaxiesExport(raw);
+      const importedCount = await onImport(imported);
+      toast.success('Импорт Галактик завершён', {
+        description: `Добавлено или обновлено: ${importedCount}`,
+      });
+    } catch (caught) {
+      toast.danger('Не удалось импортировать Галактики', {
+        description: caught instanceof Error ? caught.message : String(caught),
+      });
+    } finally {
+      setImporting(false);
+    }
+  };
 
   const openCreate = (kind: GalaxyKind = 'persona') => {
     setEditing(null);
@@ -52,6 +103,16 @@ export function GalaxiesScreen({
     setError('');
     setModalOpen(true);
   };
+
+  useEffect(() => {
+    const createCurrentItem = () => openCreate(section);
+    window.addEventListener('galactrix:new-galaxy-item', createCurrentItem);
+    return () =>
+      window.removeEventListener(
+        'galactrix:new-galaxy-item',
+        createCurrentItem,
+      );
+  }, [section]);
 
   const openEdit = (item: GalaxyItem) => {
     setEditing(item);
@@ -115,16 +176,34 @@ export function GalaxiesScreen({
       <div className="page-container">
         <PageHeader
           title="Галактики"
-          description="Персоны, персонажи, вселенные, ворлдбуки и стили переписки."
+          description="Персоны, персонажи, вселенные, ворлдбуки, стили и наборы промптов."
           actions={
-            <Button
-              variant="primary"
-              onPress={() => openCreate(section)}
-              fullWidth
-            >
-              <Icon name="plus" className="size-4" /> Создать{' '}
-              {galaxyKindLabels[section].toLocaleLowerCase('ru-RU')}
-            </Button>
+            <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+              <Button
+                variant="secondary"
+                className="flex-1 sm:flex-none"
+                isDisabled={items.length === 0}
+                onPress={() => void exportItems()}
+              >
+                <Icon name="download" className="size-4" /> Экспорт
+              </Button>
+              <Button
+                variant="secondary"
+                className="flex-1 sm:flex-none"
+                isPending={importing}
+                onPress={() => void importItems()}
+              >
+                <Icon name="upload" className="size-4" /> Импорт
+              </Button>
+              <Button
+                variant="primary"
+                className="w-full sm:w-auto"
+                onPress={() => openCreate(section)}
+              >
+                <Icon name="plus" className="size-4" /> Создать{' '}
+                {galaxyKindLabels[section].toLocaleLowerCase('ru-RU')}
+              </Button>
+            </div>
           }
         />
 
@@ -162,7 +241,11 @@ export function GalaxiesScreen({
                     </p>
                   </div>
                   <span className="text-xs text-muted">
-                    {sectionItems.length.toLocaleString('ru-RU')} в библиотеке
+                    {countRu(sectionItems.length, [
+                      'объект в библиотеке',
+                      'объекта в библиотеке',
+                      'объектов в библиотеке',
+                    ])}
                   </span>
                 </div>
 
@@ -202,6 +285,7 @@ export function GalaxiesScreen({
         editing={editing}
         draft={draft}
         styles={styles}
+        promptSets={promptSets}
         saving={saving}
         error={error}
         onOpenChange={(open) => !saving && setModalOpen(open)}

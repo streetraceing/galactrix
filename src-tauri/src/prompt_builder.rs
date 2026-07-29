@@ -1,7 +1,7 @@
 use serde_json::Value;
 
 use crate::{
-    models::{ChatPromptContext, GalaxyItem, Message},
+    models::{ChatPromptContext, GalaxyItem, Message, PromptConfig},
     response_rules,
 };
 
@@ -49,6 +49,36 @@ pub fn build_system_prompt(
             "WORLDBOOK",
             worldbook_prompt(worldbook),
         );
+    }
+
+    for prompt_set in &context.prompt_sets {
+        let Ok(config) = serde_json::from_value::<PromptConfig>(prompt_set.data.clone()) else {
+            continue;
+        };
+        if let Some(instructions) = response_rules::instructions(&config.preset_ids) {
+            push_section(
+                &mut sections,
+                &config.context_priorities.presets,
+                &format!("PROMPT SET: {}", prompt_set.name),
+                instructions,
+            );
+        }
+        for block in config
+            .custom_blocks
+            .iter()
+            .filter(|block| block.enabled && !block.content.trim().is_empty())
+        {
+            push_section(
+                &mut sections,
+                &block.priority,
+                &format!(
+                    "PROMPT SET {}: {}",
+                    prompt_set.name,
+                    block.title.trim()
+                ),
+                block.content.trim().to_owned(),
+            );
+        }
     }
 
     if let Some(instructions) =

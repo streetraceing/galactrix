@@ -16,6 +16,7 @@ export function StyleEditor({
     >
       <div className="space-y-3">
         <TextArea
+          autoComplete="off"
           fullWidth
           variant="secondary"
           rows={6}
@@ -27,6 +28,7 @@ export function StyleEditor({
           }
         />
         <TextArea
+          autoComplete="off"
           fullWidth
           variant="secondary"
           rows={5}

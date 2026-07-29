@@ -64,14 +64,19 @@ export function createPromptBlock(): PromptBlock {
   };
 }
 
-export function getPromptOrderPreview(value: PromptConfig) {
+export function getPromptOrderPreview(
+  value: PromptConfig,
+  includeContext = true,
+) {
   return [
-    ...priorityFields.map((field, order) => ({
-      id: field.id,
-      title: field.label,
-      priority: value.contextPriorities[field.id],
-      order,
-    })),
+    ...(includeContext
+      ? priorityFields.map((field, order) => ({
+          id: field.id,
+          title: field.label,
+          priority: value.contextPriorities[field.id],
+          order,
+        }))
+      : []),
     ...value.customBlocks
       .filter((block) => block.enabled)
       .map((block, order) => ({

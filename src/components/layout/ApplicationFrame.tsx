@@ -44,6 +44,12 @@ export function ApplicationFrame({
         chats={chats}
         onNavigate={onNavigate}
         onOpenChat={onOpenChat}
+        onToggleSidebar={() =>
+          onSettingsCommit({
+            ...settings,
+            sidebarCollapsed: !settings.sidebarCollapsed,
+          })
+        }
       />
       <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden bg-background">
         {!isMobile ? (

@@ -5,11 +5,11 @@ mod provider_client;
 mod response_rules;
 mod secure_storage;
 
-use std::sync::Mutex;
+use std::{collections::HashMap, sync::Mutex};
 
 use models::{
     AppSettings, AppSnapshot, ChatConfigInput, CreatedChat, GalaxyItem, GalaxyItemInput, Provider,
-    ProviderInput, ProviderModelResult,
+    ProviderImportInput, ProviderInput, ProviderModelResult,
 };
 use rusqlite::Connection;
 use tauri::{Manager, State};
@@ -363,6 +363,26 @@ fn upsert_galaxy_item(
 }
 
 #[tauri::command]
+fn import_galaxy_items(
+    inputs: Vec<GalaxyItemInput>,
+    state: State<'_, AppState>,
+) -> Result<usize, String> {
+    let database = state.database.lock().map_err(|error| error.to_string())?;
+    let transaction = database
+        .unchecked_transaction()
+        .map_err(|error| error.to_string())?;
+    for input in &inputs {
+        let id = input
+            .id
+            .clone()
+            .unwrap_or_else(|| Uuid::new_v4().to_string());
+        db::upsert_galaxy_item(&transaction, &id, input)?;
+    }
+    transaction.commit().map_err(|error| error.to_string())?;
+    Ok(inputs.len())
+}
+
+#[tauri::command]
 fn delete_galaxy_item(id: String, state: State<'_, AppState>) -> Result<(), String> {
     let database = state.database.lock().map_err(|error| error.to_string())?;
     db::delete_galaxy_item(&database, &id)
@@ -400,8 +420,12 @@ async fn save_provider(
 
     let mut probe_input = provider.clone();
     probe_input.id = Some(id.clone());
-    let secret = resolve_input_secret(&probe_input, api_key.as_deref())?;
-    let probe = provider_client::list_models(&probe_input, secret.as_deref()).await;
+    let secret = input_secret(&probe_input, api_key.as_deref());
+    let probe = if provider_requires_key(&probe_input.kind) && secret.is_none() {
+        Err("API-ключ ещё не добавлен".into())
+    } else {
+        provider_client::list_models(&probe_input, secret.as_deref()).await
+    };
     let (status, latency_ms) = match probe {
         Ok(result) => ("connected".to_string(), Some(result.latency_ms)),
         Err(_) => ("disabled".to_string(), None),
@@ -412,6 +436,63 @@ async fn save_provider(
     let database = state.database.lock().map_err(|error| error.to_string())?;
     db::save_provider(&database, &saved)?;
     Ok(saved)
+}
+
+#[tauri::command]
+fn export_provider_secrets(
+    provider_ids: Vec<String>,
+    state: State<'_, AppState>,
+) -> Result<HashMap<String, String>, String> {
+    let database = state.database.lock().map_err(|error| error.to_string())?;
+    let mut secrets = HashMap::new();
+    for id in provider_ids {
+        db::get_provider(&database, &id)?;
+        if let Some(secret) = secure_storage::provider_secret(&id) {
+            secrets.insert(id, secret);
+        }
+    }
+    Ok(secrets)
+}
+
+#[tauri::command]
+fn import_providers(
+    entries: Vec<ProviderImportInput>,
+    state: State<'_, AppState>,
+) -> Result<usize, String> {
+    for entry in &entries {
+        validate_provider_input(&entry.provider)?;
+        if entry.provider.kind == "character-ai" {
+            return Err("Character.AI нельзя импортировать без отдельного адаптера".into());
+        }
+    }
+
+    let imported_count = entries.len();
+    let database = state.database.lock().map_err(|error| error.to_string())?;
+    let transaction = database
+        .unchecked_transaction()
+        .map_err(|error| error.to_string())?;
+    for entry in entries {
+        let id = entry
+            .provider
+            .id
+            .clone()
+            .unwrap_or_else(|| Uuid::new_v4().to_string());
+        if let Some(secret) = entry
+            .api_key
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+        {
+            secure_storage::save_provider_secret(&id, secret)?;
+        }
+        let mut provider = entry
+            .provider
+            .into_provider(id, "disabled".into(), None);
+        provider.has_secret = secure_storage::has_provider_secret(&provider.id);
+        db::save_provider(&transaction, &provider)?;
+    }
+    transaction.commit().map_err(|error| error.to_string())?;
+    Ok(imported_count)
 }
 
 #[tauri::command]
@@ -523,6 +604,23 @@ fn validate_provider_input(provider: &ProviderInput) -> Result<(), String> {
     if provider.max_tokens <= 0 {
         return Err("Max tokens должно быть больше нуля".into());
     }
+    if !matches!(
+        provider.kind.as_str(),
+        "mistral"
+            | "character-ai"
+            | "cerebras"
+            | "nvidia-nim"
+            | "google-gemini"
+            | "groq"
+            | "openrouter"
+            | "huggingface"
+            | "ollama"
+            | "ollama-cloud"
+            | "cloudflare-workers-ai"
+            | "custom"
+    ) {
+        return Err("Неизвестный тип провайдера".into());
+    }
     Ok(())
 }
 
@@ -544,7 +642,15 @@ fn resolve_input_secret(
     provider: &ProviderInput,
     supplied: Option<&str>,
 ) -> Result<Option<String>, String> {
-    let secret = supplied
+    let secret = input_secret(provider, supplied);
+    if provider_requires_key(&provider.kind) && secret.is_none() {
+        return Err("Для этого провайдера нужен API-ключ".into());
+    }
+    Ok(secret)
+}
+
+fn input_secret(provider: &ProviderInput, supplied: Option<&str>) -> Option<String> {
+    supplied
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .map(str::to_owned)
@@ -553,11 +659,7 @@ fn resolve_input_secret(
                 .id
                 .as_deref()
                 .and_then(secure_storage::provider_secret)
-        });
-    if provider_requires_key(&provider.kind) && secret.is_none() {
-        return Err("Для этого провайдера нужен API-ключ".into());
-    }
-    Ok(secret)
+        })
 }
 
 fn secret_for_saved_provider(provider: &Provider) -> Result<Option<String>, String> {
@@ -571,7 +673,16 @@ fn secret_for_saved_provider(provider: &Provider) -> Result<Option<String>, Stri
 fn provider_requires_key(kind: &str) -> bool {
     matches!(
         kind,
-        "mistral" | "character-ai" | "cerebras" | "nvidia-nim" | "cloudflare-workers-ai"
+        "mistral"
+            | "character-ai"
+            | "cerebras"
+            | "nvidia-nim"
+            | "google-gemini"
+            | "groq"
+            | "openrouter"
+            | "huggingface"
+            | "ollama-cloud"
+            | "cloudflare-workers-ai"
     )
 }
 
@@ -616,9 +727,12 @@ pub fn run() {
             regenerate_message,
             send_chat_message,
             upsert_galaxy_item,
+            import_galaxy_items,
             delete_galaxy_item,
             fetch_provider_models,
             save_provider,
+            export_provider_secrets,
+            import_providers,
             check_provider,
             delete_provider,
             update_app_settings,

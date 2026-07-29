@@ -7,6 +7,8 @@ import {
   Surface,
   TextArea,
 } from '@heroui/react';
+import { useState } from 'react';
+import type { DragEvent } from 'react';
 import { Icon } from '../../../../components/Icon';
 import type { PromptBlock, PromptConfig } from '../../../../types';
 import { createPromptBlock } from './promptBuilderModel';
@@ -19,6 +21,8 @@ export function PromptCustomBlocksSection({
   value: PromptConfig;
   onChange: (value: PromptConfig) => void;
 }) {
+  const [draggedId, setDraggedId] = useState('');
+  const [dropTargetId, setDropTargetId] = useState('');
   const patchBlock = (id: string, patch: Partial<PromptBlock>) => {
     onChange({
       ...value,
@@ -39,6 +43,32 @@ export function PromptCustomBlocksSection({
     onChange({ ...value, customBlocks });
   };
 
+  const dropBlock = (targetId: string) => {
+    if (!draggedId || draggedId === targetId) return;
+    const sourceIndex = value.customBlocks.findIndex(
+      (block) => block.id === draggedId,
+    );
+    const targetIndex = value.customBlocks.findIndex(
+      (block) => block.id === targetId,
+    );
+    if (sourceIndex < 0 || targetIndex < 0) return;
+    const customBlocks = [...value.customBlocks];
+    const [moved] = customBlocks.splice(sourceIndex, 1);
+    customBlocks.splice(targetIndex, 0, moved);
+    onChange({ ...value, customBlocks });
+  };
+
+  const startDragging = (event: DragEvent<HTMLElement>, id: string) => {
+    setDraggedId(id);
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', id);
+  };
+
+  const finishDragging = () => {
+    setDraggedId('');
+    setDropTargetId('');
+  };
+
   return (
     <Accordion.Item id="custom">
       <Accordion.Heading>
@@ -56,7 +86,8 @@ export function PromptCustomBlocksSection({
         <Accordion.Body className="px-4 pb-5 sm:px-5">
           <div className="mb-3 flex items-center justify-between gap-3">
             <p className="text-xs text-muted">
-              До 16 блоков, каждый со своим приоритетом.
+              До 16 блоков. На ПК перетаскивайте их за маркер, на телефоне
+              используйте стрелки.
             </p>
             <Button
               size="sm"
@@ -88,9 +119,40 @@ export function PromptCustomBlocksSection({
               return (
                 <Surface
                   key={block.id}
-                  className="rounded-xl border border-separator p-3 sm:p-4"
+                  className={`rounded-xl border p-3 transition-[border-color,opacity,transform] sm:p-4 ${
+                    dropTargetId === block.id
+                      ? 'border-accent/70'
+                      : 'border-separator'
+                  } ${draggedId === block.id ? 'opacity-55' : ''}`}
+                  onDragOver={(event) => {
+                    if (!draggedId || draggedId === block.id) return;
+                    event.preventDefault();
+                    event.dataTransfer.dropEffect = 'move';
+                    setDropTargetId(block.id);
+                  }}
+                  onDragLeave={() =>
+                    setDropTargetId((current) =>
+                      current === block.id ? '' : current,
+                    )
+                  }
+                  onDrop={(event) => {
+                    event.preventDefault();
+                    dropBlock(block.id);
+                    finishDragging();
+                  }}
                 >
                   <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      draggable
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Перетащить блок «${block.title || index + 1}»`}
+                      className="hidden cursor-grab touch-none rounded-lg p-1.5 text-muted outline-none hover:bg-default-hover hover:text-foreground focus-visible:ring-2 focus-visible:ring-focus active:cursor-grabbing sm:inline-flex"
+                      onDragStart={(event) => startDragging(event, block.id)}
+                      onDragEnd={finishDragging}
+                    >
+                      <Icon name="grip" className="size-4" />
+                    </span>
                     <Checkbox
                       isSelected={block.enabled}
                       variant="secondary"
@@ -161,6 +223,7 @@ export function PromptCustomBlocksSection({
                         variant="secondary"
                         value={block.title}
                         maxLength={80}
+                        autoComplete="off"
                         onChange={(event) =>
                           patchBlock(block.id, {
                             title: event.target.value,
@@ -192,6 +255,7 @@ export function PromptCustomBlocksSection({
                       value={block.content}
                       placeholder="Опишите обязательное поведение, ограничения, формат или цель ответа."
                       className="min-h-32 resize-y"
+                      autoComplete="off"
                       onChange={(event) =>
                         patchBlock(block.id, {
                           content: event.target.value,

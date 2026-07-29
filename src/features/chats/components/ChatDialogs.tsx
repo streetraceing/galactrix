@@ -54,6 +54,7 @@ export function ChatDialogs({
         }
       >
         <Input
+          autoComplete="off"
           fullWidth
           variant="secondary"
           value={renameValue}

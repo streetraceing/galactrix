@@ -19,6 +19,7 @@ export function GenerationSettings({
       <div className="mt-4 grid gap-4 sm:grid-cols-3">
         <FormField label="Temperature">
           <Input
+            autoComplete="off"
             fullWidth
             variant="secondary"
             type="number"
@@ -33,6 +34,7 @@ export function GenerationSettings({
         </FormField>
         <FormField label="Top P">
           <Input
+            autoComplete="off"
             fullWidth
             variant="secondary"
             type="number"
@@ -47,6 +49,7 @@ export function GenerationSettings({
         </FormField>
         <FormField label="Max tokens">
           <Input
+            autoComplete="off"
             fullWidth
             variant="secondary"
             type="number"

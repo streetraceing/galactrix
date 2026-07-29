@@ -68,6 +68,7 @@ export function ChatSidebar({
           <SearchField.Group>
             <SearchField.SearchIcon />
             <SearchField.Input
+              autoComplete="off"
               placeholder="Поиск по чатам"
               aria-label="Поиск по чатам"
             />

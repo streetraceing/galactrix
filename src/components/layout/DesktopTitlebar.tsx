@@ -14,6 +14,7 @@ type Command = {
   label: string;
   hint: string;
   icon: IconName;
+  shortcut?: string;
   run: () => void;
 };
 
@@ -22,11 +23,13 @@ export function DesktopTitlebar({
   chats,
   onNavigate,
   onOpenChat,
+  onToggleSidebar,
 }: {
   activeTab: TabId;
   chats: Chat[];
   onNavigate: (tab: TabId) => void;
   onOpenChat: (chatId: string) => void;
+  onToggleSidebar: () => void;
 }) {
   const [query, setQuery] = useState('');
   const [focused, setFocused] = useState(false);
@@ -42,6 +45,7 @@ export function DesktopTitlebar({
         label: 'Начать новый чат',
         hint: 'Создать чат с провайдером и ролевым контекстом',
         icon: 'plus',
+        shortcut: 'Ctrl+N',
         run: () => {
           onNavigate('chats');
           window.setTimeout(
@@ -50,22 +54,66 @@ export function DesktopTitlebar({
           );
         },
       },
-      ...navigationItems.map((item) => ({
+      ...navigationItems.map((item, index) => ({
         id: item.id,
         label: `Открыть: ${item.label}`,
         hint: item.id === activeTab ? 'Текущая вкладка' : 'Перейти к разделу',
         icon: item.icon,
+        shortcut: `Ctrl+${index + 1}`,
         run: () => onNavigate(item.id),
       })),
-      ...chats.slice(0, 50).map((chat) => ({
-        id: `chat-${chat.id}`,
-        label: chat.title,
-        hint: chat.preview || 'Открыть чат',
-        icon: 'chats' as const,
-        run: () => onOpenChat(chat.id),
-      })),
+      {
+        id: 'toggle-sidebar',
+        label: 'Переключить боковую панель',
+        hint: 'Свернуть или развернуть навигацию',
+        icon: 'sidebar',
+        shortcut: 'Ctrl+B',
+        run: onToggleSidebar,
+      },
+      {
+        id: 'new-galaxy-item',
+        label: 'Создать объект Галактики',
+        hint: 'Открыть редактор в текущем разделе библиотеки',
+        icon: 'galaxies',
+        shortcut: 'Ctrl+Shift+G',
+        run: () => {
+          onNavigate('galaxies');
+          window.setTimeout(
+            () => window.dispatchEvent(new Event('galactrix:new-galaxy-item')),
+            0,
+          );
+        },
+      },
+      {
+        id: 'new-provider',
+        label: 'Добавить подключение',
+        hint: 'Открыть выбор провайдера в Телескопе',
+        icon: 'telescope',
+        shortcut: 'Ctrl+Shift+P',
+        run: () => {
+          onNavigate('telescope');
+          window.setTimeout(
+            () => window.dispatchEvent(new Event('galactrix:new-provider')),
+            0,
+          );
+        },
+      },
+      {
+        id: 'toggle-maximize',
+        label: 'Развернуть или восстановить окно',
+        hint: 'Изменить режим главного окна',
+        icon: 'maximize',
+        run: () => void appWindow.toggleMaximize(),
+      },
+      {
+        id: 'minimize-window',
+        label: 'Свернуть окно',
+        hint: 'Оставить Galactrix в панели задач',
+        icon: 'minimize',
+        run: () => void appWindow.minimize(),
+      },
     ],
-    [activeTab, chats, onNavigate, onOpenChat],
+    [activeTab, appWindow, onNavigate, onToggleSidebar],
   );
 
   useEffect(() => {
@@ -79,10 +127,39 @@ export function DesktopTitlebar({
         event.preventDefault();
         commands[0]?.run();
       }
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'b') {
+        event.preventDefault();
+        onToggleSidebar();
+      }
+      if ((event.ctrlKey || event.metaKey) && /^[1-5]$/.test(event.key)) {
+        event.preventDefault();
+        const item = navigationItems[Number(event.key) - 1];
+        if (item) onNavigate(item.id);
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key === ',') {
+        event.preventDefault();
+        onNavigate('settings');
+      }
+      if (
+        (event.ctrlKey || event.metaKey) &&
+        event.shiftKey &&
+        event.key.toLowerCase() === 'g'
+      ) {
+        event.preventDefault();
+        commands.find((command) => command.id === 'new-galaxy-item')?.run();
+      }
+      if (
+        (event.ctrlKey || event.metaKey) &&
+        event.shiftKey &&
+        event.key.toLowerCase() === 'p'
+      ) {
+        event.preventDefault();
+        commands.find((command) => command.id === 'new-provider')?.run();
+      }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [commands, isMobile]);
+  }, [commands, isMobile, onNavigate, onToggleSidebar]);
 
   useEffect(() => {
     if (isMobile) return;
@@ -108,11 +185,18 @@ export function DesktopTitlebar({
   if (isMobile) return null;
 
   const normalized = query.trim().toLowerCase();
-  const filtered = normalized
+  const filteredCommands = normalized
     ? commands.filter((command) =>
         `${command.label} ${command.hint}`.toLowerCase().includes(normalized),
       )
     : commands;
+  const filteredChats = normalized
+    ? chats
+        .filter((chat) =>
+          `${chat.title} ${chat.preview}`.toLowerCase().includes(normalized),
+        )
+        .slice(0, 5)
+    : [];
 
   const run = (command: Command) => {
     command.run();
@@ -165,15 +249,21 @@ export function DesktopTitlebar({
             value={query}
             onChange={setQuery}
             onSubmit={() => {
-              if (filtered[0]) run(filtered[0]);
+              if (filteredCommands[0]) run(filteredCommands[0]);
+              else if (filteredChats[0]) {
+                onOpenChat(filteredChats[0].id);
+                setQuery('');
+                setFocused(false);
+              }
             }}
           >
             <SearchField.Group className="h-8 w-full">
               <SearchField.SearchIcon />
               <SearchField.Input
                 ref={searchInputRef}
-                placeholder="Поиск по чатам и команды"
+                placeholder="Команда или поиск по чатам"
                 aria-label="Поиск и команды"
+                autoComplete="off"
                 className="min-w-0"
                 onKeyDown={(event) => {
                   if (event.key === 'Escape') {
@@ -198,10 +288,13 @@ export function DesktopTitlebar({
 
           {focused ? (
             <Surface
-              className="ui-overlay-surface absolute inset-x-0 top-[calc(100%+0.4rem)] overflow-hidden p-1"
+              className="ui-overlay-surface scrollbar-thin absolute inset-x-0 top-[calc(100%+0.4rem)] max-h-[min(70vh,34rem)] overflow-y-auto p-1"
               variant="transparent"
             >
-              {filtered.slice(0, 7).map((command) => (
+              <p className="px-3 pb-1 pt-2 text-[0.65rem] font-semibold uppercase tracking-wide text-muted">
+                Команды
+              </p>
+              {filteredCommands.slice(0, 9).map((command) => (
                 <Button
                   key={command.id}
                   fullWidth
@@ -218,9 +311,45 @@ export function DesktopTitlebar({
                       {command.hint}
                     </span>
                   </span>
+                  {command.shortcut ? (
+                    <span className="ml-auto shrink-0 text-xs text-muted">
+                      {command.shortcut}
+                    </span>
+                  ) : null}
                 </Button>
               ))}
-              {filtered.length === 0 ? (
+              {normalized && filteredChats.length > 0 ? (
+                <>
+                  <div className="mx-2 my-1 h-px bg-separator" />
+                  <p className="px-3 pb-1 pt-1 text-[0.65rem] font-semibold uppercase tracking-wide text-muted">
+                    Чаты
+                  </p>
+                  {filteredChats.map((chat) => (
+                    <Button
+                      key={chat.id}
+                      fullWidth
+                      variant="ghost"
+                      className="h-auto justify-start gap-3 rounded-lg px-3 py-2 text-left hover:bg-default-hover"
+                      onPress={() => {
+                        onOpenChat(chat.id);
+                        setQuery('');
+                        setFocused(false);
+                      }}
+                    >
+                      <Icon name="chats" className="size-4 shrink-0" />
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-medium">
+                          {chat.title}
+                        </span>
+                        <span className="block truncate text-xs text-muted">
+                          {chat.preview || 'Открыть чат'}
+                        </span>
+                      </span>
+                    </Button>
+                  ))}
+                </>
+              ) : null}
+              {filteredCommands.length === 0 && filteredChats.length === 0 ? (
                 <p className="px-3 py-3 text-sm text-muted">
                   Команды не найдены
                 </p>

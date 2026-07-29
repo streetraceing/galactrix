@@ -1,6 +1,5 @@
 import { Modal } from '@heroui/react';
-import { useLayoutEffect, useState } from 'react';
-import type { CSSProperties, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { useMobileBackEntry } from '../../hooks/useMobileBackEntry';
 import { isMobilePlatform } from '../../lib/platform';
 
@@ -22,26 +21,8 @@ export function UiModal({
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'cover' | 'full';
 }) {
   const isMobile = isMobilePlatform();
-  const [mobileHeight, setMobileHeight] = useState<number | null>(null);
 
   useMobileBackEntry(isOpen, () => onOpenChange(false));
-
-  useLayoutEffect(() => {
-    if (!isOpen || !isMobile) {
-      setMobileHeight(null);
-      return;
-    }
-    setMobileHeight(Math.round(window.innerHeight));
-  }, [isMobile, isOpen]);
-
-  const mobileStyle =
-    isMobile && mobileHeight
-      ? ({
-          '--ui-modal-height': `${mobileHeight}px`,
-        } as CSSProperties)
-      : undefined;
-  const mobileHeightClass =
-    'h-(--ui-modal-height)! min-h-(--ui-modal-height)! max-h-(--ui-modal-height)!';
 
   return (
     <Modal>
@@ -49,33 +30,34 @@ export function UiModal({
         isOpen={isOpen}
         onOpenChange={onOpenChange}
         variant="blur"
-        style={mobileStyle}
-        className={isMobile ? mobileHeightClass : undefined}
+        className={isMobile ? 'h-full min-h-0' : undefined}
       >
         <Modal.Container
           size={isMobile ? 'full' : size}
           scroll="inside"
-          className={isMobile ? mobileHeightClass : undefined}
+          className={isMobile ? 'h-full min-h-0 w-full p-0' : undefined}
         >
           <Modal.Dialog
             className={
               isMobile
-                ? `${mobileHeightClass} min-w-0 rounded-none ring-0`
+                ? 'h-full min-h-0 w-full max-w-none min-w-0 rounded-none ring-0'
                 : 'max-h-[90dvh] min-w-0 border-transparent'
             }
           >
             <Modal.CloseTrigger />
-            <Modal.Header className="shrink-0 pr-10">
+            <Modal.Header className="shrink-0 px-4 pb-3 pt-4 pr-12 sm:px-6 sm:pt-5">
               <Modal.Heading>{title}</Modal.Heading>
               {description ? (
                 <p className="mt-1 text-sm text-muted">{description}</p>
               ) : null}
             </Modal.Header>
-            <Modal.Body className="scrollbar-thin min-w-0 overflow-x-hidden overflow-y-auto scrollbar-gutter-stable">
+            <Modal.Body className="scrollbar-thin min-w-0 overflow-x-hidden overflow-y-auto px-4 sm:px-6 scrollbar-gutter-stable">
               {children}
             </Modal.Body>
             {footer ? (
-              <Modal.Footer className="shrink-0">{footer}</Modal.Footer>
+              <Modal.Footer className="shrink-0 gap-2 border-t border-separator px-4 py-3 [&>button]:min-h-11 [&>button]:flex-1 sm:px-6 sm:[&>button]:flex-none">
+                {footer}
+              </Modal.Footer>
             ) : null}
           </Modal.Dialog>
         </Modal.Container>

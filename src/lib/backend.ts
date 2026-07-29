@@ -6,6 +6,7 @@ import type {
   GalaxyItem,
   GalaxyItemInput,
   Provider,
+  ProviderImportInput,
   ProviderInput,
   ProviderModelResult,
 } from '../types';
@@ -115,6 +116,11 @@ export async function deleteGalaxyItem(id: string) {
   return invoke<void>('delete_galaxy_item', { id });
 }
 
+export async function importGalaxyItems(inputs: GalaxyItemInput[]) {
+  requireTauri();
+  return invoke<number>('import_galaxy_items', { inputs });
+}
+
 export async function fetchProviderModels(
   provider: ProviderInput,
   apiKey?: string,
@@ -135,6 +141,20 @@ export async function saveProvider(
     provider,
     apiKey: apiKey || null,
   });
+}
+
+export async function exportProviderSecrets(ids: string[]) {
+  requireTauri();
+  return invoke<Record<string, string>>('export_provider_secrets', {
+    providerIds: ids,
+  });
+}
+
+export async function importProviderConnections(
+  entries: ProviderImportInput[],
+) {
+  requireTauri();
+  return invoke<number>('import_providers', { entries });
 }
 
 export async function checkProvider(id: string): Promise<Provider> {

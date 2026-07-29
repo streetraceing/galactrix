@@ -12,7 +12,7 @@ export function defaultProviderInput(kind: ProviderKind): ProviderInput {
   return {
     name: catalog.name,
     kind,
-    model: '',
+    model: catalog.defaultModel ?? '',
     baseUrl: catalog.defaultBaseUrl,
     temperature: 0.7,
     topP: 0.95,

@@ -1,15 +1,7 @@
-import {
-  Button,
-  Input,
-  Label,
-  ListBox,
-  Select,
-  Surface,
-  TextArea,
-} from '@heroui/react';
-import type { Key } from 'react';
+import { Button, Input, Label, Surface, TextArea } from '@heroui/react';
 import { AvatarPicker } from '../../../components/ui/AvatarPicker';
 import { UiModal } from '../../../components/ui/UiModal';
+import { PromptBuilder } from '../../chats/components/PromptBuilder';
 import { galaxyInputAvatar, withAvatar } from '../../../lib/avatar';
 import type {
   CharacterData,
@@ -17,16 +9,12 @@ import type {
   GalaxyItemInput,
   GalaxyKind,
   PersonaData,
+  PromptSetData,
   StyleData,
   UniverseData,
   WorldbookData,
 } from '../../../types';
-import {
-  galaxyKindDescriptions,
-  galaxyKindLabels,
-  galaxySections,
-} from '../catalog';
-import { emptyData } from '../model';
+import { galaxyKindDescriptions, galaxyKindLabels } from '../catalog';
 import { CharacterEditor } from './editors/CharacterEditor';
 import { PersonaEditor } from './editors/PersonaEditor';
 import { StyleEditor } from './editors/StyleEditor';
@@ -45,6 +33,8 @@ function descriptionPlaceholder(kind: GalaxyKind) {
       return 'Краткое назначение этого ворлдбука';
     case 'style':
       return 'Краткое описание стиля переписки';
+    case 'prompt-set':
+      return 'Когда и для каких персонажей стоит использовать этот набор';
   }
 }
 
@@ -53,6 +43,7 @@ export function GalaxyEditorModal({
   editing,
   draft,
   styles,
+  promptSets,
   saving,
   error,
   onOpenChange,
@@ -63,19 +54,13 @@ export function GalaxyEditorModal({
   editing: GalaxyItem | null;
   draft: GalaxyItemInput;
   styles: GalaxyItem[];
+  promptSets: GalaxyItem[];
   saving: boolean;
   error: string;
   onOpenChange: (open: boolean) => void;
   onDraftChange: (draft: GalaxyItemInput) => void;
   onSave: () => void;
 }) {
-  const changeKind = (kind: GalaxyKind) =>
-    onDraftChange({
-      ...draft,
-      kind,
-      data: emptyData(kind),
-    });
-
   const characterData =
     draft.kind === 'character' ? (draft.data as CharacterData) : null;
   const customStyleMissing = Boolean(
@@ -92,7 +77,7 @@ export function GalaxyEditorModal({
           ? `Редактирование: ${editing.name}`
           : `Новый объект - ${galaxyKindLabels[draft.kind]}`
       }
-      description="Структурированные параметры хранятся локально и становятся частью системного промпта только в выбранных чатах."
+      description={galaxyKindDescriptions[draft.kind]}
       size="lg"
       footer={
         <>
@@ -136,50 +121,7 @@ export function GalaxyEditorModal({
         ) : null}
 
         <Surface className="rounded-2xl border border-separator p-4 sm:p-5 bg-surface-secondary/50">
-          <div className="flex gap-4 flex-col">
-            <div className="flex flex-col gap-1.5">
-              <Label>Тип объекта</Label>
-              <Select
-                fullWidth
-                variant="secondary"
-                value={draft.kind}
-                isDisabled={Boolean(editing)}
-                onChange={(key: Key | Key[] | null) => {
-                  if (key == null || Array.isArray(key)) return;
-                  changeKind(String(key) as GalaxyKind);
-                }}
-              >
-                <Select.Trigger>
-                  <Select.Value />
-                  <Select.Indicator />
-                </Select.Trigger>
-                <Select.Popover>
-                  <ListBox>
-                    {galaxySections.map((entry) => (
-                      <ListBox.Item
-                        key={entry.id}
-                        id={entry.id}
-                        textValue={entry.label}
-                      >
-                        <span className="min-w-0 flex-1">
-                          <strong className="block text-sm font-medium">
-                            {entry.label}
-                          </strong>
-                          <span className="mt-0.5 block text-xs leading-5 text-muted">
-                            {galaxyKindDescriptions[entry.id]}
-                          </span>
-                        </span>
-                        <ListBox.ItemIndicator />
-                      </ListBox.Item>
-                    ))}
-                  </ListBox>
-                </Select.Popover>
-              </Select>
-              <p className="text-xs leading-5 text-muted">
-                {galaxyKindDescriptions[draft.kind]}
-              </p>
-            </div>
-
+          <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="galaxy-name">Название</Label>
               <Input
@@ -189,6 +131,7 @@ export function GalaxyEditorModal({
                 value={draft.name}
                 placeholder="Название объекта"
                 autoFocus
+                autoComplete="off"
                 maxLength={120}
                 onChange={(event) =>
                   onDraftChange({ ...draft, name: event.target.value })
@@ -206,6 +149,7 @@ export function GalaxyEditorModal({
               rows={3}
               value={draft.description}
               placeholder={descriptionPlaceholder(draft.kind)}
+              autoComplete="off"
               onChange={(event) =>
                 onDraftChange({ ...draft, description: event.target.value })
               }
@@ -223,6 +167,7 @@ export function GalaxyEditorModal({
           <CharacterEditor
             data={draft.data as CharacterData}
             styles={styles}
+            promptSets={promptSets}
             onChange={(data) => onDraftChange({ ...draft, data })}
           />
         ) : null}
@@ -241,6 +186,13 @@ export function GalaxyEditorModal({
         {draft.kind === 'style' ? (
           <StyleEditor
             data={draft.data as StyleData}
+            onChange={(data) => onDraftChange({ ...draft, data })}
+          />
+        ) : null}
+        {draft.kind === 'prompt-set' ? (
+          <PromptBuilder
+            mode="set"
+            value={draft.data as PromptSetData}
             onChange={(data) => onDraftChange({ ...draft, data })}
           />
         ) : null}

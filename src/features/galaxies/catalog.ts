@@ -6,6 +6,7 @@ export const galaxySections: Array<{ id: GalaxyKind; label: string }> = [
   { id: 'universe', label: 'Вселенные' },
   { id: 'worldbook', label: 'Ворлдбуки' },
   { id: 'style', label: 'Стили' },
+  { id: 'prompt-set', label: 'Наборы промптов' },
 ];
 
 export const galaxyFilters: Array<{ id: 'all' | GalaxyKind; label: string }> = [
@@ -24,6 +25,8 @@ export const galaxyKindDescriptions: Record<GalaxyKind, string> = {
     'Содержит отдельные записи лора, которые можно подключать к одному или нескольким чатам.',
   style:
     'Сохраняет переиспользуемые инструкции по тону, формату и манере переписки персонажа.',
+  'prompt-set':
+    'Объединяет правила и свои блоки промпта в переиспользуемый набор с заданным порядком и приоритетами.',
 };
 
 export const galaxyKindLabels: Record<GalaxyKind, string> = {
@@ -32,15 +35,17 @@ export const galaxyKindLabels: Record<GalaxyKind, string> = {
   universe: 'Вселенная',
   worldbook: 'Ворлдбук',
   style: 'Стиль',
+  'prompt-set': 'Набор промптов',
 };
 
 export const galaxyKindIcons: Record<
   GalaxyKind,
-  'user' | 'brain' | 'planet' | 'book' | 'sparkles'
+  'user' | 'brain' | 'planet' | 'book' | 'sparkles' | 'database'
 > = {
   persona: 'user',
   character: 'brain',
   universe: 'planet',
   worldbook: 'book',
   style: 'sparkles',
+  'prompt-set': 'database',
 };

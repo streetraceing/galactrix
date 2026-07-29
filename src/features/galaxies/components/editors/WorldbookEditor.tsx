@@ -71,6 +71,7 @@ export function WorldbookEditor({
                   }
                 />
                 <Input
+                  autoComplete="off"
                   fullWidth
                   variant="secondary"
                   value={entry.title}
@@ -98,6 +99,7 @@ export function WorldbookEditor({
                 </Button>
               </div>
               <Input
+                autoComplete="off"
                 fullWidth
                 variant="secondary"
                 value={entry.keywords}
@@ -108,6 +110,7 @@ export function WorldbookEditor({
                 }
               />
               <TextArea
+                autoComplete="off"
                 fullWidth
                 variant="secondary"
                 rows={5}

@@ -1,19 +1,32 @@
-import { Button, toast } from '@heroui/react';
-import { useState } from 'react';
+import { Button, Checkbox, Surface, toast } from '@heroui/react';
+import { useEffect, useState } from 'react';
 import { Icon } from '../../components/Icon';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { MetricGrid } from '../../components/ui/MetricGrid';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { SectionHeader } from '../../components/ui/SectionHeader';
 import { UiModal } from '../../components/ui/UiModal';
-import type { Provider, ProviderInput, ProviderModelResult } from '../../types';
+import {
+  datedJsonName,
+  exportJsonFile,
+  importJsonFile,
+} from '../../lib/jsonTransfer';
+import type {
+  Provider,
+  ProviderImportInput,
+  ProviderInput,
+  ProviderModelResult,
+} from '../../types';
 import { ProviderCard } from './components/ProviderCard';
 import { ProviderEditorModal } from './components/ProviderEditorModal';
 import { useProviderEditor } from './useProviderEditor';
+import { createTelescopeExport, parseTelescopeExport } from './transfer';
 
 export function TelescopeScreen({
   providers,
   onFetchModels,
+  onExportSecrets,
+  onImport,
   onSave,
   onCheck,
   onDelete,
@@ -23,6 +36,8 @@ export function TelescopeScreen({
     provider: ProviderInput,
     apiKey?: string,
   ) => Promise<ProviderModelResult>;
+  onExportSecrets: (ids: string[]) => Promise<Record<string, string>>;
+  onImport: (entries: ProviderImportInput[]) => Promise<number>;
   onSave: (provider: ProviderInput, apiKey?: string) => Promise<Provider>;
   onCheck: (id: string) => Promise<Provider>;
   onDelete: (id: string) => Promise<void>;
@@ -32,10 +47,20 @@ export function TelescopeScreen({
   const [deleteTarget, setDeleteTarget] = useState<Provider | null>(null);
   const [deleteError, setDeleteError] = useState('');
   const [deleting, setDeleting] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [includeSecrets, setIncludeSecrets] = useState(false);
+  const [transferring, setTransferring] = useState(false);
   const editor = useProviderEditor({ onFetchModels, onSave });
   const connectedCount = providers.filter(
     (provider) => provider.status === 'connected',
   ).length;
+
+  useEffect(() => {
+    const openProviderEditor = () => editor.openCreate();
+    window.addEventListener('galactrix:new-provider', openProviderEditor);
+    return () =>
+      window.removeEventListener('galactrix:new-provider', openProviderEditor);
+  }, [editor]);
 
   const checkOne = async (id: string) => {
     const providerName =
@@ -124,6 +149,53 @@ export function TelescopeScreen({
     }
   };
 
+  const exportConnections = async () => {
+    if (transferring) return;
+    setTransferring(true);
+    try {
+      const secrets = includeSecrets
+        ? await onExportSecrets(providers.map((provider) => provider.id))
+        : {};
+      const exported = await exportJsonFile(
+        datedJsonName('galactrix-telescope'),
+        createTelescopeExport(providers, secrets),
+      );
+      if (!exported) return;
+      setExportOpen(false);
+      toast.success('Экспорт Телескопа готов', {
+        description: includeSecrets
+          ? `Подключения и API-ключи в JSON: ${Object.keys(secrets).length}`
+          : 'API-ключи не включены',
+      });
+    } catch (error) {
+      toast.danger('Не удалось экспортировать подключения', {
+        description: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      setTransferring(false);
+    }
+  };
+
+  const importConnections = async () => {
+    if (transferring) return;
+    setTransferring(true);
+    try {
+      const raw = await importJsonFile();
+      if (raw == null) return;
+      const imported = parseTelescopeExport(raw);
+      const importedCount = await onImport(imported);
+      toast.success('Импорт Телескопа завершён', {
+        description: `Добавлено или обновлено: ${importedCount}`,
+      });
+    } catch (error) {
+      toast.danger('Не удалось импортировать подключения', {
+        description: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      setTransferring(false);
+    }
+  };
+
   return (
     <div className="page-scroll mobile-screen-enter flex-1">
       <div className="page-container">
@@ -131,9 +203,34 @@ export function TelescopeScreen({
           title="Телескоп"
           description="Подключения, модели и параметры генерации."
           actions={
-            <Button variant="primary" onPress={editor.openCreate} fullWidth>
-              <Icon name="plus" className="size-4" /> Добавить
-            </Button>
+            <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+              <Button
+                variant="secondary"
+                className="flex-1 sm:flex-none"
+                isDisabled={providers.length === 0}
+                onPress={() => {
+                  setIncludeSecrets(false);
+                  setExportOpen(true);
+                }}
+              >
+                <Icon name="download" className="size-4" /> Экспорт
+              </Button>
+              <Button
+                variant="secondary"
+                className="flex-1 sm:flex-none"
+                isPending={transferring}
+                onPress={() => void importConnections()}
+              >
+                <Icon name="upload" className="size-4" /> Импорт
+              </Button>
+              <Button
+                variant="primary"
+                className="w-full sm:w-auto"
+                onPress={editor.openCreate}
+              >
+                <Icon name="plus" className="size-4" /> Добавить
+              </Button>
+            </div>
           }
         />
 
@@ -213,6 +310,57 @@ export function TelescopeScreen({
         onLoadModels={() => void editor.loadModels()}
         onSave={() => void editor.save()}
       />
+
+      <UiModal
+        isOpen={exportOpen}
+        onOpenChange={(open) => !transferring && setExportOpen(open)}
+        title="Экспорт подключений"
+        description="JSON можно импортировать в Galactrix на другом устройстве."
+        footer={
+          <>
+            <Button
+              variant="ghost"
+              isDisabled={transferring}
+              onPress={() => setExportOpen(false)}
+            >
+              Отмена
+            </Button>
+            <Button
+              variant="primary"
+              isPending={transferring}
+              onPress={() => void exportConnections()}
+            >
+              Экспортировать
+            </Button>
+          </>
+        }
+      >
+        <Checkbox
+          isSelected={includeSecrets}
+          variant="secondary"
+          className="w-full rounded-xl border border-separator"
+          onChange={setIncludeSecrets}
+        >
+          <Checkbox.Content className="w-full items-start px-4 py-4">
+            <Checkbox.Control className="mt-0.5">
+              <Checkbox.Indicator />
+            </Checkbox.Control>
+            <span className="min-w-0">
+              <strong className="block text-sm">Включить API-ключи</strong>
+              <span className="mt-1 block text-xs leading-5 text-muted">
+                По умолчанию ключи остаются только в защищённом хранилище этого
+                устройства.
+              </span>
+            </span>
+          </Checkbox.Content>
+        </Checkbox>
+        {includeSecrets ? (
+          <Surface className="mt-3 rounded-xl border border-warning/30 bg-warning/10 p-3 text-xs leading-5 text-warning">
+            Файл будет содержать ключи открытым текстом. Храните его как пароль
+            и не отправляйте посторонним.
+          </Surface>
+        ) : null}
+      </UiModal>
 
       <UiModal
         isOpen={Boolean(deleteTarget)}

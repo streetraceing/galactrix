@@ -3,8 +3,14 @@ import type { PromptConfig } from '../../../../types';
 import { promptPriorities } from '../../promptConfig';
 import { getPromptOrderPreview } from './promptBuilderModel';
 
-export function PromptOrderSection({ value }: { value: PromptConfig }) {
-  const preview = getPromptOrderPreview(value);
+export function PromptOrderSection({
+  value,
+  includeContext = true,
+}: {
+  value: PromptConfig;
+  includeContext?: boolean;
+}) {
+  const preview = getPromptOrderPreview(value, includeContext);
 
   return (
     <Accordion.Item id="preview">

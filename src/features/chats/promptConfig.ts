@@ -69,6 +69,7 @@ export const promptPriorities: Array<{
 ];
 
 export const defaultPromptConfig: PromptConfig = {
+  setIds: [],
   presetIds: [],
   contextPriorities: {
     persona: 'normal',
@@ -83,6 +84,7 @@ export const defaultPromptConfig: PromptConfig = {
 
 export function clonePromptConfig(config: PromptConfig): PromptConfig {
   return {
+    setIds: [...(config.setIds ?? [])],
     presetIds: [...config.presetIds],
     contextPriorities: { ...config.contextPriorities },
     customBlocks: config.customBlocks.map((block) => ({ ...block })),

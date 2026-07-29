@@ -29,36 +29,43 @@ export function ProviderCredentials({
           fullWidth
           variant="secondary"
           value={form.name}
+          autoComplete="off"
           onChange={(event: ChangeEvent<HTMLInputElement>) =>
             onPatch('name', event.target.value)
           }
         />
       </FormField>
-      <FormField label="API-ключ">
-        <Input
-          fullWidth
-          variant="secondary"
-          type="password"
-          value={token}
-          onChange={(event: ChangeEvent<HTMLInputElement>) =>
-            onTokenChange(event.target.value)
-          }
-          placeholder={
-            form.id
-              ? 'Оставьте пустым, чтобы не менять'
-              : catalog.requiresApiKey
-                ? 'Обязателен'
-                : 'Необязательно'
-          }
-        />
-      </FormField>
-      {form.kind === 'custom' || form.kind === 'ollama-cloud' ? (
+      {form.kind !== 'ollama' ? (
+        <FormField label="API-ключ">
+          <Input
+            fullWidth
+            variant="secondary"
+            type="password"
+            value={token}
+            autoComplete="new-password"
+            onChange={(event: ChangeEvent<HTMLInputElement>) =>
+              onTokenChange(event.target.value)
+            }
+            placeholder={
+              form.id
+                ? 'Оставьте пустым, чтобы не менять'
+                : catalog.requiresApiKey
+                  ? 'Можно добавить позже'
+                  : 'Необязательно'
+            }
+          />
+        </FormField>
+      ) : null}
+      {form.kind === 'custom' ||
+      form.kind === 'ollama' ||
+      form.kind === 'ollama-cloud' ? (
         <div className="sm:col-span-2">
           <FormField label="Base URL">
             <Input
               fullWidth
               variant="secondary"
               value={form.baseUrl ?? ''}
+              autoComplete="off"
               onChange={(event: ChangeEvent<HTMLInputElement>) =>
                 onPatch('baseUrl', event.target.value)
               }
@@ -74,12 +81,19 @@ export function ProviderCredentials({
               fullWidth
               variant="secondary"
               value={form.accountId ?? ''}
+              autoComplete="off"
               onChange={(event: ChangeEvent<HTMLInputElement>) =>
                 onPatch('accountId', event.target.value)
               }
             />
           </FormField>
         </div>
+      ) : null}
+      {form.kind === 'ollama' ? (
+        <p className="text-xs leading-5 text-muted">
+          На Android укажите LAN-адрес компьютера с Ollama вместо localhost,
+          например http://192.168.1.10:11434/api.
+        </p>
       ) : null}
     </div>
   );

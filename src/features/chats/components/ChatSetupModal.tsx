@@ -106,6 +106,7 @@ export function ChatSetupModal({
               value={form.title}
               maxLength={120}
               autoFocus
+              autoComplete="off"
               onChange={(event) =>
                 setForm((current) => ({
                   ...current,
@@ -131,6 +132,7 @@ export function ChatSetupModal({
 
         <PromptBuilder
           value={form.promptConfig}
+          sets={galaxyItems.filter((item) => item.kind === 'prompt-set')}
           onChange={(promptConfig) =>
             setForm((current) => ({ ...current, promptConfig }))
           }

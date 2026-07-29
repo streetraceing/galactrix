@@ -59,6 +59,7 @@ export function AppScreenRouter({ controller }: { controller: Controller }) {
       <GalaxiesScreen
         items={snapshot.galaxyItems}
         onSave={controller.saveGalaxyItem}
+        onImport={controller.importGalaxyLibrary}
         onDelete={controller.removeGalaxyItem}
       />
     );
@@ -69,6 +70,8 @@ export function AppScreenRouter({ controller }: { controller: Controller }) {
       <TelescopeScreen
         providers={snapshot.providers}
         onFetchModels={controller.fetchProviderModels}
+        onExportSecrets={controller.exportProviderSecrets}
+        onImport={controller.importProviders}
         onSave={controller.saveProviderConnection}
         onCheck={controller.checkProviderConnection}
         onDelete={controller.removeProviderConnection}
