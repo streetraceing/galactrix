@@ -6,7 +6,7 @@ export function BrandMark({ size = 36 }: { size?: number }) {
       height={size}
       alt=""
       draggable={false}
-      className="shrink-0 rounded-[22%]"
+      className="shrink-0 object-contain"
     />
   );
 }

@@ -19,3 +19,11 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# Required by rustls-platform-verifier, which loads these classes through JNI.
+-keep, includedescriptorclasses class org.rustls.platformverifier.** { *; }
+
+# Keep the Kotlin declaration aligned with its exported Rust JNI symbol.
+-keepclassmembers class ru.streetraceing.galactrix.MainActivity {
+    native <methods>;
+}

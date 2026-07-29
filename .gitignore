@@ -28,3 +28,4 @@ dist-ssr
 *.tgz
 *.zip
 .package-backups/
+artifacts/

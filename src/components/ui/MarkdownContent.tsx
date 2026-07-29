@@ -136,7 +136,7 @@ export function MarkdownContent({
               src={src}
               alt={alt ?? ''}
               loading="lazy"
-              className="my-3 max-h-96 max-w-full rounded-xl object-contain"
+              className="my-3 block h-auto w-auto max-h-96 max-w-full rounded-xl object-contain"
             />
           ),
           input: ({ checked, type }) => (

@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-96 -96 704 704">
+  <path
+    d="M359 169c-26-35-64-55-107-55-76 0-138 62-138 138s62 138 138 138c45 0 85-22 110-56v-77H252"
+    fill="none"
+    stroke="#f6f8ff"
+    stroke-width="42"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <ellipse
+    cx="256"
+    cy="256"
+    rx="196"
+    ry="91"
+    fill="none"
+    stroke="#7f9cff"
+    stroke-width="17"
+    transform="rotate(-24 256 256)"
+  />
+  <circle cx="417" cy="173" r="22" fill="#9eb2ff" />
+</svg>

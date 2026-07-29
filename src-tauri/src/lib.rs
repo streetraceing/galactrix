@@ -15,6 +15,17 @@ use rusqlite::Connection;
 use tauri::{Manager, State};
 use uuid::Uuid;
 
+#[cfg(target_os = "android")]
+#[export_name = "Java_ru_streetraceing_galactrix_MainActivity_initializeRustlsPlatformVerifier"]
+pub extern "system" fn initialize_rustls_platform_verifier<'local>(
+    mut env: jni::EnvUnowned<'local>,
+    _activity: jni::objects::JObject<'local>,
+    context: jni::objects::JObject<'local>,
+) {
+    env.with_env(|env| rustls_platform_verifier::android::init_with_env(env, context))
+        .resolve::<jni::errors::ThrowRuntimeExAndDefault>()
+}
+
 struct AppState {
     database: Mutex<Connection>,
 }
@@ -604,7 +615,6 @@ pub fn run() {
             let database = db::open(&app_data_dir.join("galactrix.sqlite3")).map_err(|error| {
                 std::io::Error::other(format!("failed to open local database: {error}"))
             })?;
-            let _ = secure_storage::delete_provider_secret("provider-1");
             app.manage(AppState {
                 database: Mutex::new(database),
             });

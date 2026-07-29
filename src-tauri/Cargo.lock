@@ -1707,9 +1707,11 @@ dependencies = [
 name = "galactrix"
 version = "1.0.0"
 dependencies = [
+ "jni 0.22.4",
  "keyring",
  "reqwest",
  "rusqlite",
+ "rustls-platform-verifier",
  "serde",
  "serde_json",
  "tauri",
