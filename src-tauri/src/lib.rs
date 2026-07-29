@@ -590,9 +590,9 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
-            secure_storage::initialize().map_err(|error| {
-                std::io::Error::other(format!("failed to initialize secure storage: {error}"))
-            })?;
+            if let Err(error) = secure_storage::initialize() {
+                eprintln!("Secure storage is unavailable: {error}");
+            }
 
             let app_data_dir = app.path().app_local_data_dir().map_err(|error| {
                 std::io::Error::other(format!("failed to resolve app data directory: {error}"))
