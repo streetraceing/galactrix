@@ -9,9 +9,9 @@ import type {
 } from '../../types';
 import { IdentitySettings } from './components/IdentitySettings';
 import { ProfileOverview } from './components/ProfileOverview';
-import { ProfilePreferences } from './components/ProfilePreferences';
+import { UsageTimeline } from './components/UsageTimeline';
 
-type ProfileSection = 'overview' | 'identities' | 'settings';
+type ProfileSection = 'overview' | 'tokens' | 'requests' | 'identities';
 
 export function ProfileScreen({
   usage,
@@ -20,7 +20,6 @@ export function ProfileScreen({
   chatCount,
   messageCount,
   providerCount,
-  appVersion,
   onChangeSettings,
   onSaveGalaxyItem,
 }: {
@@ -30,7 +29,6 @@ export function ProfileScreen({
   chatCount: number;
   messageCount: number;
   providerCount: number;
-  appVersion: string;
   onChangeSettings: (settings: AppSettings) => Promise<boolean>;
   onSaveGalaxyItem: (item: GalaxyItemInput) => Promise<void>;
 }) {
@@ -41,7 +39,7 @@ export function ProfileScreen({
       <div className="page-container">
         <PageHeader
           title="Профиль"
-          description="Активность, образы и настройки текущего устройства."
+          description="Активность и образы для общения."
         />
 
         <Tabs
@@ -58,12 +56,16 @@ export function ProfileScreen({
                 Обзор
                 <Tabs.Indicator />
               </Tabs.Tab>
-              <Tabs.Tab id="identities">
-                Образы
+              <Tabs.Tab id="tokens">
+                Токены
                 <Tabs.Indicator />
               </Tabs.Tab>
-              <Tabs.Tab id="settings">
-                Настройки
+              <Tabs.Tab id="requests">
+                Запросы
+                <Tabs.Indicator />
+              </Tabs.Tab>
+              <Tabs.Tab id="identities">
+                Образы
                 <Tabs.Indicator />
               </Tabs.Tab>
             </Tabs.List>
@@ -78,19 +80,18 @@ export function ProfileScreen({
               galaxyItems={galaxyItems}
             />
           </Tabs.Panel>
+          <Tabs.Panel id="tokens" className="pt-5 sm:pt-6">
+            <UsageTimeline usage={usage} metric="tokens" />
+          </Tabs.Panel>
+          <Tabs.Panel id="requests" className="pt-5 sm:pt-6">
+            <UsageTimeline usage={usage} metric="requests" />
+          </Tabs.Panel>
           <Tabs.Panel id="identities" className="pt-5 sm:pt-6">
             <IdentitySettings
               settings={settings}
               galaxyItems={galaxyItems}
               onChangeSettings={onChangeSettings}
               onSaveGalaxyItem={onSaveGalaxyItem}
-            />
-          </Tabs.Panel>
-          <Tabs.Panel id="settings" className="pt-5 sm:pt-6">
-            <ProfilePreferences
-              settings={settings}
-              appVersion={appVersion}
-              onChangeSettings={onChangeSettings}
             />
           </Tabs.Panel>
         </Tabs>

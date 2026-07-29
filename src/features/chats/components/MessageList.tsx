@@ -198,13 +198,16 @@ function VariantNavigator({
   if (compact) {
     return (
       <div className="mt-1 flex items-center gap-1 text-[0.65rem] text-muted">
-        {count > 1 ? (
-          <span className="inline-flex items-center gap-0.5">
+        <span className="inline-flex items-center gap-0.5">
+          {activePosition > 0 ? (
             <Icon name="chevron-left" className="size-3" />
-            свайп
-            <Icon name="chevron-right" className="size-3" />
-          </span>
-        ) : null}
+          ) : null}
+          свайп
+          <Icon
+            name={isLastVariant ? 'regenerate' : 'chevron-right'}
+            className="size-3"
+          />
+        </span>
         <Button
           size="sm"
           variant="ghost"
@@ -354,11 +357,13 @@ function SwipeableMessage({
   message,
   children,
   onSelectVariant,
+  onRegenerate,
   onError,
 }: {
   message: Message;
   children: ReactNode;
   onSelectVariant: (messageId: string, variantIndex: number) => Promise<void>;
+  onRegenerate: (messageId: string) => Promise<void>;
   onError: (message: string) => void;
 }) {
   const pointerStart = useRef<{
@@ -384,7 +389,7 @@ function SwipeableMessage({
     if (
       event.pointerType !== 'touch' ||
       message.role !== 'assistant' ||
-      message.variants.length < 2 ||
+      message.variants.length === 0 ||
       selectingVariant.current ||
       switching
     ) {
@@ -412,9 +417,7 @@ function SwipeableMessage({
 
     const activePosition = getActiveVariantPosition(message);
     const hasTarget =
-      dx > 0
-        ? Boolean(message.variants[activePosition - 1])
-        : Boolean(message.variants[activePosition + 1]);
+      dx > 0 ? true : Boolean(message.variants[activePosition - 1]);
     const resistance = hasTarget ? 0.58 : 0.16;
     setDragOffset(Math.max(-88, Math.min(88, dx * resistance)));
   };
@@ -438,9 +441,10 @@ function SwipeableMessage({
     }
 
     const activePosition = getActiveVariantPosition(message);
-    const nextPosition = dx > 0 ? activePosition - 1 : activePosition + 1;
+    const nextPosition = dx > 0 ? activePosition + 1 : activePosition - 1;
     const nextVariant = message.variants[nextPosition];
-    if (!nextVariant) {
+    const shouldRegenerate = dx > 0 && !nextVariant;
+    if (!nextVariant && !shouldRegenerate) {
       settle();
       return;
     }
@@ -453,7 +457,11 @@ function SwipeableMessage({
 
     try {
       await new Promise((resolve) => window.setTimeout(resolve, 110));
-      await onSelectVariant(message.id, nextVariant.index);
+      if (shouldRegenerate) {
+        await onRegenerate(message.id);
+      } else if (nextVariant) {
+        await onSelectVariant(message.id, nextVariant.index);
+      }
       setDragging(true);
       setDragOffset(direction * -56);
       window.requestAnimationFrame(() => {
@@ -479,8 +487,9 @@ function SwipeableMessage({
 
   const activePosition = getActiveVariantPosition(message);
   const revealPosition =
-    dragOffset > 0 ? activePosition - 1 : activePosition + 1;
+    dragOffset > 0 ? activePosition + 1 : activePosition - 1;
   const revealVariant = message.variants[revealPosition];
+  const revealsRegeneration = dragOffset > 0 && !revealVariant;
   const revealProgress = Math.min(Math.abs(dragOffset) / 56, 1);
 
   return (
@@ -497,19 +506,30 @@ function SwipeableMessage({
           dragOffset > 0 ? 'left-1' : 'right-1 flex-row-reverse'
         }`}
         style={{
-          opacity: revealVariant ? revealProgress : revealProgress * 0.35,
+          opacity:
+            revealVariant || revealsRegeneration
+              ? revealProgress
+              : revealProgress * 0.35,
           transform: `scale(${0.85 + revealProgress * 0.15})`,
         }}
         aria-hidden="true"
       >
         <Icon
-          name={dragOffset > 0 ? 'chevron-left' : 'chevron-right'}
+          name={
+            revealsRegeneration
+              ? 'regenerate'
+              : dragOffset > 0
+                ? 'chevron-right'
+                : 'chevron-left'
+          }
           className="size-4"
         />
         <span>
           {revealVariant
             ? `${revealPosition + 1}/${message.variants.length}`
-            : 'Край'}
+            : revealsRegeneration
+              ? 'Новый ответ'
+              : 'Край'}
         </span>
       </div>
       <div
@@ -567,6 +587,9 @@ export function MessageList({
   const [deleting, setDeleting] = useState<Message | null>(null);
   const [historyMessageId, setHistoryMessageId] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
+  const [regeneratingMessageId, setRegeneratingMessageId] = useState<
+    string | null
+  >(null);
   const [error, setError] = useState('');
 
   const historyMessage = useMemo(
@@ -622,13 +645,24 @@ export function MessageList({
     }
   };
 
+  const regenerate = async (messageId: string) => {
+    if (regeneratingMessageId) return;
+    setRegeneratingMessageId(messageId);
+    setError('');
+    try {
+      await onRegenerate(messageId);
+    } finally {
+      setRegeneratingMessageId(null);
+    }
+  };
+
   return (
     <>
       <div
         ref={scrollRef}
-        className="scrollbar-thin min-h-0 flex-1 overflow-y-auto px-3 py-5 sm:px-5"
+        className="scrollbar-thin flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-5 sm:px-5"
       >
-        <div className="mx-auto flex w-full max-w-3xl flex-col gap-3 sm:gap-4">
+        <div className="mx-auto mt-auto flex w-full max-w-3xl flex-col gap-3 sm:gap-4">
           {messages.map((message) => {
             const isUser = message.role === 'user';
             const displayName = isUser
@@ -654,7 +688,7 @@ export function MessageList({
                 message={message}
                 onBranch={onBranch}
                 onRemember={onRemember}
-                onRegenerate={onRegenerate}
+                onRegenerate={regenerate}
                 onSelectVariant={onSelectVariant}
                 onEditRequest={edit}
                 onDeleteRequest={remove}
@@ -662,7 +696,11 @@ export function MessageList({
                 onError={reportError}
               >
                 <article
-                  className={`message-enter group flex items-start gap-2.5 sm:gap-3 ${isUser ? 'flex-row-reverse' : ''}`}
+                  className={`message-enter group flex items-start gap-2.5 sm:gap-3 ${
+                    regeneratingMessageId === message.id
+                      ? 'message-regenerating'
+                      : ''
+                  } ${isUser ? 'flex-row-reverse' : ''}`}
                 >
                   <AppAvatar
                     src={avatar}
@@ -694,14 +732,19 @@ export function MessageList({
                           : 'border-separator'
                       }`}
                     >
-                      <MarkdownContent>{message.content}</MarkdownContent>
+                      <div
+                        key={`${message.activeVariantIndex}-${message.content}`}
+                        className="message-variant-enter"
+                      >
+                        <MarkdownContent>{message.content}</MarkdownContent>
+                      </div>
                     </Surface>
                     {!isMobile ? (
                       <DesktopMessageActions
                         message={message}
                         onBranch={onBranch}
                         onRemember={onRemember}
-                        onRegenerate={onRegenerate}
+                        onRegenerate={regenerate}
                         onSelectVariant={onSelectVariant}
                         onEditRequest={edit}
                         onDeleteRequest={remove}
@@ -728,6 +771,7 @@ export function MessageList({
                 key={message.id}
                 message={message}
                 onSelectVariant={onSelectVariant}
+                onRegenerate={regenerate}
                 onError={reportError}
               >
                 {content}

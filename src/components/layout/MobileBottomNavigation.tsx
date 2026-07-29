@@ -19,7 +19,7 @@ export function MobileBottomNavigation({
       className="shrink-0 border-t border-separator bg-surface pb-[env(safe-area-inset-bottom)]"
       aria-label="Мобильная навигация"
     >
-      <div className="grid h-16 w-full grid-cols-4">
+      <div className="grid h-16 w-full grid-cols-5">
         {navigationItems.map((item) => {
           const isActive = activeTab === item.id;
 

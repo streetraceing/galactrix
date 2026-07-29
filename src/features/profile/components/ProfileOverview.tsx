@@ -2,7 +2,6 @@ import { Surface } from '@heroui/react';
 import { MetricGrid } from '../../../components/ui/MetricGrid';
 import type { GalaxyItem, UsagePoint } from '../../../types';
 import { formatTokens } from '../format';
-import { UsageChart } from './UsageChart';
 
 function sum(
   points: UsagePoint[],
@@ -76,8 +75,6 @@ export function ProfileOverview({
         ]}
       />
 
-      <UsageChart usage={usage} />
-
       <div className="grid gap-4 md:grid-cols-2">
         <Surface className="rounded-2xl border border-separator p-4 sm:p-5">
           <h2 className="section-title">Библиотека и диалоги</h2>
@@ -137,7 +134,7 @@ export function ProfileOverview({
                 key={item.label}
                 className="flex items-center gap-3 rounded-xl border border-separator px-3 py-3"
               >
-                <strong className="min-w-10 text-center text-lg tabular-nums">
+                <strong className="min-w-10 text-center text-lg tabular-nums grid place-items-center min-h-10 bg-surface-hover rounded-full">
                   {item.value}
                 </strong>
                 <span className="min-w-0">

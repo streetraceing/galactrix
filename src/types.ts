@@ -1,4 +1,4 @@
-export type TabId = 'chats' | 'galaxies' | 'telescope' | 'profile';
+export type TabId = 'chats' | 'galaxies' | 'telescope' | 'profile' | 'settings';
 
 export type Chat = {
   id: string;

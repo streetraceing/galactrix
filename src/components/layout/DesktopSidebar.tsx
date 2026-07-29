@@ -1,6 +1,9 @@
 import { Button, Chip } from '@heroui/react';
 import type { CSSProperties } from 'react';
-import { navigationItems } from '../../app/navigation';
+import {
+  primaryNavigationItems,
+  settingsNavigationItem,
+} from '../../app/navigation';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import type { TabId } from '../../types';
 import { Icon } from '../Icon';
@@ -30,7 +33,7 @@ export function DesktopSidebar({
 
   return (
     <aside
-      className="group/sidebar bg-background flex h-full w-[min(var(--sidebar-width),30vw)] shrink-0 flex-col border-r border-separator transition-[width] min-[1300px]:w-(--sidebar-width)"
+      className="group/sidebar bg-background flex h-full w-[min(var(--sidebar-width),30vw)] shrink-0 flex-col border-separator transition-[width] min-[1300px]:w-(--sidebar-width)"
       style={
         {
           '--sidebar-width': `${width}px`,
@@ -43,7 +46,7 @@ export function DesktopSidebar({
         className="flex flex-1 flex-col gap-1 px-2 pt-3"
         aria-label="Основная навигация"
       >
-        {navigationItems.map((item) => (
+        {primaryNavigationItems.map((item) => (
           <Button
             key={item.id}
             size="lg"
@@ -78,8 +81,8 @@ export function DesktopSidebar({
         ))}
       </nav>
 
-      {!forcedCompact ? (
-        <div className="p-2">
+      <div className="space-y-1 p-2">
+        {!forcedCompact ? (
           <Button
             fullWidth
             size="lg"
@@ -97,8 +100,23 @@ export function DesktopSidebar({
               Свернуть панель
             </span>
           </Button>
-        </div>
-      ) : null}
+        ) : null}
+        <Button
+          fullWidth
+          size="lg"
+          variant={
+            activeTab === settingsNavigationItem.id ? 'secondary' : 'tertiary'
+          }
+          className="justify-start gap-2 group-data-collapsed/sidebar:justify-center"
+          aria-label={settingsNavigationItem.label}
+          onPress={() => onNavigate(settingsNavigationItem.id)}
+        >
+          <Icon name="settings" className="size-4" />
+          <span className="group-data-collapsed/sidebar:hidden">
+            {settingsNavigationItem.label}
+          </span>
+        </Button>
+      </div>
     </aside>
   );
 }

@@ -143,6 +143,29 @@ export function ChatsScreen({
     sending,
   ]);
 
+  useEffect(() => {
+    if (!activeChat?.id || (isSinglePane && !isChatOpen)) return;
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+
+    let frame = 0;
+    const keepLatestMessageVisible = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        const scroller = messageScrollRef.current;
+        if (scroller) scroller.scrollTop = scroller.scrollHeight;
+      });
+    };
+
+    viewport.addEventListener('resize', keepLatestMessageVisible);
+    viewport.addEventListener('scroll', keepLatestMessageVisible);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      viewport.removeEventListener('resize', keepLatestMessageVisible);
+      viewport.removeEventListener('scroll', keepLatestMessageVisible);
+    };
+  }, [activeChat?.id, isChatOpen, isSinglePane]);
+
   const selectChat = (id: string) => {
     onSelectChat(id);
   };
@@ -286,7 +309,7 @@ export function ChatsScreen({
       ) : null}
 
       <section
-        className={`${isSinglePane && !isChatOpen ? 'hidden' : 'flex'} ${isSinglePane && isChatOpen ? 'mobile-chat-enter' : ''} min-w-0 flex-1 flex-col`}
+        className={`${isSinglePane && !isChatOpen ? 'hidden' : 'flex'} ${isSinglePane && isChatOpen ? 'mobile-chat-enter' : ''} min-h-0 min-w-0 flex-1 flex-col overflow-hidden`}
       >
         {activeChat ? (
           <>

@@ -1,10 +1,10 @@
-import { Button, Chip } from '@heroui/react';
+import { Button, Chip, Popover } from '@heroui/react';
 import { Icon } from '../../../components/Icon';
 import { AppAvatar } from '../../../components/ui/AppAvatar';
 import { galaxyItemAvatar } from '../../../lib/avatar';
 import type { Chat, GalaxyItem } from '../../../types';
 import type { ChatAction } from '../types';
-import { ChatActions } from './ChatActions';
+import { ChatActionsButton } from './ChatActions';
 
 export function ConversationHeader({
   chat,
@@ -54,34 +54,73 @@ export function ConversationHeader({
           square
         />
 
-        <ChatActions chat={chat} onAction={onAction}>
-          <div className="min-w-0 flex-1 cursor-context-menu rounded-xl py-0.5">
-            <div className="flex min-w-0 items-center gap-2">
-              <h2 className="truncate text-base font-semibold">{chat.title}</h2>
-              {contextNames.length > 0 ? (
-                <Chip size="sm" variant="soft" className="bg-transparent">
-                  {contextNames.length}
-                </Chip>
-              ) : null}
+        <Popover>
+          <Popover.Trigger className="min-w-0 flex-1 rounded-xl text-left outline-none focus-visible:ring-2 focus-visible:ring-focus">
+            <div className="min-w-0 py-0.5">
+              <div className="flex min-w-0 items-center gap-2">
+                <h2 className="truncate text-base font-semibold">
+                  {chat.title}
+                </h2>
+                {contextNames.length > 0 ? (
+                  <Chip size="sm" variant="soft" className="bg-transparent">
+                    {contextNames.length}
+                  </Chip>
+                ) : null}
+              </div>
+              <p className="mt-0.5 truncate text-xs text-muted">
+                {contextNames.length > 0
+                  ? contextNames.join(' · ')
+                  : `${chat.messageCount} сообщений · контекст не выбран`}
+              </p>
             </div>
-            <p className="mt-0.5 truncate text-xs text-muted">
-              {contextNames.length > 0
-                ? contextNames.join(' · ')
-                : `${chat.messageCount} сообщений · контекст не выбран`}
-            </p>
-          </div>
-        </ChatActions>
+          </Popover.Trigger>
+          <Popover.Content placement="bottom start" className="w-72">
+            <Popover.Dialog>
+              <Popover.Heading className="flex items-center gap-3">
+                <AppAvatar
+                  src={galaxyItemAvatar(character)}
+                  name={character?.name ?? chat.title}
+                  className="size-11"
+                  square
+                />
+                <span className="min-w-0">
+                  <strong className="block truncate">{chat.title}</strong>
+                  <span className="mt-0.5 block text-xs text-muted">
+                    {chat.messageCount.toLocaleString('ru-RU')} сообщений
+                  </span>
+                </span>
+              </Popover.Heading>
+              <p className="mt-3 line-clamp-3 text-sm leading-5 text-muted">
+                {chat.preview || 'В этом чате пока нет сообщений.'}
+              </p>
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {contextNames.length > 0 ? (
+                  contextNames.map((name) => (
+                    <Chip key={name} size="sm" variant="soft">
+                      {name}
+                    </Chip>
+                  ))
+                ) : (
+                  <Chip size="sm" variant="soft">
+                    Контекст не выбран
+                  </Chip>
+                )}
+              </div>
+            </Popover.Dialog>
+          </Popover.Content>
+        </Popover>
 
         <Button
           isIconOnly
           size="sm"
           variant="ghost"
           className="ml-auto shrink-0"
-          aria-label="Настройки чата"
+          aria-label="Настроить контекст чата"
           onPress={() => onAction('configure', chat)}
         >
-          <Icon name="more" className="size-5" />
+          <Icon name="settings" className="size-5" />
         </Button>
+        <ChatActionsButton chat={chat} onAction={onAction} />
       </div>
     </header>
   );

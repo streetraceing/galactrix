@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{collections::HashMap, path::Path};
 
 use rusqlite::{params, Connection, OptionalExtension};
 use serde_json::Value;
@@ -523,21 +523,48 @@ fn usage_history(connection: &Connection) -> Result<Vec<UsagePoint>, String> {
     const LABELS: [&str; 7] = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 
     let today = now_unix().div_euclid(DAY_SECONDS);
-    let mut points = Vec::with_capacity(14);
-    for offset in (0..14).rev() {
-        let day = today - offset;
-        let start = day * DAY_SECONDS;
-        let end = start + DAY_SECONDS;
-        let (input_tokens, output_tokens, requests) = connection
-            .query_row(
-                "SELECT COALESCE(SUM(input_tokens), 0),
-                        COALESCE(SUM(output_tokens), 0),
-                        COALESCE(SUM(request_count), 0)
-                 FROM usage_events WHERE created_at >= ?1 AND created_at < ?2",
-                params![start, end],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
-            )
-            .map_err(|error| error.to_string())?;
+    let earliest_timestamp = connection
+        .query_row("SELECT MIN(created_at) FROM usage_events", [], |row| {
+            row.get::<_, Option<i64>>(0)
+        })
+        .map_err(|error| error.to_string())?;
+    let first_day = earliest_timestamp
+        .map(|timestamp| timestamp.div_euclid(DAY_SECONDS))
+        .unwrap_or(today - 27)
+        .min(today - 27)
+        .min(today);
+
+    let mut statement = connection
+        .prepare(
+            "SELECT created_at / ?1 AS usage_day,
+                    COALESCE(SUM(input_tokens), 0),
+                    COALESCE(SUM(output_tokens), 0),
+                    COALESCE(SUM(request_count), 0)
+             FROM usage_events
+             WHERE created_at >= ?2
+             GROUP BY usage_day
+             ORDER BY usage_day",
+        )
+        .map_err(|error| error.to_string())?;
+    let totals = statement
+        .query_map(params![DAY_SECONDS, first_day * DAY_SECONDS], |row| {
+            Ok((
+                row.get::<_, i64>(0)?,
+                (
+                    row.get::<_, i64>(1)?,
+                    row.get::<_, i64>(2)?,
+                    row.get::<_, i64>(3)?,
+                ),
+            ))
+        })
+        .map_err(|error| error.to_string())?
+        .collect::<Result<HashMap<_, _>, _>>()
+        .map_err(|error| error.to_string())?;
+
+    let mut points = Vec::with_capacity((today - first_day + 1) as usize);
+    for day in first_day..=today {
+        let (input_tokens, output_tokens, requests) =
+            totals.get(&day).copied().unwrap_or_default();
         let weekday = (day + 3).rem_euclid(7) as usize;
         points.push(UsagePoint {
             day,

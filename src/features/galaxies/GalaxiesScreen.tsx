@@ -188,13 +188,6 @@ export function GalaxiesScreen({
                     icon="galaxies"
                     title={`Раздел «${entry.label}» пуст`}
                     description={galaxyKindDescriptions[entry.id]}
-                    action={{
-                      label: `Создать ${galaxyKindLabels[
-                        entry.id
-                      ].toLocaleLowerCase('ru-RU')}`,
-                      onPress: () => openCreate(entry.id),
-                      icon: <Icon name="plus" className="size-4" />,
-                    }}
                     compact
                   />
                 )}

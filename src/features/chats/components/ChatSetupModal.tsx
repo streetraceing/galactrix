@@ -162,6 +162,7 @@ export function ChatSetupModal({
           <Select
             aria-label="Пресет ответа модели"
             value={form.responsePreset}
+            variant="secondary"
             onChange={(value) => {
               if (typeof value === 'string') {
                 setForm((current) => ({

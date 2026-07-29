@@ -71,15 +71,15 @@ export function IdentitySettings({
 
   return (
     <div className="space-y-5 sm:space-y-6">
-      <Surface className="overflow-hidden rounded-2xl border border-separator">
-        <div className="border-b border-separator p-4 sm:p-5">
+      <Surface className="overflow-hidden rounded-2xl border border-separator flex flex-col gap-4 p-4">
+        <div className="border-b border-separator">
           <h2 className="section-title">Ваш профиль</h2>
           <p className="section-description">
             Это имя и изображение используются для ваших сообщений, если в чате
             не выбрана отдельная персона.
           </p>
         </div>
-        <div className="grid gap-5 p-4 sm:p-5 md:grid-cols-[auto_minmax(0,1fr)] md:items-center">
+        <div className="grid gap-5 md:grid-cols-[auto_minmax(0,1fr)] md:items-center">
           <AvatarPicker
             value={settings.profileAvatar}
             name={settings.profileName}

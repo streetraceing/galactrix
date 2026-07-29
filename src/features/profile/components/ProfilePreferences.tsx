@@ -91,9 +91,7 @@ export function ProfilePreferences({
         />
       </div>
 
-      <div className="md:hidden">
-        <AppInfo version={appVersion} />
-      </div>
+      <AppInfo version={appVersion} />
     </div>
   );
 }

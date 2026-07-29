@@ -1,6 +1,7 @@
 import { ChatsScreen } from '../features/chats/ChatsScreen';
 import { GalaxiesScreen } from '../features/galaxies/GalaxiesScreen';
 import { ProfileScreen } from '../features/profile/ProfileScreen';
+import { SettingsScreen } from '../features/settings/SettingsScreen';
 import { TelescopeScreen } from '../features/telescope/TelescopeScreen';
 import type { useAppController } from '../hooks/useAppController';
 
@@ -75,6 +76,16 @@ export function AppScreenRouter({ controller }: { controller: Controller }) {
     );
   }
 
+  if (activeTab === 'settings') {
+    return (
+      <SettingsScreen
+        settings={snapshot.settings}
+        appVersion={snapshot.appVersion}
+        onChangeSettings={controller.saveSettings}
+      />
+    );
+  }
+
   return (
     <ProfileScreen
       usage={snapshot.usage}
@@ -83,7 +94,6 @@ export function AppScreenRouter({ controller }: { controller: Controller }) {
       chatCount={snapshot.chats.length}
       messageCount={snapshot.messages.length}
       providerCount={snapshot.providers.length}
-      appVersion={snapshot.appVersion}
       onChangeSettings={controller.saveSettings}
       onSaveGalaxyItem={controller.saveGalaxyItem}
     />
