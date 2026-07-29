@@ -1,7 +1,7 @@
 import { Input } from '@heroui/react';
 import type { ChangeEvent } from 'react';
 import type { ProviderInput } from '../../../types';
-import type { providerCatalog } from '../../../data';
+import type { providerCatalog } from '../catalog';
 import { FormField } from './FormField';
 
 type CatalogEntry = (typeof providerCatalog)[number];

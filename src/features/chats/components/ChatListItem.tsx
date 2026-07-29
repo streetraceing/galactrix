@@ -20,11 +20,6 @@ export function ChatListItem({
   onSelect: (id: string) => void;
   onAction: (action: ChatAction, chat: Chat) => void;
 }) {
-  const contextCount =
-    Number(Boolean(chat.personaId)) +
-    Number(Boolean(chat.characterId)) +
-    Number(Boolean(chat.universeId)) +
-    chat.worldbookIds.length;
   const character = galaxyItems.find(
     (item) => item.kind === 'character' && item.id === chat.characterId,
   );
@@ -52,8 +47,11 @@ export function ChatListItem({
           />
           <span className="min-w-0 flex-1">
             <span className="flex min-w-0 items-center gap-2">
-              <strong className="min-w-0 flex-1 truncate text-sm font-semibold">
+              <strong className="min-w-0 flex-1 truncate text-sm font-semibold flex items-center gap-2">
                 {chat.title}
+                <span className="block truncate text-[0.7rem] text-muted">
+                  {character?.name ?? 'Персонаж не выбран'}
+                </span>
               </strong>
               {chat.pinned ? (
                 <Chip size="sm" variant="soft" className="bg-transparent">
@@ -67,12 +65,6 @@ export function ChatListItem({
               </span>
               <span className="shrink-0">{chat.updatedAt}</span>
             </span>
-            {contextCount > 0 ? (
-              <span className="mt-1.5 block truncate text-[0.7rem] text-muted">
-                Контекст: {contextCount}{' '}
-                {contextCount === 1 ? 'объект' : 'объекта'}
-              </span>
-            ) : null}
           </span>
         </button>
       </Surface>

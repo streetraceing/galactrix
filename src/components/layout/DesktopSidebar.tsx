@@ -33,7 +33,7 @@ export function DesktopSidebar({
 
   return (
     <aside
-      className="group/sidebar bg-background flex h-full w-[min(var(--sidebar-width),30vw)] shrink-0 flex-col border-separator transition-[width] min-[1300px]:w-(--sidebar-width)"
+      className="group/sidebar bg-background flex h-full w-[min(var(--sidebar-width),30vw)] shrink-0 flex-col border-separator transition-[width] min-[1300px]:w-(--sidebar-width) data-[collapsed=true]:border-r"
       style={
         {
           '--sidebar-width': `${width}px`,

@@ -1,5 +1,5 @@
-import { providerCatalog } from '../../data';
 import type { Provider, ProviderInput, ProviderKind } from '../../types';
+import { providerCatalog } from './catalog';
 
 export const providerStatusLabels = {
   connected: 'Доступен',

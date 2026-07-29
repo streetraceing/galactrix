@@ -1,4 +1,4 @@
-import { Button, Input, Label, ListBox, Select } from '@heroui/react';
+import { Button, Input, Label } from '@heroui/react';
 import { useEffect, useState } from 'react';
 import { UiModal } from '../../../components/ui/UiModal';
 import type {
@@ -6,57 +6,16 @@ import type {
   ChatConfigInput,
   GalaxyItem,
   Provider,
-  ResponsePreset,
 } from '../../../types';
+import { clonePromptConfig, defaultPromptConfig } from '../promptConfig';
 import { ChatContextPicker } from './ChatContextPicker';
 import { ChatProviderPicker } from './ChatProviderPicker';
-
-const responsePresets: Array<{
-  id: ResponsePreset;
-  label: string;
-  description: string;
-}> = [
-  {
-    id: 'natural',
-    label: 'Естественный',
-    description:
-      'Следует персонажу и контексту без дополнительных ограничений.',
-  },
-  {
-    id: 'human',
-    label: 'Максимально человечный',
-    description:
-      'Живой ритм, конкретные формулировки и минимум ассистентского тона.',
-  },
-  {
-    id: 'dialogue-only',
-    label: 'Только реплики',
-    description:
-      'Без действий, сценических ремарок, звёздочек и повествования.',
-  },
-  {
-    id: 'no-emoji',
-    label: 'Без эмодзи',
-    description: 'Эмодзи и декоративные символы удаляются из ответа.',
-  },
-  {
-    id: 'first-person',
-    label: 'От первого лица',
-    description:
-      'Персонаж пишет от своего имени и не описывает себя в третьем лице.',
-  },
-  {
-    id: 'clean-human',
-    label: 'Чистый живой диалог',
-    description:
-      'Человечный стиль, первое лицо, без эмодзи и ролевых действий.',
-  },
-];
+import { PromptBuilder } from './PromptBuilder';
 
 const newChatConfig: ChatConfigInput = {
   title: 'Новый чат',
   worldbookIds: [],
-  responsePreset: 'natural',
+  promptConfig: clonePromptConfig(defaultPromptConfig),
 };
 
 function configFromChat(chat: Chat): ChatConfigInput {
@@ -67,7 +26,7 @@ function configFromChat(chat: Chat): ChatConfigInput {
     characterId: chat.characterId,
     universeId: chat.universeId,
     worldbookIds: [...chat.worldbookIds],
-    responsePreset: chat.responsePreset,
+    promptConfig: clonePromptConfig(chat.promptConfig),
   };
 }
 
@@ -89,24 +48,31 @@ export function ChatSetupModal({
   error: string;
   onOpenChange: (open: boolean) => void;
   onSubmit: (input: ChatConfigInput) => void;
-  onCloneWithMessages?: (input: ChatConfigInput) => void;
 }) {
   const [form, setForm] = useState<ChatConfigInput>(newChatConfig);
 
   useEffect(() => {
     if (!isOpen) return;
-    setForm(chat ? configFromChat(chat) : { ...newChatConfig });
+    setForm(
+      chat
+        ? configFromChat(chat)
+        : {
+            ...newChatConfig,
+            promptConfig: clonePromptConfig(defaultPromptConfig),
+          },
+    );
   }, [chat, isOpen]);
 
-  const preset =
-    responsePresets.find((entry) => entry.id === form.responsePreset) ??
-    responsePresets[0];
+  const promptIsValid = form.promptConfig.customBlocks.every(
+    (block) =>
+      !block.enabled || Boolean(block.title.trim() && block.content.trim()),
+  );
 
   return (
     <UiModal
       isOpen={isOpen}
       onOpenChange={(open) => !saving && onOpenChange(open)}
-      size="lg"
+      size="cover"
       title={chat ? 'Настройки чата' : 'Новый чат'}
       description="Провайдер, ролевой контекст и стиль ответа можно изменить в любое время."
       footer={
@@ -121,7 +87,7 @@ export function ChatSetupModal({
           <Button
             variant="primary"
             isPending={saving}
-            isDisabled={!form.title.trim()}
+            isDisabled={!form.title.trim() || !promptIsValid}
             onPress={() => onSubmit({ ...form, title: form.title.trim() })}
           >
             {chat ? 'Сохранить' : 'Создать чат'}
@@ -157,52 +123,17 @@ export function ChatSetupModal({
           />
         </div>
 
-        <div className="flex min-w-0 flex-col gap-1.5">
-          <Label>Пресет ответа</Label>
-          <Select
-            aria-label="Пресет ответа модели"
-            value={form.responsePreset}
-            variant="secondary"
-            onChange={(value) => {
-              if (typeof value === 'string') {
-                setForm((current) => ({
-                  ...current,
-                  responsePreset: value as ResponsePreset,
-                }));
-              }
-            }}
-          >
-            <Select.Trigger className="w-full">
-              <Select.Value />
-              <Select.Indicator />
-            </Select.Trigger>
-            <Select.Popover>
-              <ListBox>
-                {responsePresets.map((entry) => (
-                  <ListBox.Item
-                    key={entry.id}
-                    id={entry.id}
-                    textValue={entry.label}
-                  >
-                    <div className="min-w-0 py-0.5">
-                      <div className="truncate font-medium">{entry.label}</div>
-                      <div className="line-clamp-2 text-xs text-muted">
-                        {entry.description}
-                      </div>
-                    </div>
-                    <ListBox.ItemIndicator />
-                  </ListBox.Item>
-                ))}
-              </ListBox>
-            </Select.Popover>
-          </Select>
-          <p className="text-xs leading-5 text-muted">{preset.description}</p>
-        </div>
-
         <ChatContextPicker
           galaxyItems={galaxyItems}
           value={form}
           onChange={setForm}
+        />
+
+        <PromptBuilder
+          value={form.promptConfig}
+          onChange={(promptConfig) =>
+            setForm((current) => ({ ...current, promptConfig }))
+          }
         />
 
         {error ? (

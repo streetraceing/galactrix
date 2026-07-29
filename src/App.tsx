@@ -12,7 +12,6 @@ function App() {
       activeTab={controller.activeTab}
       settings={controller.snapshot.settings}
       chats={controller.snapshot.chats}
-      chatCount={controller.snapshot.chats.length}
       loading={controller.loading}
       notice={controller.notice}
       mobileNavigationVisible={

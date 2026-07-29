@@ -2,6 +2,7 @@ import { Button, Chip, Surface } from '@heroui/react';
 import { MarkdownContent } from '../../../components/ui/MarkdownContent';
 import { UiModal } from '../../../components/ui/UiModal';
 import type { Message } from '../../../types';
+import { countRu } from '../../../lib/plural';
 
 export function MessageHistoryModal({
   message,
@@ -21,7 +22,7 @@ export function MessageHistoryModal({
       title="История ответов"
       description={
         message
-          ? `Сохранено вариантов: ${message.variants.length}. Выбран ${message.activeVariantIndex + 1}.`
+          ? `Сохранено: ${countRu(message.variants.length, ['вариант', 'варианта', 'вариантов'])}. Выбран ${message.activeVariantIndex + 1}.`
           : undefined
       }
       size="cover"

@@ -3,8 +3,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ResizeHandle } from '../../components/ResizeHandle';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
-import { isMobilePlatform } from '../../lib/platform';
+import { useVisualViewportMetrics } from '../../hooks/useVisualViewportMetrics';
 import { galaxyItemAvatar } from '../../lib/avatar';
+import { isAndroidPlatform, isMobilePlatform } from '../../lib/platform';
 import type { Chat, ChatConfigInput } from '../../types';
 import { ChatComposer } from './components/ChatComposer';
 import { ChatDialogs } from './components/ChatDialogs';
@@ -48,8 +49,11 @@ export function ChatsScreen({
   sending,
 }: ChatsScreenProps) {
   const isMobile = isMobilePlatform();
+  const usesNativeImeInsets = isAndroidPlatform();
   const isNarrowDesktop = useMediaQuery('(max-width: 820px)');
   const isSinglePane = isMobile || isNarrowDesktop;
+  const { bottomInset: keyboardInset, viewportHeight } =
+    useVisualViewportMetrics(isMobile && isSinglePane && isChatOpen);
   const [query, setQuery] = useState('');
   const [draft, setDraft] = useState('');
   const [pendingMessage, setPendingMessage] = useState('');
@@ -144,27 +148,13 @@ export function ChatsScreen({
   ]);
 
   useEffect(() => {
-    if (!activeChat?.id || (isSinglePane && !isChatOpen)) return;
-    const viewport = window.visualViewport;
-    if (!viewport) return;
-
-    let frame = 0;
-    const keepLatestMessageVisible = () => {
-      window.cancelAnimationFrame(frame);
-      frame = window.requestAnimationFrame(() => {
-        const scroller = messageScrollRef.current;
-        if (scroller) scroller.scrollTop = scroller.scrollHeight;
-      });
-    };
-
-    viewport.addEventListener('resize', keepLatestMessageVisible);
-    viewport.addEventListener('scroll', keepLatestMessageVisible);
-    return () => {
-      window.cancelAnimationFrame(frame);
-      viewport.removeEventListener('resize', keepLatestMessageVisible);
-      viewport.removeEventListener('scroll', keepLatestMessageVisible);
-    };
-  }, [activeChat?.id, isChatOpen, isSinglePane]);
+    if (!viewportHeight) return;
+    const frame = window.requestAnimationFrame(() => {
+      const scroller = messageScrollRef.current;
+      if (scroller) scroller.scrollTop = scroller.scrollHeight;
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [keyboardInset, viewportHeight]);
 
   const selectChat = (id: string) => {
     onSelectChat(id);
@@ -310,6 +300,13 @@ export function ChatsScreen({
 
       <section
         className={`${isSinglePane && !isChatOpen ? 'hidden' : 'flex'} ${isSinglePane && isChatOpen ? 'mobile-chat-enter' : ''} min-h-0 min-w-0 flex-1 flex-col overflow-hidden`}
+        style={
+          keyboardInset > 0 && !usesNativeImeInsets
+            ? {
+                paddingBottom: keyboardInset,
+              }
+            : undefined
+        }
       >
         {activeChat ? (
           <>
@@ -370,19 +367,6 @@ export function ChatsScreen({
         error={configError}
         onOpenChange={(open) => !open && setConfigTarget(null)}
         onSubmit={(input) => void saveConfig(input)}
-        onCloneWithMessages={
-          configTarget && configTarget !== 'new'
-            ? (input) => {
-                setWorking(true);
-                void onCloneChat(configTarget.id, true, input)
-                  .then(() => {
-                    setConfigTarget(null);
-                  })
-                  .catch((error) => setConfigError(String(error)))
-                  .finally(() => setWorking(false));
-              }
-            : undefined
-        }
       />
 
       <ChatDialogs

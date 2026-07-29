@@ -1,0 +1,57 @@
+fn instruction(preset: &str) -> Option<&'static str> {
+    match preset {
+        "human" => Some(
+            "Use natural conversational rhythm, concrete wording, and emotionally credible reactions. Avoid assistant-like disclaimers, repetitive summaries, sterile headings, and generic offers to help.",
+        ),
+        "dialogue-only" => Some(
+            "Return dialogue only. Do not write actions, stage directions, narration, asterisks, roleplay descriptions, or describe what either participant is doing.",
+        ),
+        "no-emoji" => Some(
+            "Never use emoji, emoticons, decorative symbols, reaction glyphs, or emoji-style punctuation.",
+        ),
+        "first-person" => Some(
+            "Write from the character's first-person perspective. Never narrate the character in third person and never decide or describe the user's actions, thoughts, or feelings for them.",
+        ),
+        "concise" => Some(
+            "Keep replies focused and proportionate to the user's message. Remove repetition, filler, redundant conclusions, and unnecessary restatement of known context.",
+        ),
+        "immersive" => Some(
+            "Preserve the atmosphere, emotional state, physical continuity, and established details of the current scene. Prefer specific sensory details over generic roleplay prose.",
+        ),
+        "initiative" => Some(
+            "Move the conversation forward with relevant choices, reactions, or questions when useful, but never decide the user's actions, thoughts, feelings, or consent.",
+        ),
+        "continuity" => Some(
+            "Before answering, silently check the reply against established facts, relationships, names, chronology, and the latest scene state. Do not contradict them without an explicit in-story reason.",
+        ),
+        _ => None,
+    }
+}
+
+pub fn instructions(presets: &[String]) -> Option<String> {
+    let mut seen = std::collections::HashSet::new();
+    let rendered = presets
+        .iter()
+        .filter(|preset| seen.insert(preset.as_str()))
+        .filter_map(|preset| instruction(preset))
+        .map(|value| format!("- {value}"))
+        .collect::<Vec<_>>();
+    (!rendered.is_empty()).then(|| rendered.join("\n"))
+}
+
+pub fn normalize_response(content: &str) -> String {
+    content.trim().to_owned()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::normalize_response;
+
+    #[test]
+    fn trims_edges_without_rewriting_model_content() {
+        assert_eq!(
+            normalize_response("  *smiles* Hello 🙂\n\n\n**important**  "),
+            "*smiles* Hello 🙂\n\n\n**important**"
+        );
+    }
+}

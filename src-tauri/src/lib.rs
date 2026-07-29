@@ -2,7 +2,7 @@ mod db;
 mod models;
 mod prompt_builder;
 mod provider_client;
-mod response_presets;
+mod response_rules;
 mod secure_storage;
 
 use std::sync::Mutex;
@@ -200,27 +200,9 @@ fn build_chat_system_prompt(
     database: &Connection,
     chat_id: &str,
     history: &[models::Message],
-    response_preset: &str,
 ) -> Result<Option<String>, String> {
     let context = db::get_chat_prompt_context(database, chat_id)?;
-    let remembered = history
-        .iter()
-        .filter(|message| message.remembered)
-        .map(|message| format!("- {}: {}", message.role, message.content.trim()))
-        .collect::<Vec<_>>();
-    let mut blocks = prompt_builder::build_system_prompt(&context)
-        .into_iter()
-        .collect::<Vec<_>>();
-    if let Some(instructions) = response_presets::instructions(response_preset) {
-        blocks.push(format!("[RESPONSE PRESET]\n{instructions}"));
-    }
-    if !remembered.is_empty() {
-        blocks.push(format!(
-            "[REMEMBERED MESSAGES]\nTreat these marked messages as important persistent facts:\n{}",
-            remembered.join("\n")
-        ));
-    }
-    Ok((!blocks.is_empty()).then(|| blocks.join("\n\n")))
+    Ok(prompt_builder::build_system_prompt(&context, history))
 }
 
 #[tauri::command]
@@ -228,21 +210,18 @@ async fn regenerate_message(
     message_id: String,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    let (provider, history, system_prompt, response_preset) = {
+    let (provider, history, system_prompt) = {
         let database = state.database.lock().map_err(|error| error.to_string())?;
         let (chat_id, history) = db::messages_before_message(&database, &message_id)?;
         if !matches!(history.last(), Some(message) if message.role == "user") {
             return Err("Перед ответом ассистента не найдено сообщение пользователя".into());
         }
         let provider_id = db::chat_provider_id(&database, &chat_id)?;
-        let response_preset = db::chat_response_preset(&database, &chat_id)?;
-        let system_prompt =
-            build_chat_system_prompt(&database, &chat_id, &history, &response_preset)?;
+        let system_prompt = build_chat_system_prompt(&database, &chat_id, &history)?;
         (
             db::get_provider(&database, &provider_id)?,
             history,
             system_prompt,
-            response_preset,
         )
     };
     let secret = secret_for_saved_provider(&provider)?;
@@ -265,9 +244,9 @@ async fn regenerate_message(
         }
     };
 
-    let response_content = response_presets::apply(&response_preset, &completion.content);
+    let response_content = response_rules::normalize_response(&completion.content);
     if response_content.is_empty() {
-        return Err("Ответ модели стал пустым после применения пресета".into());
+        return Err("Модель вернула пустой ответ".into());
     }
 
     let database = state.database.lock().map_err(|error| error.to_string())?;
@@ -305,34 +284,15 @@ async fn send_chat_message(
         return Err("Пустое сообщение не отправляется".into());
     }
 
-    let (provider, history, system_prompt, response_preset) = {
+    let (provider, history, system_prompt) = {
         let database = state.database.lock().map_err(|error| error.to_string())?;
-        let context = db::get_chat_prompt_context(&database, &chat_id)?;
         let provider_id = db::chat_provider_id(&database, &chat_id)?;
         let history = db::messages_for_chat(&database, &chat_id)?;
-        let response_preset = db::chat_response_preset(&database, &chat_id)?;
-        let remembered = history
-            .iter()
-            .filter(|message| message.remembered)
-            .map(|message| format!("- {}: {}", message.role, message.content.trim()))
-            .collect::<Vec<_>>();
-        let mut blocks = prompt_builder::build_system_prompt(&context)
-            .into_iter()
-            .collect::<Vec<_>>();
-        if let Some(instructions) = response_presets::instructions(&response_preset) {
-            blocks.push(format!("[RESPONSE PRESET]\n{instructions}"));
-        }
-        if !remembered.is_empty() {
-            blocks.push(format!(
-                "[REMEMBERED MESSAGES]\nTreat these marked messages as important persistent facts:\n{}",
-                remembered.join("\n")
-            ));
-        }
+        let system_prompt = build_chat_system_prompt(&database, &chat_id, &history)?;
         (
             db::get_provider(&database, &provider_id)?,
             history,
-            (!blocks.is_empty()).then(|| blocks.join("\n\n")),
-            response_preset,
+            system_prompt,
         )
     };
     let secret = secret_for_saved_provider(&provider)?;
@@ -355,9 +315,9 @@ async fn send_chat_message(
         }
     };
 
-    let response_content = response_presets::apply(&response_preset, &completion.content);
+    let response_content = response_rules::normalize_response(&completion.content);
     if response_content.is_empty() {
-        return Err("Ответ модели стал пустым после применения пресета".into());
+        return Err("Модель вернула пустой ответ".into());
     }
 
     let database = state.database.lock().map_err(|error| error.to_string())?;

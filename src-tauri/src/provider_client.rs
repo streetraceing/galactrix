@@ -246,6 +246,7 @@ fn validate_provider(provider: &ProviderInput, api_key: Option<&str>) -> Result<
         return Err("Укажите название подключения".into());
     }
     validate_kind(&provider.kind)?;
+    validate_supported_kind(&provider.kind)?;
     validate_auth(&provider.kind, api_key, provider.id.is_some())?;
     if provider.kind == "custom" {
         required_text(provider.base_url.as_deref(), "Base URL")?;
@@ -258,9 +259,19 @@ fn validate_provider(provider: &ProviderInput, api_key: Option<&str>) -> Result<
 
 fn validate_saved_provider(provider: &Provider, api_key: Option<&str>) -> Result<(), String> {
     validate_kind(&provider.kind)?;
+    validate_supported_kind(&provider.kind)?;
     validate_auth(&provider.kind, api_key, false)?;
     if provider.model.trim().is_empty() {
         return Err("У подключения не выбрана модель".into());
+    }
+    Ok(())
+}
+
+fn validate_supported_kind(kind: &str) -> Result<(), String> {
+    if kind == "character-ai" {
+        return Err(
+            "Для Character.AI ещё не реализован отдельный адаптер авторизации".into(),
+        );
     }
     Ok(())
 }

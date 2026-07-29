@@ -8,6 +8,7 @@ export const providerCatalog: Array<{
   requiresAccountId?: boolean;
   requiresApiKey: boolean;
   supportsAutomaticModels: boolean;
+  available?: boolean;
 }> = [
   {
     kind: 'mistral',
@@ -59,8 +60,9 @@ export const providerCatalog: Array<{
   {
     kind: 'character-ai',
     name: 'Character.AI',
-    description: 'Нужен отдельный адаптер авторизации',
+    description: 'Поддержка появится после отдельного адаптера авторизации',
     requiresApiKey: true,
     supportsAutomaticModels: false,
+    available: false,
   },
 ];

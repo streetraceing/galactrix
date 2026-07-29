@@ -15,7 +15,101 @@ pub struct Chat {
     pub character_id: Option<String>,
     pub universe_id: Option<String>,
     pub worldbook_ids: Vec<String>,
-    pub response_preset: String,
+    pub prompt_config: PromptConfig,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PromptBlock {
+    pub id: String,
+    pub title: String,
+    pub content: String,
+    #[serde(default = "default_prompt_priority")]
+    pub priority: String,
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PromptContextPriorities {
+    #[serde(default = "default_normal_priority")]
+    pub persona: String,
+    #[serde(default = "default_critical_priority")]
+    pub character: String,
+    #[serde(default = "default_high_priority")]
+    pub universe: String,
+    #[serde(default = "default_normal_priority")]
+    pub worldbooks: String,
+    #[serde(default = "default_high_priority")]
+    pub remembered: String,
+    #[serde(default = "default_high_priority")]
+    pub presets: String,
+}
+
+impl Default for PromptContextPriorities {
+    fn default() -> Self {
+        Self {
+            persona: default_normal_priority(),
+            character: default_critical_priority(),
+            universe: default_high_priority(),
+            worldbooks: default_normal_priority(),
+            remembered: default_high_priority(),
+            presets: default_high_priority(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct PromptConfig {
+    #[serde(default)]
+    pub preset_ids: Vec<String>,
+    #[serde(default)]
+    pub context_priorities: PromptContextPriorities,
+    #[serde(default)]
+    pub custom_blocks: Vec<PromptBlock>,
+}
+
+impl PromptConfig {
+    pub fn from_legacy(preset: &str) -> Self {
+        let preset_ids = match preset {
+            "human" => vec!["human"],
+            "dialogue-only" => vec!["dialogue-only"],
+            "no-emoji" => vec!["no-emoji"],
+            "first-person" => vec!["first-person"],
+            "clean-human" => vec!["human", "first-person", "no-emoji", "dialogue-only"],
+            _ => Vec::new(),
+        }
+        .into_iter()
+        .map(str::to_owned)
+        .collect();
+
+        Self {
+            preset_ids,
+            ..Self::default()
+        }
+    }
+}
+
+fn default_true() -> bool {
+    true
+}
+
+fn default_prompt_priority() -> String {
+    default_normal_priority()
+}
+
+fn default_normal_priority() -> String {
+    "normal".into()
+}
+
+fn default_high_priority() -> String {
+    "high".into()
+}
+
+fn default_critical_priority() -> String {
+    "critical".into()
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -28,12 +122,8 @@ pub struct ChatConfigInput {
     pub universe_id: Option<String>,
     #[serde(default)]
     pub worldbook_ids: Vec<String>,
-    #[serde(default = "default_response_preset")]
-    pub response_preset: String,
-}
-
-fn default_response_preset() -> String {
-    "natural".into()
+    #[serde(default)]
+    pub prompt_config: PromptConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -214,6 +304,7 @@ pub struct ChatPromptContext {
     pub universe: Option<GalaxyItem>,
     pub worldbooks: Vec<GalaxyItem>,
     pub character_style: Option<GalaxyItem>,
+    pub prompt_config: PromptConfig,
 }
 
 #[derive(Debug, Clone)]

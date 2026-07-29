@@ -12,16 +12,43 @@ export type Chat = {
   characterId?: string;
   universeId?: string;
   worldbookIds: string[];
-  responsePreset: ResponsePreset;
+  promptConfig: PromptConfig;
 };
 
-export type ResponsePreset =
-  | 'natural'
+export type PromptPresetId =
   | 'human'
   | 'dialogue-only'
   | 'no-emoji'
   | 'first-person'
-  | 'clean-human';
+  | 'concise'
+  | 'immersive'
+  | 'initiative'
+  | 'continuity';
+
+export type PromptPriority = 'low' | 'normal' | 'high' | 'critical';
+
+export type PromptContextPriorities = {
+  persona: PromptPriority;
+  character: PromptPriority;
+  universe: PromptPriority;
+  worldbooks: PromptPriority;
+  remembered: PromptPriority;
+  presets: PromptPriority;
+};
+
+export type PromptBlock = {
+  id: string;
+  title: string;
+  content: string;
+  priority: PromptPriority;
+  enabled: boolean;
+};
+
+export type PromptConfig = {
+  presetIds: PromptPresetId[];
+  contextPriorities: PromptContextPriorities;
+  customBlocks: PromptBlock[];
+};
 
 export type ChatConfigInput = {
   title: string;
@@ -30,7 +57,7 @@ export type ChatConfigInput = {
   characterId?: string;
   universeId?: string;
   worldbookIds: string[];
-  responsePreset: ResponsePreset;
+  promptConfig: PromptConfig;
 };
 
 export type MessageVariant = {

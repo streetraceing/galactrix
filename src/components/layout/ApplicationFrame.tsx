@@ -12,7 +12,6 @@ export function ApplicationFrame({
   activeTab,
   settings,
   chats,
-  chatCount,
   loading,
   notice,
   mobileNavigationVisible,
@@ -26,7 +25,6 @@ export function ApplicationFrame({
   activeTab: TabId;
   settings: AppSettings;
   chats: Chat[];
-  chatCount: number;
   loading: boolean;
   notice: string;
   mobileNavigationVisible: boolean;
@@ -51,7 +49,7 @@ export function ApplicationFrame({
         {!isMobile ? (
           <DesktopSidebar
             activeTab={activeTab}
-            chatCount={chatCount}
+            chatCount={chats.length}
             profileName={settings.profileName}
             profileAvatar={settings.profileAvatar}
             width={settings.sidebarWidth}
@@ -81,9 +79,7 @@ export function ApplicationFrame({
           />
         ) : null}
 
-        <section
-          className={`relative flex min-w-0 flex-1 flex-col overflow-hidden bg-background`}
-        >
+        <section className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-background">
           {loading ? (
             <div className="absolute inset-0 z-40 grid place-items-center bg-background/70 backdrop-blur-sm">
               <Spinner aria-label="Загрузка" />
@@ -91,7 +87,7 @@ export function ApplicationFrame({
           ) : null}
 
           <AppNotice message={notice} onClose={onCloseNotice} />
-          <div className="min-h-0 min-w-0 flex-1 overflow-hidden flex">
+          <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
             {children}
           </div>
           {isMobile && mobileNavigationVisible ? (

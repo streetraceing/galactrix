@@ -5,7 +5,7 @@ use serde_json::Value;
 
 use crate::models::{
     AppSettings, AppSnapshot, Chat, ChatConfigInput, ChatPromptContext, GalaxyItem,
-    GalaxyItemInput, Message, MessageVariant, Provider, UsagePoint,
+    GalaxyItemInput, Message, MessageVariant, PromptConfig, Provider, UsagePoint,
 };
 
 pub fn open(path: &Path) -> Result<Connection, String> {
@@ -36,7 +36,8 @@ fn migrate(connection: &Connection) -> Result<(), String> {
                 persona_id TEXT,
                 character_id TEXT,
                 universe_id TEXT,
-                response_preset TEXT NOT NULL DEFAULT 'natural'
+                response_preset TEXT NOT NULL DEFAULT 'natural',
+                prompt_config_json TEXT NOT NULL DEFAULT '{}'
             );
 
             CREATE TABLE IF NOT EXISTS messages (
@@ -150,6 +151,12 @@ fn migrate(connection: &Connection) -> Result<(), String> {
     )?;
     ensure_column(
         connection,
+        "chats",
+        "prompt_config_json",
+        "TEXT NOT NULL DEFAULT '{}'",
+    )?;
+    ensure_column(
+        connection,
         "messages",
         "remembered",
         "INTEGER NOT NULL DEFAULT 0",
@@ -232,7 +239,52 @@ fn migrate(connection: &Connection) -> Result<(), String> {
             "#,
         )
         .map_err(|error| error.to_string())?;
+    migrate_prompt_configs(connection)?;
     Ok(())
+}
+
+fn migrate_prompt_configs(connection: &Connection) -> Result<(), String> {
+    let mut statement = connection
+        .prepare("SELECT id, response_preset, prompt_config_json FROM chats")
+        .map_err(|error| error.to_string())?;
+    let chats = statement
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+            ))
+        })
+        .map_err(|error| error.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| error.to_string())?;
+    drop(statement);
+
+    for (id, legacy_preset, raw_config) in chats {
+        if !raw_config.trim().is_empty() && raw_config.trim() != "{}" {
+            continue;
+        }
+        let config = PromptConfig::from_legacy(&legacy_preset);
+        let serialized = serde_json::to_string(&config).map_err(|error| error.to_string())?;
+        connection
+            .execute(
+                "UPDATE chats SET prompt_config_json = ?1 WHERE id = ?2",
+                params![serialized, id],
+            )
+            .map_err(|error| error.to_string())?;
+    }
+    Ok(())
+}
+
+fn parse_prompt_config(raw: &str, legacy_preset: &str) -> PromptConfig {
+    if raw.trim().is_empty() || raw.trim() == "{}" {
+        return PromptConfig::from_legacy(legacy_preset);
+    }
+    serde_json::from_str(raw).unwrap_or_else(|_| PromptConfig::from_legacy(legacy_preset))
+}
+
+fn prompt_config_json(config: &PromptConfig) -> Result<String, String> {
+    serde_json::to_string(config).map_err(|error| error.to_string())
 }
 
 fn ensure_column(
@@ -301,7 +353,7 @@ fn list_chats(connection: &Connection) -> Result<Vec<Chat>, String> {
     let mut statement = connection
         .prepare(
             "SELECT id, title, preview, updated_at, message_count, pinned, provider_id,
-                    persona_id, character_id, universe_id, response_preset
+                    persona_id, character_id, universe_id, prompt_config_json, response_preset
              FROM chats ORDER BY pinned DESC, updated_at DESC",
         )
         .map_err(|error| error.to_string())?;
@@ -319,6 +371,7 @@ fn list_chats(connection: &Connection) -> Result<Vec<Chat>, String> {
                 row.get::<_, Option<String>>(8)?,
                 row.get::<_, Option<String>>(9)?,
                 row.get::<_, String>(10)?,
+                row.get::<_, String>(11)?,
             ))
         })
         .map_err(|error| error.to_string())?
@@ -327,7 +380,7 @@ fn list_chats(connection: &Connection) -> Result<Vec<Chat>, String> {
     drop(statement);
 
     rows.into_iter()
-        .map(|(id, title, preview, updated_at, message_count, pinned, provider_id, persona_id, character_id, universe_id, response_preset)| {
+        .map(|(id, title, preview, updated_at, message_count, pinned, provider_id, persona_id, character_id, universe_id, prompt_config_json, legacy_preset)| {
             Ok(Chat {
                 worldbook_ids: worldbook_ids_for_chat(connection, &id)?,
                 id,
@@ -340,7 +393,7 @@ fn list_chats(connection: &Connection) -> Result<Vec<Chat>, String> {
                 persona_id,
                 character_id,
                 universe_id,
-                response_preset,
+                prompt_config: parse_prompt_config(&prompt_config_json, &legacy_preset),
             })
         })
         .collect()
@@ -584,6 +637,7 @@ pub fn create_chat(
     input: &ChatConfigInput,
 ) -> Result<(), String> {
     validate_chat_links(connection, input)?;
+    let prompt_config = prompt_config_json(&input.prompt_config)?;
     let transaction = connection
         .unchecked_transaction()
         .map_err(|error| error.to_string())?;
@@ -591,7 +645,7 @@ pub fn create_chat(
         .execute(
             "INSERT INTO chats (
                 id, title, preview, updated_at, message_count, pinned, provider_id,
-                persona_id, character_id, universe_id, response_preset
+                persona_id, character_id, universe_id, prompt_config_json
              ) VALUES (?1, ?2, '', ?3, 0, 0, ?4, ?5, ?6, ?7, ?8)",
             params![
                 id,
@@ -601,7 +655,7 @@ pub fn create_chat(
                 input.persona_id,
                 input.character_id,
                 input.universe_id,
-                input.response_preset,
+                prompt_config,
             ],
         )
         .map_err(|error| error.to_string())?;
@@ -615,13 +669,14 @@ pub fn update_chat_config(
     input: &ChatConfigInput,
 ) -> Result<(), String> {
     validate_chat_links(connection, input)?;
+    let prompt_config = prompt_config_json(&input.prompt_config)?;
     let transaction = connection
         .unchecked_transaction()
         .map_err(|error| error.to_string())?;
     let changed = transaction
         .execute(
             "UPDATE chats SET title = ?1, provider_id = ?2, persona_id = ?3,
-                    character_id = ?4, universe_id = ?5, response_preset = ?6,
+                    character_id = ?4, universe_id = ?5, prompt_config_json = ?6,
                     updated_at = ?7
              WHERE id = ?8",
             params![
@@ -630,7 +685,7 @@ pub fn update_chat_config(
                 input.persona_id,
                 input.character_id,
                 input.universe_id,
-                input.response_preset,
+                prompt_config,
                 now_unix(),
                 chat_id,
             ],
@@ -681,11 +736,78 @@ fn validate_chat_links(connection: &Connection, input: &ChatConfigInput) -> Resu
     for id in &input.worldbook_ids {
         validate_optional_galaxy(connection, Some(id), "worldbook")?;
     }
-    if !matches!(
-        input.response_preset.as_str(),
-        "natural" | "human" | "dialogue-only" | "no-emoji" | "first-person" | "clean-human"
-    ) {
-        return Err("Неизвестный пресет ответа".into());
+    validate_prompt_config(&input.prompt_config)?;
+    Ok(())
+}
+
+fn validate_prompt_config(config: &PromptConfig) -> Result<(), String> {
+    const PRESETS: [&str; 8] = [
+        "human",
+        "dialogue-only",
+        "no-emoji",
+        "first-person",
+        "concise",
+        "immersive",
+        "initiative",
+        "continuity",
+    ];
+    const PRIORITIES: [&str; 4] = ["low", "normal", "high", "critical"];
+
+    let mut preset_ids = std::collections::HashSet::new();
+    for preset in &config.preset_ids {
+        if !PRESETS.contains(&preset.as_str()) {
+            return Err("Неизвестное правило системного промпта".into());
+        }
+        if !preset_ids.insert(preset) {
+            return Err("Правила системного промпта не должны повторяться".into());
+        }
+    }
+
+    let priorities = &config.context_priorities;
+    for priority in [
+        &priorities.persona,
+        &priorities.character,
+        &priorities.universe,
+        &priorities.worldbooks,
+        &priorities.remembered,
+        &priorities.presets,
+    ] {
+        if !PRIORITIES.contains(&priority.as_str()) {
+            return Err("Неизвестный приоритет системного промпта".into());
+        }
+    }
+
+    if config.custom_blocks.len() > 16 {
+        return Err("В одном чате можно создать не больше 16 блоков промпта".into());
+    }
+    let mut block_ids = std::collections::HashSet::new();
+    let mut total_length = 0;
+    for block in &config.custom_blocks {
+        if block.id.trim().is_empty()
+            || block.id.chars().count() > 100
+            || !block_ids.insert(block.id.trim())
+        {
+            return Err("Блоки промпта должны иметь уникальные идентификаторы".into());
+        }
+        if block.title.chars().count() > 80 {
+            return Err("Название блока промпта не должно быть длиннее 80 символов".into());
+        }
+        if block.enabled && block.title.trim().is_empty() {
+            return Err("У включённого блока промпта должно быть название".into());
+        }
+        if !PRIORITIES.contains(&block.priority.as_str()) {
+            return Err("Неизвестный приоритет блока промпта".into());
+        }
+        if block.enabled && block.content.trim().is_empty() {
+            return Err("Включённый блок промпта не может быть пустым".into());
+        }
+        if block.content.chars().count() > 12_000 {
+            return Err("Один блок промпта не может быть длиннее 12 000 символов".into());
+        }
+        total_length += block.content.chars().count();
+    }
+    if total_length > 48_000 {
+        return Err("Суммарный объём пользовательских блоков промпта слишком большой".into());
     }
     Ok(())
 }
@@ -1037,18 +1159,6 @@ pub fn select_message_variant(
     transaction.commit().map_err(|error| error.to_string())
 }
 
-pub fn chat_response_preset(connection: &Connection, chat_id: &str) -> Result<String, String> {
-    connection
-        .query_row(
-            "SELECT response_preset FROM chats WHERE id = ?1",
-            params![chat_id],
-            |row| row.get(0),
-        )
-        .optional()
-        .map_err(|error| error.to_string())?
-        .ok_or_else(|| "Чат не найден".into())
-}
-
 pub fn chat_provider_id(connection: &Connection, chat_id: &str) -> Result<String, String> {
     connection
         .query_row(
@@ -1071,7 +1181,7 @@ pub fn clone_chat(
 ) -> Result<String, String> {
     let source = connection
         .query_row(
-            "SELECT title, provider_id, persona_id, character_id, universe_id, response_preset
+            "SELECT title, provider_id, persona_id, character_id, universe_id, prompt_config_json
              FROM chats WHERE id = ?1",
             params![source_chat_id],
             |row| {
@@ -1104,7 +1214,7 @@ pub fn clone_chat(
         .execute(
             "INSERT INTO chats (
                 id, title, preview, updated_at, message_count, pinned, provider_id,
-                persona_id, character_id, universe_id, response_preset
+                persona_id, character_id, universe_id, prompt_config_json
              ) VALUES (?1, ?2, '', ?3, 0, 0, ?4, ?5, ?6, ?7, ?8)",
             params![
                 new_chat_id,
@@ -1466,16 +1576,30 @@ pub fn get_chat_prompt_context(
     connection: &Connection,
     chat_id: &str,
 ) -> Result<ChatPromptContext, String> {
-    let (persona_id, character_id, universe_id): (Option<String>, Option<String>, Option<String>) =
-        connection
-            .query_row(
-                "SELECT persona_id, character_id, universe_id FROM chats WHERE id = ?1",
-                params![chat_id],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
-            )
-            .optional()
-            .map_err(|error| error.to_string())?
-            .ok_or_else(|| "Чат не найден".to_string())?;
+    let (persona_id, character_id, universe_id, raw_prompt_config, legacy_preset): (
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        String,
+        String,
+    ) = connection
+        .query_row(
+            "SELECT persona_id, character_id, universe_id, prompt_config_json, response_preset
+             FROM chats WHERE id = ?1",
+            params![chat_id],
+            |row| {
+                Ok((
+                    row.get(0)?,
+                    row.get(1)?,
+                    row.get(2)?,
+                    row.get(3)?,
+                    row.get(4)?,
+                ))
+            },
+        )
+        .optional()
+        .map_err(|error| error.to_string())?
+        .ok_or_else(|| "Чат не найден".to_string())?;
 
     let persona = persona_id
         .as_deref()
@@ -1507,6 +1631,7 @@ pub fn get_chat_prompt_context(
         universe,
         worldbooks,
         character_style,
+        prompt_config: parse_prompt_config(&raw_prompt_config, &legacy_preset),
     })
 }
 

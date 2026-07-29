@@ -1,6 +1,7 @@
 import { Button, Chip, Surface } from '@heroui/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '../../../components/Icon';
+import { countRu, pluralRu } from '../../../lib/plural';
 import type { UsagePoint } from '../../../types';
 import { formatTokens } from '../format';
 
@@ -112,8 +113,16 @@ export function UsageTimeline({
           </p>
           <p className="mt-1 text-sm text-muted">
             {metric === 'tokens'
-              ? 'токенов использовано'
-              : 'запросов отправлено'}
+              ? pluralRu(selected.tokens, [
+                  'токен использован',
+                  'токена использовано',
+                  'токенов использовано',
+                ])
+              : pluralRu(selected.requests, [
+                  'запрос отправлен',
+                  'запроса отправлено',
+                  'запросов отправлено',
+                ])}
           </p>
         </div>
 
@@ -246,13 +255,15 @@ export function UsageTimeline({
         ) : (
           <>
             <Chip variant="soft" className="justify-center">
-              За день {selected.requests.toLocaleString('ru-RU')}
+              За день{' '}
+              {countRu(selected.requests, ['запрос', 'запроса', 'запросов'])}
             </Chip>
             <Chip variant="soft" className="justify-center">
               Токенов {formatTokens(selected.tokens)}
             </Chip>
             <Chip variant="soft" className="justify-center">
-              Всего за период {total.toLocaleString('ru-RU')}
+              Всего за период{' '}
+              {countRu(total, ['запрос', 'запроса', 'запросов'])}
             </Chip>
           </>
         )}

@@ -188,11 +188,6 @@ export function TelescopeScreen({
               icon="telescope"
               title="Подключений пока нет"
               description="Добавьте провайдера и загрузите доступные модели из его API."
-              action={{
-                label: 'Добавить подключение',
-                onPress: editor.openCreate,
-                icon: <Icon name="plus" className="size-4" />,
-              }}
               compact
             />
           )}

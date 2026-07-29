@@ -1,12 +1,12 @@
 import { toast } from '@heroui/react';
 import { useMemo, useState } from 'react';
-import { providerCatalog } from '../../data';
 import type {
   Provider,
   ProviderInput,
   ProviderKind,
   ProviderModelResult,
 } from '../../types';
+import { providerCatalog } from './catalog';
 import { defaultProviderInput, providerToInput } from './providerHelpers';
 
 export function useProviderEditor({

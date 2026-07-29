@@ -1,7 +1,8 @@
 import { Surface } from '@heroui/react';
 import { MetricGrid } from '../../../components/ui/MetricGrid';
+import { pluralRu } from '../../../lib/plural';
 import type { GalaxyItem, UsagePoint } from '../../../types';
-import { formatTokens } from '../format';
+import { formatTokenCount, formatTokens } from '../format';
 
 function sum(
   points: UsagePoint[],
@@ -44,6 +45,8 @@ export function ProfileOverview({
     (item) => item.kind === 'character',
   ).length;
   const lore = galaxyItems.length - personas - characters;
+  const averageChatLength =
+    chatCount > 0 ? Math.round(messageCount / chatCount) : 0;
 
   return (
     <div className="space-y-5 sm:space-y-6">
@@ -69,7 +72,7 @@ export function ProfileOverview({
             value: `${activeDays} / 7`,
             note:
               activeDays > 0
-                ? `${formatTokens(input)} токенов контекста`
+                ? `${formatTokenCount(input)} контекста`
                 : 'нет запросов',
           },
         ]}
@@ -126,8 +129,12 @@ export function ProfileOverview({
               },
               {
                 label: 'Средняя длина чата',
-                value: chatCount > 0 ? Math.round(messageCount / chatCount) : 0,
-                detail: 'сообщений на диалог',
+                value: averageChatLength,
+                detail: pluralRu(averageChatLength, [
+                  'сообщение на диалог',
+                  'сообщения на диалог',
+                  'сообщений на диалог',
+                ]),
               },
             ].map((item) => (
               <div

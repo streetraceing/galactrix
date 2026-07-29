@@ -199,14 +199,14 @@ function VariantNavigator({
     return (
       <div className="mt-1 flex items-center gap-1 text-[0.65rem] text-muted">
         <span className="inline-flex items-center gap-0.5">
-          {activePosition > 0 ? (
-            <Icon name="chevron-left" className="size-3" />
-          ) : null}
-          свайп
           <Icon
-            name={isLastVariant ? 'regenerate' : 'chevron-right'}
+            name={isLastVariant ? 'regenerate' : 'chevron-left'}
             className="size-3"
           />
+          свайп влево
+          {activePosition > 0 ? (
+            <Icon name="chevron-right" className="size-3" />
+          ) : null}
         </span>
         <Button
           size="sm"
@@ -417,7 +417,7 @@ function SwipeableMessage({
 
     const activePosition = getActiveVariantPosition(message);
     const hasTarget =
-      dx > 0 ? true : Boolean(message.variants[activePosition - 1]);
+      dx < 0 ? true : Boolean(message.variants[activePosition - 1]);
     const resistance = hasTarget ? 0.58 : 0.16;
     setDragOffset(Math.max(-88, Math.min(88, dx * resistance)));
   };
@@ -441,9 +441,9 @@ function SwipeableMessage({
     }
 
     const activePosition = getActiveVariantPosition(message);
-    const nextPosition = dx > 0 ? activePosition + 1 : activePosition - 1;
+    const nextPosition = dx < 0 ? activePosition + 1 : activePosition - 1;
     const nextVariant = message.variants[nextPosition];
-    const shouldRegenerate = dx > 0 && !nextVariant;
+    const shouldRegenerate = dx < 0 && !nextVariant;
     if (!nextVariant && !shouldRegenerate) {
       settle();
       return;
@@ -487,9 +487,9 @@ function SwipeableMessage({
 
   const activePosition = getActiveVariantPosition(message);
   const revealPosition =
-    dragOffset > 0 ? activePosition + 1 : activePosition - 1;
+    dragOffset < 0 ? activePosition + 1 : activePosition - 1;
   const revealVariant = message.variants[revealPosition];
-  const revealsRegeneration = dragOffset > 0 && !revealVariant;
+  const revealsRegeneration = dragOffset < 0 && !revealVariant;
   const revealProgress = Math.min(Math.abs(dragOffset) / 56, 1);
 
   return (
@@ -518,7 +518,7 @@ function SwipeableMessage({
           name={
             revealsRegeneration
               ? 'regenerate'
-              : dragOffset > 0
+              : dragOffset < 0
                 ? 'chevron-right'
                 : 'chevron-left'
           }

@@ -2,6 +2,7 @@ import { Button, Chip, Popover } from '@heroui/react';
 import { Icon } from '../../../components/Icon';
 import { AppAvatar } from '../../../components/ui/AppAvatar';
 import { galaxyItemAvatar } from '../../../lib/avatar';
+import { countRu } from '../../../lib/plural';
 import type { Chat, GalaxyItem } from '../../../types';
 import type { ChatAction } from '../types';
 import { ChatActionsButton } from './ChatActions';
@@ -70,7 +71,7 @@ export function ConversationHeader({
               <p className="mt-0.5 truncate text-xs text-muted">
                 {contextNames.length > 0
                   ? contextNames.join(' · ')
-                  : `${chat.messageCount} сообщений · контекст не выбран`}
+                  : `${countRu(chat.messageCount, ['сообщение', 'сообщения', 'сообщений'])} · контекст не выбран`}
               </p>
             </div>
           </Popover.Trigger>
@@ -86,7 +87,11 @@ export function ConversationHeader({
                 <span className="min-w-0">
                   <strong className="block truncate">{chat.title}</strong>
                   <span className="mt-0.5 block text-xs text-muted">
-                    {chat.messageCount.toLocaleString('ru-RU')} сообщений
+                    {countRu(chat.messageCount, [
+                      'сообщение',
+                      'сообщения',
+                      'сообщений',
+                    ])}
                   </span>
                 </span>
               </Popover.Heading>

@@ -1,6 +1,6 @@
 import { Button, Surface } from '@heroui/react';
 import { UiModal } from '../../../components/ui/UiModal';
-import type { providerCatalog } from '../../../data';
+import type { providerCatalog } from '../catalog';
 import type { ProviderInput, ProviderKind } from '../../../types';
 import { GenerationSettings } from './GenerationSettings';
 import { ProviderCredentials } from './ProviderCredentials';
