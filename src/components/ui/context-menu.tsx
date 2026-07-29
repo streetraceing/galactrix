@@ -47,7 +47,7 @@ function ContextMenuContent({
           className={cn(
             'ui-overlay-surface z-50 min-w-40 overflow-hidden p-1.5 outline-none',
             'max-h-(--available-height) overflow-y-auto',
-            'origin-[var(--transform-origin)] transition-[opacity,transform] duration-150 ease-out motion-reduce:transition-none',
+            'origin-[var(--transform-origin)] transition-[opacity,transform] duration-[var(--motion-fast)] ease-[var(--motion-ease)] motion-reduce:transition-none',
             'data-starting-style:translate-y-1 data-starting-style:scale-95 data-starting-style:opacity-0',
             'data-ending-style:translate-y-1 data-ending-style:scale-95 data-ending-style:opacity-0',
             'data-instant:transition-none',
@@ -99,7 +99,7 @@ function ContextMenuItem({
       data-inset={inset}
       data-variant={variant}
       className={cn(
-        'group/context-menu-item relative flex cursor-default select-none items-center gap-2 rounded-lg px-2.5 py-2 text-sm outline-none transition-colors duration-100',
+        'group/context-menu-item relative flex cursor-default select-none items-center gap-2 rounded-lg px-2.5 py-2 text-sm outline-none transition-colors duration-[var(--motion-fast)] ease-[var(--motion-ease)]',
         'data-highlighted:bg-default data-highlighted:text-default-foreground data-inset:pl-8',
         'data-disabled:pointer-events-none data-disabled:opacity-50',
         'data-[variant=destructive]:text-danger data-[variant=destructive]:data-highlighted:bg-danger/10 data-[variant=destructive]:data-highlighted:text-danger',
@@ -128,7 +128,7 @@ function ContextMenuSubTrigger({
       data-slot="context-menu-sub-trigger"
       data-inset={inset}
       className={cn(
-        'flex cursor-default select-none items-center gap-2 rounded-lg px-2.5 py-2 text-sm outline-none transition-colors duration-100',
+        'flex cursor-default select-none items-center gap-2 rounded-lg px-2.5 py-2 text-sm outline-none transition-colors duration-[var(--motion-fast)] ease-[var(--motion-ease)]',
         'data-highlighted:bg-default data-highlighted:text-default-foreground data-popup-open:bg-default data-popup-open:text-default-foreground data-inset:pl-8',
         'data-disabled:pointer-events-none data-disabled:opacity-50',
         '[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=size-])]:size-4',
@@ -162,7 +162,7 @@ function ContextMenuSubContent({
           className={cn(
             'ui-overlay-surface z-50 min-w-40 overflow-hidden p-1.5 outline-none',
             'max-h-(--available-height) overflow-y-auto',
-            'origin-[var(--transform-origin)] transition-[opacity,transform] duration-150 ease-out motion-reduce:transition-none',
+            'origin-[var(--transform-origin)] transition-[opacity,transform] duration-[var(--motion-fast)] ease-[var(--motion-ease)] motion-reduce:transition-none',
             'data-starting-style:translate-x-1 data-starting-style:scale-95 data-starting-style:opacity-0',
             'data-ending-style:translate-x-1 data-ending-style:scale-95 data-ending-style:opacity-0',
             'data-instant:transition-none',
@@ -187,7 +187,7 @@ function ContextMenuCheckboxItem({
       data-slot="context-menu-checkbox-item"
       data-inset={inset}
       className={cn(
-        'relative flex cursor-default select-none items-center gap-2 rounded-lg py-2 pr-8 pl-2.5 text-sm outline-none transition-colors duration-100',
+        'relative flex cursor-default select-none items-center gap-2 rounded-lg py-2 pr-8 pl-2.5 text-sm outline-none transition-colors duration-[var(--motion-fast)] ease-[var(--motion-ease)]',
         'data-highlighted:bg-default data-highlighted:text-default-foreground data-inset:pl-8',
         'data-disabled:pointer-events-none data-disabled:opacity-50',
         '[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=size-])]:size-4',
@@ -226,7 +226,7 @@ function ContextMenuRadioItem({
       data-slot="context-menu-radio-item"
       data-inset={inset}
       className={cn(
-        'relative flex cursor-default select-none items-center gap-2 rounded-lg py-2 pr-8 pl-2.5 text-sm outline-none transition-colors duration-100',
+        'relative flex cursor-default select-none items-center gap-2 rounded-lg py-2 pr-8 pl-2.5 text-sm outline-none transition-colors duration-[var(--motion-fast)] ease-[var(--motion-ease)]',
         'data-highlighted:bg-default data-highlighted:text-default-foreground data-inset:pl-8',
         'data-disabled:pointer-events-none data-disabled:opacity-50',
         '[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=size-])]:size-4',

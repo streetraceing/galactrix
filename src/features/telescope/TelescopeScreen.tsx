@@ -1,6 +1,7 @@
-import { Button, Checkbox, Surface, toast } from '@heroui/react';
+import { Button, Checkbox, Surface } from '@heroui/react';
 import { useEffect, useState } from 'react';
 import { Icon } from '../../components/Icon';
+import { toast } from '../../i18n/toast';
 import { EmptyState } from '../../components/ui/EmptyState';
 import {
   ExportDestinationPicker,

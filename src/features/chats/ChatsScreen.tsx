@@ -1,9 +1,9 @@
-import { toast } from '@heroui/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ResizeHandle } from '../../components/ResizeHandle';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { useVisualViewportMetrics } from '../../hooks/useVisualViewportMetrics';
+import { toast } from '../../i18n/toast';
 import { galaxyItemAvatar } from '../../lib/avatar';
 import { isAndroidPlatform, isMobilePlatform } from '../../lib/platform';
 import type { Chat, ChatConfigInput } from '../../types';

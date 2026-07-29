@@ -254,6 +254,7 @@ pub struct AppSettings {
     pub sidebar_collapsed: bool,
     pub theme_mode: String,
     pub theme_variant: String,
+    pub language: String,
 }
 
 impl Default for AppSettings {
@@ -272,6 +273,7 @@ impl Default for AppSettings {
             sidebar_collapsed: false,
             theme_mode: "system".into(),
             theme_variant: "default".into(),
+            language: "system".into(),
         }
     }
 }

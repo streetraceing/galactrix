@@ -48,20 +48,26 @@ export function PromptOrderSection({
               {preview.map((entry, index) => (
                 <li
                   key={entry.id}
-                  className="flex min-w-0 items-start gap-3 rounded-xl border border-separator bg-surface px-3 py-2.5"
+                  className="flex min-w-0 flex-col items-stretch gap-2.5 rounded-xl border border-separator bg-surface px-3 py-2.5 sm:flex-row sm:items-start sm:gap-3"
                 >
-                  <span className="grid size-6 shrink-0 place-items-center rounded-full bg-default text-xs tabular-nums text-muted">
-                    {index + 1}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <strong className="block text-sm font-medium">
-                      {entry.title}
-                    </strong>
-                    <span className="mt-0.5 block text-xs leading-5 text-muted">
-                      {entry.description}
+                  <span className="flex min-w-0 items-start gap-3">
+                    <span className="grid size-6 shrink-0 place-items-center rounded-full bg-default text-xs tabular-nums text-muted">
+                      {index + 1}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <strong className="block break-words text-sm font-medium">
+                        {entry.title}
+                      </strong>
+                      <span className="mt-0.5 block break-words text-xs leading-5 text-muted">
+                        {entry.description}
+                      </span>
                     </span>
                   </span>
-                  <Chip size="sm" variant="soft" className="shrink-0">
+                  <Chip
+                    size="sm"
+                    variant="soft"
+                    className="self-start sm:shrink-0"
+                  >
                     {
                       promptPriorities.find(
                         (priority) => priority.id === entry.priority,

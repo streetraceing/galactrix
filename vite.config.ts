@@ -7,10 +7,11 @@ const host = process.env.TAURI_DEV_HOST;
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react({ jsxImportSource: '@galactrix/i18n' }), tailwindcss()],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
+      '@galactrix/i18n': fileURLToPath(new URL('./src/i18n', import.meta.url)),
     },
   },
 

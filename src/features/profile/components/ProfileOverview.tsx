@@ -1,5 +1,6 @@
 import { Surface } from '@heroui/react';
 import { MetricGrid } from '../../../components/ui/MetricGrid';
+import { formatNumber } from '../../../i18n';
 import { pluralRu } from '../../../lib/plural';
 import type { GalaxyItem, UsagePoint } from '../../../types';
 import { formatTokenCount, formatTokens } from '../format';
@@ -59,7 +60,7 @@ export function ProfileOverview({
           },
           {
             label: 'Запросы к моделям',
-            value: requests.toLocaleString('ru-RU'),
+            value: formatNumber(requests),
             note: comparison(requests, sum(previous, 'requests')),
           },
           {
@@ -97,7 +98,7 @@ export function ProfileOverview({
               >
                 <dt className="text-xs text-muted">{label}</dt>
                 <dd className="mt-1 text-lg font-semibold tabular-nums">
-                  {Number(value).toLocaleString('ru-RU')}
+                  {formatNumber(Number(value))}
                 </dd>
               </div>
             ))}

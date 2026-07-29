@@ -1,8 +1,9 @@
-import { Button, Input, Surface, toast } from '@heroui/react';
+import { Button, Input, Surface } from '@heroui/react';
 import { useEffect, useMemo, useState } from 'react';
 import { Icon } from '../../../components/Icon';
 import { AppAvatar } from '../../../components/ui/AppAvatar';
 import { AvatarPicker } from '../../../components/ui/AvatarPicker';
+import { toast } from '../../../i18n/toast';
 import {
   galaxyItemAvatar,
   galaxyInputAvatar,

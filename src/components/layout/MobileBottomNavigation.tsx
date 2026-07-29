@@ -27,7 +27,7 @@ export function MobileBottomNavigation({
             <button
               type="button"
               key={item.id}
-              className={`group relative flex h-full min-w-0 flex-col items-center justify-center gap-1 border-0 bg-transparent px-1 outline-none transition-colors duration-200 active:bg-default/70 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus ${
+              className={`group relative flex h-full min-w-0 flex-col items-center justify-center gap-1 border-0 bg-transparent px-1 outline-none transition-colors duration-[var(--motion-standard)] ease-[var(--motion-ease)] active:bg-default/70 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus ${
                 isActive ? 'text-accent' : 'text-muted'
               }`}
               aria-label={item.label}
@@ -35,7 +35,7 @@ export function MobileBottomNavigation({
               onClick={() => onNavigate(item.id)}
             >
               <span
-                className={`absolute inset-x-4 top-0 h-0.5 origin-center rounded-b-full bg-accent transition-transform duration-200 ${
+                className={`absolute inset-x-4 top-0 h-0.5 origin-center rounded-b-full bg-accent transition-transform duration-[var(--motion-standard)] ease-[var(--motion-ease)] ${
                   isActive ? 'scale-x-100' : 'scale-x-0'
                 }`}
               />
@@ -43,14 +43,14 @@ export function MobileBottomNavigation({
                 <AppAvatar
                   src={profileAvatar}
                   name={profileName}
-                  className={`size-5 transition-transform duration-200 group-active:scale-90 ${
+                  className={`size-5 transition-transform duration-[var(--motion-standard)] ease-[var(--motion-ease)] group-active:scale-90 ${
                     isActive ? '-translate-y-0.5 scale-105' : ''
                   }`}
                 />
               ) : (
                 <Icon
                   name={item.icon}
-                  className={`size-5 shrink-0 transition-transform duration-200 group-active:scale-90 ${
+                  className={`size-5 shrink-0 transition-transform duration-[var(--motion-standard)] ease-[var(--motion-ease)] group-active:scale-90 ${
                     isActive ? '-translate-y-0.5 scale-105' : ''
                   }`}
                 />

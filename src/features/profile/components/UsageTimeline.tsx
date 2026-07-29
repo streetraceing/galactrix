@@ -1,6 +1,7 @@
 import { Button, Chip, Surface } from '@heroui/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '../../../components/Icon';
+import { formatDate, formatNumber } from '../../../i18n';
 import { countRu, pluralRu } from '../../../lib/plural';
 import type { UsagePoint } from '../../../types';
 import { formatTokens } from '../format';
@@ -8,7 +9,7 @@ import { formatTokens } from '../format';
 type UsageMetric = 'tokens' | 'requests';
 
 function fullDate(day: number) {
-  return new Date(day * 86_400_000).toLocaleDateString('ru-RU', {
+  return formatDate(day * 86_400_000, {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
@@ -18,7 +19,7 @@ function fullDate(day: number) {
 }
 
 function shortDate(day: number) {
-  return new Date(day * 86_400_000).toLocaleDateString('ru-RU', {
+  return formatDate(day * 86_400_000, {
     day: '2-digit',
     month: '2-digit',
     timeZone: 'UTC',
@@ -30,9 +31,7 @@ function valueFor(point: UsagePoint, metric: UsageMetric) {
 }
 
 function formattedValue(value: number, metric: UsageMetric) {
-  return metric === 'tokens'
-    ? formatTokens(value)
-    : value.toLocaleString('ru-RU');
+  return metric === 'tokens' ? formatTokens(value) : formatNumber(value);
 }
 
 export function UsageTimeline({

@@ -1,4 +1,5 @@
 mod db;
+mod i18n;
 mod models;
 mod prompt_builder;
 mod provider_client;
@@ -7,6 +8,7 @@ mod secure_storage;
 
 use std::{collections::HashMap, sync::Mutex};
 
+use i18n::CommandResult;
 use models::{
     AppSettings, AppSnapshot, ChatConfigInput, CreatedChat, GalaxyItem, GalaxyItemInput, Provider,
     PromptPreviewInput, PromptPreviewResult, ProviderImportInput, ProviderInput,
@@ -32,7 +34,7 @@ struct AppState {
 }
 
 #[tauri::command]
-fn get_app_snapshot(state: State<'_, AppState>) -> Result<AppSnapshot, String> {
+fn get_app_snapshot(state: State<'_, AppState>) -> CommandResult<AppSnapshot> {
     let database = state.database.lock().map_err(|error| error.to_string())?;
     let mut snapshot = db::snapshot(&database, env!("CARGO_PKG_VERSION"))?;
     for provider in &mut snapshot.providers {
@@ -42,7 +44,7 @@ fn get_app_snapshot(state: State<'_, AppState>) -> Result<AppSnapshot, String> {
 }
 
 #[tauri::command]
-fn create_chat(input: ChatConfigInput, state: State<'_, AppState>) -> Result<CreatedChat, String> {
+fn create_chat(input: ChatConfigInput, state: State<'_, AppState>) -> CommandResult<CreatedChat> {
     let title = input.title.trim();
     if title.is_empty() {
         return Err("Название чата не может быть пустым".into());
@@ -62,9 +64,10 @@ fn update_chat_config(
     chat_id: String,
     input: ChatConfigInput,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> CommandResult<()> {
     let database = state.database.lock().map_err(|error| error.to_string())?;
-    db::update_chat_config(&database, &chat_id, &input)
+    db::update_chat_config(&database, &chat_id, &input)?;
+    Ok(())
 }
 
 #[tauri::command]
@@ -72,7 +75,7 @@ fn rename_chat(
     chat_id: String,
     title: String,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> CommandResult<()> {
     let title = title.trim();
     if title.is_empty() {
         return Err("Название чата не может быть пустым".into());
@@ -81,13 +84,15 @@ fn rename_chat(
         return Err("Название чата слишком длинное".into());
     }
     let database = state.database.lock().map_err(|error| error.to_string())?;
-    db::rename_chat(&database, &chat_id, title)
+    db::rename_chat(&database, &chat_id, title)?;
+    Ok(())
 }
 
 #[tauri::command]
-fn delete_chat(chat_id: String, state: State<'_, AppState>) -> Result<(), String> {
+fn delete_chat(chat_id: String, state: State<'_, AppState>) -> CommandResult<()> {
     let database = state.database.lock().map_err(|error| error.to_string())?;
-    db::delete_chat(&database, &chat_id)
+    db::delete_chat(&database, &chat_id)?;
+    Ok(())
 }
 
 #[tauri::command]
@@ -95,15 +100,17 @@ fn set_chat_pinned(
     chat_id: String,
     pinned: bool,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> CommandResult<()> {
     let database = state.database.lock().map_err(|error| error.to_string())?;
-    db::set_chat_pinned(&database, &chat_id, pinned)
+    db::set_chat_pinned(&database, &chat_id, pinned)?;
+    Ok(())
 }
 
 #[tauri::command]
-fn clear_chat(chat_id: String, state: State<'_, AppState>) -> Result<(), String> {
+fn clear_chat(chat_id: String, state: State<'_, AppState>) -> CommandResult<()> {
     let database = state.database.lock().map_err(|error| error.to_string())?;
-    db::clear_chat(&database, &chat_id)
+    db::clear_chat(&database, &chat_id)?;
+    Ok(())
 }
 
 #[tauri::command]
@@ -112,7 +119,7 @@ fn clone_chat(
     include_messages: bool,
     input: Option<ChatConfigInput>,
     state: State<'_, AppState>,
-) -> Result<CreatedChat, String> {
+) -> CommandResult<CreatedChat> {
     let new_id = Uuid::new_v4().to_string();
     let database = state.database.lock().map_err(|error| error.to_string())?;
     let mut title = db::clone_chat(&database, &chat_id, &new_id, include_messages, None)?;
@@ -120,7 +127,7 @@ fn clone_chat(
     if let Some(input) = input {
         if let Err(error) = db::update_chat_config(&database, &new_id, &input) {
             let _ = db::delete_chat(&database, &new_id);
-            return Err(error);
+            return Err(error.into());
         }
         title = input.title.trim().to_owned();
     }
@@ -132,7 +139,7 @@ fn clone_chat(
 fn branch_chat(
     message_id: String,
     state: State<'_, AppState>,
-) -> Result<CreatedChat, String> {
+) -> CommandResult<CreatedChat> {
     let new_id = Uuid::new_v4().to_string();
     let database = state.database.lock().map_err(|error| error.to_string())?;
     let source_chat_id = database
@@ -157,7 +164,7 @@ fn edit_message(
     message_id: String,
     content: String,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> CommandResult<()> {
     let content = content.trim();
     if content.is_empty() {
         return Err("Сообщение не может быть пустым".into());
@@ -168,13 +175,15 @@ fn edit_message(
         &message_id,
         &Uuid::new_v4().to_string(),
         content,
-    )
+    )?;
+    Ok(())
 }
 
 #[tauri::command]
-fn delete_message(message_id: String, state: State<'_, AppState>) -> Result<(), String> {
+fn delete_message(message_id: String, state: State<'_, AppState>) -> CommandResult<()> {
     let database = state.database.lock().map_err(|error| error.to_string())?;
-    db::delete_message(&database, &message_id)
+    db::delete_message(&database, &message_id)?;
+    Ok(())
 }
 
 #[tauri::command]
@@ -182,9 +191,10 @@ fn set_message_remembered(
     message_id: String,
     remembered: bool,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> CommandResult<()> {
     let database = state.database.lock().map_err(|error| error.to_string())?;
-    db::set_message_remembered(&database, &message_id, remembered)
+    db::set_message_remembered(&database, &message_id, remembered)?;
+    Ok(())
 }
 
 #[tauri::command]
@@ -192,9 +202,10 @@ fn select_message_variant(
     message_id: String,
     variant_index: i64,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> CommandResult<()> {
     let database = state.database.lock().map_err(|error| error.to_string())?;
-    db::select_message_variant(&database, &message_id, variant_index)
+    db::select_message_variant(&database, &message_id, variant_index)?;
+    Ok(())
 }
 
 fn build_chat_system_prompt(
@@ -297,7 +308,7 @@ fn preview_prompt(input: PromptPreviewInput) -> PromptPreviewResult {
 async fn regenerate_message(
     message_id: String,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> CommandResult<()> {
     let (provider, history, system_prompt) = {
         let database = state.database.lock().map_err(|error| error.to_string())?;
         let (chat_id, history) = db::messages_before_message(&database, &message_id)?;
@@ -328,7 +339,7 @@ async fn regenerate_message(
             if let Ok(database) = state.database.lock() {
                 let _ = db::update_provider_health(&database, &provider.id, "error", None);
             }
-            return Err(error);
+            return Err(error.into());
         }
     };
 
@@ -366,7 +377,7 @@ async fn send_chat_message(
     chat_id: String,
     content: String,
     state: State<'_, AppState>,
-) -> Result<(), String> {
+) -> CommandResult<()> {
     let content = content.trim();
     if content.is_empty() {
         return Err("Пустое сообщение не отправляется".into());
@@ -399,7 +410,7 @@ async fn send_chat_message(
             if let Ok(database) = state.database.lock() {
                 let _ = db::update_provider_health(&database, &provider.id, "error", None);
             }
-            return Err(error);
+            return Err(error.into());
         }
     };
 
@@ -438,7 +449,7 @@ async fn send_chat_message(
 fn upsert_galaxy_item(
     input: GalaxyItemInput,
     state: State<'_, AppState>,
-) -> Result<GalaxyItem, String> {
+) -> CommandResult<GalaxyItem> {
     if input.name.trim().is_empty() {
         return Err("Укажите название".into());
     }
@@ -447,14 +458,14 @@ fn upsert_galaxy_item(
         .clone()
         .unwrap_or_else(|| Uuid::new_v4().to_string());
     let database = state.database.lock().map_err(|error| error.to_string())?;
-    db::upsert_galaxy_item(&database, &id, &input)
+    Ok(db::upsert_galaxy_item(&database, &id, &input)?)
 }
 
 #[tauri::command]
 fn import_galaxy_items(
     inputs: Vec<GalaxyItemInput>,
     state: State<'_, AppState>,
-) -> Result<usize, String> {
+) -> CommandResult<usize> {
     let database = state.database.lock().map_err(|error| error.to_string())?;
     let transaction = database
         .unchecked_transaction()
@@ -471,18 +482,19 @@ fn import_galaxy_items(
 }
 
 #[tauri::command]
-fn delete_galaxy_item(id: String, state: State<'_, AppState>) -> Result<(), String> {
+fn delete_galaxy_item(id: String, state: State<'_, AppState>) -> CommandResult<()> {
     let database = state.database.lock().map_err(|error| error.to_string())?;
-    db::delete_galaxy_item(&database, &id)
+    db::delete_galaxy_item(&database, &id)?;
+    Ok(())
 }
 
 #[tauri::command]
 async fn fetch_provider_models(
     provider: ProviderInput,
     api_key: Option<String>,
-) -> Result<ProviderModelResult, String> {
+) -> CommandResult<ProviderModelResult> {
     let secret = resolve_input_secret(&provider, api_key.as_deref())?;
-    provider_client::list_models(&provider, secret.as_deref()).await
+    Ok(provider_client::list_models(&provider, secret.as_deref()).await?)
 }
 
 #[tauri::command]
@@ -490,7 +502,7 @@ async fn save_provider(
     provider: ProviderInput,
     api_key: Option<String>,
     state: State<'_, AppState>,
-) -> Result<Provider, String> {
+) -> CommandResult<Provider> {
     validate_provider_input(&provider)?;
     if provider.kind == "character-ai" {
         return Err(
@@ -530,7 +542,7 @@ async fn save_provider(
 fn export_provider_secrets(
     provider_ids: Vec<String>,
     state: State<'_, AppState>,
-) -> Result<HashMap<String, String>, String> {
+) -> CommandResult<HashMap<String, String>> {
     let database = state.database.lock().map_err(|error| error.to_string())?;
     let mut secrets = HashMap::new();
     for id in provider_ids {
@@ -546,7 +558,7 @@ fn export_provider_secrets(
 fn import_providers(
     entries: Vec<ProviderImportInput>,
     state: State<'_, AppState>,
-) -> Result<usize, String> {
+) -> CommandResult<usize> {
     for entry in &entries {
         validate_provider_input(&entry.provider)?;
         if entry.provider.kind == "character-ai" {
@@ -584,7 +596,7 @@ fn import_providers(
 }
 
 #[tauri::command]
-async fn check_provider(id: String, state: State<'_, AppState>) -> Result<Provider, String> {
+async fn check_provider(id: String, state: State<'_, AppState>) -> CommandResult<Provider> {
     let mut provider = {
         let database = state.database.lock().map_err(|error| error.to_string())?;
         db::get_provider(&database, &id)?
@@ -626,7 +638,7 @@ async fn check_provider(id: String, state: State<'_, AppState>) -> Result<Provid
 }
 
 #[tauri::command]
-fn delete_provider(id: String, state: State<'_, AppState>) -> Result<(), String> {
+fn delete_provider(id: String, state: State<'_, AppState>) -> CommandResult<()> {
     let database = state.database.lock().map_err(|error| error.to_string())?;
     db::delete_provider(&database, &id)?;
     drop(database);
@@ -638,7 +650,7 @@ fn delete_provider(id: String, state: State<'_, AppState>) -> Result<(), String>
 fn update_app_settings(
     mut settings: AppSettings,
     state: State<'_, AppState>,
-) -> Result<AppSettings, String> {
+) -> CommandResult<AppSettings> {
     settings.profile_name = settings.profile_name.trim().to_string();
     if settings.profile_name.is_empty() {
         settings.profile_name = "Вы".into();
@@ -669,6 +681,9 @@ fn update_app_settings(
         "default" | "lavender" | "discord" | "spotify"
     ) {
         settings.theme_variant = "default".into();
+    }
+    if !matches!(settings.language.as_str(), "system" | "ru" | "en") {
+        settings.language = "system".into();
     }
 
     let database = state.database.lock().map_err(|error| error.to_string())?;

@@ -10,6 +10,7 @@ import {
 import { useState } from 'react';
 import type { DragEvent } from 'react';
 import { Icon } from '../../../../components/Icon';
+import { formatNumber } from '../../../../i18n';
 import type { PromptBlock, PromptConfig } from '../../../../types';
 import { createPromptBlock } from './promptBuilderModel';
 import { PromptPrioritySelect } from './PromptPrioritySelect';
@@ -259,7 +260,7 @@ export function PromptCustomBlocksSection({
                       }
                     />
                     <span className="text-right text-[0.65rem] tabular-nums text-muted">
-                      {block.content.length.toLocaleString('ru-RU')} / 12 000
+                      {formatNumber(block.content.length)} / 12 000
                     </span>
                     {missingRequired ? (
                       <span className="text-xs text-danger">

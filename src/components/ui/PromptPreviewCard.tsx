@@ -1,5 +1,6 @@
-import { Button, Chip, Surface, toast } from '@heroui/react';
+import { Button, Chip, Surface } from '@heroui/react';
 import { useEffect, useMemo, useState } from 'react';
+import { toast } from '../../i18n/toast';
 import { previewPrompt } from '../../lib/backend';
 import { countRu } from '../../lib/plural';
 import type { PromptPreviewInput, PromptPreviewResult } from '../../types';
@@ -62,19 +63,22 @@ export function PromptPreviewCard({
   return (
     <>
       <Surface className="rounded-2xl border border-separator bg-surface-secondary/50 p-4 sm:p-5">
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-accent/10 text-accent">
-            <Icon name="database" className="size-4" />
-          </span>
-          <span className="min-w-0 flex-1">
-            <strong className="block text-sm">{title}</strong>
-            <span className="mt-0.5 block text-xs leading-5 text-muted">
-              Итог после подстановки имён вместо {'{{user}}'} и {'{{char}}'}.
+        <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="flex min-w-0 items-start gap-3 sm:flex-1">
+            <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-accent/10 text-accent">
+              <Icon name="database" className="size-4" />
             </span>
-          </span>
+            <span className="min-w-0 flex-1">
+              <strong className="block break-words text-sm">{title}</strong>
+              <span className="mt-0.5 block break-words text-xs leading-5 text-muted">
+                Итог после подстановки имён вместо {'{{user}}'} и {'{{char}}'}.
+              </span>
+            </span>
+          </div>
           <Button
             size="sm"
             variant="secondary"
+            className="w-full shrink-0 sm:w-auto"
             isDisabled={!result?.prompt || loading}
             onPress={() => setPreviewOpen(true)}
           >
@@ -82,7 +86,7 @@ export function PromptPreviewCard({
           </Button>
         </div>
 
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="mt-3 flex min-w-0 flex-wrap gap-2">
           <Chip size="sm" variant="soft" color="accent">
             {loading
               ? 'Считаем…'

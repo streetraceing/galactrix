@@ -246,6 +246,7 @@ export type AppSettings = {
   sidebarCollapsed: boolean;
   themeMode: 'light' | 'dark' | 'system';
   themeVariant: 'default' | 'lavender' | 'discord' | 'spotify';
+  language: 'system' | 'ru' | 'en';
 };
 
 export type UsagePoint = {

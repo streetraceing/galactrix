@@ -120,7 +120,8 @@ fn migrate(connection: &Connection) -> Result<(), String> {
                 chat_sidebar_width INTEGER NOT NULL DEFAULT 320,
                 sidebar_collapsed INTEGER NOT NULL DEFAULT 0,
                 theme_mode TEXT NOT NULL DEFAULT 'system',
-                theme_variant TEXT NOT NULL DEFAULT 'default'
+                theme_variant TEXT NOT NULL DEFAULT 'default',
+                language TEXT NOT NULL DEFAULT 'system'
             );
 
             CREATE TABLE IF NOT EXISTS usage_events (
@@ -228,6 +229,12 @@ fn migrate(connection: &Connection) -> Result<(), String> {
         "app_settings",
         "theme_variant",
         "TEXT NOT NULL DEFAULT 'default'",
+    )?;
+    ensure_column(
+        connection,
+        "app_settings",
+        "language",
+        "TEXT NOT NULL DEFAULT 'system'",
     )?;
     connection
         .execute_batch(
@@ -547,7 +554,7 @@ fn get_settings(connection: &Connection) -> Result<AppSettings, String> {
             "SELECT profile_name, profile_avatar, animations, haptics,
                     compact_mode, send_on_enter, save_drafts,
                     interface_scale, sidebar_width, chat_sidebar_width,
-                    sidebar_collapsed, theme_mode, theme_variant
+                    sidebar_collapsed, theme_mode, theme_variant, language
              FROM app_settings WHERE id = 1",
             [],
             |row| {
@@ -565,6 +572,7 @@ fn get_settings(connection: &Connection) -> Result<AppSettings, String> {
                     sidebar_collapsed: row.get::<_, i64>(10)? != 0,
                     theme_mode: row.get(11)?,
                     theme_variant: row.get(12)?,
+                    language: row.get(13)?,
                 })
             },
         )
@@ -573,7 +581,15 @@ fn get_settings(connection: &Connection) -> Result<AppSettings, String> {
 
 fn usage_history(connection: &Connection) -> Result<Vec<UsagePoint>, String> {
     const DAY_SECONDS: i64 = 86_400;
-    const LABELS: [&str; 7] = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
+    const LABELS: [&str; 7] = [
+        "weekday.mon",
+        "weekday.tue",
+        "weekday.wed",
+        "weekday.thu",
+        "weekday.fri",
+        "weekday.sat",
+        "weekday.sun",
+    ];
 
     let today = now_unix().div_euclid(DAY_SECONDS);
     let earliest_timestamp = connection
@@ -1966,7 +1982,8 @@ pub fn update_settings(connection: &Connection, settings: &AppSettings) -> Resul
                  animations = ?3, haptics = ?4, compact_mode = ?5,
                  send_on_enter = ?6, save_drafts = ?7, interface_scale = ?8,
                  sidebar_width = ?9, chat_sidebar_width = ?10,
-                 sidebar_collapsed = ?11, theme_mode = ?12, theme_variant = ?13
+                 sidebar_collapsed = ?11, theme_mode = ?12, theme_variant = ?13,
+                 language = ?14
              WHERE id = 1",
             params![
                 settings.profile_name,
@@ -1981,7 +1998,8 @@ pub fn update_settings(connection: &Connection, settings: &AppSettings) -> Resul
                 settings.chat_sidebar_width,
                 settings.sidebar_collapsed as i64,
                 settings.theme_mode,
-                settings.theme_variant
+                settings.theme_variant,
+                settings.language
             ],
         )
         .map_err(|error| error.to_string())?;
@@ -1990,12 +2008,12 @@ pub fn update_settings(connection: &Connection, settings: &AppSettings) -> Resul
 
 fn galaxy_presentation(kind: &str) -> Result<(&'static str, &'static str), String> {
     match kind {
-        "persona" => Ok(("Персона", "slate")),
-        "character" => Ok(("Персонаж", "blue")),
-        "universe" => Ok(("Вселенная", "indigo")),
-        "worldbook" => Ok(("Ворлдбук", "amber")),
-        "style" => Ok(("Стиль", "violet")),
-        "prompt-set" => Ok(("Набор", "emerald")),
+        "persona" => Ok(("galaxy.kind.persona", "slate")),
+        "character" => Ok(("galaxy.kind.character", "blue")),
+        "universe" => Ok(("galaxy.kind.universe", "indigo")),
+        "worldbook" => Ok(("galaxy.kind.worldbook", "amber")),
+        "style" => Ok(("galaxy.kind.style", "violet")),
+        "prompt-set" => Ok(("galaxy.kind.promptSet", "emerald")),
         _ => Err("Неизвестный тип объекта галактики".into()),
     }
 }
@@ -2010,11 +2028,11 @@ fn now_unix() -> i64 {
 fn relative_time(timestamp: i64) -> String {
     let seconds = now_unix().saturating_sub(timestamp);
     match seconds {
-        0..=59 => "сейчас".into(),
-        60..=3_599 => format!("{} мин", seconds / 60),
-        3_600..=86_399 => format!("{} ч", seconds / 3_600),
-        86_400..=604_799 => format!("{} дн", seconds / 86_400),
-        _ => "давно".into(),
+        0..=59 => "time.now".into(),
+        60..=3_599 => format!("time.minutes:{}", seconds / 60),
+        3_600..=86_399 => format!("time.hours:{}", seconds / 3_600),
+        86_400..=604_799 => format!("time.days:{}", seconds / 86_400),
+        _ => "time.longAgo".into(),
     }
 }
 

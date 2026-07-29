@@ -1,5 +1,5 @@
-import { toast } from '@heroui/react';
 import { useMemo, useState } from 'react';
+import { toast } from '../../i18n/toast';
 import type {
   Provider,
   ProviderInput,

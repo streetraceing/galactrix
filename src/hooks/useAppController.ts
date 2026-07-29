@@ -37,6 +37,7 @@ import type {
   TabId,
 } from '../types';
 import { useMobileBackEntry } from './useMobileBackEntry';
+import { getLanguagePreference, setLanguagePreference } from '../i18n';
 
 const defaultSettings: AppSettings = {
   profileName: 'Вы',
@@ -52,6 +53,7 @@ const defaultSettings: AppSettings = {
   sidebarCollapsed: false,
   themeMode: 'system',
   themeVariant: 'default',
+  language: getLanguagePreference(),
 };
 
 const emptySnapshot: AppSnapshot = {
@@ -121,6 +123,10 @@ export function useAppController() {
       snapshot.settings.themeVariant,
     );
   }, [setTheme, snapshot.settings.themeMode, snapshot.settings.themeVariant]);
+
+  useEffect(() => {
+    setLanguagePreference(snapshot.settings.language);
+  }, [snapshot.settings.language]);
 
   useEffect(() => {
     const scale = Math.min(

@@ -1,4 +1,4 @@
-import { Button, Surface, TextArea, toast, Tooltip } from '@heroui/react';
+import { Button, Surface, TextArea, Tooltip } from '@heroui/react';
 import { useMemo, useRef, useState } from 'react';
 import type {
   PointerEvent as ReactPointerEvent,
@@ -7,6 +7,7 @@ import type {
 } from 'react';
 import { Icon } from '../../../components/Icon';
 import { AppAvatar } from '../../../components/ui/AppAvatar';
+import { toast } from '../../../i18n/toast';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -554,7 +555,7 @@ function SwipeableMessage({
         </span>
       </div>
       <div
-        className={`${dragging ? '' : 'transition-[transform,opacity] duration-200 ease-out'} relative z-10`}
+        className={`${dragging ? '' : 'transition-[transform,opacity] duration-[var(--motion-standard)] ease-[var(--motion-ease)]'} relative z-10`}
         style={{
           opacity: switching ? 0.72 : 1 - revealProgress * 0.08,
           transform: `translate3d(${dragOffset}px, 0, 0)`,

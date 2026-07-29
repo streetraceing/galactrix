@@ -29,7 +29,7 @@ export function ProviderCard({
     <ContextMenu>
       <ContextMenuTrigger className="block h-full">
         <Surface
-          className="group h-full overflow-hidden rounded-2xl border border-separator transition-colors hover:bg-surface-secondary"
+          className="interactive-card group h-full overflow-hidden rounded-2xl border border-separator hover:bg-surface-secondary"
           aria-busy={checking}
         >
           <button

@@ -1,6 +1,7 @@
 import type { AppSettings } from '../../../types';
 import { AppInfo } from './AppInfo';
 import { LayoutSettings } from './LayoutSettings';
+import { LanguageSettings } from './LanguageSettings';
 import { ScaleSettings } from './ScaleSettings';
 import { SettingsCard } from './SettingsCard';
 import { SettingSwitchRow } from './SettingSwitchRow';
@@ -71,6 +72,11 @@ export function ProfilePreferences({
         variant={settings.themeVariant}
         onModeChange={(value) => patch('themeMode', value)}
         onVariantChange={(value) => patch('themeVariant', value)}
+      />
+
+      <LanguageSettings
+        value={settings.language}
+        onChange={(value) => patch('language', value)}
       />
 
       <div className="grid gap-4 md:grid-cols-2">
