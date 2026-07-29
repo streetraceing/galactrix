@@ -35,6 +35,8 @@ import type {
 import { useMobileBackEntry } from './useMobileBackEntry';
 
 const defaultSettings: AppSettings = {
+  profileName: 'Вы',
+  profileAvatar: undefined,
   animations: true,
   haptics: true,
   compactMode: false,
@@ -125,7 +127,14 @@ export function useAppController() {
     document.documentElement.dataset.animations = snapshot.settings.animations
       ? 'on'
       : 'off';
-  }, [snapshot.settings.animations, snapshot.settings.interfaceScale]);
+    document.documentElement.dataset.compact = snapshot.settings.compactMode
+      ? 'on'
+      : 'off';
+  }, [
+    snapshot.settings.animations,
+    snapshot.settings.compactMode,
+    snapshot.settings.interfaceScale,
+  ]);
 
   const haptic = useCallback(() => {
     if (snapshot.settings.haptics && 'vibrate' in navigator)
@@ -171,9 +180,11 @@ export function useAppController() {
       try {
         const saved = await updateSettings(settings);
         previewSettings(saved);
+        return true;
       } catch (error) {
         previewSettings(previous);
         setNotice(errorText(error));
+        return false;
       }
     },
     [previewSettings, snapshot.settings],

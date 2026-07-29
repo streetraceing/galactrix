@@ -8,7 +8,9 @@ import {
   TextArea,
 } from '@heroui/react';
 import type { Key } from 'react';
+import { AvatarPicker } from '../../../components/ui/AvatarPicker';
 import { UiModal } from '../../../components/ui/UiModal';
+import { galaxyInputAvatar, withAvatar } from '../../../lib/avatar';
 import type {
   CharacterData,
   GalaxyItem,
@@ -20,9 +22,9 @@ import type {
   WorldbookData,
 } from '../../../types';
 import {
-  galaxyFilters,
   galaxyKindDescriptions,
   galaxyKindLabels,
+  galaxySections,
 } from '../catalog';
 import { emptyData } from '../model';
 import { CharacterEditor } from './editors/CharacterEditor';
@@ -113,6 +115,26 @@ export function GalaxyEditorModal({
       }
     >
       <div className="space-y-4">
+        {draft.kind === 'persona' || draft.kind === 'character' ? (
+          <Surface className="rounded-2xl border border-separator p-4 sm:p-5">
+            <AvatarPicker
+              value={galaxyInputAvatar(draft.data)}
+              name={draft.name || galaxyKindLabels[draft.kind]}
+              description="Фото будет показываться в библиотеке, заголовке чата и рядом с сообщениями."
+              disabled={saving}
+              onChange={(avatar) =>
+                onDraftChange({
+                  ...draft,
+                  data: withAvatar(
+                    draft.data as Record<string, unknown>,
+                    avatar,
+                  ),
+                })
+              }
+            />
+          </Surface>
+        ) : null}
+
         <Surface className="rounded-2xl border border-separator p-4 sm:p-5 bg-surface-secondary/50">
           <div className="flex gap-4 flex-col">
             <div className="flex flex-col gap-1.5">
@@ -133,7 +155,7 @@ export function GalaxyEditorModal({
                 </Select.Trigger>
                 <Select.Popover>
                   <ListBox>
-                    {galaxyFilters.slice(1).map((entry) => (
+                    {galaxySections.map((entry) => (
                       <ListBox.Item
                         key={entry.id}
                         id={entry.id}
@@ -144,7 +166,7 @@ export function GalaxyEditorModal({
                             {entry.label}
                           </strong>
                           <span className="mt-0.5 block text-xs leading-5 text-muted">
-                            {galaxyKindDescriptions[entry.id as GalaxyKind]}
+                            {galaxyKindDescriptions[entry.id]}
                           </span>
                         </span>
                         <ListBox.ItemIndicator />

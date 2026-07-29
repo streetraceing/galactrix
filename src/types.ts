@@ -75,6 +75,7 @@ export type WorldbookEntry = {
 };
 
 export type PersonaData = {
+  avatar?: string;
   gender: string;
   age: string;
   pronouns: string;
@@ -85,6 +86,7 @@ export type PersonaData = {
 };
 
 export type CharacterData = {
+  avatar?: string;
   definitionSections: DefinitionSection[];
   stylePreset:
     'neutral' | 'warm' | 'concise' | 'roleplay' | 'literary' | 'custom';
@@ -170,6 +172,8 @@ export type ProviderInput = {
 };
 
 export type AppSettings = {
+  profileName: string;
+  profileAvatar?: string;
   animations: boolean;
   haptics: boolean;
   compactMode: boolean;
@@ -184,7 +188,10 @@ export type AppSettings = {
 };
 
 export type UsagePoint = {
+  day: number;
   label: string;
+  inputTokens: number;
+  outputTokens: number;
   tokens: number;
   requests: number;
 };

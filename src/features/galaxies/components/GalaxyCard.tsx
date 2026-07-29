@@ -1,5 +1,6 @@
 import { Chip, Surface } from '@heroui/react';
 import { Icon } from '../../../components/Icon';
+import { AppAvatar } from '../../../components/ui/AppAvatar';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -9,6 +10,7 @@ import {
   ContextMenuTrigger,
 } from '../../../components/ui/context-menu';
 import type { GalaxyItem } from '../../../types';
+import { galaxyItemAvatar } from '../../../lib/avatar';
 import { galaxyKindIcons, galaxyKindLabels } from '../catalog';
 import { galaxyItemDetails } from '../summary';
 
@@ -24,6 +26,9 @@ export function GalaxyCard({
   onDelete: () => void;
 }) {
   const details = galaxyItemDetails(item);
+  const avatar = galaxyItemAvatar(item);
+  const hasIdentityAvatar =
+    item.kind === 'persona' || item.kind === 'character';
 
   return (
     <ContextMenu>
@@ -34,9 +39,18 @@ export function GalaxyCard({
             className="flex h-full w-full gap-3.5 p-4 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus sm:p-5"
             onClick={onEdit}
           >
-            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent/10 text-accent">
-              <Icon name={galaxyKindIcons[item.kind]} className="size-5" />
-            </span>
+            {hasIdentityAvatar ? (
+              <AppAvatar
+                src={avatar}
+                name={item.name}
+                className="size-11"
+                square
+              />
+            ) : (
+              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent/10 text-accent">
+                <Icon name={galaxyKindIcons[item.kind]} className="size-5" />
+              </span>
+            )}
             <span className="flex min-w-0 flex-1 flex-col">
               <span className="flex min-w-0 items-start gap-2">
                 <strong className="min-w-0 flex-1 truncate text-base font-semibold">

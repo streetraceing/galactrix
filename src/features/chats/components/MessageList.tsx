@@ -1,4 +1,4 @@
-import { Button, Surface, TextArea } from '@heroui/react';
+import { Button, Surface, TextArea, toast } from '@heroui/react';
 import { useMemo, useRef, useState } from 'react';
 import type {
   PointerEvent as ReactPointerEvent,
@@ -6,6 +6,7 @@ import type {
   RefObject,
 } from 'react';
 import { Icon } from '../../../components/Icon';
+import { AppAvatar } from '../../../components/ui/AppAvatar';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -38,6 +39,7 @@ type MessageActionProps = {
 async function copyText(content: string) {
   if (navigator.clipboard?.writeText) {
     await navigator.clipboard.writeText(content);
+    toast.success('Сообщение скопировано');
     return;
   }
 
@@ -52,6 +54,7 @@ async function copyText(content: string) {
   textarea.remove();
 
   if (!copied) throw new Error('Буфер обмена недоступен');
+  toast.success('Сообщение скопировано');
 }
 
 function MessageMenu({
@@ -194,15 +197,24 @@ function VariantNavigator({
 
   if (compact) {
     return (
-      <Button
-        size="sm"
-        variant="ghost"
-        className="h-6 min-w-0 px-2 text-xs text-muted"
-        aria-label="Открыть историю ответов"
-        onPress={onHistory}
-      >
-        {activePosition + 1}/{count}
-      </Button>
+      <div className="mt-1 flex items-center gap-1 text-[0.65rem] text-muted">
+        {count > 1 ? (
+          <span className="inline-flex items-center gap-0.5">
+            <Icon name="chevron-left" className="size-3" />
+            свайп
+            <Icon name="chevron-right" className="size-3" />
+          </span>
+        ) : null}
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-6 min-w-0 px-2 text-xs text-muted"
+          aria-label="Открыть историю ответов"
+          onPress={onHistory}
+        >
+          {activePosition + 1}/{count}
+        </Button>
+      </div>
     );
   }
 
@@ -355,16 +367,26 @@ function SwipeableMessage({
     y: number;
   } | null>(null);
   const selectingVariant = useRef(false);
+  const [dragOffset, setDragOffset] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const [switching, setSwitching] = useState(false);
 
   const resetPointer = () => {
     pointerStart.current = null;
+  };
+
+  const settle = () => {
+    setDragging(false);
+    setDragOffset(0);
   };
 
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (
       event.pointerType !== 'touch' ||
       message.role !== 'assistant' ||
-      message.variants.length < 2
+      message.variants.length < 2 ||
+      selectingVariant.current ||
+      switching
     ) {
       return;
     }
@@ -374,10 +396,30 @@ function SwipeableMessage({
       x: event.clientX,
       y: event.clientY,
     };
+    setDragging(true);
     event.currentTarget.setPointerCapture(event.pointerId);
   };
 
-  const onPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+  const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const start = pointerStart.current;
+    if (!start || start.id !== event.pointerId || selectingVariant.current) {
+      return;
+    }
+
+    const dx = event.clientX - start.x;
+    const dy = event.clientY - start.y;
+    if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 10) return;
+
+    const activePosition = getActiveVariantPosition(message);
+    const hasTarget =
+      dx > 0
+        ? Boolean(message.variants[activePosition - 1])
+        : Boolean(message.variants[activePosition + 1]);
+    const resistance = hasTarget ? 0.58 : 0.16;
+    setDragOffset(Math.max(-88, Math.min(88, dx * resistance)));
+  };
+
+  const onPointerUp = async (event: ReactPointerEvent<HTMLDivElement>) => {
     const start = pointerStart.current;
     resetPointer();
     if (!start || start.id !== event.pointerId || selectingVariant.current) {
@@ -390,30 +432,96 @@ function SwipeableMessage({
 
     const dx = event.clientX - start.x;
     const dy = event.clientY - start.y;
-    if (Math.abs(dx) < 48 || Math.abs(dx) <= Math.abs(dy) * 1.2) return;
+    if (Math.abs(dx) < 48 || Math.abs(dx) <= Math.abs(dy) * 1.2) {
+      settle();
+      return;
+    }
 
     const activePosition = getActiveVariantPosition(message);
     const nextPosition = dx > 0 ? activePosition - 1 : activePosition + 1;
     const nextVariant = message.variants[nextPosition];
-    if (!nextVariant) return;
+    if (!nextVariant) {
+      settle();
+      return;
+    }
 
     selectingVariant.current = true;
-    void onSelectVariant(message.id, nextVariant.index)
-      .catch((error) => onError(String(error)))
-      .finally(() => {
-        selectingVariant.current = false;
+    setDragging(false);
+    setSwitching(true);
+    const direction = Math.sign(dx);
+    setDragOffset(direction * 88);
+
+    try {
+      await new Promise((resolve) => window.setTimeout(resolve, 110));
+      await onSelectVariant(message.id, nextVariant.index);
+      setDragging(true);
+      setDragOffset(direction * -56);
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          setDragging(false);
+          setDragOffset(0);
+          setSwitching(false);
+        });
       });
+    } catch (error) {
+      onError(String(error));
+      settle();
+      setSwitching(false);
+    } finally {
+      selectingVariant.current = false;
+    }
   };
+
+  const cancelPointer = () => {
+    resetPointer();
+    settle();
+  };
+
+  const activePosition = getActiveVariantPosition(message);
+  const revealPosition =
+    dragOffset > 0 ? activePosition - 1 : activePosition + 1;
+  const revealVariant = message.variants[revealPosition];
+  const revealProgress = Math.min(Math.abs(dragOffset) / 56, 1);
 
   return (
     <div
-      className="touch-pan-y"
+      className="relative touch-pan-y"
       onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
-      onPointerCancel={resetPointer}
+      onPointerCancel={cancelPointer}
       onLostPointerCapture={resetPointer}
     >
-      {children}
+      <div
+        className={`pointer-events-none absolute inset-y-0 z-0 flex items-center gap-1 text-xs font-medium text-accent ${
+          dragOffset > 0 ? 'left-1' : 'right-1 flex-row-reverse'
+        }`}
+        style={{
+          opacity: revealVariant ? revealProgress : revealProgress * 0.35,
+          transform: `scale(${0.85 + revealProgress * 0.15})`,
+        }}
+        aria-hidden="true"
+      >
+        <Icon
+          name={dragOffset > 0 ? 'chevron-left' : 'chevron-right'}
+          className="size-4"
+        />
+        <span>
+          {revealVariant
+            ? `${revealPosition + 1}/${message.variants.length}`
+            : 'Край'}
+        </span>
+      </div>
+      <div
+        className={`${dragging ? '' : 'transition-[transform,opacity] duration-200 ease-out'} relative z-10`}
+        style={{
+          opacity: switching ? 0.72 : 1 - revealProgress * 0.08,
+          transform: `translate3d(${dragOffset}px, 0, 0)`,
+          willChange: dragOffset || switching ? 'transform, opacity' : 'auto',
+        }}
+      >
+        {children}
+      </div>
     </div>
   );
 }
@@ -422,6 +530,11 @@ export function MessageList({
   messages,
   provider,
   assistantName,
+  assistantAvatar,
+  userName,
+  userAvatar,
+  pendingMessage,
+  sending,
   providersAvailable,
   scrollRef,
   onBranch,
@@ -434,6 +547,11 @@ export function MessageList({
   messages: Message[];
   provider?: Provider;
   assistantName: string;
+  assistantAvatar?: string;
+  userName: string;
+  userAvatar?: string;
+  pendingMessage: string;
+  sending: boolean;
   providersAvailable: boolean;
   scrollRef: RefObject<HTMLDivElement | null>;
   onBranch: (messageId: string) => Promise<void>;
@@ -513,6 +631,16 @@ export function MessageList({
         <div className="mx-auto flex w-full max-w-3xl flex-col gap-3 sm:gap-4">
           {messages.map((message) => {
             const isUser = message.role === 'user';
+            const displayName = isUser
+              ? userName
+              : message.role === 'assistant'
+                ? assistantName
+                : 'Система';
+            const avatar = isUser
+              ? userAvatar
+              : message.role === 'assistant'
+                ? assistantAvatar
+                : undefined;
             const edit = () => requestEdit(message);
             const remove = () => {
               setError('');
@@ -534,26 +662,22 @@ export function MessageList({
                 onError={reportError}
               >
                 <article
-                  className={`group flex gap-3 ${isUser ? 'flex-row-reverse' : ''}`}
+                  className={`message-enter group flex items-start gap-2.5 sm:gap-3 ${isUser ? 'flex-row-reverse' : ''}`}
                 >
-                  <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-default text-default-foreground">
-                    <Icon
-                      name={isUser ? 'user' : 'sparkles'}
-                      className="size-4"
-                    />
-                  </span>
+                  <AppAvatar
+                    src={avatar}
+                    name={displayName}
+                    className="size-8 sm:size-9"
+                    square
+                  />
                   <div
-                    className={`flex min-w-0 max-w-[min(88%,44rem)] flex-col ${isUser ? 'items-end' : 'items-start'}`}
+                    className={`flex min-w-0 max-w-[min(91%,44rem)] flex-col sm:max-w-[min(88%,44rem)] ${isUser ? 'items-end' : 'items-start'}`}
                   >
                     <div
                       className={`mb-1 flex min-w-0 items-center gap-2 text-xs text-muted ${isUser ? 'flex-row-reverse' : ''}`}
                     >
                       <strong className="truncate font-medium text-foreground">
-                        {isUser
-                          ? 'Вы'
-                          : message.role === 'assistant'
-                            ? assistantName
-                            : 'Система'}
+                        {displayName}
                       </strong>
                       <span className="shrink-0">{message.createdAt}</span>
                       {message.remembered ? (
@@ -564,7 +688,11 @@ export function MessageList({
                     </div>
                     <Surface
                       variant={isUser ? 'tertiary' : 'default'}
-                      className={`${isMobile ? 'select-none' : 'selectable'} min-w-0 max-w-full overflow-hidden rounded-2xl px-4 py-3`}
+                      className={`${isMobile ? 'select-none' : 'selectable'} min-w-0 max-w-full overflow-hidden rounded-2xl border px-4 py-3 shadow-xs ${
+                        isUser
+                          ? 'border-accent/10 bg-accent/10'
+                          : 'border-separator'
+                      }`}
                     >
                       <MarkdownContent>{message.content}</MarkdownContent>
                     </Surface>
@@ -609,7 +737,57 @@ export function MessageList({
             );
           })}
 
-          {messages.length === 0 ? (
+          {pendingMessage ? (
+            <article className="message-enter flex flex-row-reverse items-start gap-2.5 opacity-75 sm:gap-3">
+              <AppAvatar
+                src={userAvatar}
+                name={userName}
+                className="size-8 sm:size-9"
+                square
+              />
+              <div className="flex min-w-0 max-w-[min(91%,44rem)] flex-col items-end sm:max-w-[min(88%,44rem)]">
+                <div className="mb-1 flex items-center gap-2 text-xs text-muted">
+                  <span>Отправляется</span>
+                  <strong className="font-medium text-foreground">
+                    {userName}
+                  </strong>
+                </div>
+                <Surface
+                  variant="tertiary"
+                  className="min-w-0 max-w-full overflow-hidden rounded-2xl border border-accent/10 bg-accent/10 px-4 py-3 shadow-xs"
+                >
+                  <MarkdownContent>{pendingMessage}</MarkdownContent>
+                </Surface>
+              </div>
+            </article>
+          ) : null}
+
+          {sending ? (
+            <article className="message-enter flex items-start gap-2.5 sm:gap-3">
+              <AppAvatar
+                src={assistantAvatar}
+                name={assistantName}
+                className="size-8 sm:size-9"
+                square
+              />
+              <div className="flex flex-col items-start">
+                <span className="mb-1 text-xs font-medium text-muted">
+                  {assistantName} отвечает
+                </span>
+                <Surface className="flex h-11 items-center gap-1 rounded-2xl border border-separator px-4">
+                  {[0, 1, 2].map((index) => (
+                    <span
+                      key={index}
+                      className="typing-dot size-1.5 rounded-full bg-accent"
+                      style={{ animationDelay: `${index * 140}ms` }}
+                    />
+                  ))}
+                </Surface>
+              </div>
+            </article>
+          ) : null}
+
+          {messages.length === 0 && !pendingMessage && !sending ? (
             <div className="grid min-h-[50vh] place-items-center text-center">
               <div className="max-w-md">
                 <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-accent/10 text-accent">

@@ -1,8 +1,10 @@
+import { toast } from '@heroui/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ResizeHandle } from '../../components/ResizeHandle';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { isMobilePlatform } from '../../lib/platform';
+import { galaxyItemAvatar } from '../../lib/avatar';
 import type { Chat, ChatConfigInput } from '../../types';
 import { ChatComposer } from './components/ChatComposer';
 import { ChatDialogs } from './components/ChatDialogs';
@@ -18,6 +20,8 @@ export function ChatsScreen({
   messages,
   providers,
   galaxyItems,
+  profileName,
+  profileAvatar,
   activeChatId,
   isChatOpen,
   chatSidebarWidth,
@@ -48,6 +52,7 @@ export function ChatsScreen({
   const isSinglePane = isMobile || isNarrowDesktop;
   const [query, setQuery] = useState('');
   const [draft, setDraft] = useState('');
+  const [pendingMessage, setPendingMessage] = useState('');
   const [sendError, setSendError] = useState('');
   const [working, setWorking] = useState(false);
   const [actionError, setActionError] = useState('');
@@ -76,11 +81,14 @@ export function ChatsScreen({
   const activeProvider = providers.find(
     (provider) => provider.id === activeChat?.providerId,
   );
-  const activeCharacterName =
-    galaxyItems.find(
-      (item) =>
-        item.kind === 'character' && item.id === activeChat?.characterId,
-    )?.name ?? 'Ассистент';
+  const activeCharacter = galaxyItems.find(
+    (item) => item.kind === 'character' && item.id === activeChat?.characterId,
+  );
+  const activePersona = galaxyItems.find(
+    (item) => item.kind === 'persona' && item.id === activeChat?.personaId,
+  );
+  const activeCharacterName = activeCharacter?.name ?? 'Ассистент';
+  const activeUserName = (activePersona?.name ?? profileName.trim()) || 'Вы';
 
   useEffect(() => {
     const openNewChat = () => {
@@ -126,7 +134,14 @@ export function ChatsScreen({
       window.cancelAnimationFrame(firstFrame);
       if (secondFrame) window.cancelAnimationFrame(secondFrame);
     };
-  }, [activeMessages.length, activeChat?.id, isChatOpen, isSinglePane]);
+  }, [
+    activeMessages.length,
+    activeChat?.id,
+    isChatOpen,
+    isSinglePane,
+    pendingMessage,
+    sending,
+  ]);
 
   const selectChat = (id: string) => {
     onSelectChat(id);
@@ -136,12 +151,16 @@ export function ChatsScreen({
     const value = draft.trim();
     if (!value || !activeChat || !activeProvider || sending) return;
     setSendError('');
+    setPendingMessage(value);
+    setDraft('');
     try {
       await onSend(value);
-      setDraft('');
       localStorage.removeItem(draftKey(activeChat.id));
     } catch (error) {
+      setDraft((current) => current || value);
       setSendError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setPendingMessage('');
     }
   };
 
@@ -155,6 +174,7 @@ export function ChatsScreen({
     if (action === 'duplicate' || action === 'duplicate-with-messages') {
       setWorking(true);
       void onCloneChat(chat.id, action === 'duplicate-with-messages')
+        .then(() => toast.success('Копия чата создана'))
         .catch((error) => setActionError(String(error)))
         .finally(() => setWorking(false));
       return;
@@ -167,6 +187,9 @@ export function ChatsScreen({
     if (action === 'pin') {
       setWorking(true);
       void onSetPinned(chat.id, !chat.pinned)
+        .then(() =>
+          toast.success(chat.pinned ? 'Чат откреплён' : 'Чат закреплён'),
+        )
         .catch((error) => setActionError(String(error)))
         .finally(() => setWorking(false));
       return;
@@ -181,8 +204,10 @@ export function ChatsScreen({
     try {
       if (configTarget === 'new') {
         await onNewChat(input);
+        toast.success('Новый чат создан');
       } else {
         await onUpdateChat(configTarget.id, input);
+        toast.success('Настройки чата сохранены');
       }
       setConfigTarget(null);
     } catch (error) {
@@ -200,6 +225,7 @@ export function ChatsScreen({
     try {
       await onRenameChat(renameTarget.id, title);
       setRenameTarget(null);
+      toast.success('Чат переименован');
     } catch (error) {
       setActionError(error instanceof Error ? error.message : String(error));
     } finally {
@@ -215,8 +241,10 @@ export function ChatsScreen({
       if (confirmTarget.type === 'delete') {
         localStorage.removeItem(draftKey(confirmTarget.chat.id));
         await onDeleteChat(confirmTarget.chat.id);
+        toast.success('Чат удалён');
       } else {
         await onClearChat(confirmTarget.chat.id);
+        toast.success('История чата очищена');
       }
       setConfirmTarget(null);
     } catch (error) {
@@ -230,6 +258,7 @@ export function ChatsScreen({
     <div className="flex flex-1 h-full min-w-0 overflow-hidden bg-background">
       <ChatSidebar
         chats={filteredChats}
+        galaxyItems={galaxyItems}
         activeChatId={activeChat?.id ?? ''}
         query={query}
         width={chatSidebarWidth}
@@ -257,7 +286,7 @@ export function ChatsScreen({
       ) : null}
 
       <section
-        className={`${isSinglePane && !isChatOpen ? 'hidden' : 'flex'} min-w-0 flex-1 flex-col`}
+        className={`${isSinglePane && !isChatOpen ? 'hidden' : 'flex'} ${isSinglePane && isChatOpen ? 'mobile-chat-enter' : ''} min-w-0 flex-1 flex-col`}
       >
         {activeChat ? (
           <>
@@ -272,6 +301,11 @@ export function ChatsScreen({
               messages={activeMessages}
               provider={activeProvider}
               assistantName={activeCharacterName}
+              assistantAvatar={galaxyItemAvatar(activeCharacter)}
+              userName={activeUserName}
+              userAvatar={galaxyItemAvatar(activePersona) ?? profileAvatar}
+              pendingMessage={pendingMessage}
+              sending={sending}
               providersAvailable={providers.length > 0}
               scrollRef={messageScrollRef}
               onBranch={async (messageId) => {

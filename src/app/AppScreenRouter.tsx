@@ -16,6 +16,8 @@ export function AppScreenRouter({ controller }: { controller: Controller }) {
         messages={snapshot.messages}
         providers={snapshot.providers}
         galaxyItems={snapshot.galaxyItems}
+        profileName={snapshot.settings.profileName}
+        profileAvatar={snapshot.settings.profileAvatar}
         activeChatId={controller.activeChatId}
         isChatOpen={controller.isChatOpen}
         chatSidebarWidth={snapshot.settings.chatSidebarWidth}
@@ -77,11 +79,13 @@ export function AppScreenRouter({ controller }: { controller: Controller }) {
     <ProfileScreen
       usage={snapshot.usage}
       settings={snapshot.settings}
+      galaxyItems={snapshot.galaxyItems}
       chatCount={snapshot.chats.length}
       messageCount={snapshot.messages.length}
       providerCount={snapshot.providers.length}
       appVersion={snapshot.appVersion}
-      onChangeSettings={(settings) => void controller.saveSettings(settings)}
+      onChangeSettings={controller.saveSettings}
+      onSaveGalaxyItem={controller.saveGalaxyItem}
     />
   );
 }

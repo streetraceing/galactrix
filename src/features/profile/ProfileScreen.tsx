@@ -1,134 +1,99 @@
-import { MetricGrid } from '../../components/ui/MetricGrid';
+import { Tabs } from '@heroui/react';
+import { useState } from 'react';
 import { PageHeader } from '../../components/ui/PageHeader';
-import type { AppSettings, UsagePoint } from '../../types';
-import { AppInfo } from './components/AppInfo';
-import { LayoutSettings } from './components/LayoutSettings';
-import { ScaleSettings } from './components/ScaleSettings';
-import { SettingsCard } from './components/SettingsCard';
-import { SettingSwitchRow } from './components/SettingSwitchRow';
-import { ThemeSettings } from './components/ThemeSettings';
-import { UsageChart } from './components/UsageChart';
-import { formatTokens } from './format';
+import type {
+  AppSettings,
+  GalaxyItem,
+  GalaxyItemInput,
+  UsagePoint,
+} from '../../types';
+import { IdentitySettings } from './components/IdentitySettings';
+import { ProfileOverview } from './components/ProfileOverview';
+import { ProfilePreferences } from './components/ProfilePreferences';
+
+type ProfileSection = 'overview' | 'identities' | 'settings';
 
 export function ProfileScreen({
   usage,
   settings,
+  galaxyItems,
   chatCount,
   messageCount,
   providerCount,
   appVersion,
   onChangeSettings,
+  onSaveGalaxyItem,
 }: {
   usage: UsagePoint[];
   settings: AppSettings;
+  galaxyItems: GalaxyItem[];
   chatCount: number;
   messageCount: number;
   providerCount: number;
   appVersion: string;
-  onChangeSettings: (settings: AppSettings) => void;
+  onChangeSettings: (settings: AppSettings) => Promise<boolean>;
+  onSaveGalaxyItem: (item: GalaxyItemInput) => Promise<void>;
 }) {
-  const totalTokens = usage.reduce((sum, point) => sum + point.tokens, 0);
-  const totalRequests = usage.reduce((sum, point) => sum + point.requests, 0);
-  const patch = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) =>
-    onChangeSettings({ ...settings, [key]: value });
+  const [section, setSection] = useState<ProfileSection>('overview');
 
   return (
-    <div className="page-scroll flex-1">
-      <div className="page-container flex">
+    <div className="page-scroll mobile-screen-enter flex-1">
+      <div className="page-container">
         <PageHeader
           title="Профиль"
-          description="Использование и настройки текущего устройства."
+          description="Активность, образы и настройки текущего устройства."
         />
 
-        <MetricGrid
-          metrics={[
-            { label: 'Токены за 7 дней', value: formatTokens(totalTokens) },
-            {
-              label: 'Запросы за 7 дней',
-              value: totalRequests.toLocaleString('ru-RU'),
-            },
-            {
-              label: 'Чаты',
-              value: chatCount.toLocaleString('ru-RU'),
-              note: `${messageCount} сообщений`,
-            },
-            {
-              label: 'Подключения',
-              value: providerCount.toLocaleString('ru-RU'),
-              note: 'на устройстве',
-            },
-          ]}
-        />
+        <Tabs
+          selectedKey={section}
+          onSelectionChange={(key) => setSection(String(key) as ProfileSection)}
+          className="w-full"
+        >
+          <Tabs.ListContainer className="w-full">
+            <Tabs.List
+              aria-label="Разделы профиля"
+              className="w-full *:min-w-0 *:flex-1 *:px-2 sm:*:px-4"
+            >
+              <Tabs.Tab id="overview">
+                Обзор
+                <Tabs.Indicator />
+              </Tabs.Tab>
+              <Tabs.Tab id="identities">
+                Образы
+                <Tabs.Indicator />
+              </Tabs.Tab>
+              <Tabs.Tab id="settings">
+                Настройки
+                <Tabs.Indicator />
+              </Tabs.Tab>
+            </Tabs.List>
+          </Tabs.ListContainer>
 
-        <UsageChart usage={usage} />
-
-        <div className="grid gap-4 md:grid-cols-2">
-          <SettingsCard
-            icon="settings"
-            title="Интерфейс"
-            description="Отображение и отклик приложения."
-          >
-            <SettingSwitchRow
-              label="Анимации"
-              description="Переходы и появление элементов"
-              value={settings.animations}
-              onChange={(value) => patch('animations', value)}
+          <Tabs.Panel id="overview" className="pt-5 sm:pt-6">
+            <ProfileOverview
+              usage={usage}
+              chatCount={chatCount}
+              messageCount={messageCount}
+              providerCount={providerCount}
+              galaxyItems={galaxyItems}
             />
-            <SettingSwitchRow
-              label="Виброотклик"
-              description="Используется на поддерживаемых устройствах"
-              value={settings.haptics}
-              onChange={(value) => patch('haptics', value)}
+          </Tabs.Panel>
+          <Tabs.Panel id="identities" className="pt-5 sm:pt-6">
+            <IdentitySettings
+              settings={settings}
+              galaxyItems={galaxyItems}
+              onChangeSettings={onChangeSettings}
+              onSaveGalaxyItem={onSaveGalaxyItem}
             />
-          </SettingsCard>
-
-          <SettingsCard
-            icon="chats"
-            title="Чаты"
-            description="Поведение редактора сообщений."
-          >
-            <SettingSwitchRow
-              label="Enter отправляет сообщение"
-              description="Shift+Enter добавляет новую строку"
-              value={settings.sendOnEnter}
-              onChange={(value) => patch('sendOnEnter', value)}
+          </Tabs.Panel>
+          <Tabs.Panel id="settings" className="pt-5 sm:pt-6">
+            <ProfilePreferences
+              settings={settings}
+              appVersion={appVersion}
+              onChangeSettings={onChangeSettings}
             />
-            <SettingSwitchRow
-              label="Сохранять черновики"
-              description="Отдельный черновик для каждого чата"
-              value={settings.saveDrafts}
-              onChange={(value) => patch('saveDrafts', value)}
-            />
-          </SettingsCard>
-        </div>
-
-        <ThemeSettings
-          mode={settings.themeMode}
-          variant={settings.themeVariant}
-          onModeChange={(value) => patch('themeMode', value)}
-          onVariantChange={(value) => patch('themeVariant', value)}
-        />
-
-        <div className="grid gap-4 md:grid-cols-2">
-          <ScaleSettings
-            value={settings.interfaceScale}
-            onChange={(value) => patch('interfaceScale', value)}
-          />
-          <LayoutSettings
-            sidebarWidth={settings.sidebarWidth}
-            chatSidebarWidth={settings.chatSidebarWidth}
-            onReset={() =>
-              onChangeSettings({
-                ...settings,
-                sidebarWidth: 248,
-                chatSidebarWidth: 320,
-              })
-            }
-          />
-        </div>
-        <div className="md:hidden">
-          <AppInfo version={appVersion} />
-        </div>
+          </Tabs.Panel>
+        </Tabs>
       </div>
     </div>
   );

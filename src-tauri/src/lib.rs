@@ -510,6 +510,25 @@ fn update_app_settings(
     mut settings: AppSettings,
     state: State<'_, AppState>,
 ) -> Result<AppSettings, String> {
+    settings.profile_name = settings.profile_name.trim().to_string();
+    if settings.profile_name.is_empty() {
+        settings.profile_name = "Вы".into();
+    }
+    if settings.profile_name.chars().count() > 80 {
+        return Err("Имя профиля слишком длинное".into());
+    }
+    settings.profile_avatar = settings.profile_avatar.and_then(|value| {
+        let trimmed = value.trim();
+        (!trimmed.is_empty()).then(|| trimmed.to_string())
+    });
+    if let Some(avatar) = settings.profile_avatar.as_deref() {
+        if !avatar.starts_with("data:image/") {
+            return Err("Неподдерживаемый формат изображения профиля".into());
+        }
+        if avatar.len() > 900_000 {
+            return Err("Изображение профиля слишком большое".into());
+        }
+    }
     settings.interface_scale = settings.interface_scale.clamp(0.8, 1.5);
     settings.sidebar_width = settings.sidebar_width.clamp(196, 420);
     settings.chat_sidebar_width = settings.chat_sidebar_width.clamp(248, 560);

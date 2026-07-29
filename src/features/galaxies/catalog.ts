@@ -1,12 +1,16 @@
 import type { GalaxyKind } from '../../types';
 
-export const galaxyFilters: Array<{ id: 'all' | GalaxyKind; label: string }> = [
-  { id: 'all', label: 'Все' },
+export const galaxySections: Array<{ id: GalaxyKind; label: string }> = [
   { id: 'persona', label: 'Персоны' },
   { id: 'character', label: 'Персонажи' },
   { id: 'universe', label: 'Вселенные' },
   { id: 'worldbook', label: 'Ворлдбуки' },
   { id: 'style', label: 'Стили' },
+];
+
+export const galaxyFilters: Array<{ id: 'all' | GalaxyKind; label: string }> = [
+  { id: 'all', label: 'Все' },
+  ...galaxySections,
 ];
 
 export const galaxyKindDescriptions: Record<GalaxyKind, string> = {

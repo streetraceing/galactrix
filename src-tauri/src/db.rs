@@ -107,6 +107,8 @@ fn migrate(connection: &Connection) -> Result<(), String> {
 
             CREATE TABLE IF NOT EXISTS app_settings (
                 id INTEGER PRIMARY KEY CHECK(id = 1),
+                profile_name TEXT NOT NULL DEFAULT 'Вы',
+                profile_avatar TEXT,
                 animations INTEGER NOT NULL DEFAULT 1,
                 haptics INTEGER NOT NULL DEFAULT 1,
                 compact_mode INTEGER NOT NULL DEFAULT 0,
@@ -152,6 +154,13 @@ fn migrate(connection: &Connection) -> Result<(), String> {
         "remembered",
         "INTEGER NOT NULL DEFAULT 0",
     )?;
+    ensure_column(
+        connection,
+        "app_settings",
+        "profile_name",
+        "TEXT NOT NULL DEFAULT 'Вы'",
+    )?;
+    ensure_column(connection, "app_settings", "profile_avatar", "TEXT")?;
     ensure_column(
         connection,
         "messages",
@@ -283,7 +292,7 @@ pub fn snapshot(connection: &Connection, app_version: &str) -> Result<AppSnapsho
         galaxy_items: list_galaxy_items(connection)?,
         providers: list_providers(connection)?,
         settings: get_settings(connection)?,
-        usage: weekly_usage(connection)?,
+        usage: usage_history(connection)?,
         app_version: app_version.to_owned(),
     })
 }
@@ -482,53 +491,60 @@ fn list_providers(connection: &Connection) -> Result<Vec<Provider>, String> {
 fn get_settings(connection: &Connection) -> Result<AppSettings, String> {
     connection
         .query_row(
-            "SELECT animations, haptics, compact_mode, send_on_enter, save_drafts,
+            "SELECT profile_name, profile_avatar, animations, haptics,
+                    compact_mode, send_on_enter, save_drafts,
                     interface_scale, sidebar_width, chat_sidebar_width,
                     sidebar_collapsed, theme_mode, theme_variant
              FROM app_settings WHERE id = 1",
             [],
             |row| {
                 Ok(AppSettings {
-                    animations: row.get::<_, i64>(0)? != 0,
-                    haptics: row.get::<_, i64>(1)? != 0,
-                    compact_mode: row.get::<_, i64>(2)? != 0,
-                    send_on_enter: row.get::<_, i64>(3)? != 0,
-                    save_drafts: row.get::<_, i64>(4)? != 0,
-                    interface_scale: row.get(5)?,
-                    sidebar_width: row.get(6)?,
-                    chat_sidebar_width: row.get(7)?,
-                    sidebar_collapsed: row.get::<_, i64>(8)? != 0,
-                    theme_mode: row.get(9)?,
-                    theme_variant: row.get(10)?,
+                    profile_name: row.get(0)?,
+                    profile_avatar: row.get(1)?,
+                    animations: row.get::<_, i64>(2)? != 0,
+                    haptics: row.get::<_, i64>(3)? != 0,
+                    compact_mode: row.get::<_, i64>(4)? != 0,
+                    send_on_enter: row.get::<_, i64>(5)? != 0,
+                    save_drafts: row.get::<_, i64>(6)? != 0,
+                    interface_scale: row.get(7)?,
+                    sidebar_width: row.get(8)?,
+                    chat_sidebar_width: row.get(9)?,
+                    sidebar_collapsed: row.get::<_, i64>(10)? != 0,
+                    theme_mode: row.get(11)?,
+                    theme_variant: row.get(12)?,
                 })
             },
         )
         .map_err(|error| error.to_string())
 }
 
-fn weekly_usage(connection: &Connection) -> Result<Vec<UsagePoint>, String> {
+fn usage_history(connection: &Connection) -> Result<Vec<UsagePoint>, String> {
     const DAY_SECONDS: i64 = 86_400;
     const LABELS: [&str; 7] = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 
     let today = now_unix().div_euclid(DAY_SECONDS);
-    let mut points = Vec::with_capacity(7);
-    for offset in (0..7).rev() {
+    let mut points = Vec::with_capacity(14);
+    for offset in (0..14).rev() {
         let day = today - offset;
         let start = day * DAY_SECONDS;
         let end = start + DAY_SECONDS;
-        let (tokens, requests) = connection
+        let (input_tokens, output_tokens, requests) = connection
             .query_row(
-                "SELECT COALESCE(SUM(input_tokens + output_tokens), 0),
+                "SELECT COALESCE(SUM(input_tokens), 0),
+                        COALESCE(SUM(output_tokens), 0),
                         COALESCE(SUM(request_count), 0)
                  FROM usage_events WHERE created_at >= ?1 AND created_at < ?2",
                 params![start, end],
-                |row| Ok((row.get(0)?, row.get(1)?)),
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
             )
             .map_err(|error| error.to_string())?;
         let weekday = (day + 3).rem_euclid(7) as usize;
         points.push(UsagePoint {
+            day,
             label: LABELS[weekday].into(),
-            tokens,
+            input_tokens,
+            output_tokens,
+            tokens: input_tokens + output_tokens,
             requests,
         });
     }
@@ -1670,12 +1686,15 @@ pub fn update_settings(connection: &Connection, settings: &AppSettings) -> Resul
     connection
         .execute(
             "UPDATE app_settings
-             SET animations = ?1, haptics = ?2, compact_mode = ?3,
-                 send_on_enter = ?4, save_drafts = ?5, interface_scale = ?6,
-                 sidebar_width = ?7, chat_sidebar_width = ?8,
-                 sidebar_collapsed = ?9, theme_mode = ?10, theme_variant = ?11
+             SET profile_name = ?1, profile_avatar = ?2,
+                 animations = ?3, haptics = ?4, compact_mode = ?5,
+                 send_on_enter = ?6, save_drafts = ?7, interface_scale = ?8,
+                 sidebar_width = ?9, chat_sidebar_width = ?10,
+                 sidebar_collapsed = ?11, theme_mode = ?12, theme_variant = ?13
              WHERE id = 1",
             params![
+                settings.profile_name,
+                settings.profile_avatar,
                 settings.animations as i64,
                 settings.haptics as i64,
                 settings.compact_mode as i64,

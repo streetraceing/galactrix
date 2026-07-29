@@ -142,6 +142,8 @@ pub struct ProviderModelResult {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppSettings {
+    pub profile_name: String,
+    pub profile_avatar: Option<String>,
     pub animations: bool,
     pub haptics: bool,
     pub compact_mode: bool,
@@ -158,6 +160,8 @@ pub struct AppSettings {
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
+            profile_name: "Вы".into(),
+            profile_avatar: None,
             animations: true,
             haptics: true,
             compact_mode: false,
@@ -176,7 +180,10 @@ impl Default for AppSettings {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UsagePoint {
+    pub day: i64,
     pub label: String,
+    pub input_tokens: i64,
+    pub output_tokens: i64,
     pub tokens: i64,
     pub requests: i64,
 }

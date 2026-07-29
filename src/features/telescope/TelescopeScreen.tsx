@@ -1,4 +1,4 @@
-import { Button } from '@heroui/react';
+import { Button, toast } from '@heroui/react';
 import { useState } from 'react';
 import { Icon } from '../../components/Icon';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -38,9 +38,35 @@ export function TelescopeScreen({
   ).length;
 
   const checkOne = async (id: string) => {
+    const providerName =
+      providers.find((provider) => provider.id === id)?.name ?? 'Подключение';
+    const toastId = toast(`Проверяем «${providerName}»`, {
+      isLoading: true,
+      timeout: 0,
+    });
     setCheckingId(id);
     try {
-      await onCheck(id);
+      const checked = await onCheck(id);
+      toast.close(toastId);
+      if (checked.status === 'connected') {
+        toast.success(`«${checked.name}» доступно`, {
+          description:
+            checked.latencyMs != null
+              ? `Ответ за ${checked.latencyMs} мс`
+              : 'Проверка завершена',
+        });
+      } else {
+        toast.danger(`«${checked.name}» не отвечает`, {
+          description: checked.hasSecret
+            ? 'Проверьте адрес, модель и доступность API.'
+            : 'Добавьте или обновите ключ доступа.',
+        });
+      }
+    } catch (error) {
+      toast.close(toastId);
+      toast.danger(`Не удалось проверить «${providerName}»`, {
+        description: error instanceof Error ? error.message : String(error),
+      });
     } finally {
       setCheckingId('');
     }
@@ -49,12 +75,35 @@ export function TelescopeScreen({
   const checkAll = async () => {
     if (checkingAll) return;
     setCheckingAll(true);
+    const toastId = toast('Проверяем все подключения', {
+      description: `Всего: ${providers.length}`,
+      isLoading: true,
+      timeout: 0,
+    });
+    let connected = 0;
+    let failed = 0;
     for (const provider of providers) {
       try {
-        await onCheck(provider.id);
+        const checked = await onCheck(provider.id);
+        if (checked.status === 'connected') connected += 1;
+        else failed += 1;
       } catch {
-        // Остальные подключения проверяются независимо.
+        failed += 1;
       }
+    }
+    toast.close(toastId);
+    if (failed === 0) {
+      toast.success('Все подключения доступны', {
+        description: `Успешно проверено: ${connected}`,
+      });
+    } else if (connected === 0) {
+      toast.danger('Нет доступных подключений', {
+        description: `Проблем обнаружено: ${failed}`,
+      });
+    } else {
+      toast.warning('Проверка завершена с ошибками', {
+        description: `Доступно: ${connected} · с ошибкой: ${failed}`,
+      });
     }
     setCheckingAll(false);
   };
@@ -64,8 +113,10 @@ export function TelescopeScreen({
     setDeleting(true);
     setDeleteError('');
     try {
+      const removedName = deleteTarget.name;
       await onDelete(deleteTarget.id);
       setDeleteTarget(null);
+      toast.success('Подключение удалено', { description: removedName });
     } catch (error) {
       setDeleteError(error instanceof Error ? error.message : String(error));
     } finally {
@@ -74,7 +125,7 @@ export function TelescopeScreen({
   };
 
   return (
-    <div className="page-scroll flex-1">
+    <div className="page-scroll mobile-screen-enter flex-1">
       <div className="page-container">
         <PageHeader
           title="Телескоп"

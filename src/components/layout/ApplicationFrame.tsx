@@ -52,6 +52,8 @@ export function ApplicationFrame({
           <DesktopSidebar
             activeTab={activeTab}
             chatCount={chatCount}
+            profileName={settings.profileName}
+            profileAvatar={settings.profileAvatar}
             width={settings.sidebarWidth}
             collapsed={settings.sidebarCollapsed}
             onNavigate={onNavigate}
@@ -95,6 +97,8 @@ export function ApplicationFrame({
           {isMobile && mobileNavigationVisible ? (
             <MobileBottomNavigation
               activeTab={activeTab}
+              profileName={settings.profileName}
+              profileAvatar={settings.profileAvatar}
               onNavigate={onNavigate}
             />
           ) : null}

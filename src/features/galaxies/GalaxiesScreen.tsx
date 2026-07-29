@@ -1,4 +1,4 @@
-import { Button } from '@heroui/react';
+import { Button, Chip, Tabs, toast } from '@heroui/react';
 import { useMemo, useState } from 'react';
 import { Icon } from '../../components/Icon';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -7,7 +7,11 @@ import { UiModal } from '../../components/ui/UiModal';
 import type { GalaxyItem, GalaxyItemInput, GalaxyKind } from '../../types';
 import { GalaxyCard } from './components/GalaxyCard';
 import { GalaxyEditorModal } from './components/GalaxyEditorModal';
-import { GalaxyFilterBar } from './components/GalaxyFilterBar';
+import {
+  galaxyKindDescriptions,
+  galaxyKindLabels,
+  galaxySections,
+} from './catalog';
 import { createGalaxyDraft, draftFromItem } from './model';
 
 export function GalaxiesScreen({
@@ -19,7 +23,7 @@ export function GalaxiesScreen({
   onSave: (item: GalaxyItemInput) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
 }) {
-  const [filter, setFilter] = useState<'all' | GalaxyKind>('all');
+  const [section, setSection] = useState<GalaxyKind>('persona');
   const [editing, setEditing] = useState<GalaxyItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<GalaxyItem | null>(null);
   const [draft, setDraft] = useState<GalaxyItemInput>(createGalaxyDraft());
@@ -27,10 +31,15 @@ export function GalaxiesScreen({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  const filtered = useMemo(
+  const byKind = useMemo(
     () =>
-      filter === 'all' ? items : items.filter((item) => item.kind === filter),
-    [filter, items],
+      Object.fromEntries(
+        galaxySections.map(({ id }) => [
+          id,
+          items.filter((item) => item.kind === id),
+        ]),
+      ) as Record<GalaxyKind, GalaxyItem[]>,
+    [items],
   );
   const styles = useMemo(
     () => items.filter((item) => item.kind === 'style'),
@@ -74,6 +83,9 @@ export function GalaxiesScreen({
         description: draft.description.trim(),
       });
       setModalOpen(false);
+      toast.success(editing ? 'Объект обновлён' : 'Объект добавлен', {
+        description: draft.name.trim(),
+      });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : String(caught));
     } finally {
@@ -86,9 +98,11 @@ export function GalaxiesScreen({
     setSaving(true);
     setError('');
     try {
+      const removedName = deleteTarget.name;
       await onDelete(deleteTarget.id);
       setDeleteTarget(null);
       if (editing?.id === deleteTarget.id) setModalOpen(false);
+      toast.success('Объект удалён', { description: removedName });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : String(caught));
     } finally {
@@ -97,55 +111,97 @@ export function GalaxiesScreen({
   };
 
   return (
-    <div className="page-scroll flex-1">
+    <div className="page-scroll mobile-screen-enter flex-1">
       <div className="page-container">
         <PageHeader
           title="Галактики"
           description="Персоны, персонажи, вселенные, ворлдбуки и стили переписки."
           actions={
-            <Button variant="primary" onPress={() => openCreate()} fullWidth>
-              <Icon name="plus" className="size-4" /> Создать
+            <Button
+              variant="primary"
+              onPress={() => openCreate(section)}
+              fullWidth
+            >
+              <Icon name="plus" className="size-4" /> Создать{' '}
+              {galaxyKindLabels[section].toLocaleLowerCase('ru-RU')}
             </Button>
           }
         />
 
-        <GalaxyFilterBar items={items} value={filter} onChange={setFilter} />
+        <Tabs
+          selectedKey={section}
+          onSelectionChange={(key) => setSection(String(key) as GalaxyKind)}
+          className="w-full"
+        >
+          <Tabs.ListContainer className="w-full">
+            <Tabs.List
+              aria-label="Разделы Галактики"
+              className="w-max min-w-full *:min-w-max *:flex-1 *:gap-2"
+            >
+              {galaxySections.map((entry) => (
+                <Tabs.Tab key={entry.id} id={entry.id}>
+                  {entry.label}
+                  <Chip size="sm" variant="soft" className="bg-transparent">
+                    {byKind[entry.id].length}
+                  </Chip>
+                  <Tabs.Indicator />
+                </Tabs.Tab>
+              ))}
+            </Tabs.List>
+          </Tabs.ListContainer>
 
-        {filtered.length > 0 ? (
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {filtered.map((item) => (
-              <GalaxyCard
-                key={item.id}
-                item={item}
-                onEdit={() => openEdit(item)}
-                onDuplicate={() => duplicate(item)}
-                onDelete={() => setDeleteTarget(item)}
-              />
-            ))}
-          </div>
-        ) : (
-          <EmptyState
-            icon="galaxies"
-            title={
-              items.length === 0 ? 'Библиотека пуста' : 'Ничего не найдено'
-            }
-            description={
-              items.length === 0
-                ? 'Создайте контекст, который можно будет подключать к чатам.'
-                : 'В выбранной категории пока нет объектов.'
-            }
-            action={
-              items.length === 0
-                ? {
-                    label: 'Создать объект',
-                    onPress: () => openCreate(),
-                    icon: <Icon name="plus" className="size-4" />,
-                  }
-                : undefined
-            }
-            compact
-          />
-        )}
+          {galaxySections.map((entry) => {
+            const sectionItems = byKind[entry.id];
+            return (
+              <Tabs.Panel key={entry.id} id={entry.id} className="pt-5 sm:pt-6">
+                <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+                  <div>
+                    <h2 className="section-title">{entry.label}</h2>
+                    <p className="section-description max-w-3xl">
+                      {galaxyKindDescriptions[entry.id]}
+                    </p>
+                  </div>
+                  <span className="text-xs text-muted">
+                    {sectionItems.length.toLocaleString('ru-RU')} в библиотеке
+                  </span>
+                </div>
+
+                {sectionItems.length > 0 ? (
+                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                    {sectionItems.map((item, index) => (
+                      <div
+                        key={item.id}
+                        className="mobile-card-enter"
+                        style={{ animationDelay: `${index * 45}ms` }}
+                      >
+                        <GalaxyCard
+                          item={item}
+                          onEdit={() => openEdit(item)}
+                          onDuplicate={() => duplicate(item)}
+                          onDelete={() => setDeleteTarget(item)}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <EmptyState
+                    icon="galaxies"
+                    title={`Раздел «${entry.label}» пуст`}
+                    description={galaxyKindDescriptions[entry.id]}
+                    action={{
+                      label: `Создать ${galaxyKindLabels[
+                        entry.id
+                      ].toLocaleLowerCase('ru-RU')}`,
+                      onPress: () => openCreate(entry.id),
+                      icon: <Icon name="plus" className="size-4" />,
+                    }}
+                    compact
+                  />
+                )}
+              </Tabs.Panel>
+            );
+          })}
+        </Tabs>
       </div>
 
       <GalaxyEditorModal

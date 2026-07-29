@@ -87,6 +87,7 @@ export function normalizeData(
   switch (kind) {
     case 'persona':
       return {
+        avatar: imageValue(value.avatar),
         gender: stringValue(value.gender),
         age: stringValue(value.age),
         pronouns: stringValue(value.pronouns),
@@ -105,6 +106,7 @@ export function normalizeData(
 
     case 'character':
       return {
+        avatar: imageValue(value.avatar),
         definitionSections: normalizeSections(value.definitionSections),
         stylePreset: normalizeStylePreset(value.stylePreset),
         styleItemId: stringValue(value.styleItemId) || undefined,
@@ -155,6 +157,11 @@ function normalizeStylePreset(value: unknown): StylePreset {
 
 function stringValue(value: unknown) {
   return typeof value === 'string' ? value : '';
+}
+
+function imageValue(value: unknown) {
+  const source = stringValue(value);
+  return source.startsWith('data:image/') ? source : undefined;
 }
 
 function objectArray(value: unknown): Array<Record<string, unknown>> {

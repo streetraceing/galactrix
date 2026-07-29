@@ -20,6 +20,8 @@ export type ChatsScreenProps = {
   messages: Message[];
   providers: Provider[];
   galaxyItems: GalaxyItem[];
+  profileName: string;
+  profileAvatar?: string;
   activeChatId: string;
   isChatOpen: boolean;
   chatSidebarWidth: number;

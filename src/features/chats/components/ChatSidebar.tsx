@@ -1,12 +1,13 @@
 import { Button, Chip, SearchField } from '@heroui/react';
 import type { CSSProperties } from 'react';
 import { Icon } from '../../../components/Icon';
-import type { Chat } from '../../../types';
+import type { Chat, GalaxyItem } from '../../../types';
 import type { ChatAction } from '../types';
 import { ChatListItem } from './ChatListItem';
 
 export function ChatSidebar({
   chats,
+  galaxyItems,
   activeChatId,
   query,
   width,
@@ -18,6 +19,7 @@ export function ChatSidebar({
   onAction,
 }: {
   chats: Chat[];
+  galaxyItems: GalaxyItem[];
   activeChatId: string;
   query: string;
   width: number;
@@ -30,7 +32,7 @@ export function ChatSidebar({
 }) {
   return (
     <aside
-      className={`${isSinglePane ? (isVisibleMobile ? 'flex w-full' : 'hidden') : 'flex w-[min(var(--chat-sidebar-width),36vw)] min-[1300px]:w-(--chat-sidebar-width)'} h-full shrink-0 flex-col border-r border-separator bg-background`}
+      className={`${isSinglePane ? (isVisibleMobile ? 'mobile-screen-enter flex w-full' : 'hidden') : 'flex w-[min(var(--chat-sidebar-width),36vw)] min-[1300px]:w-(--chat-sidebar-width)'} h-full shrink-0 flex-col border-r border-separator bg-background`}
       style={{ '--chat-sidebar-width': `${width}px` } as CSSProperties}
     >
       <header className="flex items-start gap-3 px-4 pb-3 pt-4">
@@ -79,6 +81,7 @@ export function ChatSidebar({
           <ChatListItem
             key={chat.id}
             chat={chat}
+            galaxyItems={galaxyItems}
             isActive={chat.id === activeChatId}
             onSelect={onSelect}
             onAction={onAction}

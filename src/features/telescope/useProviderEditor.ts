@@ -1,3 +1,4 @@
+import { toast } from '@heroui/react';
 import { useMemo, useState } from 'react';
 import { providerCatalog } from '../../data';
 import type {
@@ -103,7 +104,7 @@ export function useProviderEditor({
     setSaving(true);
     setError('');
     try {
-      await onSave(
+      const saved = await onSave(
         {
           ...form,
           name: form.name.trim(),
@@ -113,6 +114,9 @@ export function useProviderEditor({
         },
         token.trim() || undefined,
       );
+      toast.success(`«${saved.name}» сохранено`, {
+        description: saved.model,
+      });
       setIsOpen(false);
       setStep(1);
       resetTransient();

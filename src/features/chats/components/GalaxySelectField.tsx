@@ -1,5 +1,7 @@
 import { Label, ListBox, Select } from '@heroui/react';
 import type { Key } from 'react';
+import { AppAvatar } from '../../../components/ui/AppAvatar';
+import { galaxyItemAvatar } from '../../../lib/avatar';
 import type { GalaxyItem } from '../../../types';
 
 const NONE_KEY = '__none__';
@@ -35,8 +37,20 @@ export function GalaxySelectField({
       >
         <Select.Trigger className="min-w-0 overflow-hidden">
           <Select.Value className="min-w-0 flex-1 overflow-hidden">
-            <span className="block min-w-0 truncate">
-              {selectedItem?.name ?? placeholder}
+            <span className="flex min-w-0 items-center gap-2">
+              {selectedItem &&
+              (selectedItem.kind === 'persona' ||
+                selectedItem.kind === 'character') ? (
+                <AppAvatar
+                  src={galaxyItemAvatar(selectedItem)}
+                  name={selectedItem.name}
+                  className="size-6"
+                  square
+                />
+              ) : null}
+              <span className="block min-w-0 flex-1 truncate">
+                {selectedItem?.name ?? placeholder}
+              </span>
             </span>
           </Select.Value>
           <Select.Indicator className="shrink-0" />
@@ -49,6 +63,14 @@ export function GalaxySelectField({
             </ListBox.Item>
             {items.map((item) => (
               <ListBox.Item key={item.id} id={item.id} textValue={item.name}>
+                {item.kind === 'persona' || item.kind === 'character' ? (
+                  <AppAvatar
+                    src={galaxyItemAvatar(item)}
+                    name={item.name}
+                    className="size-8"
+                    square
+                  />
+                ) : null}
                 <span className="min-w-0 flex-1 overflow-hidden">
                   <strong className="block truncate text-sm font-medium">
                     {item.name}

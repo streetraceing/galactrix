@@ -1,3 +1,4 @@
+import { Toast } from '@heroui/react';
 import { ThemeProvider as NextThemesProvider } from 'next-themes';
 import type { ReactNode } from 'react';
 
@@ -13,6 +14,12 @@ export function Providers({ children }: { children: ReactNode }) {
       themes={['light', 'dark']}
     >
       {children}
+      <Toast.Provider
+        placement="top end"
+        width="min(26rem, calc(100vw - 1rem))"
+        maxVisibleToasts={3}
+        className="top-[max(0.5rem,env(safe-area-inset-top))]"
+      />
     </NextThemesProvider>
   );
 }

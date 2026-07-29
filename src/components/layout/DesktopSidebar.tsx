@@ -4,10 +4,13 @@ import { navigationItems } from '../../app/navigation';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import type { TabId } from '../../types';
 import { Icon } from '../Icon';
+import { AppAvatar } from '../ui/AppAvatar';
 
 export function DesktopSidebar({
   activeTab,
   chatCount,
+  profileName,
+  profileAvatar,
   width,
   collapsed,
   onNavigate,
@@ -15,6 +18,8 @@ export function DesktopSidebar({
 }: {
   activeTab: TabId;
   chatCount: number;
+  profileName: string;
+  profileAvatar?: string;
   width: number;
   collapsed: boolean;
   onNavigate: (tab: TabId) => void;
@@ -48,7 +53,15 @@ export function DesktopSidebar({
             aria-label={item.label}
             onPress={() => onNavigate(item.id)}
           >
-            <Icon name={item.icon} className="size-5 shrink-0" />
+            {item.id === 'profile' ? (
+              <AppAvatar
+                src={profileAvatar}
+                name={profileName}
+                className="size-6"
+              />
+            ) : (
+              <Icon name={item.icon} className="size-5 shrink-0" />
+            )}
             <span className="min-w-0 flex-1 truncate text-left text-sm font-medium group-data-collapsed/sidebar:hidden">
               {item.label}
             </span>

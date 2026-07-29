@@ -1,17 +1,21 @@
 import { Chip, Surface } from '@heroui/react';
 import { Icon } from '../../../components/Icon';
-import type { Chat } from '../../../types';
+import { AppAvatar } from '../../../components/ui/AppAvatar';
+import { galaxyItemAvatar } from '../../../lib/avatar';
+import type { Chat, GalaxyItem } from '../../../types';
 import type { ChatAction } from '../types';
 import { markdownToPreview } from '../utils';
 import { ChatActions } from './ChatActions';
 
 export function ChatListItem({
   chat,
+  galaxyItems,
   isActive,
   onSelect,
   onAction,
 }: {
   chat: Chat;
+  galaxyItems: GalaxyItem[];
   isActive: boolean;
   onSelect: (id: string) => void;
   onAction: (action: ChatAction, chat: Chat) => void;
@@ -21,6 +25,9 @@ export function ChatListItem({
     Number(Boolean(chat.characterId)) +
     Number(Boolean(chat.universeId)) +
     chat.worldbookIds.length;
+  const character = galaxyItems.find(
+    (item) => item.kind === 'character' && item.id === chat.characterId,
+  );
 
   return (
     <ChatActions chat={chat} onAction={onAction}>
@@ -37,9 +44,12 @@ export function ChatListItem({
           className="flex w-full min-w-0 items-center gap-3 rounded-xl px-3 py-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus"
           onClick={() => onSelect(chat.id)}
         >
-          <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-accent/10 text-accent">
-            <Icon name="chats" className="size-4" />
-          </span>
+          <AppAvatar
+            src={galaxyItemAvatar(character)}
+            name={character?.name ?? chat.title}
+            className="size-10"
+            square
+          />
           <span className="min-w-0 flex-1">
             <span className="flex min-w-0 items-center gap-2">
               <strong className="min-w-0 flex-1 truncate text-sm font-semibold">
