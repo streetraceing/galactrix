@@ -44,7 +44,7 @@ import {
 } from '../i18n';
 
 const defaultSettings: AppSettings = {
-  profileName: 'Вы',
+  profileName: '',
   profileAvatar: undefined,
   animations: true,
   haptics: true,

@@ -1,6 +1,7 @@
 import { Spinner } from '@heroui/react';
 import type { ReactNode } from 'react';
 import { isMobilePlatform } from '../../lib/platform';
+import { resolveProfileName } from '../../lib/profile';
 import type { AppSettings, Chat, TabId } from '../../types';
 import { ResizeHandle } from '../ResizeHandle';
 import { AppNotice } from './AppNotice';
@@ -38,6 +39,10 @@ export function ApplicationFrame({
 }) {
   const { t } = useTranslation('common');
   const isMobile = isMobilePlatform();
+  const displayProfileName = resolveProfileName(
+    settings.profileName,
+    t('user.defaultName'),
+  );
 
   return (
     <main className="flex h-full min-w-0 flex-col overflow-hidden bg-background text-foreground">
@@ -58,7 +63,7 @@ export function ApplicationFrame({
           <DesktopSidebar
             activeTab={activeTab}
             chatCount={chats.length}
-            profileName={settings.profileName}
+            profileName={displayProfileName}
             profileAvatar={settings.profileAvatar}
             width={settings.sidebarWidth}
             collapsed={settings.sidebarCollapsed}
@@ -102,7 +107,7 @@ export function ApplicationFrame({
           {isMobile && mobileNavigationVisible ? (
             <MobileBottomNavigation
               activeTab={activeTab}
-              profileName={settings.profileName}
+              profileName={displayProfileName}
               profileAvatar={settings.profileAvatar}
               onNavigate={onNavigate}
             />

@@ -68,7 +68,6 @@
   "chatsScreen.createAChatAndChooseItsRoleplayContextImmediately": "Создайте чат и сразу выберите его ролевой контекст.",
   "chatsScreen.newChatCreated": "Новый чат создан",
   "chatsScreen.noChats": "Нет чатов",
-  "chatsScreen.you": "Вы",
   "conversationHeader.backToChats": "К списку чатов",
   "conversationHeader.configureChatContext": "Настроить контекст чата",
   "conversationHeader.connection": "Подключение",

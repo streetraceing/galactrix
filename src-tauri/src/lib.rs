@@ -254,6 +254,10 @@ fn approximate_token_count(value: &str) -> i64 {
 
 #[tauri::command]
 fn preview_prompt(input: PromptPreviewInput) -> PromptPreviewResult {
+    let fallback_user_name = match input.response_language.as_deref() {
+        Some("ru") => "Пользователь",
+        _ => "User",
+    };
     let user_name = input
         .user_name
         .as_deref()
@@ -266,7 +270,7 @@ fn preview_prompt(input: PromptPreviewInput) -> PromptPreviewResult {
                 .map(|item| item.name.trim())
                 .filter(|name| !name.is_empty())
         })
-        .unwrap_or("Пользователь")
+        .unwrap_or(fallback_user_name)
         .to_owned();
     let character_name = input
         .character_name
@@ -675,9 +679,6 @@ fn update_app_settings(
     state: State<'_, AppState>,
 ) -> CommandResult<AppSettings> {
     settings.profile_name = settings.profile_name.trim().to_string();
-    if settings.profile_name.is_empty() {
-        settings.profile_name = "Вы".into();
-    }
     if settings.profile_name.chars().count() > 80 {
         return Err("Имя профиля слишком длинное".into());
     }

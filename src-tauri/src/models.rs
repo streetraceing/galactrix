@@ -264,7 +264,7 @@ pub struct AppSettings {
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
-            profile_name: "Вы".into(),
+            profile_name: String::new(),
             profile_avatar: None,
             animations: true,
             haptics: true,

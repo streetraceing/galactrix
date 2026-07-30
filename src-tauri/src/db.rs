@@ -108,7 +108,7 @@ fn migrate(connection: &Connection) -> Result<(), String> {
 
             CREATE TABLE IF NOT EXISTS app_settings (
                 id INTEGER PRIMARY KEY CHECK(id = 1),
-                profile_name TEXT NOT NULL DEFAULT 'Вы',
+                profile_name TEXT NOT NULL DEFAULT '',
                 profile_avatar TEXT,
                 animations INTEGER NOT NULL DEFAULT 1,
                 haptics INTEGER NOT NULL DEFAULT 1,
@@ -139,7 +139,11 @@ fn migrate(connection: &Connection) -> Result<(), String> {
                 FOREIGN KEY(provider_id) REFERENCES providers(id) ON DELETE SET NULL
             );
 
-            INSERT OR IGNORE INTO app_settings (id) VALUES (1);
+            CREATE TABLE IF NOT EXISTS app_migrations (
+                name TEXT PRIMARY KEY
+            );
+
+            INSERT OR IGNORE INTO app_settings (id, profile_name) VALUES (1, '');
             "#,
         )
         .map_err(|error| error.to_string())?;
@@ -170,7 +174,7 @@ fn migrate(connection: &Connection) -> Result<(), String> {
         connection,
         "app_settings",
         "profile_name",
-        "TEXT NOT NULL DEFAULT 'Вы'",
+        "TEXT NOT NULL DEFAULT ''",
     )?;
     ensure_column(connection, "app_settings", "profile_avatar", "TEXT")?;
     ensure_column(
@@ -274,7 +278,30 @@ fn migrate(connection: &Connection) -> Result<(), String> {
             "#,
         )
         .map_err(|error| error.to_string())?;
+    migrate_legacy_profile_name(connection)?;
     migrate_prompt_configs(connection)?;
+    Ok(())
+}
+
+fn migrate_legacy_profile_name(connection: &Connection) -> Result<(), String> {
+    connection
+        .execute_batch(
+            r#"
+            BEGIN IMMEDIATE;
+            UPDATE app_settings
+            SET profile_name = ''
+            WHERE profile_name = 'Вы'
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM app_migrations
+                  WHERE name = 'profile-name-placeholder-v1'
+              );
+            INSERT OR IGNORE INTO app_migrations (name)
+            VALUES ('profile-name-placeholder-v1');
+            COMMIT;
+            "#,
+        )
+        .map_err(|error| error.to_string())?;
     Ok(())
 }
 

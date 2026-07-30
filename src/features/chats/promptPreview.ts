@@ -85,6 +85,7 @@ export function promptPreviewFromDraft(
     promptSets: [],
     promptConfig: clonePromptConfig(defaultPromptConfig),
     rememberedMessages: [],
+    userName: i18next.t('user.defaultName', { ns: 'common' }),
     responseLanguage: getLocale(),
   };
 

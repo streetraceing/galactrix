@@ -9,6 +9,7 @@ import {
   galaxyInputAvatar,
   withAvatar,
 } from '../../../lib/avatar';
+import { resolveProfileName } from '../../../lib/profile';
 import type { AppSettings, GalaxyItem, GalaxyItemInput } from '../../../types';
 import { galaxyKindLabels } from '../../galaxies/catalog';
 import { draftFromItem } from '../../galaxies/model';
@@ -25,7 +26,7 @@ export function IdentitySettings({
   onChangeSettings: (settings: AppSettings) => Promise<boolean>;
   onSaveGalaxyItem: (input: GalaxyItemInput) => Promise<void>;
 }) {
-  const { t } = useTranslation('profile');
+  const { t } = useTranslation(['profile', 'common']);
   const [profileName, setProfileName] = useState(settings.profileName);
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingItemId, setSavingItemId] = useState('');
@@ -35,6 +36,11 @@ export function IdentitySettings({
         (item) => item.kind === 'persona' || item.kind === 'character',
       ),
     [galaxyItems],
+  );
+  const normalizedProfileName = profileName.trim();
+  const displayProfileName = resolveProfileName(
+    settings.profileName,
+    t('user.defaultName', { ns: 'common' }),
   );
 
   useEffect(() => setProfileName(settings.profileName), [settings.profileName]);
@@ -84,7 +90,7 @@ export function IdentitySettings({
         <div className="grid gap-5 md:grid-cols-[auto_minmax(0,1fr)] md:items-center">
           <AvatarPicker
             value={settings.profileAvatar}
-            name={settings.profileName}
+            name={displayProfileName}
             disabled={savingProfile}
             description={t(
               'identitySettings.thePhotoIsCroppedToASquareAndStoredOnly',
@@ -108,7 +114,7 @@ export function IdentitySettings({
                 variant="secondary"
                 value={profileName}
                 maxLength={80}
-                placeholder={t('identitySettings.howYouAppearInChats')}
+                placeholder={t('user.defaultName', { ns: 'common' })}
                 onChange={(event) => setProfileName(event.target.value)}
               />
               <Button
@@ -116,11 +122,10 @@ export function IdentitySettings({
                 className="sm:shrink-0"
                 isPending={savingProfile}
                 isDisabled={
-                  !profileName.trim() ||
-                  profileName.trim() === settings.profileName
+                  normalizedProfileName === settings.profileName.trim()
                 }
                 onPress={() =>
-                  void saveProfile({ profileName: profileName.trim() })
+                  void saveProfile({ profileName: normalizedProfileName })
                 }
               >
                 <Icon name="check" className="size-4" />

@@ -6,6 +6,7 @@ import { useVisualViewportMetrics } from '../../hooks/useVisualViewportMetrics';
 import { toast } from '../../i18n/toast';
 import { galaxyItemAvatar } from '../../lib/avatar';
 import { isAndroidPlatform, isMobilePlatform } from '../../lib/platform';
+import { resolveProfileName } from '../../lib/profile';
 import type { Chat, ChatConfigInput } from '../../types';
 import { ChatComposer } from './components/ChatComposer';
 import { ChatDialogs } from './components/ChatDialogs';
@@ -14,6 +15,7 @@ import { ChatSidebar } from './components/ChatSidebar';
 import { ConversationHeader } from './components/ConversationHeader';
 import { MessageList } from './components/MessageList';
 import type { ChatAction, ChatsScreenProps } from './types';
+import { draftKey } from './utils';
 import { useTranslation } from 'react-i18next';
 
 export function ChatsScreen({
@@ -52,7 +54,7 @@ export function ChatsScreen({
   responseLanguage,
   sending,
 }: ChatsScreenProps) {
-  const { t } = useTranslation('chats');
+  const { t } = useTranslation(['chats', 'common']);
   const isMobile = isMobilePlatform();
   const usesNativeImeInsets = isAndroidPlatform();
   const isNarrowDesktop = useMediaQuery('(max-width: 820px)');
@@ -93,8 +95,11 @@ export function ChatsScreen({
   );
   const activeCharacterName =
     activeCharacter?.name ?? t('chatsScreen.assistant');
-  const activeUserName =
-    (activePersona?.name ?? profileName.trim()) || t('chatsScreen.you');
+  const displayProfileName = resolveProfileName(
+    profileName,
+    t('user.defaultName', { ns: 'common' }),
+  );
+  const activeUserName = activePersona?.name || displayProfileName;
   const shouldAutoFocusComposer =
     !isMobile &&
     (!isSinglePane || isChatOpen) &&
@@ -361,7 +366,7 @@ export function ChatsScreen({
         chat={configTarget === 'new' ? null : configTarget}
         galaxyItems={galaxyItems}
         providers={providers}
-        profileName={profileName}
+        profileName={displayProfileName}
         responseLanguage={responseLanguage}
         rememberedMessages={configRememberedMessages}
         saving={working}

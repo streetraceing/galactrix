@@ -65,7 +65,7 @@ export function AvatarPicker({
         <div className="flex flex-wrap gap-2">
           <Button
             size="sm"
-            variant={compact ? 'ghost' : 'secondary'}
+            variant={compact ? 'tertiary' : 'secondary'}
             isPending={processing}
             isDisabled={disabled}
             onPress={() => inputRef.current?.click()}

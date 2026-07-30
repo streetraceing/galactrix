@@ -68,7 +68,6 @@
   "chatsScreen.createAChatAndChooseItsRoleplayContextImmediately": "Create a chat and choose its roleplay context immediately.",
   "chatsScreen.newChatCreated": "New chat created",
   "chatsScreen.noChats": "No chats",
-  "chatsScreen.you": "You",
   "conversationHeader.backToChats": "Back to chats",
   "conversationHeader.configureChatContext": "Configure chat context",
   "conversationHeader.connection": "Connection",
