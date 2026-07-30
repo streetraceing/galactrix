@@ -388,7 +388,7 @@ export function GalaxiesScreen({
           </>
         }
       >
-        <div className="space-y-5">
+        <div className="space-y-4">
           <ExportSelectionList
             items={items.map((item) => ({
               id: item.id,
@@ -397,12 +397,10 @@ export function GalaxiesScreen({
             }))}
             selectedIds={exportIds}
             onChange={(ids) => setExportIds(includeExportDependencies(ids))}
-          />
-          <p className="-mt-3 text-xs leading-5 text-muted">
-            {t(
+            hint={t(
               'galaxiesScreen.linkedStylesAndSetsAreAddedAutomaticallyForSelectedCharacters',
             )}
-          </p>
+          />
           <ExportDestinationPicker
             value={exportDestination}
             onChange={setExportDestination}

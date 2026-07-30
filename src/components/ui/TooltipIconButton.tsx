@@ -4,6 +4,9 @@ import { AppTooltip } from './AppTooltip';
 
 type ButtonProps = ComponentProps<typeof Button>;
 type TooltipPlacement = ComponentProps<typeof AppTooltip>['placement'];
+type TooltipTriggerClassName = ComponentProps<
+  typeof AppTooltip
+>['triggerClassName'];
 
 export type TooltipIconButtonProps = Omit<
   ButtonProps,
@@ -14,6 +17,7 @@ export type TooltipIconButtonProps = Omit<
   tooltipPlacement?: TooltipPlacement;
   tooltipDisabled?: boolean;
   tooltipDelay?: number;
+  tooltipTriggerClassName?: TooltipTriggerClassName;
 };
 
 export function TooltipIconButton({
@@ -22,6 +26,7 @@ export function TooltipIconButton({
   tooltipPlacement = 'top',
   tooltipDisabled = false,
   tooltipDelay,
+  tooltipTriggerClassName,
   ...buttonProps
 }: TooltipIconButtonProps) {
   return (
@@ -30,6 +35,7 @@ export function TooltipIconButton({
       placement={tooltipPlacement}
       disabled={tooltipDisabled}
       delay={tooltipDelay}
+      triggerClassName={tooltipTriggerClassName}
     >
       <Button {...buttonProps} isIconOnly aria-label={label}>
         {children}

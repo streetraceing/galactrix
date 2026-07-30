@@ -515,6 +515,93 @@ async fn regenerate_message(
 }
 
 #[tauri::command]
+async fn continue_message(
+    message_id: String,
+    generation_id: String,
+    response_language: Option<String>,
+    state: State<'_, AppState>,
+) -> CommandResult<()> {
+    let (provider, history, system_prompt, original_content) = {
+        let database = state.database.lock().map_err(CommandError::internal)?;
+        let (chat_id, history) = db::messages_through_message(&database, &message_id)?;
+        let original_content = history
+            .last()
+            .filter(|message| message.role == "assistant")
+            .map(|message| message.content.clone())
+            .ok_or_else(|| CommandError::new(keys::MESSAGE_CONTINUE_ASSISTANT_ONLY))?;
+        let provider_id = db::chat_provider_id(&database, &chat_id)?;
+        let system_prompt = build_chat_system_prompt(
+            &database,
+            &chat_id,
+            &history,
+            response_language.as_deref(),
+        )?;
+        (
+            db::get_provider(&database, &provider_id)?,
+            history,
+            system_prompt,
+            original_content,
+        )
+    };
+    let secret = secret_for_saved_provider(&provider)?;
+    let cancellation = register_generation(&state, &generation_id)?;
+    let instruction = response_rules::continuation_instruction(response_language.as_deref());
+    let completion = complete_cancellable(
+        &provider,
+        secret.as_deref(),
+        &history,
+        system_prompt.as_deref(),
+        Some(instruction),
+        cancellation,
+    )
+    .await;
+    finish_generation(&state, &generation_id);
+    let completion = match completion {
+        Ok(completion) => completion,
+        Err(error) => {
+            if error.key != keys::PROVIDER_REQUEST_CANCELLED {
+                if let Ok(database) = state.database.lock() {
+                    let _ = db::update_provider_health(&database, &provider.id, "error", None);
+                }
+            }
+            return Err(error);
+        }
+    };
+
+    let continuation = response_rules::normalize_response(&completion.content);
+    if continuation.is_empty() {
+        if let Ok(database) = state.database.lock() {
+            let _ = db::update_provider_health(&database, &provider.id, "error", None);
+        }
+        return Err(CommandError::new(keys::PROVIDER_EMPTY_RESPONSE));
+    }
+    let response_content = response_rules::merge_continuation(&original_content, &continuation);
+
+    let database = state.database.lock().map_err(CommandError::internal)?;
+    db::append_message_variant(
+        &database,
+        &message_id,
+        &Uuid::new_v4().to_string(),
+        &response_content,
+    )?;
+    db::record_usage(
+        &database,
+        &Uuid::new_v4().to_string(),
+        &provider.id,
+        &provider.model,
+        completion.input_tokens,
+        completion.output_tokens,
+    )?;
+    db::update_provider_health(
+        &database,
+        &provider.id,
+        "connected",
+        Some(completion.latency_ms),
+    )?;
+    Ok(())
+}
+
+#[tauri::command]
 async fn send_chat_message(
     chat_id: String,
     content: String,
@@ -1103,6 +1190,7 @@ pub fn run() {
             select_message_variant,
             preview_prompt,
             regenerate_message,
+            continue_message,
             send_chat_message,
             upsert_galaxy_item,
             import_galaxy_items,

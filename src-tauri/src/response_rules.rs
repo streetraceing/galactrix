@@ -43,15 +43,44 @@ pub fn normalize_response(content: &str) -> String {
     content.trim().to_owned()
 }
 
-#[cfg(test)]
-mod tests {
-    use super::normalize_response;
-
-    #[test]
-    fn trims_edges_without_rewriting_model_content() {
-        assert_eq!(
-            normalize_response("  *smiles* Hello 🙂\n\n\n**important**  "),
-            "*smiles* Hello 🙂\n\n\n**important**"
-        );
+pub fn continuation_instruction(response_language: Option<&str>) -> &'static str {
+    if response_language.is_some_and(|language| language.eq_ignore_ascii_case("ru")) {
+        "Продолжи предыдущий ответ ассистента естественно с того места, где он закончился. Не повторяй и не пересказывай уже написанный текст. Верни только продолжение без вступления и пояснений."
+    } else {
+        "Continue the previous assistant response naturally from where it ended. Do not repeat or summarize the existing text. Return only the continuation without an introduction or explanation."
     }
 }
+
+pub fn merge_continuation(original: &str, continuation: &str) -> String {
+    let original = original.trim_end();
+    let continuation = continuation.trim_start();
+    if original.is_empty() {
+        return continuation.to_owned();
+    }
+    if continuation.is_empty() {
+        return original.to_owned();
+    }
+
+    let starts_with_punctuation = continuation.chars().next().is_some_and(|character| {
+        matches!(character, ',' | '.' | '!' | '?' | ':' | ';' | '…')
+    });
+    let ends_complete_thought = original.chars().next_back().is_some_and(|character| {
+        matches!(
+            character,
+            '.' | '!' | '?' | '…' | ':' | ';' | ')' | ']' | '}' | '"' | '»'
+        )
+    });
+    let separator = if starts_with_punctuation {
+        ""
+    } else if ends_complete_thought {
+        "\n\n"
+    } else {
+        " "
+    };
+
+    format!("{original}{separator}{continuation}")
+}
+
+#[cfg(test)]
+#[path = "../../test/rust/response_rules.rs"]
+mod tests;

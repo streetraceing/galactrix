@@ -3,7 +3,7 @@ import test from 'node:test';
 import {
   safeMarkdownImageSrc,
   safeMarkdownLinkHref,
-} from './safeMarkdownUrl.ts';
+} from '../../src/lib/safeMarkdownUrl.ts';
 
 test('allows expected external links and anchors', () => {
   assert.equal(

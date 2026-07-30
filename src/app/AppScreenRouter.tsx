@@ -47,6 +47,7 @@ export function AppScreenRouter({ controller }: { controller: Controller }) {
         onDeleteMessage={controller.removeMessage}
         onRememberMessage={controller.rememberMessage}
         onRegenerateMessage={controller.regenerateExistingMessage}
+        onContinueMessage={controller.continueExistingMessage}
         onSelectMessageVariant={controller.chooseMessageVariant}
         onSend={controller.sendMessage}
         onCancelGeneration={controller.cancelCurrentGeneration}

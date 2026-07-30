@@ -44,6 +44,7 @@ export function ChatsScreen({
   onDeleteMessage,
   onRememberMessage,
   onRegenerateMessage,
+  onContinueMessage,
   onSelectMessageVariant,
   onSend,
   onCancelGeneration,
@@ -360,6 +361,7 @@ export function ChatsScreen({
               onDelete={onDeleteMessage}
               onRemember={onRememberMessage}
               onRegenerate={onRegenerateMessage}
+              onContinue={onContinueMessage}
               onSelectVariant={onSelectMessageVariant}
             />
             <ChatComposer

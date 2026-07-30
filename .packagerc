@@ -29,7 +29,9 @@
     "npm install",
     "npm run prettier:write",
     "npm run typecheck",
-    "npm run lint:fix"
+    "npm run lint:fix",
+    "npm run test",
+    "npm run test:rust"
   ],
   "deletePackageOnApply": true,
   "deleteSourcePackageOnApply": true

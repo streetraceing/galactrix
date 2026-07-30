@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { formatRelativeTimeForLocale } from './relativeTime.ts';
+import { formatRelativeTimeForLocale } from '../../src/i18n/relativeTime.ts';
 
 test('formats past relative time without a leading minus sign', () => {
   const value = formatRelativeTimeForLocale(700, 1_000, 'ru');

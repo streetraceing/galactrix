@@ -46,6 +46,7 @@ export type ChatsScreenProps = {
   onDeleteMessage: (messageId: string) => Promise<void>;
   onRememberMessage: (messageId: string, remembered: boolean) => Promise<void>;
   onRegenerateMessage: (messageId: string) => Promise<void>;
+  onContinueMessage: (messageId: string) => Promise<void>;
   onSelectMessageVariant: (
     messageId: string,
     variantIndex: number,

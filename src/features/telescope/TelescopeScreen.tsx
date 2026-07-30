@@ -404,7 +404,7 @@ export function TelescopeScreen({
           </>
         }
       >
-        <div className="space-y-5">
+        <div className="space-y-4">
           <ExportSelectionList
             items={providers.map((provider) => ({
               id: provider.id,
@@ -414,14 +414,14 @@ export function TelescopeScreen({
             selectedIds={exportIds}
             onChange={setExportIds}
           />
-          <section>
-            <h3 className="mb-2 text-sm font-semibold">
+          <Surface className="rounded-2xl border border-separator bg-surface-secondary/50 p-4 sm:p-5">
+            <h3 className="mb-4 text-sm font-semibold">
               {t('telescopeScreen.connectionData')}
             </h3>
             <Checkbox
               isSelected={includeSecrets}
               variant="secondary"
-              className="w-full rounded-xl border border-separator"
+              className="w-full rounded-xl border border-separator bg-background/35"
               onChange={setIncludeSecrets}
             >
               <Checkbox.Content className="w-full items-start px-4 py-4">
@@ -445,7 +445,7 @@ export function TelescopeScreen({
                 {t('telescopeScreen.theFileWillContainKeysAsPlainTextTreatIt')}
               </Surface>
             ) : null}
-          </section>
+          </Surface>
           <ExportDestinationPicker
             value={exportDestination}
             onChange={setExportDestination}

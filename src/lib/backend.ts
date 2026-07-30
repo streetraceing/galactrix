@@ -202,6 +202,19 @@ export async function regenerateMessage(
   });
 }
 
+export async function continueMessage(
+  messageId: string,
+  generationId: string,
+  responseLanguage?: 'en' | 'ru',
+) {
+  requireTauri();
+  return invokeBackend<void>('continue_message', {
+    messageId,
+    generationId,
+    responseLanguage: responseLanguage ?? null,
+  });
+}
+
 export async function previewPrompt(input: PromptPreviewInput) {
   requireTauri();
   return invokeBackend<PromptPreviewResult>('preview_prompt', { input });

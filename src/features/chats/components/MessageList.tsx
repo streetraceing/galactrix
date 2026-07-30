@@ -32,6 +32,7 @@ type MessageActionProps = {
   onBranch: (messageId: string) => Promise<void>;
   onRemember: (messageId: string, remembered: boolean) => Promise<void>;
   onRegenerate: (messageId: string) => Promise<void>;
+  onContinue: (messageId: string) => Promise<void>;
   onSelectVariant: (messageId: string, variantIndex: number) => Promise<void>;
   onEditRequest: () => void;
   onDeleteRequest: () => void;
@@ -72,6 +73,7 @@ function MessageMenu({
   onDeleteRequest,
   onRemember,
   onRegenerate,
+  onContinue,
   onSelectVariant,
   onHistoryRequest,
   onError,
@@ -100,6 +102,10 @@ function MessageMenu({
             >
               <Icon name="regenerate" className="size-4 text-accent" />
               {t('messageList.regenerate')}
+            </ContextMenuItem>
+            <ContextMenuItem onClick={() => run(() => onContinue(message.id))}>
+              <Icon name="sparkles" className="size-4 text-accent" />
+              {t('messageList.continueResponse')}
             </ContextMenuItem>
             <ContextMenuSub>
               <ContextMenuSubTrigger>
@@ -194,12 +200,14 @@ function VariantNavigator({
   onSelect,
   onHistory,
   onRegenerate,
+  onContinue,
 }: {
   message: Message;
   compact?: boolean;
   onSelect: (index: number) => void;
   onHistory: () => void;
   onRegenerate?: () => void;
+  onContinue?: () => void;
 }) {
   const { t } = useTranslation('chats');
   const count = message.variants.length;
@@ -222,6 +230,18 @@ function VariantNavigator({
             <Icon name="chevron-right" className="size-3" />
           ) : null}
         </span>
+        {onContinue ? (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-6 min-w-0 gap-1 px-2 text-xs text-accent"
+            aria-label={t('messageList.continueResponse')}
+            onPress={onContinue}
+          >
+            <Icon name="sparkles" className="size-3.5" />
+            {t('messageList.continueResponseShort')}
+          </Button>
+        ) : null}
         <Button
           size="sm"
           variant="ghost"
@@ -308,6 +328,7 @@ function DesktopMessageActions({
   onDeleteRequest,
   onRemember,
   onRegenerate,
+  onContinue,
   onSelectVariant,
   onHistoryRequest,
   onError,
@@ -323,6 +344,11 @@ function DesktopMessageActions({
             label: t('messageList.regenerateResponse'),
             icon: 'regenerate' as const,
             onPress: () => run(() => onRegenerate(message.id)),
+          },
+          {
+            label: t('messageList.continueResponse'),
+            icon: 'sparkles' as const,
+            onPress: () => run(() => onContinue(message.id)),
           },
           {
             label: t('messageHistoryModal.responseHistory'),
@@ -596,6 +622,8 @@ function SwipeableMessage({
   );
 }
 
+const VARIANT_SELECTION_LOCK_MS = 280;
+
 function MessageEditModal({
   message,
   onClose,
@@ -693,6 +721,7 @@ function MessageListComponent({
   onDelete,
   onRemember,
   onRegenerate,
+  onContinue,
   onSelectVariant,
 }: {
   messages: Message[];
@@ -713,6 +742,7 @@ function MessageListComponent({
   onDelete: (messageId: string) => Promise<void>;
   onRemember: (messageId: string, remembered: boolean) => Promise<void>;
   onRegenerate: (messageId: string) => Promise<void>;
+  onContinue: (messageId: string) => Promise<void>;
   onSelectVariant: (messageId: string, variantIndex: number) => Promise<void>;
 }) {
   const { t } = useTranslation('chats');
@@ -721,10 +751,12 @@ function MessageListComponent({
   const [deleting, setDeleting] = useState<Message | null>(null);
   const [historyMessageId, setHistoryMessageId] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
-  const [regeneratingMessageId, setRegeneratingMessageId] = useState<
-    string | null
-  >(null);
-  const regeneratingMessageRef = useRef<string | null>(null);
+  const [messageGeneration, setMessageGeneration] = useState<{
+    messageId: string;
+    mode: 'regenerate' | 'continue';
+  } | null>(null);
+  const messageGenerationRef = useRef<string | null>(null);
+  const variantSelectionRef = useRef<string | null>(null);
   const [variantDirections, setVariantDirections] = useState<
     Record<string, VariantDirection>
   >({});
@@ -749,18 +781,29 @@ function MessageListComponent({
   };
 
   const selectVariant = async (messageId: string, variantIndex: number) => {
+    if (variantSelectionRef.current) return;
     const message = messages.find((item) => item.id === messageId);
-    if (message) {
-      const activePosition = getActiveVariantPosition(message);
-      const nextPosition = message.variants.findIndex(
-        (variant) => variant.index === variantIndex,
+    if (!message || message.activeVariantIndex === variantIndex) return;
+
+    const activePosition = getActiveVariantPosition(message);
+    const nextPosition = message.variants.findIndex(
+      (variant) => variant.index === variantIndex,
+    );
+    variantSelectionRef.current = messageId;
+    setVariantDirections((current) => ({
+      ...current,
+      [messageId]: nextPosition < activePosition ? 'previous' : 'next',
+    }));
+    try {
+      await onSelectVariant(messageId, variantIndex);
+      await new Promise((resolve) =>
+        window.setTimeout(resolve, VARIANT_SELECTION_LOCK_MS),
       );
-      setVariantDirections((current) => ({
-        ...current,
-        [messageId]: nextPosition < activePosition ? 'previous' : 'next',
-      }));
+    } finally {
+      if (variantSelectionRef.current === messageId) {
+        variantSelectionRef.current = null;
+      }
     }
-    await onSelectVariant(messageId, variantIndex);
   };
 
   const commitDelete = async () => {
@@ -788,23 +831,33 @@ function MessageListComponent({
     }
   };
 
-  const regenerate = async (messageId: string) => {
-    if (regeneratingMessageRef.current) return;
-    regeneratingMessageRef.current = messageId;
-    setRegeneratingMessageId(messageId);
+  const runMessageGeneration = async (
+    messageId: string,
+    mode: 'regenerate' | 'continue',
+    action: (messageId: string) => Promise<void>,
+  ) => {
+    if (messageGenerationRef.current) return;
+    messageGenerationRef.current = messageId;
+    setMessageGeneration({ messageId, mode });
     setVariantDirections((current) => ({
       ...current,
       [messageId]: 'next',
     }));
     try {
-      await onRegenerate(messageId);
+      await action(messageId);
     } finally {
-      if (regeneratingMessageRef.current === messageId) {
-        regeneratingMessageRef.current = null;
-        setRegeneratingMessageId(null);
+      if (messageGenerationRef.current === messageId) {
+        messageGenerationRef.current = null;
+        setMessageGeneration(null);
       }
     }
   };
+
+  const regenerate = (messageId: string) =>
+    runMessageGeneration(messageId, 'regenerate', onRegenerate);
+
+  const continueResponse = (messageId: string) =>
+    runMessageGeneration(messageId, 'continue', onContinue);
 
   return (
     <>
@@ -830,7 +883,11 @@ function MessageListComponent({
               setDeleting(message);
             };
             const history = () => setHistoryMessageId(message.id);
-            const isRegenerating = regeneratingMessageId === message.id;
+            const isGenerating = messageGeneration?.messageId === message.id;
+            const isRegenerating =
+              isGenerating && messageGeneration?.mode === 'regenerate';
+            const isContinuing =
+              isGenerating && messageGeneration?.mode === 'continue';
 
             const content = (
               <MessageMenu
@@ -838,6 +895,7 @@ function MessageListComponent({
                 onBranch={onBranch}
                 onRemember={onRemember}
                 onRegenerate={regenerate}
+                onContinue={continueResponse}
                 onSelectVariant={selectVariant}
                 onEditRequest={edit}
                 onDeleteRequest={remove}
@@ -909,15 +967,32 @@ function MessageListComponent({
                           ))}
                         </div>
                       ) : (
-                        <div
-                          key={`${message.activeVariantIndex}-${message.content}`}
-                          className="message-variant-enter"
-                          data-direction={
-                            variantDirections[message.id] ?? 'next'
-                          }
-                        >
-                          <MarkdownContent>{message.content}</MarkdownContent>
-                        </div>
+                        <>
+                          <div
+                            key={`${message.activeVariantIndex}-${message.content}`}
+                            className="message-variant-enter"
+                            data-direction={
+                              variantDirections[message.id] ?? 'next'
+                            }
+                          >
+                            <MarkdownContent>{message.content}</MarkdownContent>
+                          </div>
+                          {isContinuing ? (
+                            <div
+                              className="mt-2 flex h-4 items-center gap-1"
+                              role="status"
+                              aria-label={t('messageList.isTyping')}
+                            >
+                              {[0, 1, 2].map((index) => (
+                                <span
+                                  key={index}
+                                  className="typing-dot size-1 rounded-full bg-accent"
+                                  style={{ animationDelay: `${index * 140}ms` }}
+                                />
+                              ))}
+                            </div>
+                          ) : null}
+                        </>
                       )}
                     </Surface>
                     {!isMobile ? (
@@ -926,6 +1001,7 @@ function MessageListComponent({
                         onBranch={onBranch}
                         onRemember={onRemember}
                         onRegenerate={regenerate}
+                        onContinue={continueResponse}
                         onSelectVariant={selectVariant}
                         onEditRequest={edit}
                         onDeleteRequest={remove}
@@ -942,6 +1018,9 @@ function MessageListComponent({
                           )
                         }
                         onHistory={history}
+                        onContinue={() =>
+                          void continueResponse(message.id).catch(reportError)
+                        }
                       />
                     )}
                   </div>
@@ -1001,7 +1080,7 @@ function MessageListComponent({
             </article>
           ) : null}
 
-          {sending && !regeneratingMessageId ? (
+          {sending && !messageGeneration ? (
             <article className="message-enter flex items-start gap-2.5 sm:gap-3">
               {showAvatars ? (
                 <AppAvatar

@@ -15,6 +15,8 @@ pub mod keys {
         "backend.message.userBeforeAssistantMissing";
     pub const MESSAGE_REGENERATE_ASSISTANT_ONLY: &str =
         "backend.message.regenerateAssistantOnly";
+    pub const MESSAGE_CONTINUE_ASSISTANT_ONLY: &str =
+        "backend.message.continueAssistantOnly";
     pub const MESSAGE_VARIANTS_ASSISTANT_ONLY: &str =
         "backend.message.variantsAssistantOnly";
     pub const MESSAGE_VARIANT_NOT_FOUND: &str = "backend.message.variantNotFound";
@@ -164,15 +166,5 @@ impl From<std::io::Error> for CommandError {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::{keys, CommandError};
-
-    #[test]
-    fn serializes_translation_key_and_variables() {
-        let error = CommandError::new(keys::PROVIDER_UNKNOWN_KIND)
-            .with_variable("kind", "example");
-        let value = serde_json::to_value(error).expect("command error must serialize");
-        assert_eq!(value["key"], keys::PROVIDER_UNKNOWN_KIND);
-        assert_eq!(value["variables"]["kind"], "example");
-    }
-}
+#[path = "../../test/rust/i18n.rs"]
+mod tests;

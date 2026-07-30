@@ -1,13 +1,14 @@
 import { Button, Checkbox, Surface } from '@heroui/react';
+import type { ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Icon, type IconName } from '../Icon';
+import type { TranslationKey } from '../../i18n';
 import {
   canChooseExportFile,
   canDownloadExportFile,
   canShareExportFile,
   type ExportDestination,
 } from '../../lib/jsonTransfer';
-import type { TranslationKey } from '../../i18n';
-import { useTranslation } from 'react-i18next';
 
 const destinationOptions: Array<{
   id: ExportDestination;
@@ -39,6 +40,9 @@ const destinationOptions: Array<{
   },
 ];
 
+const exportSectionClass =
+  'rounded-2xl border border-separator bg-surface-secondary/50 p-4 sm:p-5';
+
 export function ExportDestinationPicker({
   value,
   onChange,
@@ -47,32 +51,31 @@ export function ExportDestinationPicker({
   onChange: (value: ExportDestination) => void;
 }) {
   const { t } = useTranslation('common');
+
   return (
-    <section>
+    <Surface className={exportSectionClass}>
       <h3 className="text-sm font-semibold">
         {t('exportOptions.exportDestination')}
       </h3>
-      <div className="mt-2 flex flex-col gap-2">
+      <div className="mt-4 flex flex-col gap-2">
         {destinationOptions
           .filter((option) => option.available())
           .map((option) => {
             const selected = option.id === value;
             return (
-              <button
+              <Button
                 key={option.id}
-                type="button"
-                className={`flex w-full items-start gap-3 rounded-xl border p-3 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-focus ${
-                  selected
-                    ? 'border-accent bg-accent/10'
-                    : 'border-separator bg-surface-secondary/50 hover:bg-surface-secondary'
-                }`}
+                fullWidth
+                size="lg"
+                variant={selected ? 'secondary' : 'ghost'}
+                className="h-auto min-h-16 justify-start gap-3 rounded-xl px-3 py-3 text-left"
                 aria-pressed={selected}
-                onClick={() => onChange(option.id)}
+                onPress={() => onChange(option.id)}
               >
                 <span
                   className={`grid size-9 shrink-0 place-items-center rounded-xl ${
                     selected
-                      ? 'bg-accent text-accent-foreground'
+                      ? 'bg-accent/15 text-accent'
                       : 'bg-default text-muted'
                   }`}
                 >
@@ -82,20 +85,20 @@ export function ExportDestinationPicker({
                   <strong className="block text-sm text-foreground">
                     {t(option.titleKey)}
                   </strong>
-                  <span className="mt-0.5 block text-xs leading-5 text-muted">
+                  <span className="mt-0.5 block whitespace-normal text-xs leading-5 text-muted">
                     {t(option.descriptionKey)}
                   </span>
                 </span>
-                {selected ? (
-                  <Icon name="check" className="mt-2 size-4 text-accent" />
-                ) : (
-                  <div className="size-4" />
-                )}
-              </button>
+                <span className="grid size-5 shrink-0 place-items-center">
+                  {selected ? (
+                    <Icon name="check" className="size-4 text-accent" />
+                  ) : null}
+                </span>
+              </Button>
             );
           })}
       </div>
-    </section>
+    </Surface>
   );
 }
 
@@ -103,17 +106,19 @@ export function ExportSelectionList({
   items,
   selectedIds,
   onChange,
+  hint,
 }: {
   items: Array<{ id: string; title: string; description?: string }>;
   selectedIds: string[];
   onChange: (ids: string[]) => void;
+  hint?: ReactNode;
 }) {
   const { t } = useTranslation('common');
   const selected = new Set(selectedIds);
   const allSelected = items.length > 0 && selectedIds.length === items.length;
 
   return (
-    <section>
+    <Surface className={exportSectionClass}>
       <div className="flex items-center justify-between gap-3">
         <h3 className="text-sm font-semibold">
           {t('exportOptions.whatToExport')}
@@ -130,7 +135,7 @@ export function ExportSelectionList({
             : t('exportOptions.selectAll')}
         </Button>
       </div>
-      <Surface className="mt-2 max-h-64 overflow-y-auto rounded-xl border border-separator p-1">
+      <div className="scrollbar-thin mt-4 max-h-64 overflow-y-auto rounded-xl border border-separator bg-background/35 p-1">
         {items.map((item) => (
           <Checkbox
             key={item.id}
@@ -162,12 +167,15 @@ export function ExportSelectionList({
             </Checkbox.Content>
           </Checkbox>
         ))}
-      </Surface>
-      <p className="mt-2 text-xs text-muted">
+      </div>
+      <p className="mt-3 text-xs text-muted">
         {t('exportOptions.selected')} {selectedIds.length}{' '}
         {t('exportOptions.of')}
         {items.length}
       </p>
-    </section>
+      {hint ? (
+        <div className="mt-2 text-xs leading-5 text-muted">{hint}</div>
+      ) : null}
+    </Surface>
   );
 }

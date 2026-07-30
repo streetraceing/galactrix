@@ -66,5 +66,6 @@
   "backend.galaxy.contextWorldbookNotFound": "A linked worldbook was not found",
   "backend.galaxy.contextStyleNotFound": "The linked messaging style was not found",
   "backend.galaxy.contextPromptSetNotFound": "A linked prompt set was not found",
-  "backend.provider.requestCancelled": "Generation cancelled."
+  "backend.provider.requestCancelled": "Generation cancelled.",
+  "backend.message.continueAssistantOnly": "Only assistant responses can be continued"
 }

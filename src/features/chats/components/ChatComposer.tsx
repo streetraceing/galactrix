@@ -118,7 +118,7 @@ function ChatComposerComponent({
     <div className="shrink-0 border-t border-separator bg-background px-3 py-2 sm:px-5 sm:py-4">
       <div className="mx-auto w-full max-w-3xl">
         <Surface className="rounded-2xl border border-separator p-2 transition-[border-color,box-shadow]">
-          <div className="flex items-end gap-2">
+          <div className="grid grid-cols-[minmax(0,1fr)_3rem] items-end gap-2">
             <TextArea
               autoComplete="off"
               ref={textAreaRef}
@@ -146,30 +146,34 @@ function ChatComposerComponent({
               placeholder={t('chatComposer.placeholder')}
               aria-label={t('chatComposer.label')}
               disabled={!provider || sending}
-              className="max-h-48 min-h-12 resize-none overflow-y-auto transition-none ring-0"
+              className="min-w-0 max-h-48 min-h-12 w-full resize-none overflow-y-auto transition-none ring-0"
             />
-            {sending ? (
-              <TooltipIconButton
-                label={t('chatComposer.cancelGeneration')}
-                size="lg"
-                variant="ghost"
-                className="shrink-0 text-danger"
-                onPress={() => void onCancel()}
-              >
-                <Icon name="close" className="size-5" />
-              </TooltipIconButton>
-            ) : (
-              <TooltipIconButton
-                label={t('chatComposer.sendMessage')}
-                size="lg"
-                variant="primary"
-                className="shrink-0"
-                isDisabled={!draft.trim() || !provider}
-                onPress={() => void submit()}
-              >
-                <Icon name="send" className="size-5" />
-              </TooltipIconButton>
-            )}
+            <div className="flex size-12 self-end items-center justify-center">
+              {sending ? (
+                <TooltipIconButton
+                  label={t('chatComposer.cancelGeneration')}
+                  size="lg"
+                  variant="ghost"
+                  className="size-12 min-w-12 p-0 text-danger"
+                  tooltipTriggerClassName="flex size-12 items-center justify-center leading-none"
+                  onPress={() => void onCancel()}
+                >
+                  <Icon name="close" className="size-5" />
+                </TooltipIconButton>
+              ) : (
+                <TooltipIconButton
+                  label={t('chatComposer.sendMessage')}
+                  size="lg"
+                  variant="primary"
+                  className="size-12 min-w-12 p-0"
+                  tooltipTriggerClassName="flex size-12 items-center justify-center leading-none"
+                  isDisabled={!draft.trim() || !provider}
+                  onPress={() => void submit()}
+                >
+                  <Icon name="send" className="size-5" />
+                </TooltipIconButton>
+              )}
+            </div>
           </div>
           <div className="hidden flex-wrap items-center justify-between gap-2 px-2 pb-1 pt-2 text-[0.7rem] text-muted sm:flex">
             <span>

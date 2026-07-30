@@ -11,6 +11,7 @@ export function AppTooltip({
   disabled = false,
   delay = 500,
   allowTouch = false,
+  triggerClassName,
 }: {
   content: ReactNode;
   children: ReactElement;
@@ -18,14 +19,14 @@ export function AppTooltip({
   disabled?: boolean;
   delay?: number;
   allowTouch?: boolean;
+  triggerClassName?: string;
 }) {
   const canHover = useMediaQuery('(hover: hover) and (pointer: fine)');
   const isDisabled = disabled || (!allowTouch && !canHover);
-  if (isDisabled) return children;
 
   return (
-    <Tooltip delay={delay} closeDelay={75}>
-      <Tooltip.Trigger>{children}</Tooltip.Trigger>
+    <Tooltip isDisabled={isDisabled} delay={delay} closeDelay={75}>
+      <Tooltip.Trigger className={triggerClassName}>{children}</Tooltip.Trigger>
       <Tooltip.Content
         placement={placement}
         showArrow

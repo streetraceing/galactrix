@@ -6,6 +6,7 @@ import {
   checkProvider,
   clearChat,
   cloneChat,
+  continueMessage,
   createChat,
   deleteChat,
   deleteGalaxyItem,
@@ -487,6 +488,49 @@ export function useAppController() {
     ],
   );
 
+  const continueExistingMessage = useCallback(
+    async (messageId: string) => {
+      if (activeGenerationRef.current) return;
+      const chatId = snapshot.messages.find(
+        (message) => message.id === messageId,
+      )?.chatId;
+      const generationId = createGenerationId();
+      activeGenerationRef.current = generationId;
+      cancelRequestedRef.current = false;
+      setSending(true);
+      try {
+        await continueMessage(
+          messageId,
+          generationId,
+          snapshot.settings.responseLanguage === 'app'
+            ? getLocale()
+            : undefined,
+        );
+        if (chatId) await refreshChat(chatId);
+        haptic();
+      } catch (error) {
+        if (chatId) await refreshChat(chatId).catch(() => undefined);
+        if (
+          !isBackendCommandError(error, 'backend.provider.requestCancelled')
+        ) {
+          throw error;
+        }
+      } finally {
+        if (activeGenerationRef.current === generationId) {
+          activeGenerationRef.current = null;
+          cancelRequestedRef.current = false;
+          setSending(false);
+        }
+      }
+    },
+    [
+      haptic,
+      refreshChat,
+      snapshot.messages,
+      snapshot.settings.responseLanguage,
+    ],
+  );
+
   const chooseMessageVariant = useCallback(
     async (messageId: string, variantIndex: number) => {
       const chatId = snapshot.messages.find(
@@ -615,6 +659,7 @@ export function useAppController() {
     removeMessage,
     rememberMessage,
     regenerateExistingMessage,
+    continueExistingMessage,
     chooseMessageVariant,
     saveGalaxyItem,
     importGalaxyLibrary,
