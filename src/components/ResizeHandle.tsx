@@ -1,3 +1,4 @@
+import clsx from 'clsx';
 import { useEffect, useRef } from 'react';
 import type { KeyboardEvent, PointerEvent as ReactPointerEvent } from 'react';
 
@@ -9,6 +10,7 @@ type ResizeHandleProps = {
   onCommit: (value: number) => void;
   label: string;
   className?: string;
+  shift?: boolean;
 };
 
 export function ResizeHandle({
@@ -19,6 +21,7 @@ export function ResizeHandle({
   onCommit,
   label,
   className = '',
+  shift = false,
 }: ResizeHandleProps) {
   const latestValue = useRef(value);
 
@@ -73,7 +76,12 @@ export function ResizeHandle({
         onCommit(next);
       }}
     >
-      <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-separator transition-colors group-hover:bg-accent group-focus-visible:bg-accent" />
+      <span
+        className={clsx(
+          'absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-separator transition-colors group-hover:bg-accent group-focus-visible:bg-accent',
+          shift && '-ml-0.5',
+        )}
+      />
     </div>
   );
 }

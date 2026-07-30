@@ -61,13 +61,12 @@ export function UiModal({
           size={isMobile ? 'full' : size}
           scroll="inside"
           className={isMobile ? 'h-full min-h-0 w-full p-0' : undefined}
-          style={mobileViewportStyle}
         >
           <Modal.Dialog
             className={
               isMobile
-                ? 'h-full min-h-0 w-full max-w-none min-w-0 rounded-none border-0! shadow-none! ring-0!'
-                : 'max-h-[90dvh] min-w-0 border-transparent'
+                ? 'h-full min-h-0 w-full max-w-none min-w-0 rounded-none border-0! shadow-none! ring-0! bg-background-secondary'
+                : 'max-h-[90dvh] min-w-0 border-transparent bg-background-secondary'
             }
             style={mobileViewportStyle}
           >

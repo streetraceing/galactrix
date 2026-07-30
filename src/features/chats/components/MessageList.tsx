@@ -39,6 +39,8 @@ type MessageActionProps = {
   onError: (message: string) => void;
 };
 
+type VariantDirection = 'next' | 'previous';
+
 async function copyText(content: string) {
   if (navigator.clipboard?.writeText) {
     await navigator.clipboard.writeText(content);
@@ -76,7 +78,6 @@ function MessageMenu({
 }: MessageActionProps & { children: ReactNode }) {
   const { t } = useTranslation('chats');
   const run = (action: () => Promise<void>) => {
-    onError('');
     void action().catch((error) => onError(String(error)));
   };
   const isAssistant = message.role === 'assistant';
@@ -313,7 +314,6 @@ function DesktopMessageActions({
 }: MessageActionProps) {
   const { t } = useTranslation('chats');
   const run = (action: () => Promise<void>) => {
-    onError('');
     void action().catch((error) => onError(String(error)));
   };
   const actions = [
@@ -362,8 +362,8 @@ function DesktopMessageActions({
   ];
 
   return (
-    <div className="mt-1 flex min-h-7 w-full items-center justify-between gap-3">
-      <div className="pointer-events-none flex items-center gap-0.5 opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
+    <div className="pointer-events-none mt-1 flex min-h-7 w-full translate-y-0.5 items-center justify-between gap-3 opacity-0 transition-[opacity,transform] duration-(--motion-fast) ease-(--motion-ease) group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:translate-y-0 group-focus-within:opacity-100">
+      <div className="flex items-center gap-0.5">
         {actions.map((action) => (
           <Tooltip key={action.label} delay={700} closeDelay={75}>
             <Tooltip.Trigger>
@@ -496,21 +496,31 @@ function SwipeableMessage({
     setDragOffset(direction * 88);
 
     try {
-      await new Promise((resolve) => window.setTimeout(resolve, 110));
+      await new Promise((resolve) => window.setTimeout(resolve, 90));
       if (shouldRegenerate) {
-        await onRegenerate(message.id);
+        const regeneration = onRegenerate(message.id);
+        setDragging(true);
+        setDragOffset(direction * -48);
+        window.requestAnimationFrame(() => {
+          window.requestAnimationFrame(() => {
+            setDragging(false);
+            setDragOffset(0);
+            setSwitching(false);
+          });
+        });
+        await regeneration;
       } else if (nextVariant) {
         await onSelectVariant(message.id, nextVariant.index);
-      }
-      setDragging(true);
-      setDragOffset(direction * -56);
-      window.requestAnimationFrame(() => {
+        setDragging(true);
+        setDragOffset(direction * -48);
         window.requestAnimationFrame(() => {
-          setDragging(false);
-          setDragOffset(0);
-          setSwitching(false);
+          window.requestAnimationFrame(() => {
+            setDragging(false);
+            setDragOffset(0);
+            setSwitching(false);
+          });
         });
-      });
+      }
     } catch (error) {
       onError(String(error));
       settle();
@@ -573,7 +583,7 @@ function SwipeableMessage({
         </span>
       </div>
       <div
-        className={`${dragging ? '' : 'transition-[transform,opacity] duration-[var(--motion-standard)] ease-[var(--motion-ease)]'} relative z-10`}
+        className={`${dragging ? '' : 'transition-[transform,opacity] duration-(--motion-standard) ease-(--motion-ease)'} relative z-10`}
         style={{
           opacity: switching ? 0.72 : 1 - revealProgress * 0.08,
           transform: `translate3d(${dragOffset}px, 0, 0)`,
@@ -595,6 +605,9 @@ export function MessageList({
   userAvatar,
   pendingMessage,
   sending,
+  viewMode,
+  showAvatars,
+  showTimestamps,
   providersAvailable,
   scrollRef,
   onBranch,
@@ -612,6 +625,9 @@ export function MessageList({
   userAvatar?: string;
   pendingMessage: string;
   sending: boolean;
+  viewMode: 'conversation' | 'messenger';
+  showAvatars: boolean;
+  showTimestamps: boolean;
   providersAvailable: boolean;
   scrollRef: RefObject<HTMLDivElement | null>;
   onBranch: (messageId: string) => Promise<void>;
@@ -631,7 +647,10 @@ export function MessageList({
   const [regeneratingMessageId, setRegeneratingMessageId] = useState<
     string | null
   >(null);
-  const [error, setError] = useState('');
+  const [variantDirections, setVariantDirections] = useState<
+    Record<string, VariantDirection>
+  >({});
+  const messengerMode = viewMode === 'messenger';
 
   const historyMessage = useMemo(
     () => messages.find((message) => message.id === historyMessageId) ?? null,
@@ -639,21 +658,43 @@ export function MessageList({
   );
 
   const requestEdit = (message: Message) => {
-    setError('');
     setEditing(message);
     setEditValue(message.content);
+  };
+
+  const reportError = (error: unknown) => {
+    const description = error instanceof Error ? error.message : String(error);
+    if (!description) return;
+    toast.danger(t('errors.chatActionFailed'), {
+      description,
+      timeout: 3_500,
+    });
+  };
+
+  const selectVariant = async (messageId: string, variantIndex: number) => {
+    const message = messages.find((item) => item.id === messageId);
+    if (message) {
+      const activePosition = getActiveVariantPosition(message);
+      const nextPosition = message.variants.findIndex(
+        (variant) => variant.index === variantIndex,
+      );
+      setVariantDirections((current) => ({
+        ...current,
+        [messageId]: nextPosition < activePosition ? 'previous' : 'next',
+      }));
+    }
+    await onSelectVariant(messageId, variantIndex);
   };
 
   const commitEdit = async () => {
     const value = editValue.trim();
     if (!editing || !value || working) return;
     setWorking(true);
-    setError('');
     try {
       await onEdit(editing.id, value);
       setEditing(null);
     } catch (nextError) {
-      setError(String(nextError));
+      reportError(nextError);
     } finally {
       setWorking(false);
     }
@@ -662,12 +703,11 @@ export function MessageList({
   const commitDelete = async () => {
     if (!deleting || working) return;
     setWorking(true);
-    setError('');
     try {
       await onDelete(deleting.id);
       setDeleting(null);
     } catch (nextError) {
-      setError(String(nextError));
+      reportError(nextError);
     } finally {
       setWorking(false);
     }
@@ -676,11 +716,10 @@ export function MessageList({
   const selectHistoryVariant = async (variantIndex: number) => {
     if (!historyMessage || working) return;
     setWorking(true);
-    setError('');
     try {
-      await onSelectVariant(historyMessage.id, variantIndex);
+      await selectVariant(historyMessage.id, variantIndex);
     } catch (nextError) {
-      setError(String(nextError));
+      reportError(nextError);
     } finally {
       setWorking(false);
     }
@@ -689,7 +728,10 @@ export function MessageList({
   const regenerate = async (messageId: string) => {
     if (regeneratingMessageId) return;
     setRegeneratingMessageId(messageId);
-    setError('');
+    setVariantDirections((current) => ({
+      ...current,
+      [messageId]: 'next',
+    }));
     try {
       await onRegenerate(messageId);
     } finally {
@@ -718,11 +760,10 @@ export function MessageList({
                 : undefined;
             const edit = () => requestEdit(message);
             const remove = () => {
-              setError('');
               setDeleting(message);
             };
             const history = () => setHistoryMessageId(message.id);
-            const reportError = (value: string) => setError(value);
+            const isRegenerating = regeneratingMessageId === message.id;
 
             const content = (
               <MessageMenu
@@ -730,7 +771,7 @@ export function MessageList({
                 onBranch={onBranch}
                 onRemember={onRemember}
                 onRegenerate={regenerate}
-                onSelectVariant={onSelectVariant}
+                onSelectVariant={selectVariant}
                 onEditRequest={edit}
                 onDeleteRequest={remove}
                 onHistoryRequest={history}
@@ -738,27 +779,37 @@ export function MessageList({
               >
                 <article
                   className={`message-enter group flex items-start gap-2.5 sm:gap-3 ${
-                    regeneratingMessageId === message.id
-                      ? 'message-regenerating'
-                      : ''
-                  } ${isUser ? 'flex-row-reverse' : ''}`}
+                    isUser && !messengerMode ? 'flex-row-reverse' : ''
+                  }`}
                 >
-                  <AppAvatar
-                    src={avatar}
-                    name={displayName}
-                    className={`size-8 sm:size-9`}
-                    square
-                  />
+                  {showAvatars ? (
+                    <AppAvatar
+                      src={avatar}
+                      name={displayName}
+                      className="size-8 sm:size-9"
+                      square
+                    />
+                  ) : null}
                   <div
-                    className={`flex min-w-0 flex-col ${isUser ? 'items-end max-w-[min(91%,44rem)] sm:max-w-[min(88%,44rem)]' : 'w-full items-start'}`}
+                    className={`flex min-w-0 flex-col ${
+                      messengerMode
+                        ? 'items-start w-full'
+                        : isUser
+                          ? 'max-w-[min(91%,44rem)] items-end sm:max-w-[min(88%,44rem)]'
+                          : 'w-full items-start'
+                    }`}
                   >
                     <div
-                      className={`mb-1 flex min-w-0 items-center gap-2 text-xs text-muted ${isUser ? 'flex-row-reverse' : ''}`}
+                      className={`mb-1 flex min-w-0 items-center gap-2 text-xs text-muted ${
+                        isUser && !messengerMode ? 'flex-row-reverse' : ''
+                      }`}
                     >
                       <strong className="truncate font-medium text-foreground">
                         {displayName}
                       </strong>
-                      <span className="shrink-0">{message.createdAt}</span>
+                      {showTimestamps ? (
+                        <span className="shrink-0">{message.createdAt}</span>
+                      ) : null}
                       {message.remembered ? (
                         <span className="inline-flex shrink-0 items-center gap-1 text-accent">
                           <Icon name="memory" className="size-3" />
@@ -769,17 +820,38 @@ export function MessageList({
                     <Surface
                       variant={isUser ? 'tertiary' : 'default'}
                       className={`${isMobile ? 'select-none' : 'selectable'} min-w-0 max-w-full overflow-hidden rounded-2xl border px-4 py-3 shadow-xs ${
+                        messengerMode ? 'w-fit' : ''
+                      } ${
                         isUser
                           ? 'border-accent/10 bg-accent/10'
                           : 'border-separator'
                       }`}
                     >
-                      <div
-                        key={`${message.activeVariantIndex}-${message.content}`}
-                        className="message-variant-enter"
-                      >
-                        <MarkdownContent>{message.content}</MarkdownContent>
-                      </div>
+                      {isRegenerating ? (
+                        <div
+                          className="flex h-5 min-w-12 items-center gap-1"
+                          role="status"
+                          aria-label={t('messageList.isTyping')}
+                        >
+                          {[0, 1, 2].map((index) => (
+                            <span
+                              key={index}
+                              className="typing-dot size-1.5 rounded-full bg-accent"
+                              style={{ animationDelay: `${index * 140}ms` }}
+                            />
+                          ))}
+                        </div>
+                      ) : (
+                        <div
+                          key={`${message.activeVariantIndex}-${message.content}`}
+                          className="message-variant-enter"
+                          data-direction={
+                            variantDirections[message.id] ?? 'next'
+                          }
+                        >
+                          <MarkdownContent>{message.content}</MarkdownContent>
+                        </div>
+                      )}
                     </Surface>
                     {!isMobile ? (
                       <DesktopMessageActions
@@ -787,7 +859,7 @@ export function MessageList({
                         onBranch={onBranch}
                         onRemember={onRemember}
                         onRegenerate={regenerate}
-                        onSelectVariant={onSelectVariant}
+                        onSelectVariant={selectVariant}
                         onEditRequest={edit}
                         onDeleteRequest={remove}
                         onHistoryRequest={history}
@@ -798,7 +870,9 @@ export function MessageList({
                         message={message}
                         compact
                         onSelect={(index) =>
-                          void onSelectVariant(message.id, index)
+                          void selectVariant(message.id, index).catch(
+                            reportError,
+                          )
                         }
                         onHistory={history}
                       />
@@ -812,7 +886,7 @@ export function MessageList({
               <SwipeableMessage
                 key={message.id}
                 message={message}
-                onSelectVariant={onSelectVariant}
+                onSelectVariant={selectVariant}
                 onRegenerate={regenerate}
                 onError={reportError}
               >
@@ -824,14 +898,26 @@ export function MessageList({
           })}
 
           {pendingMessage ? (
-            <article className="message-enter flex flex-row-reverse items-start gap-2.5 opacity-75 sm:gap-3">
-              <AppAvatar
-                src={userAvatar}
-                name={userName}
-                className="size-8 sm:size-9"
-                square
-              />
-              <div className="flex min-w-0 w-full flex-col items-end">
+            <article
+              className={`message-enter flex items-start gap-2.5 opacity-75 sm:gap-3 ${
+                messengerMode ? '' : 'flex-row-reverse'
+              }`}
+            >
+              {showAvatars ? (
+                <AppAvatar
+                  src={userAvatar}
+                  name={userName}
+                  className="size-8 sm:size-9"
+                  square
+                />
+              ) : null}
+              <div
+                className={`flex min-w-0 flex-col ${
+                  messengerMode
+                    ? 'max-w-[min(90%,42rem)] items-start'
+                    : 'w-full items-end'
+                }`}
+              >
                 <div className="mb-1 flex items-center gap-2 text-xs text-muted">
                   <span>{t('messageList.sending')}</span>
                   <strong className="font-medium text-foreground">
@@ -840,7 +926,7 @@ export function MessageList({
                 </div>
                 <Surface
                   variant="tertiary"
-                  className="min-w-0 max-w-full overflow-hidden rounded-2xl border border-accent/10 bg-accent/10 px-4 py-3 shadow-xs"
+                  className={`${messengerMode ? 'w-fit' : ''} min-w-0 max-w-full overflow-hidden rounded-2xl border border-accent/10 bg-accent/10 px-4 py-3 shadow-xs`}
                 >
                   <MarkdownContent>{pendingMessage}</MarkdownContent>
                 </Surface>
@@ -850,12 +936,14 @@ export function MessageList({
 
           {sending ? (
             <article className="message-enter flex items-start gap-2.5 sm:gap-3">
-              <AppAvatar
-                src={assistantAvatar}
-                name={assistantName}
-                className="size-8 sm:size-9"
-                square
-              />
+              {showAvatars ? (
+                <AppAvatar
+                  src={assistantAvatar}
+                  name={assistantName}
+                  className="size-8 sm:size-9"
+                  square
+                />
+              ) : null}
               <div className="flex flex-col items-start">
                 <span className="mb-1 text-xs font-medium text-muted">
                   {assistantName} {t('messageList.isTyping')}
@@ -897,12 +985,6 @@ export function MessageList({
         </div>
       </div>
 
-      {error && !editing && !deleting ? (
-        <p className="shrink-0 border-t border-danger/20 bg-danger/10 px-4 py-2 text-sm text-danger">
-          {error}
-        </p>
-      ) : null}
-
       <UiModal
         isOpen={Boolean(editing)}
         onOpenChange={(open) => !open && !working && setEditing(null)}
@@ -942,7 +1024,6 @@ export function MessageList({
           aria-label={t('messageList.messageText')}
           onChange={(event) => setEditValue(event.target.value)}
         />
-        {error ? <p className="mt-2 text-sm text-danger">{error}</p> : null}
       </UiModal>
 
       <UiModal
@@ -974,7 +1055,6 @@ export function MessageList({
         <p className="line-clamp-6 text-sm leading-6 text-muted">
           {deleting?.content}
         </p>
-        {error ? <p className="mt-2 text-sm text-danger">{error}</p> : null}
       </UiModal>
 
       <MessageHistoryModal

@@ -251,11 +251,21 @@ export function GalaxiesScreen({
               </Button>
               <Button
                 variant="primary"
-                className="w-full sm:w-auto"
+                className="flex lg:hidden"
+                onPress={() => openCreate(section)}
+                isIconOnly
+              >
+                <Icon name="plus" className="size-4" />{' '}
+              </Button>
+              <Button
+                variant="primary"
+                className="w-full sm:w-auto hidden lg:flex"
                 onPress={() => openCreate(section)}
               >
                 <Icon name="plus" className="size-4" />{' '}
-                {t('galaxiesScreen.create')} {galaxyKindCreateLabels[section]}
+                <span>
+                  {t('galaxiesScreen.create')} {galaxyKindCreateLabels[section]}
+                </span>
               </Button>
             </div>
           }

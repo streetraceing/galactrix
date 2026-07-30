@@ -61,10 +61,10 @@
     --skeleton-animation: shimmer;
     --tooltip-delay: 1500ms;
     --tooltip-close-delay: 500ms;
-    --motion-fast: 200ms;
-    --motion-standard: 300ms;
-    --motion-slow: 500ms;
-    --motion-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+    --motion-fast: 180ms;
+    --motion-standard: 280ms;
+    --motion-slow: 420ms;
+    --motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
     --motion-ease-exit: cubic-bezier(0.4, 0, 1, 1);
     --default-transition-duration: var(--motion-fast);
     --default-transition-timing-function: var(--motion-ease);
@@ -494,6 +494,28 @@
   }
 }
 
+@keyframes galactrix-list-item-enter {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 0.4rem, 0) scale(0.992);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes galactrix-header-enter {
+  from {
+    opacity: 0;
+    transform: translate3d(-0.45rem, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
 @keyframes galactrix-bar-enter {
   from {
     opacity: 0;
@@ -527,10 +549,10 @@
   }
 }
 
-@keyframes galactrix-variant-enter {
+@keyframes galactrix-variant-enter-next {
   from {
     opacity: 0;
-    transform: translate3d(0.55rem, 0, 0) scale(0.99);
+    transform: translate3d(0.8rem, 0, 0) scale(0.99);
   }
   to {
     opacity: 1;
@@ -538,13 +560,14 @@
   }
 }
 
-@keyframes galactrix-regenerating {
-  0%,
-  100% {
-    opacity: 1;
+@keyframes galactrix-variant-enter-previous {
+  from {
+    opacity: 0;
+    transform: translate3d(-0.8rem, 0, 0) scale(0.99);
   }
-  50% {
-    opacity: 0.58;
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
   }
 }
 
@@ -568,8 +591,20 @@
   }
 
   .metric-enter,
-  .mobile-card-enter {
+  .mobile-card-enter,
+  .settings-card-enter,
+  .collection-item-enter {
+    backface-visibility: hidden;
     animation: galactrix-card-enter var(--motion-standard) var(--motion-ease)
+      both;
+  }
+
+  .collection-item-enter {
+    animation-name: galactrix-list-item-enter;
+  }
+
+  .page-header-enter {
+    animation: galactrix-header-enter var(--motion-standard) var(--motion-ease)
       both;
   }
 
@@ -578,9 +613,15 @@
     animation: galactrix-bar-enter var(--motion-slow) var(--motion-ease) both;
   }
 
-  .tabs__panel {
+  .tabs__panel[data-entering] {
+    backface-visibility: hidden;
     animation: galactrix-tab-enter var(--motion-standard) var(--motion-ease)
       both;
+  }
+
+  .tabs__panel[data-exiting] {
+    display: none;
+    animation: none;
   }
 
   .popover[data-entering] {
@@ -596,12 +637,13 @@
   }
 
   .message-variant-enter {
-    animation: galactrix-variant-enter var(--motion-standard) var(--motion-ease)
-      both;
+    backface-visibility: hidden;
+    animation: galactrix-variant-enter-next var(--motion-standard)
+      var(--motion-ease) both;
   }
 
-  .message-regenerating {
-    animation: galactrix-regenerating 800ms ease-in-out infinite;
+  .message-variant-enter[data-direction='previous'] {
+    animation-name: galactrix-variant-enter-previous;
   }
 
   .usage-timeline {
@@ -617,6 +659,31 @@
     transition-property: border-color, background-color, box-shadow, transform;
     transition-duration: var(--motion-standard);
     transition-timing-function: var(--motion-ease);
+  }
+
+  .button,
+  .toggle-button,
+  .select__trigger {
+    backface-visibility: hidden;
+    transition-property:
+      color, background-color, border-color, box-shadow, opacity, transform;
+    transition-duration: var(--motion-fast);
+    transition-timing-function: var(--motion-ease);
+  }
+
+  .button[data-pressed='true'],
+  .toggle-button[data-pressed='true'] {
+    transform: translate3d(0, 0.0625rem, 0) scale(0.975);
+  }
+
+  .toast[data-entering] {
+    animation: galactrix-overlay-enter var(--motion-standard) var(--motion-ease)
+      both;
+  }
+
+  .toast[data-exiting] {
+    animation: galactrix-overlay-enter var(--motion-fast)
+      var(--motion-ease-exit) reverse both;
   }
 
   .tabs__indicator,
@@ -659,15 +726,19 @@
 @media (prefers-reduced-motion: reduce) {
   .message-enter,
   .message-variant-enter,
-  .message-regenerating,
   .metric-enter,
   .mobile-card-enter,
+  .settings-card-enter,
+  .collection-item-enter,
+  .page-header-enter,
   .usage-bar,
   .tabs__panel,
   .popover[data-entering],
   .popover[data-exiting],
   .modal__dialog[data-entering],
   .modal__dialog[data-exiting],
+  .toast[data-entering],
+  .toast[data-exiting],
   .mobile-screen-enter,
   .mobile-chat-enter {
     animation: none;

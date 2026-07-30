@@ -67,9 +67,17 @@ export async function clearChat(chatId: string) {
   return invokeBackend<void>('clear_chat', { chatId });
 }
 
-export async function sendChatMessage(chatId: string, content: string) {
+export async function sendChatMessage(
+  chatId: string,
+  content: string,
+  responseLanguage?: 'en' | 'ru',
+) {
   requireTauri();
-  return invokeBackend<void>('send_chat_message', { chatId, content });
+  return invokeBackend<void>('send_chat_message', {
+    chatId,
+    content,
+    responseLanguage: responseLanguage ?? null,
+  });
 }
 
 export async function cloneChat(
@@ -124,9 +132,15 @@ export async function selectMessageVariant(
   });
 }
 
-export async function regenerateMessage(messageId: string) {
+export async function regenerateMessage(
+  messageId: string,
+  responseLanguage?: 'en' | 'ru',
+) {
   requireTauri();
-  return invokeBackend<void>('regenerate_message', { messageId });
+  return invokeBackend<void>('regenerate_message', {
+    messageId,
+    responseLanguage: responseLanguage ?? null,
+  });
 }
 
 export async function previewPrompt(input: PromptPreviewInput) {

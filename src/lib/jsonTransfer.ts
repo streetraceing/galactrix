@@ -1,3 +1,6 @@
+import { isTauri } from '@tauri-apps/api/core';
+import { isAndroidPlatform } from './platform';
+
 function safeFilePart(value: string) {
   return value
     .trim()
@@ -34,8 +37,13 @@ type SaveFilePickerWindow = Window & {
 
 export function canChooseExportFile() {
   return (
+    isTauri() ||
     typeof (window as SaveFilePickerWindow).showSaveFilePicker === 'function'
   );
+}
+
+export function canDownloadExportFile() {
+  return !isTauri();
 }
 
 export function canShareExportFile() {
@@ -70,6 +78,28 @@ export async function exportJsonFile(
   const file = new File([json], filename, {
     type: 'application/json;charset=utf-8',
   });
+
+  if (
+    isTauri() &&
+    (destination === 'choose-file' || destination === 'downloads')
+  ) {
+    const [{ save }, { writeTextFile }] = await Promise.all([
+      import('@tauri-apps/plugin-dialog'),
+      import('@tauri-apps/plugin-fs'),
+    ]);
+    const path = await save({
+      defaultPath: filename,
+      filters: [
+        {
+          name: 'Galactrix JSON',
+          extensions: isAndroidPlatform() ? ['application/json'] : ['json'],
+        },
+      ],
+    });
+    if (!path) return false;
+    await writeTextFile(path, json);
+    return true;
+  }
 
   if (destination === 'choose-file' && canChooseExportFile()) {
     try {
@@ -122,6 +152,25 @@ export async function exportJsonFile(
 }
 
 export async function importJsonFile(): Promise<unknown | null> {
+  if (isTauri()) {
+    const [{ open }, { readTextFile }] = await Promise.all([
+      import('@tauri-apps/plugin-dialog'),
+      import('@tauri-apps/plugin-fs'),
+    ]);
+    const path = await open({
+      multiple: false,
+      directory: false,
+      filters: [
+        {
+          name: 'Galactrix JSON',
+          extensions: isAndroidPlatform() ? ['application/json'] : ['json'],
+        },
+      ],
+    });
+    if (!path || Array.isArray(path)) return null;
+    return JSON.parse(await readTextFile(path)) as unknown;
+  }
+
   return new Promise((resolve, reject) => {
     const input = document.createElement('input');
     input.type = 'file';

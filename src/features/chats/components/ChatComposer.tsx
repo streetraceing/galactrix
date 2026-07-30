@@ -10,7 +10,6 @@ export function ChatComposer({
   provider,
   sending,
   sendOnEnter,
-  error,
   onDraftChange,
   onSend,
 }: {
@@ -18,7 +17,6 @@ export function ChatComposer({
   provider?: Provider;
   sending: boolean;
   sendOnEnter: boolean;
-  error: string;
   onDraftChange: (value: string) => void;
   onSend: () => void;
 }) {
@@ -35,9 +33,6 @@ export function ChatComposer({
   return (
     <div className="shrink-0 border-t border-separator bg-background/95 px-3 py-2 backdrop-blur sm:px-5 sm:py-4">
       <div className="mx-auto w-full max-w-3xl">
-        {error ? (
-          <p className="selectable mb-2 px-1 text-sm text-danger">{error}</p>
-        ) : null}
         <Surface className="rounded-2xl border border-separator p-2">
           <div className="flex items-end gap-2">
             <TextArea

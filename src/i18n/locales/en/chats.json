@@ -203,5 +203,6 @@
   "count.rule_one": "{{count}} rule",
   "count.rule_other": "{{count}} rules",
   "preview.codeFragment": "Code fragment",
-  "preview.character": "Character"
+  "preview.character": "Character",
+  "errors.chatActionFailed": "Chat action failed"
 }

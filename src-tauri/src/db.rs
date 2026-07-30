@@ -115,6 +115,10 @@ fn migrate(connection: &Connection) -> Result<(), String> {
                 compact_mode INTEGER NOT NULL DEFAULT 0,
                 send_on_enter INTEGER NOT NULL DEFAULT 1,
                 save_drafts INTEGER NOT NULL DEFAULT 1,
+                chat_view_mode TEXT NOT NULL DEFAULT 'conversation',
+                show_message_avatars INTEGER NOT NULL DEFAULT 1,
+                show_message_timestamps INTEGER NOT NULL DEFAULT 1,
+                response_language TEXT NOT NULL DEFAULT 'app',
                 interface_scale REAL NOT NULL DEFAULT 1.0,
                 sidebar_width INTEGER NOT NULL DEFAULT 248,
                 chat_sidebar_width INTEGER NOT NULL DEFAULT 320,
@@ -235,6 +239,30 @@ fn migrate(connection: &Connection) -> Result<(), String> {
         "app_settings",
         "language",
         "TEXT NOT NULL DEFAULT 'system'",
+    )?;
+    ensure_column(
+        connection,
+        "app_settings",
+        "chat_view_mode",
+        "TEXT NOT NULL DEFAULT 'conversation'",
+    )?;
+    ensure_column(
+        connection,
+        "app_settings",
+        "show_message_avatars",
+        "INTEGER NOT NULL DEFAULT 1",
+    )?;
+    ensure_column(
+        connection,
+        "app_settings",
+        "show_message_timestamps",
+        "INTEGER NOT NULL DEFAULT 1",
+    )?;
+    ensure_column(
+        connection,
+        "app_settings",
+        "response_language",
+        "TEXT NOT NULL DEFAULT 'app'",
     )?;
     connection
         .execute_batch(
@@ -554,7 +582,9 @@ fn get_settings(connection: &Connection) -> Result<AppSettings, String> {
             "SELECT profile_name, profile_avatar, animations, haptics,
                     compact_mode, send_on_enter, save_drafts,
                     interface_scale, sidebar_width, chat_sidebar_width,
-                    sidebar_collapsed, theme_mode, theme_variant, language
+                    sidebar_collapsed, theme_mode, theme_variant, language,
+                    chat_view_mode, show_message_avatars,
+                    show_message_timestamps, response_language
              FROM app_settings WHERE id = 1",
             [],
             |row| {
@@ -573,6 +603,10 @@ fn get_settings(connection: &Connection) -> Result<AppSettings, String> {
                     theme_mode: row.get(11)?,
                     theme_variant: row.get(12)?,
                     language: row.get(13)?,
+                    chat_view_mode: row.get(14)?,
+                    show_message_avatars: row.get::<_, i64>(15)? != 0,
+                    show_message_timestamps: row.get::<_, i64>(16)? != 0,
+                    response_language: row.get(17)?,
                 })
             },
         )
@@ -1972,7 +2006,9 @@ pub fn update_settings(connection: &Connection, settings: &AppSettings) -> Resul
                  send_on_enter = ?6, save_drafts = ?7, interface_scale = ?8,
                  sidebar_width = ?9, chat_sidebar_width = ?10,
                  sidebar_collapsed = ?11, theme_mode = ?12, theme_variant = ?13,
-                 language = ?14
+                 language = ?14, chat_view_mode = ?15,
+                 show_message_avatars = ?16, show_message_timestamps = ?17,
+                 response_language = ?18
              WHERE id = 1",
             params![
                 settings.profile_name,
@@ -1988,7 +2024,11 @@ pub fn update_settings(connection: &Connection, settings: &AppSettings) -> Resul
                 settings.sidebar_collapsed as i64,
                 settings.theme_mode,
                 settings.theme_variant,
-                settings.language
+                settings.language,
+                settings.chat_view_mode,
+                settings.show_message_avatars as i64,
+                settings.show_message_timestamps as i64,
+                settings.response_language
             ],
         )
         .map_err(|error| error.to_string())?;

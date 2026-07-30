@@ -103,7 +103,7 @@ export function ChatContextPicker({
             }
           >
             <Select.Trigger className="min-w-0">
-              <Select.Value className="min-w-0 flex-1">
+              <Select.Value className="min-w-0 flex-1 min-h-6 items-center flex">
                 <span className="block min-w-0 truncate">{worldbookLabel}</span>
               </Select.Value>
               <Select.Indicator className="shrink-0" />

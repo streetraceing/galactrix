@@ -33,13 +33,14 @@ export function ChatProviderPicker({
         }}
       >
         <Select.Trigger className="min-w-0 overflow-hidden">
-          <Select.Value className="min-w-0 flex-1 overflow-hidden">
+          <Select.Value className="min-w-0 flex-1 overflow-hidden min-h-6 flex items-center">
             <span className="flex min-w-0 items-center gap-2">
               {selectedProvider ? (
                 <ProviderLogo
                   kind={selectedProvider.kind}
                   name={selectedProvider.name}
-                  className="size-6 rounded-lg p-1"
+                  className="size-6 rounded-lg"
+                  padding={false}
                 />
               ) : null}
               <span className="block min-w-0 truncate">
@@ -69,7 +70,8 @@ export function ChatProviderPicker({
                 <ProviderLogo
                   kind={provider.kind}
                   name={provider.name}
-                  className="size-8 rounded-lg p-1.5"
+                  className="size-8 rounded-lg"
+                  padding={false}
                 />
                 <span className="min-w-0 flex-1">
                   <strong className="block truncate text-sm font-medium">

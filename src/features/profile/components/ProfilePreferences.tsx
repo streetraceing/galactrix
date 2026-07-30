@@ -1,5 +1,6 @@
 import type { AppSettings } from '../../../types';
 import { AppInfo } from './AppInfo';
+import { ChatPreferences } from './ChatPreferences';
 import { LayoutSettings } from './LayoutSettings';
 import { LanguageSettings } from './LanguageSettings';
 import { ScaleSettings } from './ScaleSettings';
@@ -53,24 +54,7 @@ export function ProfilePreferences({
           />
         </SettingsCard>
 
-        <SettingsCard
-          icon="chats"
-          title={t('profileOverview.chats')}
-          description={t('profilePreferences.messageEditorBehavior')}
-        >
-          <SettingSwitchRow
-            label={t('profilePreferences.enterSendsMessage')}
-            description={t('profilePreferences.shiftEnterInsertsANewLine')}
-            value={settings.sendOnEnter}
-            onChange={(value) => patch('sendOnEnter', value)}
-          />
-          <SettingSwitchRow
-            label={t('profilePreferences.saveDrafts')}
-            description={t('profilePreferences.aSeparateDraftForEachChat')}
-            value={settings.saveDrafts}
-            onChange={(value) => patch('saveDrafts', value)}
-          />
-        </SettingsCard>
+        <ChatPreferences settings={settings} onChange={patch} />
       </div>
 
       <ThemeSettings
@@ -103,7 +87,9 @@ export function ProfilePreferences({
         />
       </div>
 
-      <AppInfo version={appVersion} />
+      <div className="pb-5 sm:pb-6">
+        <AppInfo version={appVersion} />
+      </div>
     </div>
   );
 }

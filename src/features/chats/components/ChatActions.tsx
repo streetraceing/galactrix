@@ -29,7 +29,7 @@ export function ChatActions({
       <ContextMenuTrigger className="block min-w-0">
         {children}
       </ContextMenuTrigger>
-      <ContextMenuContent className="w-56">
+      <ContextMenuContent className="max-w-fit">
         <ContextMenuLabel>{chat.title}</ContextMenuLabel>
         <ContextMenuItem onClick={() => onAction('configure', chat)}>
           <Icon name="settings" className="size-4 text-accent" />
@@ -98,7 +98,7 @@ export function ChatActionsButton({
       >
         <Icon name="more" className="size-5" />
       </Button>
-      <Popover.Content placement="bottom end" className="w-60">
+      <Popover.Content placement="bottom end" className="w-fit">
         <Popover.Dialog className="p-1">
           <Popover.Heading className="truncate px-2.5 pb-1.5 pt-1 text-xs font-medium text-muted">
             {chat.title}

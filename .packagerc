@@ -28,6 +28,7 @@
   "afterApply": [
     "npm install",
     "npm run prettier:write",
+    "npm run typecheck",
     "npm run lint:fix"
   ],
   "deletePackageOnApply": true,

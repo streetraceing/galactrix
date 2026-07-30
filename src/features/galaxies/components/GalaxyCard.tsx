@@ -36,10 +36,10 @@ export function GalaxyCard({
   return (
     <ContextMenu>
       <ContextMenuTrigger className="block h-full">
-        <Surface className="interactive-card group h-full overflow-hidden rounded-2xl border border-separator hover:bg-surface-secondary">
+        <Surface className="interactive-card group h-full rounded-2xl border border-separator hover:bg-surface-secondary">
           <button
             type="button"
-            className="flex h-full w-full gap-3.5 p-4 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus sm:p-5"
+            className="flex h-full w-full gap-3.5 p-4 text-left outline-none sm:p-5"
             onClick={onEdit}
           >
             {hasIdentityAvatar ? (
@@ -77,8 +77,7 @@ export function GalaxyCard({
 
               <span className="mt-auto flex items-center justify-between gap-3 pt-4 text-xs text-muted">
                 <span>
-                  {t('galaxyCard.modified')}
-                  {formatRelativeTime(item.updatedAt)}
+                  {`${t('galaxyCard.modified')} ${formatRelativeTime(item.updatedAt)}`}
                 </span>
                 <Icon
                   name="chevron"

@@ -41,7 +41,7 @@ export function PromptBuilder({
               {t('promptBuilder.promptBuilder')}
             </h3>
           </div>
-          <p className="mt-2 max-w-2xl break-words text-xs leading-5 text-muted">
+          <p className="mt-2 max-w-2xl wrap-break-word text-xs leading-5 text-muted">
             {t(
               'promptBuilder.combineRulesAdjustSourceImportanceAndAddCustomInstructionsReorder',
             )}

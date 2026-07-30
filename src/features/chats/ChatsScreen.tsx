@@ -47,6 +47,10 @@ export function ChatsScreen({
   onSend,
   sendOnEnter,
   saveDrafts,
+  chatViewMode,
+  showMessageAvatars,
+  showMessageTimestamps,
+  responseLanguage,
   sending,
 }: ChatsScreenProps) {
   const { t } = useTranslation('chats');
@@ -59,13 +63,10 @@ export function ChatsScreen({
   const [query, setQuery] = useState('');
   const [draft, setDraft] = useState('');
   const [pendingMessage, setPendingMessage] = useState('');
-  const [sendError, setSendError] = useState('');
   const [working, setWorking] = useState(false);
-  const [actionError, setActionError] = useState('');
   const [renameTarget, setRenameTarget] = useState<Chat | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const [configTarget, setConfigTarget] = useState<Chat | 'new' | null>(null);
-  const [configError, setConfigError] = useState('');
   const [confirmTarget, setConfirmTarget] = useState<{
     type: 'clear' | 'delete';
     chat: Chat;
@@ -104,10 +105,14 @@ export function ChatsScreen({
     activeCharacter?.name ?? t('chatsScreen.assistant');
   const activeUserName =
     (activePersona?.name ?? profileName.trim()) || t('chatsScreen.you');
+  const showChatError = (error: unknown) =>
+    toast.danger(t('errors.chatActionFailed'), {
+      description: error instanceof Error ? error.message : String(error),
+      timeout: 3_500,
+    });
 
   useEffect(() => {
     const openNewChat = () => {
-      setConfigError('');
       setConfigTarget('new');
     };
     window.addEventListener('galactrix:new-chat', openNewChat);
@@ -122,7 +127,6 @@ export function ChatsScreen({
     setDraft(
       saveDrafts ? (localStorage.getItem(draftKey(activeChat.id)) ?? '') : '',
     );
-    setSendError('');
   }, [activeChat?.id, saveDrafts]);
 
   useEffect(() => {
@@ -174,7 +178,6 @@ export function ChatsScreen({
   const send = async () => {
     const value = draft.trim();
     if (!value || !activeChat || !activeProvider || sending) return;
-    setSendError('');
     setPendingMessage(value);
     setDraft('');
     try {
@@ -182,16 +185,14 @@ export function ChatsScreen({
       localStorage.removeItem(draftKey(activeChat.id));
     } catch (error) {
       setDraft((current) => current || value);
-      setSendError(error instanceof Error ? error.message : String(error));
+      showChatError(error);
     } finally {
       setPendingMessage('');
     }
   };
 
   const handleAction = (action: ChatAction, chat: Chat) => {
-    setActionError('');
     if (action === 'configure') {
-      setConfigError('');
       setConfigTarget(chat);
       return;
     }
@@ -199,7 +200,7 @@ export function ChatsScreen({
       setWorking(true);
       void onCloneChat(chat.id, action === 'duplicate-with-messages')
         .then(() => toast.success(t('chatsScreen.chatCopyCreated')))
-        .catch((error) => setActionError(String(error)))
+        .catch(showChatError)
         .finally(() => setWorking(false));
       return;
     }
@@ -218,7 +219,7 @@ export function ChatsScreen({
               : t('chatsScreen.chatPinned'),
           ),
         )
-        .catch((error) => setActionError(String(error)))
+        .catch(showChatError)
         .finally(() => setWorking(false));
       return;
     }
@@ -228,7 +229,6 @@ export function ChatsScreen({
   const saveConfig = async (input: ChatConfigInput) => {
     if (!configTarget || working) return;
     setWorking(true);
-    setConfigError('');
     try {
       if (configTarget === 'new') {
         await onNewChat(input);
@@ -239,7 +239,7 @@ export function ChatsScreen({
       }
       setConfigTarget(null);
     } catch (error) {
-      setConfigError(error instanceof Error ? error.message : String(error));
+      showChatError(error);
     } finally {
       setWorking(false);
     }
@@ -249,13 +249,12 @@ export function ChatsScreen({
     const title = renameValue.trim();
     if (!renameTarget || !title || working) return;
     setWorking(true);
-    setActionError('');
     try {
       await onRenameChat(renameTarget.id, title);
       setRenameTarget(null);
       toast.success(t('chatsScreen.chatRenamed'));
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : String(error));
+      showChatError(error);
     } finally {
       setWorking(false);
     }
@@ -264,7 +263,6 @@ export function ChatsScreen({
   const commitDestructiveAction = async () => {
     if (!confirmTarget || working) return;
     setWorking(true);
-    setActionError('');
     try {
       if (confirmTarget.type === 'delete') {
         localStorage.removeItem(draftKey(confirmTarget.chat.id));
@@ -276,7 +274,7 @@ export function ChatsScreen({
       }
       setConfirmTarget(null);
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : String(error));
+      showChatError(error);
     } finally {
       setWorking(false);
     }
@@ -295,7 +293,6 @@ export function ChatsScreen({
         onQueryChange={setQuery}
         onSelect={selectChat}
         onNewChat={() => {
-          setConfigError('');
           setConfigTarget('new');
         }}
         onAction={handleAction}
@@ -310,6 +307,7 @@ export function ChatsScreen({
           label={t('chatsScreen.changeChatListWidth')}
           onChange={onChatSidebarWidthPreview}
           onCommit={onChatSidebarWidthCommit}
+          shift
         />
       ) : null}
 
@@ -341,6 +339,9 @@ export function ChatsScreen({
               userAvatar={galaxyItemAvatar(activePersona) ?? profileAvatar}
               pendingMessage={pendingMessage}
               sending={sending}
+              viewMode={chatViewMode}
+              showAvatars={showMessageAvatars}
+              showTimestamps={showMessageTimestamps}
               providersAvailable={providers.length > 0}
               scrollRef={messageScrollRef}
               onBranch={async (messageId) => {
@@ -357,7 +358,6 @@ export function ChatsScreen({
               provider={activeProvider}
               sending={sending}
               sendOnEnter={sendOnEnter}
-              error={sendError}
               onDraftChange={setDraft}
               onSend={() => void send()}
             />
@@ -381,9 +381,9 @@ export function ChatsScreen({
         galaxyItems={galaxyItems}
         providers={providers}
         profileName={profileName}
+        responseLanguage={responseLanguage}
         rememberedMessages={configRememberedMessages}
         saving={working}
-        error={configError}
         onOpenChange={(open) => !open && setConfigTarget(null)}
         onSubmit={(input) => void saveConfig(input)}
       />
@@ -393,7 +393,6 @@ export function ChatsScreen({
         renameValue={renameValue}
         confirmTarget={confirmTarget}
         working={working}
-        error={actionError}
         onRenameValueChange={setRenameValue}
         onCommitRename={() => void commitRename()}
         onCommitDestructive={() => void commitDestructiveAction()}

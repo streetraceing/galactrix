@@ -16,9 +16,8 @@ export function LayoutSettings({
       <div>
         <h2 className="section-title">{t('layoutSettings.panelWidths')}</h2>
         <p className="section-description">
-          {t('layoutSettings.main')}
-          {Math.round(sidebarWidth)} {t('layoutSettings.pxChats')}{' '}
-          {Math.round(chatSidebarWidth)} px
+          {t('layoutSettings.main')} {Math.round(sidebarWidth)} px ·{' '}
+          {t('layoutSettings.pxChats')} {Math.round(chatSidebarWidth)} px
         </p>
       </div>
       <Button

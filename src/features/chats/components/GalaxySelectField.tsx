@@ -3,6 +3,7 @@ import type { Key } from 'react';
 import { AppAvatar } from '../../../components/ui/AppAvatar';
 import { galaxyItemAvatar } from '../../../lib/avatar';
 import type { GalaxyItem } from '../../../types';
+import clsx from 'clsx';
 
 const NONE_KEY = '__none__';
 
@@ -36,7 +37,7 @@ export function GalaxySelectField({
         }}
       >
         <Select.Trigger className="min-w-0 overflow-hidden">
-          <Select.Value className="min-w-0 flex-1 overflow-hidden">
+          <Select.Value className="min-w-0 flex-1 overflow-hidden min-h-6 items-center flex">
             <span className="flex min-w-0 items-center gap-2">
               {selectedItem &&
               (selectedItem.kind === 'persona' ||
@@ -48,7 +49,12 @@ export function GalaxySelectField({
                   square
                 />
               ) : null}
-              <span className="block min-w-0 flex-1 truncate">
+              <span
+                className={clsx(
+                  'block min-w-0 flex-1 truncate',
+                  selectedItem?.name ? '' : 'text-muted',
+                )}
+              >
                 {selectedItem?.name ?? placeholder}
               </span>
             </span>

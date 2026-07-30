@@ -156,5 +156,6 @@
   "count.object_one": "{{count}} object",
   "count.object_other": "{{count}} objects",
   "count.libraryObject_one": "{{count}} library object",
-  "count.libraryObject_other": "{{count}} library objects"
+  "count.libraryObject_other": "{{count}} library objects",
+  "personaEditor.attributeValuePlaceholder": "Describe this fact in detail"
 }

@@ -4,11 +4,13 @@ import { ProfileScreen } from '../features/profile/ProfileScreen';
 import { SettingsScreen } from '../features/settings/SettingsScreen';
 import { TelescopeScreen } from '../features/telescope/TelescopeScreen';
 import type { useAppController } from '../hooks/useAppController';
+import { useTranslation } from 'react-i18next';
 
 type Controller = ReturnType<typeof useAppController>;
 
 export function AppScreenRouter({ controller }: { controller: Controller }) {
   const { activeTab, snapshot } = controller;
+  const { i18n } = useTranslation();
 
   if (activeTab === 'chats') {
     return (
@@ -49,6 +51,16 @@ export function AppScreenRouter({ controller }: { controller: Controller }) {
         onSend={controller.sendMessage}
         sendOnEnter={snapshot.settings.sendOnEnter}
         saveDrafts={snapshot.settings.saveDrafts}
+        chatViewMode={snapshot.settings.chatViewMode}
+        showMessageAvatars={snapshot.settings.showMessageAvatars}
+        showMessageTimestamps={snapshot.settings.showMessageTimestamps}
+        responseLanguage={
+          snapshot.settings.responseLanguage === 'app'
+            ? i18n.resolvedLanguage?.toLowerCase().startsWith('ru')
+              ? 'ru'
+              : 'en'
+            : undefined
+        }
         sending={controller.sending}
       />
     );

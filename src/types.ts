@@ -176,6 +176,7 @@ export type PromptPreviewInput = {
   rememberedMessages: Message[];
   userName?: string;
   characterName?: string;
+  responseLanguage?: 'en' | 'ru';
 };
 
 export type PromptPreviewResult = {
@@ -240,6 +241,10 @@ export type AppSettings = {
   compactMode: boolean;
   sendOnEnter: boolean;
   saveDrafts: boolean;
+  chatViewMode: 'conversation' | 'messenger';
+  showMessageAvatars: boolean;
+  showMessageTimestamps: boolean;
+  responseLanguage: 'app' | 'auto';
   interfaceScale: number;
   sidebarWidth: number;
   chatSidebarWidth: number;

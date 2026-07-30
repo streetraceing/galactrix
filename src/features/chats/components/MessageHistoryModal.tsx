@@ -49,8 +49,7 @@ export function MessageHistoryModal({
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-2">
                   <span className="text-sm font-semibold">
-                    {t('messageHistoryModal.response')}
-                    {variant.index + 1}
+                    {t('messageHistoryModal.response')} {variant.index + 1}
                   </span>
                   {selected ? (
                     <Chip

@@ -176,5 +176,6 @@
   "count.libraryObject_one": "{{count}} объект в библиотеке",
   "count.libraryObject_few": "{{count}} объекта в библиотеке",
   "count.libraryObject_many": "{{count}} объектов в библиотеке",
-  "count.libraryObject_other": "{{count}} объекта в библиотеке"
+  "count.libraryObject_other": "{{count}} объекта в библиотеке",
+  "personaEditor.attributeValuePlaceholder": "Подробно опишите этот факт"
 }

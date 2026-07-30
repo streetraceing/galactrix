@@ -6,7 +6,7 @@ import type {
   Message,
   PromptPreviewInput,
 } from '../../types';
-import { i18next } from '../../i18n';
+import { getLocale, i18next } from '../../i18n';
 import { clonePromptConfig, defaultPromptConfig } from './promptConfig';
 
 function asInput(item: GalaxyItem): GalaxyItemInput {
@@ -48,6 +48,7 @@ export function promptPreviewFromChat(
   items: GalaxyItem[],
   profileName?: string,
   rememberedMessages: Message[] = [],
+  responseLanguage?: 'en' | 'ru',
 ): PromptPreviewInput {
   const persona = findInput(items, config.personaId, 'persona');
   const character = findInput(items, config.characterId, 'character');
@@ -71,6 +72,7 @@ export function promptPreviewFromChat(
     rememberedMessages,
     userName: persona?.name || profileName,
     characterName: character?.name,
+    responseLanguage,
   };
 }
 
@@ -83,6 +85,7 @@ export function promptPreviewFromDraft(
     promptSets: [],
     promptConfig: clonePromptConfig(defaultPromptConfig),
     rememberedMessages: [],
+    responseLanguage: getLocale(),
   };
 
   switch (draft.kind) {

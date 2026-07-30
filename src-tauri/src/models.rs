@@ -248,6 +248,10 @@ pub struct AppSettings {
     pub compact_mode: bool,
     pub send_on_enter: bool,
     pub save_drafts: bool,
+    pub chat_view_mode: String,
+    pub show_message_avatars: bool,
+    pub show_message_timestamps: bool,
+    pub response_language: String,
     pub interface_scale: f64,
     pub sidebar_width: i64,
     pub chat_sidebar_width: i64,
@@ -267,6 +271,10 @@ impl Default for AppSettings {
             compact_mode: false,
             send_on_enter: true,
             save_drafts: true,
+            chat_view_mode: "conversation".into(),
+            show_message_avatars: true,
+            show_message_timestamps: true,
+            response_language: "app".into(),
             interface_scale: 1.0,
             sidebar_width: 248,
             chat_sidebar_width: 320,
@@ -335,6 +343,7 @@ pub struct PromptPreviewInput {
     pub remembered_messages: Vec<Message>,
     pub user_name: Option<String>,
     pub character_name: Option<String>,
+    pub response_language: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]

@@ -20,10 +20,12 @@ export function ProviderLogo({
   kind,
   name,
   className = 'size-11',
+  padding = true,
 }: {
   kind: ProviderKind;
   name: string;
   className?: string;
+  padding?: boolean;
 }) {
   const logoUrl = providerLogos[kind];
   const [failed, setFailed] = useState(false);
@@ -32,7 +34,7 @@ export function ProviderLogo({
 
   return (
     <span
-      className={`${className} grid shrink-0 place-items-center overflow-hidden rounded-xl border border-separator bg-default/60 p-2 text-xs font-semibold text-accent`}
+      className={`${className} ${padding && 'p-2'} grid shrink-0 place-items-center overflow-hidden rounded-xl border border-separator bg-default/60 text-xs font-semibold text-accent`}
     >
       {logoUrl && !failed ? (
         <img

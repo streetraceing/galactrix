@@ -37,7 +37,11 @@ import type {
   TabId,
 } from '../types';
 import { useMobileBackEntry } from './useMobileBackEntry';
-import { getLanguagePreference, setLanguagePreference } from '../i18n';
+import {
+  getLanguagePreference,
+  getLocale,
+  setLanguagePreference,
+} from '../i18n';
 
 const defaultSettings: AppSettings = {
   profileName: 'Вы',
@@ -47,6 +51,10 @@ const defaultSettings: AppSettings = {
   compactMode: false,
   sendOnEnter: true,
   saveDrafts: true,
+  chatViewMode: 'conversation',
+  showMessageAvatars: true,
+  showMessageTimestamps: true,
+  responseLanguage: 'app',
   interfaceScale: 1,
   sidebarWidth: 248,
   chatSidebarWidth: 320,
@@ -202,17 +210,12 @@ export function useAppController() {
 
   const createNewChat = useCallback(
     async (input: ChatConfigInput) => {
-      try {
-        const created = await createChat(input);
-        await refresh();
-        setActiveChatId(created.id);
-        setIsChatOpen(true);
-        setActiveTab('chats');
-        haptic();
-      } catch (error) {
-        setNotice(errorText(error));
-        throw error;
-      }
+      const created = await createChat(input);
+      await refresh();
+      setActiveChatId(created.id);
+      setIsChatOpen(true);
+      setActiveTab('chats');
+      haptic();
     },
     [haptic, refresh],
   );
@@ -268,18 +271,29 @@ export function useAppController() {
       if (!activeChatId || sending) return;
       setSending(true);
       try {
-        await sendChatMessage(activeChatId, content);
+        await sendChatMessage(
+          activeChatId,
+          content,
+          snapshot.settings.responseLanguage === 'app'
+            ? getLocale()
+            : undefined,
+        );
         await refresh();
         haptic();
       } catch (error) {
         await refresh().catch(() => undefined);
-        setNotice(errorText(error));
         throw error;
       } finally {
         setSending(false);
       }
     },
-    [activeChatId, haptic, refresh, sending],
+    [
+      activeChatId,
+      haptic,
+      refresh,
+      sending,
+      snapshot.settings.responseLanguage,
+    ],
   );
 
   const cloneExistingChat = useCallback(
@@ -339,11 +353,14 @@ export function useAppController() {
 
   const regenerateExistingMessage = useCallback(
     async (messageId: string) => {
-      await regenerateMessage(messageId);
+      await regenerateMessage(
+        messageId,
+        snapshot.settings.responseLanguage === 'app' ? getLocale() : undefined,
+      );
       await refresh();
       haptic();
     },
-    [haptic, refresh],
+    [haptic, refresh, snapshot.settings.responseLanguage],
   );
 
   const chooseMessageVariant = useCallback(

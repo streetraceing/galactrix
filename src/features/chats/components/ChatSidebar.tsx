@@ -34,7 +34,7 @@ export function ChatSidebar({
   const { t } = useTranslation('chats');
   return (
     <aside
-      className={`${isSinglePane ? (isVisibleMobile ? 'mobile-screen-enter flex w-full' : 'hidden') : 'flex w-[min(var(--chat-sidebar-width),36vw)] min-[1300px]:w-(--chat-sidebar-width)'} h-full shrink-0 flex-col border-separator bg-background`}
+      className={`${isSinglePane ? (isVisibleMobile ? 'mobile-screen-enter flex w-full' : 'hidden') : 'flex w-[min(var(--chat-sidebar-width),36vw)] min-[1300px]:w-(--chat-sidebar-width)'} h-full shrink-0 flex-col border-separator bg-background border-r`}
       style={{ '--chat-sidebar-width': `${width}px` } as CSSProperties}
     >
       <header className="flex items-start gap-3 px-4 pb-3 pt-4">

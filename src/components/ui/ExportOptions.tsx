@@ -2,6 +2,7 @@ import { Button, Checkbox, Surface } from '@heroui/react';
 import { Icon, type IconName } from '../Icon';
 import {
   canChooseExportFile,
+  canDownloadExportFile,
   canShareExportFile,
   type ExportDestination,
 } from '../../lib/jsonTransfer';
@@ -34,7 +35,7 @@ const destinationOptions: Array<{
     titleKey: 'export.destination.downloads.title',
     descriptionKey: 'export.destination.downloads.description',
     icon: 'download',
-    available: () => true,
+    available: canDownloadExportFile,
   },
 ];
 

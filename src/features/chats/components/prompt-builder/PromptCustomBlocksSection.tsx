@@ -90,7 +90,7 @@ export function PromptCustomBlocksSection({
         </Accordion.Trigger>
       </Accordion.Heading>
       <Accordion.Panel>
-        <Accordion.Body className="px-4 pb-5 sm:px-5">
+        <Accordion.Body className="px-4 pt-1 pb-5 sm:px-5">
           <div className="mb-3 flex items-center justify-between gap-3">
             <Button
               size="sm"
@@ -110,7 +110,7 @@ export function PromptCustomBlocksSection({
 
           <div className="space-y-3">
             {value.customBlocks.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-muted px-4 py-6 text-center text-sm text-muted">
+              <div className="rounded-xl border border-dashed border-border px-4 py-6 text-center text-sm text-muted">
                 {t('promptCustomBlocksSection.noCustomInstructionsYet')}
               </div>
             ) : null}
@@ -220,7 +220,7 @@ export function PromptCustomBlocksSection({
                     </span>
                   </div>
 
-                  <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_10rem]">
+                  <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_16rem]">
                     <div className="flex flex-col gap-1.5">
                       <Label htmlFor={`prompt-title-${block.id}`}>
                         {t('chatSetupModal.name')}

@@ -54,7 +54,7 @@ export function DefinitionSectionsEditor({
           {sections.map((section, index) => (
             <div
               key={section.id}
-              className="rounded-xl border border-separator bg-surface-secondary p-3"
+              className="collection-item-enter rounded-xl border border-separator bg-surface-secondary p-3"
             >
               <div className="flex items-center gap-2">
                 <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-default text-xs font-semibold text-muted">

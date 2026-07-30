@@ -65,8 +65,6 @@ export function useProviderEditor({
   const close = () => {
     if (saving || loadingModels) return;
     setIsOpen(false);
-    setStep(1);
-    resetTransient();
   };
 
   const chooseKind = (kind: ProviderKind) => {
@@ -120,8 +118,6 @@ export function useProviderEditor({
         description: saved.model,
       });
       setIsOpen(false);
-      setStep(1);
-      resetTransient();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : String(caught));
     } finally {

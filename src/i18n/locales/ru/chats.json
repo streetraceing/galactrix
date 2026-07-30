@@ -211,5 +211,6 @@
   "count.rule_many": "{{count}} правил",
   "count.rule_other": "{{count}} правила",
   "preview.codeFragment": "Фрагмент кода",
-  "preview.character": "Персонаж"
+  "preview.character": "Персонаж",
+  "errors.chatActionFailed": "Не удалось выполнить действие в чате"
 }

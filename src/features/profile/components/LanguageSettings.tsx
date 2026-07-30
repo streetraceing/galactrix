@@ -1,4 +1,4 @@
-import { Label, ListBox, Select, Surface } from '@heroui/react';
+import { ListBox, Select, Surface } from '@heroui/react';
 import type { AppSettings } from '../../../types';
 import { useTranslation } from 'react-i18next';
 
@@ -36,8 +36,7 @@ export function LanguageSettings({
       <p className="section-description">
         {t('languageSettings.byDefaultGalactrixFollowsTheDeviceLanguage')}
       </p>
-      <div className="mt-4 flex max-w-md flex-col gap-1.5">
-        <Label>{t('languageSettings.language')}</Label>
+      <div className="mt-4 flex flex-col gap-1.5">
         <Select
           aria-label={t('languageSettings.interfaceLanguage')}
           variant="secondary"

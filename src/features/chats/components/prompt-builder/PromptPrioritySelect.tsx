@@ -33,7 +33,7 @@ export function PromptPrioritySelect({
               id={priority.id}
               textValue={priority.label}
             >
-              <span className="min-w-0">
+              <span className="min-w-0 w-fit">
                 <strong className="block text-sm">{priority.label}</strong>
                 <span className="block text-xs text-muted">
                   {priority.description}

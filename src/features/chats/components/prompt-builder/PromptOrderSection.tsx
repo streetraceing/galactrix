@@ -54,17 +54,17 @@ export function PromptOrderSection({
               {preview.map((entry, index) => (
                 <li
                   key={entry.id}
-                  className="flex min-w-0 flex-col items-stretch gap-2.5 rounded-xl border border-separator bg-surface px-3 py-2.5 sm:flex-row sm:items-start sm:gap-3"
+                  className="flex min-w-0 flex-col items-stretch gap-2.5 rounded-xl border border-border bg-surface px-3 py-2.5 sm:flex-row sm:items-start sm:gap-3"
                 >
                   <span className="flex min-w-0 items-start gap-3">
                     <span className="grid size-6 shrink-0 place-items-center rounded-full bg-default text-xs tabular-nums text-muted">
                       {index + 1}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <strong className="block break-words text-sm font-medium">
+                      <strong className="block wrap-break-word text-sm font-medium">
                         {entry.title}
                       </strong>
-                      <span className="mt-0.5 block break-words text-xs leading-5 text-muted">
+                      <span className="mt-0.5 block wrap-break-word text-xs leading-5 text-muted">
                         {entry.description}
                       </span>
                     </span>
@@ -84,7 +84,7 @@ export function PromptOrderSection({
               ))}
             </ol>
           ) : (
-            <p className="rounded-xl border border-dashed border-separator p-4 text-sm leading-6 text-muted">
+            <p className="rounded-xl border border-dashed border-border p-4 text-sm leading-6 text-muted">
               {t(
                 'promptOrderSection.thereAreNoActiveSourcesYetSelectRulesAPrompt',
               )}

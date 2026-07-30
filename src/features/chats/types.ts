@@ -1,4 +1,5 @@
 import type {
+  AppSettings,
   Chat,
   ChatConfigInput,
   GalaxyItem,
@@ -52,5 +53,9 @@ export type ChatsScreenProps = {
   onSend: (content: string) => Promise<void>;
   sendOnEnter: boolean;
   saveDrafts: boolean;
+  chatViewMode: AppSettings['chatViewMode'];
+  showMessageAvatars: boolean;
+  showMessageTimestamps: boolean;
+  responseLanguage?: 'en' | 'ru';
   sending: boolean;
 };

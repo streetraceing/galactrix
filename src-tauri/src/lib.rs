@@ -212,9 +212,14 @@ fn build_chat_system_prompt(
     database: &Connection,
     chat_id: &str,
     history: &[models::Message],
+    response_language: Option<&str>,
 ) -> Result<Option<String>, String> {
     let context = db::get_chat_prompt_context(database, chat_id)?;
-    Ok(prompt_builder::build_system_prompt(&context, history))
+    Ok(prompt_builder::build_system_prompt(
+        &context,
+        history,
+        response_language,
+    ))
 }
 
 fn preview_galaxy_item(input: GalaxyItemInput) -> GalaxyItem {
@@ -292,7 +297,11 @@ fn preview_prompt(input: PromptPreviewInput) -> PromptPreviewResult {
             .collect(),
         prompt_config: input.prompt_config,
     };
-    let prompt = prompt_builder::build_system_prompt(&context, &input.remembered_messages)
+    let prompt = prompt_builder::build_system_prompt(
+        &context,
+        &input.remembered_messages,
+        input.response_language.as_deref(),
+    )
         .unwrap_or_default()
         .replace("{{user}}", &user_name)
         .replace("{{char}}", &character_name);
@@ -307,6 +316,7 @@ fn preview_prompt(input: PromptPreviewInput) -> PromptPreviewResult {
 #[tauri::command]
 async fn regenerate_message(
     message_id: String,
+    response_language: Option<String>,
     state: State<'_, AppState>,
 ) -> CommandResult<()> {
     let (provider, history, system_prompt) = {
@@ -316,7 +326,12 @@ async fn regenerate_message(
             return Err("Перед ответом ассистента не найдено сообщение пользователя".into());
         }
         let provider_id = db::chat_provider_id(&database, &chat_id)?;
-        let system_prompt = build_chat_system_prompt(&database, &chat_id, &history)?;
+        let system_prompt = build_chat_system_prompt(
+            &database,
+            &chat_id,
+            &history,
+            response_language.as_deref(),
+        )?;
         (
             db::get_provider(&database, &provider_id)?,
             history,
@@ -376,6 +391,7 @@ async fn regenerate_message(
 async fn send_chat_message(
     chat_id: String,
     content: String,
+    response_language: Option<String>,
     state: State<'_, AppState>,
 ) -> CommandResult<()> {
     let content = content.trim();
@@ -387,7 +403,12 @@ async fn send_chat_message(
         let database = state.database.lock().map_err(|error| error.to_string())?;
         let provider_id = db::chat_provider_id(&database, &chat_id)?;
         let history = db::messages_for_chat(&database, &chat_id)?;
-        let system_prompt = build_chat_system_prompt(&database, &chat_id, &history)?;
+        let system_prompt = build_chat_system_prompt(
+            &database,
+            &chat_id,
+            &history,
+            response_language.as_deref(),
+        )?;
         (
             db::get_provider(&database, &provider_id)?,
             history,
@@ -685,6 +706,15 @@ fn update_app_settings(
     if !matches!(settings.language.as_str(), "system" | "ru" | "en") {
         settings.language = "system".into();
     }
+    if !matches!(
+        settings.chat_view_mode.as_str(),
+        "conversation" | "messenger"
+    ) {
+        settings.chat_view_mode = "conversation".into();
+    }
+    if !matches!(settings.response_language.as_str(), "app" | "auto") {
+        settings.response_language = "app".into();
+    }
 
     let database = state.database.lock().map_err(|error| error.to_string())?;
     db::update_settings(&database, &settings)?;
@@ -793,6 +823,8 @@ fn provider_requires_key(kind: &str) -> bool {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             if let Err(error) = secure_storage::initialize() {
                 eprintln!("Secure storage is unavailable: {error}");

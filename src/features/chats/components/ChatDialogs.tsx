@@ -9,7 +9,6 @@ export function ChatDialogs({
   renameValue,
   confirmTarget,
   working,
-  error,
   onRenameValueChange,
   onCommitRename,
   onCommitDestructive,
@@ -20,7 +19,6 @@ export function ChatDialogs({
   renameValue: string;
   confirmTarget: { type: 'clear' | 'delete'; chat: Chat } | null;
   working: boolean;
-  error: string;
   onRenameValueChange: (value: string) => void;
   onCommitRename: () => void;
   onCommitDestructive: () => void;
@@ -70,9 +68,6 @@ export function ChatDialogs({
           }}
           aria-label={t('chatDialogs.newChatName')}
         />
-        {error ? (
-          <p className="selectable mt-2 text-sm text-danger">{error}</p>
-        ) : null}
       </UiModal>
 
       <UiModal
@@ -116,9 +111,6 @@ export function ChatDialogs({
         <p className="text-sm leading-6 text-muted">
           {t('chatDialogs.thisActionCannotBeUndone')}
         </p>
-        {error ? (
-          <p className="selectable mt-2 text-sm text-danger">{error}</p>
-        ) : null}
       </UiModal>
     </>
   );

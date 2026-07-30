@@ -45,9 +45,9 @@ export function ChatSetupModal({
   galaxyItems,
   providers,
   profileName,
+  responseLanguage,
   rememberedMessages = [],
   saving,
-  error,
   onOpenChange,
   onSubmit,
 }: {
@@ -56,9 +56,9 @@ export function ChatSetupModal({
   galaxyItems: GalaxyItem[];
   providers: Provider[];
   profileName?: string;
+  responseLanguage?: 'en' | 'ru';
   rememberedMessages?: Message[];
   saving: boolean;
-  error: string;
   onOpenChange: (open: boolean) => void;
   onSubmit: (input: ChatConfigInput) => void;
 }) {
@@ -139,6 +139,7 @@ export function ChatSetupModal({
                   title: event.target.value,
                 }))
               }
+              className="min-h-10 flex items-center"
             />
           </div>
           <ChatProviderPicker
@@ -176,13 +177,10 @@ export function ChatSetupModal({
             galaxyItems,
             profileName,
             rememberedMessages,
+            responseLanguage,
           )}
           title={t('chatSetupModal.chatPromptEstimate')}
         />
-
-        {error ? (
-          <p className="selectable text-sm text-danger">{error}</p>
-        ) : null}
       </div>
     </UiModal>
   );

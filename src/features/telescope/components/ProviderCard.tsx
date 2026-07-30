@@ -36,7 +36,7 @@ export function ProviderCard({
         >
           <button
             type="button"
-            className="flex h-full w-full min-w-0 items-center gap-3 p-4 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus sm:p-5"
+            className="flex h-full w-full min-w-0 items-center gap-3 p-4 text-left outline-none sm:p-5"
             onClick={onEdit}
           >
             <ProviderLogo kind={provider.kind} name={provider.name} />

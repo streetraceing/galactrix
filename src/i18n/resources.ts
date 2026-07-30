@@ -46,5 +46,10 @@ export const resources = {
 
 export type AppLocale = keyof typeof resources;
 export type I18nNamespace = (typeof namespaces)[number];
+
+type PluralSuffix = 'zero' | 'one' | 'two' | 'few' | 'many' | 'other';
+type CanonicalTranslationKey<Key extends string> =
+  Key extends `${infer Base}_${PluralSuffix}` ? Base : Key;
+
 export type TranslationKey<Namespace extends I18nNamespace> =
-  keyof (typeof resources)['en'][Namespace] & string;
+  CanonicalTranslationKey<keyof (typeof resources)['en'][Namespace] & string>;

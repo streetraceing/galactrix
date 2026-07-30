@@ -177,52 +177,58 @@ export function PersonaEditor({
             {t('personaEditor.noAdditionalAttributesYet')}
           </p>
         ) : (
-          <div className="space-y-2">
-            {data.attributes.map((attribute) => (
+          <div className="space-y-3">
+            {data.attributes.map((attribute, index) => (
               <div
                 key={attribute.id}
-                className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 rounded-xl border border-separator sm:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)_auto]"
+                className="collection-item-enter rounded-xl border border-separator bg-surface-secondary p-3"
               >
-                <Input
+                <div className="flex items-center gap-2">
+                  <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-default text-xs font-semibold tabular-nums text-muted">
+                    {index + 1}
+                  </span>
+                  <Input
+                    fullWidth
+                    variant="secondary"
+                    className="min-w-0"
+                    value={attribute.title}
+                    placeholder={t('personaEditor.attribute')}
+                    aria-label={t('personaEditor.attributeName')}
+                    autoComplete="off"
+                    onChange={(event) =>
+                      patchAttribute(attribute.id, 'title', event.target.value)
+                    }
+                  />
+                  <Button
+                    isIconOnly
+                    size="sm"
+                    variant="ghost"
+                    aria-label={t('personaEditor.deleteAttribute')}
+                    onPress={() =>
+                      patch(
+                        'attributes',
+                        data.attributes.filter(
+                          (item) => item.id !== attribute.id,
+                        ),
+                      )
+                    }
+                  >
+                    <Icon name="trash" className="size-4 text-danger" />
+                  </Button>
+                </div>
+                <TextArea
                   fullWidth
                   variant="secondary"
-                  className="order-1 min-w-0"
-                  value={attribute.title}
-                  placeholder={t('personaEditor.attribute')}
-                  aria-label={t('personaEditor.attributeName')}
-                  autoComplete="off"
-                  onChange={(event) =>
-                    patchAttribute(attribute.id, 'title', event.target.value)
-                  }
-                />
-                <Input
-                  fullWidth
-                  variant="secondary"
-                  className="order-3 col-span-2 min-w-0 sm:order-2 sm:col-span-1"
+                  className="mt-3"
+                  rows={3}
                   value={attribute.value}
-                  placeholder={t('personaEditor.value')}
+                  placeholder={t('personaEditor.attributeValuePlaceholder')}
                   aria-label={t('personaEditor.attributeValue')}
                   autoComplete="off"
                   onChange={(event) =>
                     patchAttribute(attribute.id, 'value', event.target.value)
                   }
                 />
-                <Button
-                  isIconOnly
-                  variant="ghost"
-                  className="order-2 sm:order-3"
-                  aria-label={t('personaEditor.deleteAttribute')}
-                  onPress={() =>
-                    patch(
-                      'attributes',
-                      data.attributes.filter(
-                        (item) => item.id !== attribute.id,
-                      ),
-                    )
-                  }
-                >
-                  <Icon name="trash" className="size-4 text-danger" />
-                </Button>
               </div>
             ))}
           </div>

@@ -84,6 +84,7 @@ export function ApplicationFrame({
             onCommit={(sidebarWidth) =>
               onSettingsCommit({ ...settings, sidebarWidth })
             }
+            shift
           />
         ) : null}
 
