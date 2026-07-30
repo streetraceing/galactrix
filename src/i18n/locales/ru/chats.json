@@ -221,5 +221,6 @@
   "preview.character": "Персонаж",
   "errors.chatActionFailed": "Не удалось выполнить действие в чате",
   "chatsScreen.copyTitle": "{{value1}} — копия",
-  "messageList.branchTitle": "{{value1}} — ветка"
+  "messageList.branchTitle": "{{value1}} — ветка",
+  "chatComposer.cancelGeneration": "Остановить генерацию"
 }

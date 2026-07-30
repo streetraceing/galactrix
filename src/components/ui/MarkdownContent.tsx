@@ -2,6 +2,10 @@ import { memo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import type { Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import {
+  safeMarkdownImageSrc,
+  safeMarkdownLinkHref,
+} from '../../lib/safeMarkdownUrl';
 import { cn } from '../../lib/utils';
 
 const markdownPlugins = [remarkGfm];
@@ -24,16 +28,22 @@ const markdownComponents: Components = {
   ),
   em: ({ children }) => <em className="italic">{children}</em>,
   del: ({ children }) => <del className="text-muted">{children}</del>,
-  a: ({ href, children }) => (
-    <a
-      href={href}
-      target="_blank"
-      rel="noreferrer"
-      className="text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent"
-    >
-      {children}
-    </a>
-  ),
+  a: ({ href, children }) => {
+    const safeHref = safeMarkdownLinkHref(href);
+    if (!safeHref) return <span>{children}</span>;
+    const isAnchor = safeHref.startsWith('#');
+    return (
+      <a
+        href={safeHref}
+        target={isAnchor ? undefined : '_blank'}
+        rel={isAnchor ? undefined : 'noopener noreferrer'}
+        referrerPolicy="no-referrer"
+        className="text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent"
+      >
+        {children}
+      </a>
+    );
+  },
   blockquote: ({ children }) => (
     <blockquote className="my-3 border-l-2 border-accent/60 pl-3 text-muted">
       {children}
@@ -102,14 +112,21 @@ const markdownComponents: Components = {
   td: ({ children }) => (
     <td className="border-b border-separator px-3 py-2">{children}</td>
   ),
-  img: ({ src, alt }) => (
-    <img
-      src={src}
-      alt={alt ?? ''}
-      loading="lazy"
-      className="my-3 block h-auto w-auto max-h-96 max-w-full rounded-xl object-contain"
-    />
-  ),
+  img: ({ src, alt }) => {
+    const safeSrc = safeMarkdownImageSrc(src);
+    if (!safeSrc) {
+      return alt ? <span className="text-muted">[{alt}]</span> : null;
+    }
+    return (
+      <img
+        src={safeSrc}
+        alt={alt ?? ''}
+        loading="lazy"
+        referrerPolicy="no-referrer"
+        className="my-3 block h-auto w-auto max-h-96 max-w-full rounded-xl object-contain"
+      />
+    );
+  },
   input: ({ checked, type }) => (
     <input
       type={type}

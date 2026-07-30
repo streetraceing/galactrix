@@ -5,7 +5,7 @@ use serde_json::Value;
 
 use crate::i18n::{keys, CommandError, CommandResult};
 use crate::models::{
-    AppSettings, AppSnapshot, Chat, ChatConfigInput, ChatPromptContext, GalaxyItem,
+    AppSettings, AppSnapshot, Chat, ChatConfigInput, ChatPromptContext, ChatState, GalaxyItem,
     GalaxyItemInput, Message, MessageVariant, PromptConfig, Provider, UsagePoint,
 };
 
@@ -398,13 +398,29 @@ pub fn snapshot(connection: &Connection, app_version: &str) -> CommandResult<App
     })
 }
 
+fn worldbook_ids_by_chat(connection: &Connection) -> CommandResult<HashMap<String, Vec<String>>> {
+    let mut statement = connection.prepare(
+        "SELECT chat_id, worldbook_id FROM chat_worldbooks ORDER BY chat_id, position ASC",
+    )?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+    let mut result: HashMap<String, Vec<String>> = HashMap::new();
+    for (chat_id, worldbook_id) in rows {
+        result.entry(chat_id).or_default().push(worldbook_id);
+    }
+    Ok(result)
+}
+
 fn list_chats(connection: &Connection) -> CommandResult<Vec<Chat>> {
-    let mut statement = connection
-        .prepare(
-            "SELECT id, title, preview, updated_at, message_count, pinned, provider_id,
-                    persona_id, character_id, universe_id, prompt_config_json, response_preset
-             FROM chats ORDER BY pinned DESC, updated_at DESC",
-        )?;
+    let mut worldbooks = worldbook_ids_by_chat(connection)?;
+    let mut statement = connection.prepare(
+        "SELECT id, title, preview, updated_at, message_count, pinned, provider_id,
+                persona_id, character_id, universe_id, prompt_config_json, response_preset
+         FROM chats ORDER BY pinned DESC, updated_at DESC",
+    )?;
     let rows = statement
         .query_map([], |row| {
             Ok((
@@ -423,12 +439,25 @@ fn list_chats(connection: &Connection) -> CommandResult<Vec<Chat>> {
             ))
         })?
         .collect::<Result<Vec<_>, _>>()?;
-    drop(statement);
 
-    rows.into_iter()
-        .map(|(id, title, preview, updated_at, message_count, pinned, provider_id, persona_id, character_id, universe_id, prompt_config_json, legacy_preset)| {
-            Ok(Chat {
-                worldbook_ids: worldbook_ids_for_chat(connection, &id)?,
+    Ok(rows
+        .into_iter()
+        .map(
+            |(
+                id,
+                title,
+                preview,
+                updated_at,
+                message_count,
+                pinned,
+                provider_id,
+                persona_id,
+                character_id,
+                universe_id,
+                prompt_config_json,
+                legacy_preset,
+            )| Chat {
+                worldbook_ids: worldbooks.remove(&id).unwrap_or_default(),
                 id,
                 title,
                 preview,
@@ -440,52 +469,168 @@ fn list_chats(connection: &Connection) -> CommandResult<Vec<Chat>> {
                 character_id,
                 universe_id,
                 prompt_config: parse_prompt_config(&prompt_config_json, &legacy_preset),
-            })
-        })
-        .collect()
+            },
+        )
+        .collect())
 }
 
 fn worldbook_ids_for_chat(connection: &Connection, chat_id: &str) -> CommandResult<Vec<String>> {
-    let mut statement = connection
-        .prepare(
-            "SELECT worldbook_id FROM chat_worldbooks WHERE chat_id = ?1 ORDER BY position ASC",
-        )?;
-    let result = statement
-        .query_map(params![chat_id], |row| row.get(0))?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(CommandError::internal);
+    let mut statement = connection.prepare(
+        "SELECT worldbook_id FROM chat_worldbooks WHERE chat_id = ?1 ORDER BY position ASC",
+    )?;
+    let worldbook_ids = {
+        let rows = statement.query_map(params![chat_id], |row| row.get(0))?;
+        rows.collect::<Result<Vec<_>, _>>()
+    }?;
+    Ok(worldbook_ids)
+}
+
+pub fn get_chat(connection: &Connection, chat_id: &str) -> CommandResult<Chat> {
+    let row = connection
+        .query_row(
+            "SELECT id, title, preview, updated_at, message_count, pinned, provider_id,
+                    persona_id, character_id, universe_id, prompt_config_json, response_preset
+             FROM chats WHERE id = ?1",
+            params![chat_id],
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, i64>(3)?,
+                    row.get::<_, i64>(4)?,
+                    row.get::<_, i64>(5)? != 0,
+                    row.get::<_, Option<String>>(6)?,
+                    row.get::<_, Option<String>>(7)?,
+                    row.get::<_, Option<String>>(8)?,
+                    row.get::<_, Option<String>>(9)?,
+                    row.get::<_, String>(10)?,
+                    row.get::<_, String>(11)?,
+                ))
+            },
+        )
+        .optional()?
+        .ok_or_else(|| CommandError::new(keys::CHAT_NOT_FOUND))?;
+    Ok(Chat {
+        id: row.0.clone(),
+        title: row.1,
+        preview: row.2,
+        updated_at: row.3,
+        message_count: row.4,
+        pinned: row.5,
+        provider_id: row.6,
+        persona_id: row.7,
+        character_id: row.8,
+        universe_id: row.9,
+        prompt_config: parse_prompt_config(&row.10, &row.11),
+        worldbook_ids: worldbook_ids_for_chat(connection, &row.0)?,
+    })
+}
+
+type MessageVariantRow = (String, String, i64, String, i64);
+
+fn variants_from_rows(rows: Vec<MessageVariantRow>) -> HashMap<String, Vec<MessageVariant>> {
+    let mut result: HashMap<String, Vec<MessageVariant>> = HashMap::new();
+    for (message_id, id, index, content, created_at) in rows {
+        result.entry(message_id).or_default().push(MessageVariant {
+            id,
+            index,
+            content,
+            created_at: clock_time(created_at),
+        });
+    }
     result
 }
 
-fn message_variants_for_message(
+fn all_message_variants(
     connection: &Connection,
-    message_id: &str,
-) -> CommandResult<Vec<MessageVariant>> {
-    let mut statement = connection
-        .prepare(
-            "SELECT id, position, content, created_at
-             FROM message_variants WHERE message_id = ?1 ORDER BY position ASC",
-        )?;
-    let result = statement
-        .query_map(params![message_id], |row| {
-            Ok(MessageVariant {
-                id: row.get(0)?,
-                index: row.get(1)?,
-                content: row.get(2)?,
-                created_at: clock_time(row.get(3)?),
-            })
+) -> CommandResult<HashMap<String, Vec<MessageVariant>>> {
+    let mut statement = connection.prepare(
+        "SELECT message_id, id, position, content, created_at
+         FROM message_variants ORDER BY message_id, position ASC",
+    )?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?))
         })?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(CommandError::internal);
-    result
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(variants_from_rows(rows))
+}
+
+fn message_variants_for_chat(
+    connection: &Connection,
+    chat_id: &str,
+) -> CommandResult<HashMap<String, Vec<MessageVariant>>> {
+    let mut statement = connection.prepare(
+        "SELECT variants.message_id, variants.id, variants.position, variants.content, variants.created_at
+         FROM message_variants variants
+         INNER JOIN messages ON messages.id = variants.message_id
+         WHERE messages.chat_id = ?1
+         ORDER BY variants.message_id, variants.position ASC",
+    )?;
+    let rows = statement
+        .query_map(params![chat_id], |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?))
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(variants_from_rows(rows))
+}
+
+fn message_variants_before(
+    connection: &Connection,
+    chat_id: &str,
+    created_at: i64,
+) -> CommandResult<HashMap<String, Vec<MessageVariant>>> {
+    let mut statement = connection.prepare(
+        "SELECT variants.message_id, variants.id, variants.position, variants.content, variants.created_at
+         FROM message_variants variants
+         INNER JOIN messages ON messages.id = variants.message_id
+         WHERE messages.chat_id = ?1 AND messages.created_at < ?2
+         ORDER BY variants.message_id, variants.position ASC",
+    )?;
+    let rows = statement
+        .query_map(params![chat_id, created_at], |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?))
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(variants_from_rows(rows))
+}
+
+type MessageRow = (String, String, String, String, i64, bool, i64);
+
+fn messages_from_rows(
+    rows: Vec<MessageRow>,
+    mut variants: HashMap<String, Vec<MessageVariant>>,
+) -> Vec<Message> {
+    rows.into_iter()
+        .map(
+            |(id, chat_id, role, content, created_at, remembered, active_variant_index)| {
+                let message_variants = if role == "assistant" {
+                    variants.remove(&id).unwrap_or_default()
+                } else {
+                    Vec::new()
+                };
+                Message {
+                    id,
+                    chat_id,
+                    role,
+                    content,
+                    created_at: clock_time(created_at),
+                    remembered,
+                    active_variant_index,
+                    variants: message_variants,
+                }
+            },
+        )
+        .collect()
 }
 
 fn list_messages(connection: &Connection) -> CommandResult<Vec<Message>> {
-    let mut statement = connection
-        .prepare(
-            "SELECT id, chat_id, role, content, created_at, remembered, active_variant_index
-             FROM messages ORDER BY created_at ASC",
-        )?;
+    let variants = all_message_variants(connection)?;
+    let mut statement = connection.prepare(
+        "SELECT id, chat_id, role, content, created_at, remembered, active_variant_index
+         FROM messages ORDER BY created_at ASC",
+    )?;
     let rows = statement
         .query_map([], |row| {
             Ok((
@@ -499,27 +644,14 @@ fn list_messages(connection: &Connection) -> CommandResult<Vec<Message>> {
             ))
         })?
         .collect::<Result<Vec<_>, _>>()?;
-    drop(statement);
+    Ok(messages_from_rows(rows, variants))
+}
 
-    rows.into_iter()
-        .map(|(id, chat_id, role, content, created_at, remembered, active_variant_index)| {
-            let variants = if role == "assistant" {
-                message_variants_for_message(connection, &id)?
-            } else {
-                Vec::new()
-            };
-            Ok(Message {
-                id,
-                chat_id,
-                role,
-                content,
-                created_at: clock_time(created_at),
-                remembered,
-                active_variant_index,
-                variants,
-            })
-        })
-        .collect()
+pub fn chat_state(connection: &Connection, chat_id: &str) -> CommandResult<ChatState> {
+    Ok(ChatState {
+        chat: get_chat(connection, chat_id)?,
+        messages: messages_for_chat(connection, chat_id)?,
+    })
 }
 
 fn list_galaxy_items(connection: &Connection) -> CommandResult<Vec<GalaxyItem>> {
@@ -961,11 +1093,11 @@ pub fn clear_chat(connection: &Connection, chat_id: &str) -> CommandResult<()> {
 }
 
 pub fn messages_for_chat(connection: &Connection, chat_id: &str) -> CommandResult<Vec<Message>> {
-    let mut statement = connection
-        .prepare(
-            "SELECT id, chat_id, role, content, created_at, remembered, active_variant_index
-             FROM messages WHERE chat_id = ?1 ORDER BY created_at ASC",
-        )?;
+    let variants = message_variants_for_chat(connection, chat_id)?;
+    let mut statement = connection.prepare(
+        "SELECT id, chat_id, role, content, created_at, remembered, active_variant_index
+         FROM messages WHERE chat_id = ?1 ORDER BY created_at ASC",
+    )?;
     let rows = statement
         .query_map(params![chat_id], |row| {
             Ok((
@@ -979,27 +1111,7 @@ pub fn messages_for_chat(connection: &Connection, chat_id: &str) -> CommandResul
             ))
         })?
         .collect::<Result<Vec<_>, _>>()?;
-    drop(statement);
-
-    rows.into_iter()
-        .map(|(id, chat_id, role, content, created_at, remembered, active_variant_index)| {
-            let variants = if role == "assistant" {
-                message_variants_for_message(connection, &id)?
-            } else {
-                Vec::new()
-            };
-            Ok(Message {
-                id,
-                chat_id,
-                role,
-                content,
-                created_at: clock_time(created_at),
-                remembered,
-                active_variant_index,
-                variants,
-            })
-        })
-        .collect()
+    Ok(messages_from_rows(rows, variants))
 }
 
 pub fn messages_before_message(
@@ -1024,13 +1136,13 @@ pub fn messages_before_message(
         return Err(CommandError::new(keys::MESSAGE_REGENERATE_ASSISTANT_ONLY));
     }
 
-    let mut statement = connection
-        .prepare(
-            "SELECT id, chat_id, role, content, created_at, remembered, active_variant_index
-             FROM messages
-             WHERE chat_id = ?1 AND created_at < ?2
-             ORDER BY created_at ASC",
-        )?;
+    let variants = message_variants_before(connection, &chat_id, created_at)?;
+    let mut statement = connection.prepare(
+        "SELECT id, chat_id, role, content, created_at, remembered, active_variant_index
+         FROM messages
+         WHERE chat_id = ?1 AND created_at < ?2
+         ORDER BY created_at ASC",
+    )?;
     let rows = statement
         .query_map(params![chat_id, created_at], |row| {
             Ok((
@@ -1044,29 +1156,66 @@ pub fn messages_before_message(
             ))
         })?
         .collect::<Result<Vec<_>, _>>()?;
-    drop(statement);
 
-    let history = rows
-        .into_iter()
-        .map(|(id, chat_id, role, content, created_at, remembered, active_variant_index)| {
-            Ok(Message {
-                variants: if role == "assistant" {
-                    message_variants_for_message(connection, &id)?
-                } else {
-                    Vec::new()
-                },
-                id,
-                chat_id,
-                role,
-                content,
-                created_at: clock_time(created_at),
-                remembered,
-                active_variant_index,
-            })
-        })
-        .collect::<CommandResult<Vec<_>>>()?;
+    Ok((chat_id, messages_from_rows(rows, variants)))
+}
 
-    Ok((chat_id, history))
+fn next_message_timestamp(connection: &Connection, chat_id: &str) -> CommandResult<i64> {
+    let latest = connection.query_row(
+        "SELECT MAX(created_at) FROM messages WHERE chat_id = ?1",
+        params![chat_id],
+        |row| row.get::<_, Option<i64>>(0),
+    )?;
+    Ok(latest.map_or_else(now_unix, |value| now_unix().max(value + 1)))
+}
+
+pub fn add_user_message(
+    connection: &Connection,
+    chat_id: &str,
+    message_id: &str,
+    content: &str,
+) -> CommandResult<()> {
+    let transaction = connection.unchecked_transaction()?;
+    let created_at = next_message_timestamp(&transaction, chat_id)?;
+    transaction.execute(
+        "INSERT INTO messages (id, chat_id, role, content, created_at)
+         VALUES (?1, ?2, 'user', ?3, ?4)",
+        params![message_id, chat_id, content, created_at],
+    )?;
+    transaction.execute(
+        "UPDATE chats
+         SET preview = ?1, updated_at = ?2, message_count = message_count + 1
+         WHERE id = ?3",
+        params![content, created_at, chat_id],
+    )?;
+    transaction.commit().map_err(CommandError::internal)
+}
+
+pub fn add_assistant_message(
+    connection: &Connection,
+    chat_id: &str,
+    message_id: &str,
+    content: &str,
+) -> CommandResult<()> {
+    let transaction = connection.unchecked_transaction()?;
+    let created_at = next_message_timestamp(&transaction, chat_id)?;
+    transaction.execute(
+        "INSERT INTO messages (id, chat_id, role, content, created_at, active_variant_index)
+         VALUES (?1, ?2, 'assistant', ?3, ?4, 0)",
+        params![message_id, chat_id, content, created_at],
+    )?;
+    transaction.execute(
+        "INSERT INTO message_variants (id, message_id, position, content, created_at)
+         VALUES (?1, ?2, 0, ?3, ?4)",
+        params![format!("{message_id}-variant-0"), message_id, content, created_at],
+    )?;
+    transaction.execute(
+        "UPDATE chats
+         SET preview = ?1, updated_at = ?2, message_count = message_count + 1
+         WHERE id = ?3",
+        params![content, created_at, chat_id],
+    )?;
+    transaction.commit().map_err(CommandError::internal)
 }
 
 pub fn add_exchange(
@@ -1441,7 +1590,7 @@ fn refresh_chat_summary(connection: &Connection, chat_id: &str) -> CommandResult
     Ok(())
 }
 
-pub fn get_provider(connection: &Connection, id: &str) -> CommandResult<Provider> {
+pub fn provider_optional(connection: &Connection, id: &str) -> CommandResult<Option<Provider>> {
     connection
         .query_row(
             "SELECT id, name, kind, model, status, base_url, account_id, latency_ms,
@@ -1465,7 +1614,12 @@ pub fn get_provider(connection: &Connection, id: &str) -> CommandResult<Provider
                 })
             },
         )
-        .optional()?
+        .optional()
+        .map_err(CommandError::internal)
+}
+
+pub fn get_provider(connection: &Connection, id: &str) -> CommandResult<Provider> {
+    provider_optional(connection, id)?
         .ok_or_else(|| CommandError::new(keys::PROVIDER_NOT_FOUND))
 }
 
@@ -1869,6 +2023,11 @@ pub fn save_provider(connection: &Connection, provider: &Provider) -> CommandRes
     Ok(())
 }
 
+pub fn delete_provider_record(connection: &Connection, id: &str) -> CommandResult<()> {
+    connection.execute("DELETE FROM providers WHERE id = ?1", params![id])?;
+    Ok(())
+}
+
 pub fn update_provider_health(
     connection: &Connection,
     id: &str,
@@ -1982,4 +2141,141 @@ fn clock_time(timestamp: i64) -> String {
     let hours = seconds_in_day / 3_600;
     let minutes = (seconds_in_day % 3_600) / 60;
     format!("{hours:02}:{minutes:02}")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_database() -> Connection {
+        let connection = Connection::open_in_memory().expect("in-memory SQLite must open");
+        connection
+            .pragma_update(None, "foreign_keys", "ON")
+            .expect("foreign keys must enable");
+        migrate(&connection).expect("schema must migrate");
+        connection
+    }
+
+    fn create_test_chat(connection: &Connection, id: &str) {
+        create_chat(
+            connection,
+            id,
+            &ChatConfigInput {
+                title: "Test chat".into(),
+                provider_id: None,
+                persona_id: None,
+                character_id: None,
+                universe_id: None,
+                worldbook_ids: Vec::new(),
+                prompt_config: PromptConfig::default(),
+            },
+        )
+        .expect("chat must be created");
+    }
+
+    #[test]
+    fn user_message_is_durable_before_assistant_response() {
+        let connection = test_database();
+        create_test_chat(&connection, "chat-1");
+
+        add_user_message(&connection, "chat-1", "user-1", "hello")
+            .expect("user message must persist");
+
+        let state = chat_state(&connection, "chat-1").expect("chat state must load");
+        assert_eq!(state.chat.message_count, 1);
+        assert_eq!(state.chat.preview, "hello");
+        assert_eq!(state.messages.len(), 1);
+        assert_eq!(state.messages[0].role, "user");
+        assert_eq!(state.messages[0].content, "hello");
+    }
+
+    #[test]
+    fn assistant_message_creates_initial_variant_and_updates_summary() {
+        let connection = test_database();
+        create_test_chat(&connection, "chat-1");
+        add_user_message(&connection, "chat-1", "user-1", "hello")
+            .expect("user message must persist");
+        add_assistant_message(&connection, "chat-1", "assistant-1", "hi")
+            .expect("assistant message must persist");
+
+        let state = chat_state(&connection, "chat-1").expect("chat state must load");
+        assert_eq!(state.chat.message_count, 2);
+        assert_eq!(state.chat.preview, "hi");
+        let assistant = state
+            .messages
+            .iter()
+            .find(|message| message.id == "assistant-1")
+            .expect("assistant message must exist");
+        assert_eq!(assistant.variants.len(), 1);
+        assert_eq!(assistant.variants[0].content, "hi");
+    }
+
+    #[test]
+    fn get_chat_loads_worldbooks_in_position_order() {
+        let connection = test_database();
+        create_test_chat(&connection, "chat-1");
+        connection
+            .execute_batch(
+                "INSERT INTO galaxy_items (id, kind, name, description, data_json, badge, accent, updated_at)
+                 VALUES ('worldbook-1', 'worldbook', 'World 1', '', '{}', '', 'amber', 1);
+                 INSERT INTO galaxy_items (id, kind, name, description, data_json, badge, accent, updated_at)
+                 VALUES ('worldbook-2', 'worldbook', 'World 2', '', '{}', '', 'amber', 1);
+                 INSERT INTO chat_worldbooks (chat_id, worldbook_id, position)
+                 VALUES ('chat-1', 'worldbook-1', 1);
+                 INSERT INTO chat_worldbooks (chat_id, worldbook_id, position)
+                 VALUES ('chat-1', 'worldbook-2', 0);",
+            )
+            .expect("worldbook relations must insert");
+
+        let chat = get_chat(&connection, "chat-1").expect("chat must load");
+        assert_eq!(chat.worldbook_ids, vec!["worldbook-2", "worldbook-1"]);
+    }
+
+    #[test]
+    fn batched_chat_and_variant_loading_preserves_relations() {
+        let connection = test_database();
+        create_test_chat(&connection, "chat-1");
+        create_test_chat(&connection, "chat-2");
+        connection
+            .execute(
+                "INSERT INTO galaxy_items (id, kind, name, description, data_json, badge, accent, updated_at)
+                 VALUES ('worldbook-1', 'worldbook', 'World', '', '{}', '', 'amber', 1)",
+                [],
+            )
+            .expect("worldbook must insert");
+        connection
+            .execute(
+                "INSERT INTO chat_worldbooks (chat_id, worldbook_id, position)
+                 VALUES ('chat-1', 'worldbook-1', 0)",
+                [],
+            )
+            .expect("worldbook relation must insert");
+        add_user_message(&connection, "chat-1", "user-1", "hello")
+            .expect("user message must persist");
+        add_assistant_message(&connection, "chat-1", "assistant-1", "hi")
+            .expect("assistant message must persist");
+        append_message_variant(
+            &connection,
+            "assistant-1",
+            "assistant-1-variant-1",
+            "hello again",
+        )
+        .expect("variant must append");
+
+        let chats = list_chats(&connection).expect("chats must load");
+        let chat = chats
+            .iter()
+            .find(|chat| chat.id == "chat-1")
+            .expect("chat must exist");
+        assert_eq!(chat.worldbook_ids, vec!["worldbook-1"]);
+
+        let messages = list_messages(&connection).expect("messages must load");
+        let assistant = messages
+            .iter()
+            .find(|message| message.id == "assistant-1")
+            .expect("assistant message must exist");
+        assert_eq!(assistant.variants.len(), 2);
+        assert_eq!(assistant.active_variant_index, 1);
+        assert_eq!(assistant.content, "hello again");
+    }
 }

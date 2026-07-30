@@ -262,6 +262,11 @@ export type UsagePoint = {
   requests: number;
 };
 
+export type ChatState = {
+  chat: Chat;
+  messages: Message[];
+};
+
 export type AppSnapshot = {
   chats: Chat[];
   messages: Message[];

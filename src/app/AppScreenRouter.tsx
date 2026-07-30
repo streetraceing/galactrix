@@ -49,6 +49,7 @@ export function AppScreenRouter({ controller }: { controller: Controller }) {
         onRegenerateMessage={controller.regenerateExistingMessage}
         onSelectMessageVariant={controller.chooseMessageVariant}
         onSend={controller.sendMessage}
+        onCancelGeneration={controller.cancelCurrentGeneration}
         sendOnEnter={snapshot.settings.sendOnEnter}
         saveDrafts={snapshot.settings.saveDrafts}
         chatViewMode={snapshot.settings.chatViewMode}

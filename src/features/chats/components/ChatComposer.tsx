@@ -3,6 +3,7 @@ import { memo, useEffect, useRef, useState } from 'react';
 import type { ChangeEvent, KeyboardEvent } from 'react';
 import { Icon } from '../../../components/Icon';
 import { TooltipIconButton } from '../../../components/ui/TooltipIconButton';
+import { backendErrorHasVariable } from '../../../lib/backend';
 import type { Provider } from '../../../types';
 import { useTranslation } from 'react-i18next';
 import { draftKey } from '../utils';
@@ -25,6 +26,7 @@ function ChatComposerComponent({
   shouldAutoFocus,
   focusKey,
   onSend,
+  onCancel,
 }: {
   chatId: string;
   provider?: Provider;
@@ -34,6 +36,7 @@ function ChatComposerComponent({
   shouldAutoFocus: boolean;
   focusKey: string;
   onSend: (value: string) => Promise<void>;
+  onCancel: () => Promise<void>;
 }) {
   const { t } = useTranslation('chats');
   const [draft, setDraft] = useState(() => readDraft(chatId, saveDrafts));
@@ -102,8 +105,10 @@ function ChatComposerComponent({
     try {
       await onSend(value);
       localStorage.removeItem(draftKey(chatId));
-    } catch {
-      setDraft((current) => current || value);
+    } catch (error) {
+      if (!backendErrorHasVariable(error, 'messagePersisted', 'true')) {
+        setDraft((current) => current || value);
+      }
     } finally {
       submittingRef.current = false;
     }
@@ -143,17 +148,28 @@ function ChatComposerComponent({
               disabled={!provider || sending}
               className="max-h-48 min-h-12 resize-none overflow-y-auto transition-none ring-0"
             />
-            <TooltipIconButton
-              label={t('chatComposer.sendMessage')}
-              size="lg"
-              variant="primary"
-              className="shrink-0"
-              isDisabled={!draft.trim() || !provider || sending}
-              isPending={sending}
-              onPress={() => void submit()}
-            >
-              <Icon name="send" className="size-5" />
-            </TooltipIconButton>
+            {sending ? (
+              <TooltipIconButton
+                label={t('chatComposer.cancelGeneration')}
+                size="lg"
+                variant="ghost"
+                className="shrink-0 text-danger"
+                onPress={() => void onCancel()}
+              >
+                <Icon name="close" className="size-5" />
+              </TooltipIconButton>
+            ) : (
+              <TooltipIconButton
+                label={t('chatComposer.sendMessage')}
+                size="lg"
+                variant="primary"
+                className="shrink-0"
+                isDisabled={!draft.trim() || !provider}
+                onPress={() => void submit()}
+              >
+                <Icon name="send" className="size-5" />
+              </TooltipIconButton>
+            )}
           </div>
           <div className="hidden flex-wrap items-center justify-between gap-2 px-2 pb-1 pt-2 text-[0.7rem] text-muted sm:flex">
             <span>

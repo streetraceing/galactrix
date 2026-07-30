@@ -1,10 +1,11 @@
 import { invoke } from '@tauri-apps/api/core';
 import { i18next } from '../i18n';
-import { localizeBackendError } from '../i18n/backend';
+import { getBackendErrorPayload, localizeBackendError } from '../i18n/backend';
 import type {
   AppSettings,
   AppSnapshot,
   ChatConfigInput,
+  ChatState,
   GalaxyItem,
   GalaxyItemInput,
   Provider,
@@ -14,6 +15,41 @@ import type {
   PromptPreviewInput,
   PromptPreviewResult,
 } from '../types';
+
+export class BackendCommandError extends Error {
+  readonly key?: string;
+  readonly variables: Record<string, string | number>;
+
+  constructor(
+    message: string,
+    key: string | undefined,
+    variables: Record<string, string | number> | undefined,
+    cause: unknown,
+  ) {
+    super(message, { cause });
+    this.name = 'BackendCommandError';
+    this.key = key;
+    this.variables = variables ?? {};
+  }
+}
+
+export function isBackendCommandError(
+  error: unknown,
+  key: string,
+): error is BackendCommandError {
+  return error instanceof BackendCommandError && error.key === key;
+}
+
+export function backendErrorHasVariable(
+  error: unknown,
+  name: string,
+  value: string,
+) {
+  return (
+    error instanceof BackendCommandError &&
+    String(error.variables[name]) === value
+  );
+}
 
 function requireTauri() {
   if (typeof window === 'undefined' || !('__TAURI_INTERNALS__' in window)) {
@@ -28,13 +64,29 @@ async function invokeBackend<T>(
   try {
     return await invoke<T>(command, args);
   } catch (error) {
-    throw new Error(localizeBackendError(error), { cause: error });
+    const payload = getBackendErrorPayload(error);
+    throw new BackendCommandError(
+      localizeBackendError(error),
+      payload?.key,
+      payload?.variables,
+      error,
+    );
   }
 }
 
 export async function loadSnapshot(): Promise<AppSnapshot> {
   requireTauri();
   return invokeBackend<AppSnapshot>('get_app_snapshot');
+}
+
+export async function loadChatState(chatId: string): Promise<ChatState> {
+  requireTauri();
+  return invokeBackend<ChatState>('get_chat_state', { chatId });
+}
+
+export async function cancelGeneration(generationId: string) {
+  requireTauri();
+  return invokeBackend<boolean>('cancel_generation', { generationId });
 }
 
 export async function createChat(input: ChatConfigInput) {
@@ -70,12 +122,14 @@ export async function clearChat(chatId: string) {
 export async function sendChatMessage(
   chatId: string,
   content: string,
+  generationId: string,
   responseLanguage?: 'en' | 'ru',
 ) {
   requireTauri();
   return invokeBackend<void>('send_chat_message', {
     chatId,
     content,
+    generationId,
     responseLanguage: responseLanguage ?? null,
   });
 }
@@ -137,11 +191,13 @@ export async function selectMessageVariant(
 
 export async function regenerateMessage(
   messageId: string,
+  generationId: string,
   responseLanguage?: 'en' | 'ru',
 ) {
   requireTauri();
   return invokeBackend<void>('regenerate_message', {
     messageId,
+    generationId,
     responseLanguage: responseLanguage ?? null,
   });
 }

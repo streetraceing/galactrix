@@ -213,5 +213,6 @@
   "preview.character": "Character",
   "errors.chatActionFailed": "Chat action failed",
   "chatsScreen.copyTitle": "{{value1}} — copy",
-  "messageList.branchTitle": "{{value1}} — branch"
+  "messageList.branchTitle": "{{value1}} — branch",
+  "chatComposer.cancelGeneration": "Cancel generation"
 }

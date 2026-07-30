@@ -1,7 +1,8 @@
 import { useTheme } from 'next-themes';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   branchChat,
+  cancelGeneration,
   checkProvider,
   clearChat,
   cloneChat,
@@ -15,6 +16,8 @@ import {
   fetchProviderModels,
   importProviderConnections,
   importGalaxyItems,
+  isBackendCommandError,
+  loadChatState,
   loadSnapshot,
   regenerateMessage,
   renameChat,
@@ -79,6 +82,21 @@ function errorText(error: unknown) {
   return error instanceof Error ? error.message : String(error);
 }
 
+function sortChats(chats: AppSnapshot['chats']) {
+  return [...chats].sort(
+    (left, right) =>
+      Number(right.pinned) - Number(left.pinned) ||
+      right.updatedAt - left.updatedAt,
+  );
+}
+
+function createGenerationId() {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return crypto.randomUUID();
+  }
+  return `generation-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
 export function useAppController() {
   const { setTheme } = useTheme();
   const [activeTab, setActiveTab] = useState<TabId>('chats');
@@ -89,6 +107,8 @@ export function useAppController() {
   const [fatalError, setFatalError] = useState('');
   const [notice, setNotice] = useState('');
   const [sending, setSending] = useState(false);
+  const activeGenerationRef = useRef<string | null>(null);
+  const cancelRequestedRef = useRef(false);
 
   const refresh = useCallback(async () => {
     const data = await loadSnapshot();
@@ -99,6 +119,22 @@ export function useAppController() {
         : (data.chats[0]?.id ?? ''),
     );
     return data;
+  }, []);
+
+  const refreshChat = useCallback(async (chatId: string) => {
+    const state = await loadChatState(chatId);
+    setSnapshot((current) => ({
+      ...current,
+      chats: sortChats([
+        ...current.chats.filter((chat) => chat.id !== chatId),
+        state.chat,
+      ]),
+      messages: [
+        ...current.messages.filter((message) => message.chatId !== chatId),
+        ...state.messages,
+      ],
+    }));
+    return state;
   }, []);
 
   const boot = useCallback(async () => {
@@ -212,90 +248,124 @@ export function useAppController() {
   const createNewChat = useCallback(
     async (input: ChatConfigInput) => {
       const created = await createChat(input);
-      await refresh();
+      await refreshChat(created.id);
       setActiveChatId(created.id);
       setIsChatOpen(true);
       setActiveTab('chats');
       haptic();
     },
-    [haptic, refresh],
+    [haptic, refreshChat],
   );
 
   const updateExistingChat = useCallback(
     async (chatId: string, input: ChatConfigInput) => {
       await updateChatConfig(chatId, input);
-      await refresh();
+      await refreshChat(chatId);
       haptic();
     },
-    [haptic, refresh],
+    [haptic, refreshChat],
   );
 
   const renameExistingChat = useCallback(
     async (chatId: string, title: string) => {
       await renameChat(chatId, title);
-      await refresh();
+      await refreshChat(chatId);
       haptic();
     },
-    [haptic, refresh],
+    [haptic, refreshChat],
   );
 
   const removeChat = useCallback(
     async (chatId: string) => {
+      const nextChatId =
+        snapshot.chats.find((chat) => chat.id !== chatId)?.id ?? '';
       if (chatId === activeChatId) closeChat();
       await deleteChat(chatId);
-      await refresh();
+      setSnapshot((current) => ({
+        ...current,
+        chats: current.chats.filter((chat) => chat.id !== chatId),
+        messages: current.messages.filter(
+          (message) => message.chatId !== chatId,
+        ),
+      }));
+      if (chatId === activeChatId) setActiveChatId(nextChatId);
       haptic();
     },
-    [activeChatId, closeChat, haptic, refresh],
+    [activeChatId, closeChat, haptic, snapshot.chats],
   );
 
   const pinChat = useCallback(
     async (chatId: string, pinned: boolean) => {
       await setChatPinned(chatId, pinned);
-      await refresh();
+      await refreshChat(chatId);
       haptic();
     },
-    [haptic, refresh],
+    [haptic, refreshChat],
   );
 
   const clearExistingChat = useCallback(
     async (chatId: string) => {
       await clearChat(chatId);
-      await refresh();
+      await refreshChat(chatId);
       haptic();
     },
-    [haptic, refresh],
+    [haptic, refreshChat],
   );
 
   const sendMessage = useCallback(
     async (content: string) => {
       if (!activeChatId || sending) return;
+      const chatId = activeChatId;
+      const generationId = createGenerationId();
+      activeGenerationRef.current = generationId;
+      cancelRequestedRef.current = false;
       setSending(true);
       try {
         await sendChatMessage(
-          activeChatId,
+          chatId,
           content,
+          generationId,
           snapshot.settings.responseLanguage === 'app'
             ? getLocale()
             : undefined,
         );
-        await refresh();
+        await refreshChat(chatId);
         haptic();
       } catch (error) {
-        await refresh().catch(() => undefined);
-        throw error;
+        await refreshChat(chatId).catch(() => undefined);
+        if (
+          !isBackendCommandError(error, 'backend.provider.requestCancelled')
+        ) {
+          throw error;
+        }
       } finally {
-        setSending(false);
+        if (activeGenerationRef.current === generationId) {
+          activeGenerationRef.current = null;
+          cancelRequestedRef.current = false;
+          setSending(false);
+        }
       }
     },
     [
       activeChatId,
       haptic,
-      refresh,
+      refreshChat,
       sending,
       snapshot.settings.responseLanguage,
     ],
   );
+
+  const cancelCurrentGeneration = useCallback(async () => {
+    const generationId = activeGenerationRef.current;
+    if (!generationId || cancelRequestedRef.current) return;
+    cancelRequestedRef.current = true;
+    try {
+      await cancelGeneration(generationId);
+    } catch (error) {
+      cancelRequestedRef.current = false;
+      throw error;
+    }
+  }, []);
 
   const cloneExistingChat = useCallback(
     async (
@@ -313,13 +383,13 @@ export function useAppController() {
           value1: sourceTitle,
         });
       const created = await cloneChat(chatId, title, includeMessages, input);
-      await refresh();
+      await refreshChat(created.id);
       setActiveChatId(created.id);
       setIsChatOpen(true);
       setActiveTab('chats');
       haptic();
     },
-    [haptic, refresh, snapshot.chats],
+    [haptic, refreshChat, snapshot.chats],
   );
 
   const branchFromMessage = useCallback(
@@ -335,70 +405,120 @@ export function useAppController() {
         value1: sourceTitle,
       });
       const created = await branchChat(messageId, title);
-      await refresh();
+      await refreshChat(created.id);
       setActiveChatId(created.id);
       setIsChatOpen(true);
       setActiveTab('chats');
       haptic();
     },
-    [haptic, refresh, snapshot.chats, snapshot.messages],
+    [haptic, refreshChat, snapshot.chats, snapshot.messages],
   );
 
   const editExistingMessage = useCallback(
     async (messageId: string, content: string) => {
+      const chatId = snapshot.messages.find(
+        (message) => message.id === messageId,
+      )?.chatId;
       await editMessage(messageId, content);
-      await refresh();
+      if (chatId) await refreshChat(chatId);
       haptic();
     },
-    [haptic, refresh],
+    [haptic, refreshChat, snapshot.messages],
   );
 
   const removeMessage = useCallback(
     async (messageId: string) => {
+      const chatId = snapshot.messages.find(
+        (message) => message.id === messageId,
+      )?.chatId;
       await deleteMessage(messageId);
-      await refresh();
+      if (chatId) await refreshChat(chatId);
       haptic();
     },
-    [haptic, refresh],
+    [haptic, refreshChat, snapshot.messages],
   );
 
   const rememberMessage = useCallback(
     async (messageId: string, remembered: boolean) => {
+      const chatId = snapshot.messages.find(
+        (message) => message.id === messageId,
+      )?.chatId;
       await setMessageRemembered(messageId, remembered);
-      await refresh();
+      if (chatId) await refreshChat(chatId);
       haptic();
     },
-    [haptic, refresh],
+    [haptic, refreshChat, snapshot.messages],
   );
 
   const regenerateExistingMessage = useCallback(
     async (messageId: string) => {
-      await regenerateMessage(
-        messageId,
-        snapshot.settings.responseLanguage === 'app' ? getLocale() : undefined,
-      );
-      await refresh();
-      haptic();
+      if (sending) return;
+      const chatId = snapshot.messages.find(
+        (message) => message.id === messageId,
+      )?.chatId;
+      const generationId = createGenerationId();
+      activeGenerationRef.current = generationId;
+      cancelRequestedRef.current = false;
+      setSending(true);
+      try {
+        await regenerateMessage(
+          messageId,
+          generationId,
+          snapshot.settings.responseLanguage === 'app'
+            ? getLocale()
+            : undefined,
+        );
+        if (chatId) await refreshChat(chatId);
+        haptic();
+      } catch (error) {
+        if (chatId) await refreshChat(chatId).catch(() => undefined);
+        if (
+          !isBackendCommandError(error, 'backend.provider.requestCancelled')
+        ) {
+          throw error;
+        }
+      } finally {
+        if (activeGenerationRef.current === generationId) {
+          activeGenerationRef.current = null;
+          cancelRequestedRef.current = false;
+          setSending(false);
+        }
+      }
     },
-    [haptic, refresh, snapshot.settings.responseLanguage],
+    [
+      haptic,
+      refreshChat,
+      sending,
+      snapshot.messages,
+      snapshot.settings.responseLanguage,
+    ],
   );
 
   const chooseMessageVariant = useCallback(
     async (messageId: string, variantIndex: number) => {
+      const chatId = snapshot.messages.find(
+        (message) => message.id === messageId,
+      )?.chatId;
       await selectMessageVariant(messageId, variantIndex);
-      await refresh();
+      if (chatId) await refreshChat(chatId);
       haptic();
     },
-    [haptic, refresh],
+    [haptic, refreshChat, snapshot.messages],
   );
 
   const saveGalaxyItem = useCallback(
     async (input: GalaxyItemInput) => {
-      await upsertGalaxyItem(input);
-      await refresh();
+      const saved = await upsertGalaxyItem(input);
+      setSnapshot((current) => ({
+        ...current,
+        galaxyItems: [
+          saved,
+          ...current.galaxyItems.filter((item) => item.id !== saved.id),
+        ],
+      }));
       haptic();
     },
-    [haptic, refresh],
+    [haptic],
   );
 
   const removeGalaxyItem = useCallback(
@@ -423,11 +543,17 @@ export function useAppController() {
   const saveProviderConnection = useCallback(
     async (provider: ProviderInput, apiKey?: string) => {
       const saved = await saveProvider(provider, apiKey);
-      await refresh();
+      setSnapshot((current) => ({
+        ...current,
+        providers: [
+          saved,
+          ...current.providers.filter((item) => item.id !== saved.id),
+        ],
+      }));
       haptic();
       return saved;
     },
-    [haptic, refresh],
+    [haptic],
   );
 
   const importProviders = useCallback(
@@ -440,22 +566,30 @@ export function useAppController() {
     [haptic, refresh],
   );
 
-  const checkProviderConnection = useCallback(
-    async (id: string) => {
-      const checked = await checkProvider(id);
-      await refresh();
-      return checked;
-    },
-    [refresh],
-  );
+  const checkProviderConnection = useCallback(async (id: string) => {
+    const checked = await checkProvider(id);
+    setSnapshot((current) => ({
+      ...current,
+      providers: current.providers.map((provider) =>
+        provider.id === checked.id ? checked : provider,
+      ),
+    }));
+    return checked;
+  }, []);
 
   const removeProviderConnection = useCallback(
     async (id: string) => {
       await deleteProvider(id);
-      await refresh();
+      setSnapshot((current) => ({
+        ...current,
+        providers: current.providers.filter((provider) => provider.id !== id),
+        chats: current.chats.map((chat) =>
+          chat.providerId === id ? { ...chat, providerId: undefined } : chat,
+        ),
+      }));
       haptic();
     },
-    [haptic, refresh],
+    [haptic],
   );
 
   return {
@@ -481,6 +615,7 @@ export function useAppController() {
     pinChat,
     clearExistingChat,
     sendMessage,
+    cancelCurrentGeneration,
     cloneExistingChat,
     branchFromMessage,
     editExistingMessage,

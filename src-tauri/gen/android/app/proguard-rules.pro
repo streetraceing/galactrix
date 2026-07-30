@@ -27,3 +27,10 @@
 -keepclassmembers class ru.streetraceing.galactrix.MainActivity {
     native <methods>;
 }
+
+# The Android keyring backend resolves this Kotlin/JNI bridge at runtime.
+-keep class io.crates.keyring.Keyring { *; }
+-keepclasseswithmembernames,includedescriptorclasses class * {
+    native <methods>;
+}
+

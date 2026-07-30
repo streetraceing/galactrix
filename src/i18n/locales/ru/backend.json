@@ -65,5 +65,6 @@
   "backend.galaxy.contextUniverseNotFound": "Связанная вселенная не найдена",
   "backend.galaxy.contextWorldbookNotFound": "Один из связанных ворлдбуков не найден",
   "backend.galaxy.contextStyleNotFound": "Связанный стиль переписки не найден",
-  "backend.galaxy.contextPromptSetNotFound": "Один из связанных наборов промптов не найден"
+  "backend.galaxy.contextPromptSetNotFound": "Один из связанных наборов промптов не найден",
+  "backend.provider.requestCancelled": "Генерация остановлена."
 }

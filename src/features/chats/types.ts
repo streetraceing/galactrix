@@ -51,6 +51,7 @@ export type ChatsScreenProps = {
     variantIndex: number,
   ) => Promise<void>;
   onSend: (content: string) => Promise<void>;
+  onCancelGeneration: () => Promise<void>;
   sendOnEnter: boolean;
   saveDrafts: boolean;
   chatViewMode: AppSettings['chatViewMode'];

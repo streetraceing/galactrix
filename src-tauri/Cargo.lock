@@ -1707,6 +1707,7 @@ dependencies = [
 name = "galactrix"
 version = "1.0.0"
 dependencies = [
+ "futures-util",
  "jni 0.22.4",
  "keyring",
  "reqwest",
@@ -1719,6 +1720,7 @@ dependencies = [
  "tauri-plugin-dialog",
  "tauri-plugin-fs",
  "tauri-plugin-opener",
+ "tokio",
  "uuid",
  "windows",
 ]

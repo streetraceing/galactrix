@@ -38,6 +38,7 @@ pub mod keys {
         "backend.provider.characterAiUnsupported";
     pub const PROVIDER_CONNECTION_FAILED: &str = "backend.provider.connectionFailed";
     pub const PROVIDER_REQUEST_FAILED: &str = "backend.provider.requestFailed";
+    pub const PROVIDER_REQUEST_CANCELLED: &str = "backend.provider.requestCancelled";
     pub const PROVIDER_RESPONSE_READ_FAILED: &str =
         "backend.provider.responseReadFailed";
     pub const PROVIDER_HTTP_ERROR: &str = "backend.provider.httpError";

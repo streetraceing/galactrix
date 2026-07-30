@@ -298,6 +298,13 @@ pub struct UsagePoint {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ChatState {
+    pub chat: Chat,
+    pub messages: Vec<Message>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AppSnapshot {
     pub chats: Vec<Chat>,
     pub messages: Vec<Message>,

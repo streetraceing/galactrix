@@ -2,6 +2,7 @@ package ru.streetraceing.galactrix
 
 import android.content.Context
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import androidx.activity.enableEdgeToEdge
 import androidx.core.view.ViewCompat
@@ -13,8 +14,10 @@ class MainActivity : TauriActivity() {
 
   override fun onCreate(savedInstanceState: Bundle?) {
     System.loadLibrary("galactrix_lib")
-    initializeRustlsPlatformVerifier(applicationContext)
-    Keyring.initializeNdkContext(applicationContext)
+    runCatching { initializeRustlsPlatformVerifier(applicationContext) }
+      .onFailure { error -> Log.e(TAG, "Failed to initialize Android TLS verifier", error) }
+    runCatching { Keyring.initializeNdkContext(applicationContext) }
+      .onFailure { error -> Log.e(TAG, "Failed to initialize Android secure storage", error) }
     enableEdgeToEdge()
     super.onCreate(savedInstanceState)
 
@@ -34,5 +37,9 @@ class MainActivity : TauriActivity() {
       windowInsets
     }
     ViewCompat.requestApplyInsets(contentView)
+  }
+
+  private companion object {
+    const val TAG = "Galactrix"
   }
 }

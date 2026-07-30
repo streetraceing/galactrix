@@ -10,14 +10,16 @@ mod windows_window;
 
 use std::{collections::HashMap, sync::Mutex};
 
+use futures_util::future::{select, Either};
 use i18n::{keys, CommandError, CommandResult};
 use models::{
-    AppSettings, AppSnapshot, ChatConfigInput, CreatedChat, GalaxyItem, GalaxyItemInput, Provider,
-    PromptPreviewInput, PromptPreviewResult, ProviderImportInput, ProviderInput,
-    ProviderModelResult,
+    AppSettings, AppSnapshot, ChatConfigInput, ChatState, CompletionResult, CreatedChat,
+    GalaxyItem, GalaxyItemInput, Message, Provider, PromptPreviewInput, PromptPreviewResult,
+    ProviderImportInput, ProviderInput, ProviderModelResult,
 };
 use rusqlite::Connection;
 use tauri::{Manager, State};
+use tokio::sync::{oneshot, oneshot::error::TryRecvError};
 use uuid::Uuid;
 
 #[cfg(target_os = "android")]
@@ -31,8 +33,105 @@ pub extern "system" fn initialize_rustls_platform_verifier<'local>(
         .resolve::<jni::errors::ThrowRuntimeExAndDefault>()
 }
 
+enum GenerationControl {
+    Active(oneshot::Sender<()>),
+    Cancelled,
+}
+
 struct AppState {
     database: Mutex<Connection>,
+    generations: Mutex<HashMap<String, GenerationControl>>,
+}
+
+fn register_generation(
+    state: &AppState,
+    generation_id: &str,
+) -> CommandResult<oneshot::Receiver<()>> {
+    let (sender, receiver) = oneshot::channel();
+    let mut generations = state
+        .generations
+        .lock()
+        .map_err(CommandError::internal)?;
+
+    match generations.remove(generation_id) {
+        Some(GenerationControl::Active(previous)) => {
+            let _ = previous.send(());
+        }
+        Some(GenerationControl::Cancelled) => {
+            drop(sender);
+            return Ok(receiver);
+        }
+        None => {}
+    }
+
+    generations.insert(
+        generation_id.to_owned(),
+        GenerationControl::Active(sender),
+    );
+    Ok(receiver)
+}
+
+fn finish_generation(state: &AppState, generation_id: &str) {
+    if let Ok(mut generations) = state.generations.lock() {
+        generations.remove(generation_id);
+    }
+}
+
+async fn complete_cancellable(
+    provider: &Provider,
+    secret: Option<&str>,
+    history: &[Message],
+    system_prompt: Option<&str>,
+    appended_user_message: Option<&str>,
+    mut cancellation: oneshot::Receiver<()>,
+) -> CommandResult<CompletionResult> {
+    match cancellation.try_recv() {
+        Ok(()) | Err(TryRecvError::Closed) => {
+            return Err(CommandError::new(keys::PROVIDER_REQUEST_CANCELLED));
+        }
+        Err(TryRecvError::Empty) => {}
+    }
+
+    let completion = Box::pin(provider_client::complete(
+        provider,
+        secret,
+        history,
+        system_prompt,
+        appended_user_message,
+    ));
+    let cancellation = Box::pin(cancellation);
+    match select(completion, cancellation).await {
+        Either::Left((result, _)) => result,
+        Either::Right((_, _)) => Err(CommandError::new(keys::PROVIDER_REQUEST_CANCELLED)),
+    }
+}
+
+#[tauri::command]
+fn cancel_generation(
+    generation_id: String,
+    state: State<'_, AppState>,
+) -> CommandResult<bool> {
+    let mut generations = state
+        .generations
+        .lock()
+        .map_err(CommandError::internal)?;
+    match generations.remove(&generation_id) {
+        Some(GenerationControl::Active(sender)) => Ok(sender.send(()).is_ok()),
+        Some(GenerationControl::Cancelled) => {
+            generations.insert(generation_id, GenerationControl::Cancelled);
+            Ok(true)
+        }
+        None => {
+            generations.insert(generation_id, GenerationControl::Cancelled);
+            Ok(true)
+        }
+    }
+}
+
+#[tauri::command]
+fn get_chat_state(chat_id: String, state: State<'_, AppState>) -> CommandResult<ChatState> {
+    let database = state.database.lock().map_err(CommandError::internal)?;
+    db::chat_state(&database, &chat_id)
 }
 
 #[tauri::command]
@@ -336,6 +435,7 @@ fn preview_prompt(input: PromptPreviewInput) -> PromptPreviewResult {
 #[tauri::command]
 async fn regenerate_message(
     message_id: String,
+    generation_id: String,
     response_language: Option<String>,
     state: State<'_, AppState>,
 ) -> CommandResult<()> {
@@ -359,20 +459,24 @@ async fn regenerate_message(
         )
     };
     let secret = secret_for_saved_provider(&provider)?;
-
-    let completion = match provider_client::complete(
+    let cancellation = register_generation(&state, &generation_id)?;
+    let completion = complete_cancellable(
         &provider,
         secret.as_deref(),
         &history,
         system_prompt.as_deref(),
         None,
+        cancellation,
     )
-    .await
-    {
+    .await;
+    finish_generation(&state, &generation_id);
+    let completion = match completion {
         Ok(completion) => completion,
         Err(error) => {
-            if let Ok(database) = state.database.lock() {
-                let _ = db::update_provider_health(&database, &provider.id, "error", None);
+            if error.key != keys::PROVIDER_REQUEST_CANCELLED {
+                if let Ok(database) = state.database.lock() {
+                    let _ = db::update_provider_health(&database, &provider.id, "error", None);
+                }
             }
             return Err(error);
         }
@@ -380,6 +484,9 @@ async fn regenerate_message(
 
     let response_content = response_rules::normalize_response(&completion.content);
     if response_content.is_empty() {
+        if let Ok(database) = state.database.lock() {
+            let _ = db::update_provider_health(&database, &provider.id, "error", None);
+        }
         return Err(CommandError::new(keys::PROVIDER_EMPTY_RESPONSE));
     }
 
@@ -411,64 +518,81 @@ async fn regenerate_message(
 async fn send_chat_message(
     chat_id: String,
     content: String,
+    generation_id: String,
     response_language: Option<String>,
     state: State<'_, AppState>,
 ) -> CommandResult<()> {
-    let content = content.trim();
+    let content = content.trim().to_owned();
     if content.is_empty() {
         return Err(CommandError::new(keys::MESSAGE_EMPTY));
     }
 
+    fn persisted(error: CommandError) -> CommandError {
+        error.with_variable("messagePersisted", "true")
+    }
+
+    let user_message_id = Uuid::new_v4().to_string();
     let (provider, history, system_prompt) = {
         let database = state.database.lock().map_err(CommandError::internal)?;
-        let provider_id = db::chat_provider_id(&database, &chat_id)?;
-        let history = db::messages_for_chat(&database, &chat_id)?;
-        let system_prompt = build_chat_system_prompt(
-            &database,
-            &chat_id,
-            &history,
-            response_language.as_deref(),
-        )?;
-        (
-            db::get_provider(&database, &provider_id)?,
-            history,
-            system_prompt,
-        )
+        db::add_user_message(&database, &chat_id, &user_message_id, &content)?;
+        (|| -> CommandResult<_> {
+            let provider_id = db::chat_provider_id(&database, &chat_id)?;
+            let provider = db::get_provider(&database, &provider_id)?;
+            let history = db::messages_for_chat(&database, &chat_id)?;
+            let system_prompt = build_chat_system_prompt(
+                &database,
+                &chat_id,
+                &history,
+                response_language.as_deref(),
+            )?;
+            Ok((provider, history, system_prompt))
+        })()
+        .map_err(persisted)?
     };
-    let secret = secret_for_saved_provider(&provider)?;
+    let secret = secret_for_saved_provider(&provider).map_err(persisted)?;
 
-    let completion = match provider_client::complete(
+    let cancellation = register_generation(&state, &generation_id).map_err(persisted)?;
+    let completion = complete_cancellable(
         &provider,
         secret.as_deref(),
         &history,
         system_prompt.as_deref(),
-        Some(content),
+        None,
+        cancellation,
     )
-    .await
-    {
+    .await;
+    finish_generation(&state, &generation_id);
+    let completion = match completion {
         Ok(completion) => completion,
         Err(error) => {
-            if let Ok(database) = state.database.lock() {
-                let _ = db::update_provider_health(&database, &provider.id, "error", None);
+            if error.key != keys::PROVIDER_REQUEST_CANCELLED {
+                if let Ok(database) = state.database.lock() {
+                    let _ = db::update_provider_health(&database, &provider.id, "error", None);
+                }
             }
-            return Err(error);
+            return Err(persisted(error));
         }
     };
 
     let response_content = response_rules::normalize_response(&completion.content);
     if response_content.is_empty() {
-        return Err(CommandError::new(keys::PROVIDER_EMPTY_RESPONSE));
+        if let Ok(database) = state.database.lock() {
+            let _ = db::update_provider_health(&database, &provider.id, "error", None);
+        }
+        return Err(persisted(CommandError::new(keys::PROVIDER_EMPTY_RESPONSE)));
     }
 
-    let database = state.database.lock().map_err(CommandError::internal)?;
-    db::add_exchange(
+    let database = state
+        .database
+        .lock()
+        .map_err(|error| persisted(CommandError::internal(error)))?;
+    db::add_assistant_message(
         &database,
         &chat_id,
         &Uuid::new_v4().to_string(),
-        content,
-        &Uuid::new_v4().to_string(),
         &response_content,
-    )?;
+    )
+    .map_err(persisted)?;
     db::record_usage(
         &database,
         &Uuid::new_v4().to_string(),
@@ -476,13 +600,15 @@ async fn send_chat_message(
         &provider.model,
         completion.input_tokens,
         completion.output_tokens,
-    )?;
+    )
+    .map_err(persisted)?;
     db::update_provider_health(
         &database,
         &provider.id,
         "connected",
         Some(completion.latency_ms),
-    )?;
+    )
+    .map_err(persisted)?;
     Ok(())
 }
 
@@ -553,27 +679,56 @@ async fn save_provider(
         .id
         .clone()
         .unwrap_or_else(|| Uuid::new_v4().to_string());
-    if let Some(secret) = api_key.as_deref().map(str::trim).filter(|value| !value.is_empty()) {
-        secure_storage::save_provider_secret(&id, secret)?;
-    }
+    let supplied_secret = api_key
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_owned);
+    let previous_provider = {
+        let database = state.database.lock().map_err(CommandError::internal)?;
+        db::provider_optional(&database, &id)?
+    };
+    let previous_secret = if supplied_secret.is_some() || provider_requires_key(&provider.kind) {
+        secure_storage::read_provider_secret(&id)?
+    } else {
+        secure_storage::read_provider_secret(&id).unwrap_or(None)
+    };
+    let effective_secret = supplied_secret.clone().or_else(|| previous_secret.clone());
 
     let mut probe_input = provider.clone();
     probe_input.id = Some(id.clone());
-    let secret = input_secret(&probe_input, api_key.as_deref());
-    let probe = if provider_requires_key(&probe_input.kind) && secret.is_none() {
+    let probe = if provider_requires_key(&probe_input.kind) && effective_secret.is_none() {
         Err(CommandError::new(keys::PROVIDER_API_KEY_MISSING))
     } else {
-        provider_client::list_models(&probe_input, secret.as_deref()).await
+        provider_client::list_models(&probe_input, effective_secret.as_deref()).await
     };
     let (status, latency_ms) = match probe {
         Ok(result) => ("connected".to_string(), Some(result.latency_ms)),
         Err(_) => ("disabled".to_string(), None),
     };
 
-    let mut saved = provider.into_provider(id, status, latency_ms);
+    let mut saved = provider.into_provider(id.clone(), status, latency_ms);
+    saved.has_secret = effective_secret.is_some();
+    {
+        let database = state.database.lock().map_err(CommandError::internal)?;
+        db::save_provider(&database, &saved)?;
+    }
+
+    if let Some(secret) = supplied_secret.as_deref() {
+        if let Err(error) = secure_storage::save_provider_secret(&id, secret) {
+            if let Ok(database) = state.database.lock() {
+                if let Some(previous) = previous_provider.as_ref() {
+                    let _ = db::save_provider(&database, previous);
+                } else {
+                    let _ = db::delete_provider_record(&database, &id);
+                }
+            }
+            restore_provider_secret(&id, previous_secret.as_deref());
+            return Err(error);
+        }
+    }
+
     saved.has_secret = secure_storage::has_provider_secret(&saved.id);
-    let database = state.database.lock().map_err(CommandError::internal)?;
-    db::save_provider(&database, &saved)?;
     Ok(saved)
 }
 
@@ -586,11 +741,22 @@ fn export_provider_secrets(
     let mut secrets = HashMap::new();
     for id in provider_ids {
         db::get_provider(&database, &id)?;
-        if let Some(secret) = secure_storage::provider_secret(&id) {
+        if let Some(secret) = secure_storage::read_provider_secret(&id)? {
             secrets.insert(id, secret);
         }
     }
     Ok(secrets)
+}
+
+fn restore_provider_secret(provider_id: &str, secret: Option<&str>) {
+    match secret {
+        Some(secret) => {
+            let _ = secure_storage::save_provider_secret(provider_id, secret);
+        }
+        None => {
+            let _ = secure_storage::delete_provider_secret(provider_id);
+        }
+    }
 }
 
 #[tauri::command]
@@ -606,31 +772,62 @@ fn import_providers(
     }
 
     let imported_count = entries.len();
-    let database = state.database.lock().map_err(CommandError::internal)?;
-    let transaction = database
-        .unchecked_transaction()
-        .map_err(CommandError::internal)?;
-    for entry in entries {
-        let id = entry
-            .provider
-            .id
-            .clone()
-            .unwrap_or_else(|| Uuid::new_v4().to_string());
-        if let Some(secret) = entry
-            .api_key
-            .as_deref()
-            .map(str::trim)
-            .filter(|value| !value.is_empty())
-        {
-            secure_storage::save_provider_secret(&id, secret)?;
+    let mut prepared = Vec::with_capacity(imported_count);
+    {
+        let database = state.database.lock().map_err(CommandError::internal)?;
+        for entry in entries {
+            let id = entry
+                .provider
+                .id
+                .clone()
+                .unwrap_or_else(|| Uuid::new_v4().to_string());
+            let new_secret = entry
+                .api_key
+                .as_deref()
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(str::to_owned);
+            let previous_secret = secure_storage::read_provider_secret(&id)?;
+            let previous_provider = db::provider_optional(&database, &id)?;
+            let mut provider = entry
+                .provider
+                .into_provider(id, "disabled".into(), None);
+            provider.has_secret = new_secret.is_some()
+                || previous_secret.is_some()
+                || secure_storage::has_provider_secret(&provider.id);
+            prepared.push((provider, new_secret, previous_provider, previous_secret));
         }
-        let mut provider = entry
-            .provider
-            .into_provider(id, "disabled".into(), None);
-        provider.has_secret = secure_storage::has_provider_secret(&provider.id);
-        db::save_provider(&transaction, &provider)?;
+
+        let transaction = database
+            .unchecked_transaction()
+            .map_err(CommandError::internal)?;
+        for (provider, _, _, _) in &prepared {
+            db::save_provider(&transaction, provider)?;
+        }
+        transaction.commit().map_err(CommandError::internal)?;
     }
-    transaction.commit().map_err(CommandError::internal)?;
+
+    for (provider, new_secret, _, _) in &prepared {
+        let Some(new_secret) = new_secret.as_deref() else {
+            continue;
+        };
+        if let Err(error) = secure_storage::save_provider_secret(&provider.id, new_secret) {
+            if let Ok(database) = state.database.lock() {
+                for (current, _, previous_provider, _) in &prepared {
+                    if let Some(previous_provider) = previous_provider {
+                        let _ = db::save_provider(&database, previous_provider);
+                    } else {
+                        let _ = db::delete_provider_record(&database, &current.id);
+                    }
+                }
+            }
+            for (current, _, _, previous_secret) in &prepared {
+                restore_provider_secret(&current.id, previous_secret.as_deref());
+            }
+            return Err(error);
+        }
+    }
+
     Ok(imported_count)
 }
 
@@ -678,10 +875,23 @@ async fn check_provider(id: String, state: State<'_, AppState>) -> CommandResult
 
 #[tauri::command]
 fn delete_provider(id: String, state: State<'_, AppState>) -> CommandResult<()> {
-    let database = state.database.lock().map_err(CommandError::internal)?;
-    db::delete_provider(&database, &id)?;
-    drop(database);
-    let _ = secure_storage::delete_provider_secret(&id);
+    {
+        let database = state.database.lock().map_err(CommandError::internal)?;
+        db::get_provider(&database, &id)?;
+    }
+    let previous_secret = secure_storage::read_provider_secret(&id)?;
+    if previous_secret.is_some() {
+        secure_storage::delete_provider_secret(&id)?;
+    }
+
+    let result = {
+        let database = state.database.lock().map_err(CommandError::internal)?;
+        db::delete_provider(&database, &id)
+    };
+    if let Err(error) = result {
+        restore_provider_secret(&id, previous_secret.as_deref());
+        return Err(error);
+    }
     Ok(())
 }
 
@@ -790,28 +1000,35 @@ fn resolve_input_secret(
     provider: &ProviderInput,
     supplied: Option<&str>,
 ) -> CommandResult<Option<String>> {
-    let secret = input_secret(provider, supplied);
+    let secret = input_secret(provider, supplied)?;
     if provider_requires_key(&provider.kind) && secret.is_none() {
         return Err(CommandError::new(keys::PROVIDER_API_KEY_REQUIRED));
     }
     Ok(secret)
 }
 
-fn input_secret(provider: &ProviderInput, supplied: Option<&str>) -> Option<String> {
-    supplied
+fn input_secret(provider: &ProviderInput, supplied: Option<&str>) -> CommandResult<Option<String>> {
+    if let Some(secret) = supplied
         .map(str::trim)
         .filter(|value| !value.is_empty())
-        .map(str::to_owned)
-        .or_else(|| {
-            provider
-                .id
-                .as_deref()
-                .and_then(secure_storage::provider_secret)
-        })
+    {
+        return Ok(Some(secret.to_owned()));
+    }
+    let Some(provider_id) = provider.id.as_deref() else {
+        return Ok(None);
+    };
+    if provider_requires_key(&provider.kind) {
+        return secure_storage::read_provider_secret(provider_id);
+    }
+    Ok(secure_storage::read_provider_secret(provider_id).unwrap_or(None))
 }
 
 fn secret_for_saved_provider(provider: &Provider) -> CommandResult<Option<String>> {
-    let secret = secure_storage::provider_secret(&provider.id);
+    let secret = if provider_requires_key(&provider.kind) {
+        secure_storage::read_provider_secret(&provider.id)?
+    } else {
+        secure_storage::read_provider_secret(&provider.id).unwrap_or(None)
+    };
     if provider_requires_key(&provider.kind) && secret.is_none() {
         return Err(CommandError::new(keys::PROVIDER_API_KEY_NOT_IN_STORAGE));
     }
@@ -864,11 +1081,14 @@ pub fn run() {
             })?;
             app.manage(AppState {
                 database: Mutex::new(database),
+                generations: Mutex::new(HashMap::new()),
             });
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             get_app_snapshot,
+            get_chat_state,
+            cancel_generation,
             create_chat,
             update_chat_config,
             rename_chat,

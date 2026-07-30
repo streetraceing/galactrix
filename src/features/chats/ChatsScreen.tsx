@@ -46,6 +46,7 @@ export function ChatsScreen({
   onRegenerateMessage,
   onSelectMessageVariant,
   onSend,
+  onCancelGeneration,
   sendOnEnter,
   saveDrafts,
   chatViewMode,
@@ -61,7 +62,10 @@ export function ChatsScreen({
   const isSinglePane = isMobile || isNarrowDesktop;
   const { bottomInset: keyboardInset, viewportHeight } =
     useVisualViewportMetrics(isMobile && isSinglePane && isChatOpen);
-  const [pendingMessage, setPendingMessage] = useState('');
+  const [pendingMessage, setPendingMessage] = useState<{
+    chatId: string;
+    content: string;
+  } | null>(null);
   const [working, setWorking] = useState(false);
   const [renameTarget, setRenameTarget] = useState<Chat | null>(null);
   const [renameValue, setRenameValue] = useState('');
@@ -162,18 +166,26 @@ export function ChatsScreen({
   const send = useCallback(
     async (value: string) => {
       if (!activeChat || !activeProvider || sending) return;
-      setPendingMessage(value);
+      setPendingMessage({ chatId: activeChat.id, content: value });
       try {
         await onSend(value);
       } catch (error) {
         showChatError(error);
         throw error;
       } finally {
-        setPendingMessage('');
+        setPendingMessage(null);
       }
     },
     [activeChat, activeProvider, onSend, sending, showChatError],
   );
+
+  const cancelGeneration = useCallback(async () => {
+    try {
+      await onCancelGeneration();
+    } catch (error) {
+      showChatError(error);
+    }
+  }, [onCancelGeneration, showChatError]);
 
   const handleAction = useCallback(
     (action: ChatAction, chat: Chat) => {
@@ -322,7 +334,11 @@ export function ChatsScreen({
               assistantAvatar={galaxyItemAvatar(activeCharacter)}
               userName={activeUserName}
               userAvatar={galaxyItemAvatar(activePersona) ?? profileAvatar}
-              pendingMessage={pendingMessage}
+              pendingMessage={
+                pendingMessage?.chatId === activeChat.id
+                  ? pendingMessage.content
+                  : ''
+              }
               sending={sending}
               viewMode={chatViewMode}
               showAvatars={showMessageAvatars}
@@ -346,6 +362,7 @@ export function ChatsScreen({
               shouldAutoFocus={shouldAutoFocusComposer}
               focusKey={`${activeChat.id}:${isChatOpen}`}
               onSend={send}
+              onCancel={cancelGeneration}
             />
           </>
         ) : (

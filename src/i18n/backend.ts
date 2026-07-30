@@ -24,7 +24,7 @@ function parseJson(value: string): unknown {
   }
 }
 
-function parsePayload(
+export function getBackendErrorPayload(
   value: unknown,
   depth = 0,
 ): BackendErrorPayload | undefined {
@@ -33,26 +33,26 @@ function parsePayload(
 
   if (value instanceof Error) {
     return (
-      parsePayload(value.cause, depth + 1) ??
-      parsePayload(value.message, depth + 1)
+      getBackendErrorPayload(value.cause, depth + 1) ??
+      getBackendErrorPayload(value.message, depth + 1)
     );
   }
 
   if (typeof value === 'string') {
-    return parsePayload(parseJson(value), depth + 1);
+    return getBackendErrorPayload(parseJson(value), depth + 1);
   }
 
   if (typeof value !== 'object' || value === null) return undefined;
   const record = value as Record<string, unknown>;
   return (
-    parsePayload(record.error, depth + 1) ??
-    parsePayload(record.cause, depth + 1) ??
-    parsePayload(record.message, depth + 1)
+    getBackendErrorPayload(record.error, depth + 1) ??
+    getBackendErrorPayload(record.cause, depth + 1) ??
+    getBackendErrorPayload(record.message, depth + 1)
   );
 }
 
 export function localizeBackendError(error: unknown) {
-  const payload = parsePayload(error);
+  const payload = getBackendErrorPayload(error);
   if (payload && i18next.exists(payload.key, { ns: 'backend' })) {
     return i18next.t(payload.key as never, {
       ns: 'backend',
