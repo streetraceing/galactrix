@@ -7,7 +7,7 @@ import { toast } from '../../i18n/toast';
 import { galaxyItemAvatar } from '../../lib/avatar';
 import { isAndroidPlatform, isMobilePlatform } from '../../lib/platform';
 import { resolveProfileName } from '../../lib/profile';
-import type { Chat, ChatConfigInput } from '../../types';
+import type { Chat, ChatConfigInput, Message } from '../../types';
 import { ChatComposer } from './components/ChatComposer';
 import { ChatDialogs } from './components/ChatDialogs';
 import { ChatSetupModal } from './components/ChatSetupModal';
@@ -17,6 +17,8 @@ import { MessageList } from './components/MessageList';
 import type { ChatAction, ChatsScreenProps } from './types';
 import { draftKey } from './utils';
 import { useTranslation } from 'react-i18next';
+
+const EMPTY_MESSAGES: Message[] = [];
 
 export function ChatsScreen({
   chats,
@@ -79,15 +81,23 @@ export function ChatsScreen({
   const sendInFlightRef = useRef(false);
 
   const activeChat = chats.find((chat) => chat.id === activeChatId) ?? chats[0];
-  const activeMessages = useMemo(
-    () => messages.filter((message) => message.chatId === activeChat?.id),
-    [activeChat?.id, messages],
-  );
+  const messagesByChat = useMemo(() => {
+    const grouped = new Map<string, Message[]>();
+    for (const message of messages) {
+      const chatMessages = grouped.get(message.chatId);
+      if (chatMessages) chatMessages.push(message);
+      else grouped.set(message.chatId, [message]);
+    }
+    return grouped;
+  }, [messages]);
+  const activeMessages = activeChat
+    ? (messagesByChat.get(activeChat.id) ?? EMPTY_MESSAGES)
+    : EMPTY_MESSAGES;
   const configChatId =
     configTarget && configTarget !== 'new' ? configTarget.id : undefined;
   const configRememberedMessages = configChatId
-    ? messages.filter(
-        (message) => message.chatId === configChatId && message.remembered,
+    ? (messagesByChat.get(configChatId) ?? EMPTY_MESSAGES).filter(
+        (message) => message.remembered,
       )
     : [];
   const activeProvider = providers.find(
@@ -339,6 +349,7 @@ export function ChatsScreen({
               onAction={handleAction}
             />
             <MessageList
+              key={activeChat.id}
               messages={activeMessages}
               provider={activeProvider}
               assistantName={activeCharacterName}

@@ -550,28 +550,6 @@
   }
 }
 
-@keyframes galactrix-variant-enter-next {
-  from {
-    opacity: 0;
-    transform: translate3d(0.8rem, 0, 0) scale(0.99);
-  }
-  to {
-    opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-}
-
-@keyframes galactrix-variant-enter-previous {
-  from {
-    opacity: 0;
-    transform: translate3d(-0.8rem, 0, 0) scale(0.99);
-  }
-  to {
-    opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-}
-
 @keyframes galactrix-typing {
   0%,
   60%,
@@ -637,14 +615,9 @@
       var(--motion-ease-exit) reverse both;
   }
 
-  .message-variant-enter {
-    backface-visibility: hidden;
-    animation: galactrix-variant-enter-next var(--motion-standard)
-      var(--motion-ease) both;
-  }
-
-  .message-variant-enter[data-direction='previous'] {
-    animation-name: galactrix-variant-enter-previous;
+  .chat-message-row {
+    content-visibility: auto;
+    contain-intrinsic-block-size: auto 8rem;
   }
 
   .usage-timeline {
@@ -727,7 +700,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .message-enter,
-  .message-variant-enter,
   .metric-enter,
   .mobile-card-enter,
   .settings-card-enter,

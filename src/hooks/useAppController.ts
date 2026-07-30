@@ -533,14 +533,46 @@ export function useAppController() {
 
   const chooseMessageVariant = useCallback(
     async (messageId: string, variantIndex: number) => {
-      const chatId = snapshot.messages.find(
-        (message) => message.id === messageId,
-      )?.chatId;
       await selectMessageVariant(messageId, variantIndex);
-      if (chatId) await refreshChat(chatId);
+      setSnapshot((current) => {
+        const message = current.messages.find((item) => item.id === messageId);
+        const selected = message?.variants.find(
+          (variant) => variant.index === variantIndex,
+        );
+        if (!message || !selected) return current;
+
+        let latestMessageId = '';
+        for (let index = current.messages.length - 1; index >= 0; index -= 1) {
+          if (current.messages[index].chatId === message.chatId) {
+            latestMessageId = current.messages[index].id;
+            break;
+          }
+        }
+
+        return {
+          ...current,
+          messages: current.messages.map((item) =>
+            item.id === messageId
+              ? {
+                  ...item,
+                  content: selected.content,
+                  activeVariantIndex: selected.index,
+                }
+              : item,
+          ),
+          chats:
+            latestMessageId === messageId
+              ? current.chats.map((chat) =>
+                  chat.id === message.chatId
+                    ? { ...chat, preview: selected.content }
+                    : chat,
+                )
+              : current.chats,
+        };
+      });
       haptic();
     },
-    [haptic, refreshChat, snapshot.messages],
+    [haptic],
   );
 
   const saveGalaxyItem = useCallback(

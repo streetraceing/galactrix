@@ -216,5 +216,6 @@
   "source.universe.description": "World laws and facts",
   "source.universe.label": "Universe",
   "source.worldbooks.description": "Connected lore entries",
-  "source.worldbooks.label": "Worldbooks"
+  "source.worldbooks.label": "Worldbooks",
+  "messageList.loadEarlierMessages": "Load earlier messages"
 }

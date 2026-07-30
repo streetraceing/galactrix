@@ -1,9 +1,17 @@
 import { Button, Surface, TextArea, Tooltip } from '@heroui/react';
-import { memo, useMemo, useRef, useState } from 'react';
+import {
+  memo,
+  useCallback,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import type {
   PointerEvent as ReactPointerEvent,
   ReactNode,
   RefObject,
+  UIEvent as ReactUIEvent,
 } from 'react';
 import { Icon } from '../../../components/Icon';
 import { AppAvatar } from '../../../components/ui/AppAvatar';
@@ -26,6 +34,10 @@ import { isMobilePlatform } from '../../../lib/platform';
 import type { Message, Provider } from '../../../types';
 import { MessageHistoryModal } from './MessageHistoryModal';
 import { useTranslation } from 'react-i18next';
+import {
+  initialMessageWindowStart,
+  previousMessageWindowStart,
+} from '../messageWindow';
 
 type MessageActionProps = {
   message: Message;
@@ -192,6 +204,80 @@ function getActiveVariantPosition(message: Message) {
   if (byContent >= 0) return byContent;
 
   return Math.max(0, message.variants.length - 1);
+}
+
+function AnimatedVariantContent({
+  message,
+  direction,
+}: {
+  message: Message;
+  direction: VariantDirection;
+}) {
+  const contentRef = useRef<HTMLDivElement | null>(null);
+  const animationRef = useRef<Animation | null>(null);
+  const directionRef = useRef(direction);
+  const previousVariantRef = useRef({
+    index: message.activeVariantIndex,
+    content: message.content,
+  });
+
+  directionRef.current = direction;
+
+  useLayoutEffect(() => {
+    const previous = previousVariantRef.current;
+    if (
+      previous.index === message.activeVariantIndex &&
+      previous.content === message.content
+    ) {
+      return;
+    }
+    previousVariantRef.current = {
+      index: message.activeVariantIndex,
+      content: message.content,
+    };
+
+    const element = contentRef.current;
+    animationRef.current?.cancel();
+    animationRef.current = null;
+
+    if (
+      !element ||
+      document.documentElement.dataset.animations === 'off' ||
+      typeof element.animate !== 'function'
+    ) {
+      return;
+    }
+
+    const offset = directionRef.current === 'previous' ? -6 : 6;
+    const animation = element.animate(
+      [
+        {
+          opacity: 0.58,
+          transform: `translate3d(${offset}px, 0, 0)`,
+        },
+        { opacity: 1, transform: 'translate3d(0, 0, 0)' },
+      ],
+      {
+        duration: 150,
+        easing: 'cubic-bezier(0.2, 0, 0, 1)',
+      },
+    );
+    animationRef.current = animation;
+
+    void animation.finished
+      .catch(() => undefined)
+      .finally(() => {
+        if (animationRef.current === animation) animationRef.current = null;
+      });
+
+    return () => animation.cancel();
+  }, [message.activeVariantIndex, message.content]);
+
+  return (
+    <div ref={contentRef}>
+      <MarkdownContent>{message.content}</MarkdownContent>
+    </div>
+  );
 }
 
 function VariantNavigator({
@@ -440,7 +526,6 @@ function SwipeableMessage({
   const selectingVariant = useRef(false);
   const [dragOffset, setDragOffset] = useState(0);
   const [dragging, setDragging] = useState(false);
-  const [switching, setSwitching] = useState(false);
 
   const resetPointer = () => {
     pointerStart.current = null;
@@ -456,8 +541,7 @@ function SwipeableMessage({
       event.pointerType !== 'touch' ||
       message.role !== 'assistant' ||
       message.variants.length === 0 ||
-      selectingVariant.current ||
-      switching
+      selectingVariant.current
     ) {
       return;
     }
@@ -517,40 +601,17 @@ function SwipeableMessage({
 
     selectingVariant.current = true;
     setDragging(false);
-    setSwitching(true);
-    const direction = Math.sign(dx);
-    setDragOffset(direction * 88);
+    setDragOffset(0);
 
     try {
-      await new Promise((resolve) => window.setTimeout(resolve, 90));
       if (shouldRegenerate) {
-        const regeneration = onRegenerate(message.id);
-        setDragging(true);
-        setDragOffset(direction * -48);
-        window.requestAnimationFrame(() => {
-          window.requestAnimationFrame(() => {
-            setDragging(false);
-            setDragOffset(0);
-            setSwitching(false);
-          });
-        });
-        await regeneration;
+        await onRegenerate(message.id);
       } else if (nextVariant) {
         await onSelectVariant(message.id, nextVariant.index);
-        setDragging(true);
-        setDragOffset(direction * -48);
-        window.requestAnimationFrame(() => {
-          window.requestAnimationFrame(() => {
-            setDragging(false);
-            setDragOffset(0);
-            setSwitching(false);
-          });
-        });
       }
     } catch (error) {
       onError(String(error));
       settle();
-      setSwitching(false);
     } finally {
       selectingVariant.current = false;
     }
@@ -611,9 +672,9 @@ function SwipeableMessage({
       <div
         className={`${dragging ? '' : 'transition-[transform,opacity] duration-(--motion-standard) ease-(--motion-ease)'} relative z-10`}
         style={{
-          opacity: switching ? 0.72 : 1 - revealProgress * 0.08,
+          opacity: 1 - revealProgress * 0.08,
           transform: `translate3d(${dragOffset}px, 0, 0)`,
-          willChange: dragOffset || switching ? 'transform, opacity' : 'auto',
+          willChange: dragOffset ? 'transform, opacity' : 'auto',
         }}
       >
         {children}
@@ -622,7 +683,7 @@ function SwipeableMessage({
   );
 }
 
-const VARIANT_SELECTION_LOCK_MS = 280;
+const VARIANT_SELECTION_LOCK_MS = 180;
 
 function MessageEditModal({
   message,
@@ -757,10 +818,62 @@ function MessageListComponent({
   } | null>(null);
   const messageGenerationRef = useRef<string | null>(null);
   const variantSelectionRef = useRef<string | null>(null);
+  const historyExpandedRef = useRef(false);
+  const pendingScrollRestoreRef = useRef<{
+    scrollHeight: number;
+    scrollTop: number;
+  } | null>(null);
+  const [visibleStart, setVisibleStart] = useState(() =>
+    initialMessageWindowStart(messages.length),
+  );
   const [variantDirections, setVariantDirections] = useState<
     Record<string, VariantDirection>
   >({});
   const messengerMode = viewMode === 'messenger';
+  const visibleMessages = useMemo(
+    () => messages.slice(visibleStart),
+    [messages, visibleStart],
+  );
+
+  useLayoutEffect(() => {
+    if (!historyExpandedRef.current) {
+      setVisibleStart(initialMessageWindowStart(messages.length));
+      return;
+    }
+
+    setVisibleStart((current) => Math.min(current, messages.length));
+  }, [messages.length]);
+
+  useLayoutEffect(() => {
+    const restore = pendingScrollRestoreRef.current;
+    const scroller = scrollRef.current;
+    if (!restore || !scroller) return;
+
+    pendingScrollRestoreRef.current = null;
+    scroller.scrollTop =
+      restore.scrollTop + (scroller.scrollHeight - restore.scrollHeight);
+  }, [scrollRef, visibleStart]);
+
+  const loadEarlierMessages = useCallback(() => {
+    if (visibleStart <= 0) return;
+
+    const scroller = scrollRef.current;
+    if (scroller) {
+      pendingScrollRestoreRef.current = {
+        scrollHeight: scroller.scrollHeight,
+        scrollTop: scroller.scrollTop,
+      };
+    }
+    historyExpandedRef.current = true;
+    setVisibleStart((current) => previousMessageWindowStart(current));
+  }, [scrollRef, visibleStart]);
+
+  const handleScroll = useCallback(
+    (event: ReactUIEvent<HTMLDivElement>) => {
+      if (event.currentTarget.scrollTop <= 80) loadEarlierMessages();
+    },
+    [loadEarlierMessages],
+  );
 
   const historyMessage = useMemo(
     () => messages.find((message) => message.id === historyMessageId) ?? null,
@@ -863,10 +976,25 @@ function MessageListComponent({
     <>
       <div
         ref={scrollRef}
+        onScroll={handleScroll}
         className="scrollbar-thin flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-5 sm:px-5"
       >
         <div className="mx-auto mt-auto flex w-full max-w-3xl flex-col gap-3 sm:gap-4">
-          {messages.map((message) => {
+          {visibleStart > 0 ? (
+            <div className="flex justify-center py-1">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-muted"
+                onPress={loadEarlierMessages}
+              >
+                <Icon name="chevron-left" className="size-3.5 rotate-90" />
+                {t('messageList.loadEarlierMessages')}
+              </Button>
+            </div>
+          ) : null}
+
+          {visibleMessages.map((message) => {
             const isUser = message.role === 'user';
             const displayName = isUser
               ? userName
@@ -903,7 +1031,7 @@ function MessageListComponent({
                 onError={reportError}
               >
                 <article
-                  className={`message-enter group flex items-start gap-2.5 sm:gap-3 ${
+                  className={`chat-message-row group flex items-start gap-2.5 sm:gap-3 ${
                     isUser && !messengerMode ? 'flex-row-reverse' : ''
                   }`}
                 >
@@ -968,15 +1096,10 @@ function MessageListComponent({
                         </div>
                       ) : (
                         <>
-                          <div
-                            key={`${message.activeVariantIndex}-${message.content}`}
-                            className="message-variant-enter"
-                            data-direction={
-                              variantDirections[message.id] ?? 'next'
-                            }
-                          >
-                            <MarkdownContent>{message.content}</MarkdownContent>
-                          </div>
+                          <AnimatedVariantContent
+                            message={message}
+                            direction={variantDirections[message.id] ?? 'next'}
+                          />
                           {isContinuing ? (
                             <div
                               className="mt-2 flex h-4 items-center gap-1"

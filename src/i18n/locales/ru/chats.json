@@ -224,5 +224,6 @@
   "source.universe.description": "Законы и факты мира",
   "source.universe.label": "Вселенная",
   "source.worldbooks.description": "Подключённые записи лора",
-  "source.worldbooks.label": "Ворлдбуки"
+  "source.worldbooks.label": "Ворлдбуки",
+  "messageList.loadEarlierMessages": "Загрузить предыдущие сообщения"
 }
