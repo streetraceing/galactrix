@@ -314,7 +314,7 @@ export function useAppController() {
 
   const sendMessage = useCallback(
     async (content: string) => {
-      if (!activeChatId || sending) return;
+      if (!activeChatId || activeGenerationRef.current) return;
       const chatId = activeChatId;
       const generationId = createGenerationId();
       activeGenerationRef.current = generationId;
@@ -346,13 +346,7 @@ export function useAppController() {
         }
       }
     },
-    [
-      activeChatId,
-      haptic,
-      refreshChat,
-      sending,
-      snapshot.settings.responseLanguage,
-    ],
+    [activeChatId, haptic, refreshChat, snapshot.settings.responseLanguage],
   );
 
   const cancelCurrentGeneration = useCallback(async () => {
@@ -452,7 +446,7 @@ export function useAppController() {
 
   const regenerateExistingMessage = useCallback(
     async (messageId: string) => {
-      if (sending) return;
+      if (activeGenerationRef.current) return;
       const chatId = snapshot.messages.find(
         (message) => message.id === messageId,
       )?.chatId;
@@ -488,7 +482,6 @@ export function useAppController() {
     [
       haptic,
       refreshChat,
-      sending,
       snapshot.messages,
       snapshot.settings.responseLanguage,
     ],

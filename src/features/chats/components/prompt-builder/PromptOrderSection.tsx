@@ -33,7 +33,7 @@ export function PromptOrderSection({
   return (
     <Accordion.Item id="preview">
       <Accordion.Heading>
-        <Accordion.Trigger className="px-4 sm:px-5">
+        <Accordion.Trigger className="px-4 sm:px-5 outline-none! border-none! ring-transparent! ring-0! ring-offset-0">
           <span className="min-w-0 flex-1 text-left">
             <strong className="block text-sm">
               {t('promptOrderSection.assemblyOrder')}
@@ -84,7 +84,7 @@ export function PromptOrderSection({
               ))}
             </ol>
           ) : (
-            <p className="rounded-xl border border-dashed border-border p-4 text-sm leading-6 text-muted">
+            <p className="rounded-xl border border-dashed border-border p-4 text-sm leading-6 text-muted text-center">
               {t(
                 'promptOrderSection.thereAreNoActiveSourcesYetSelectRulesAPrompt',
               )}

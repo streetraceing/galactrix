@@ -20,12 +20,11 @@ export function AppTooltip({
   allowTouch?: boolean;
 }) {
   const canHover = useMediaQuery('(hover: hover) and (pointer: fine)');
+  const isDisabled = disabled || (!allowTouch && !canHover);
+  if (isDisabled) return children;
+
   return (
-    <Tooltip
-      delay={delay}
-      closeDelay={75}
-      isDisabled={disabled || (!allowTouch && !canHover)}
-    >
+    <Tooltip delay={delay} closeDelay={75}>
       <Tooltip.Trigger>{children}</Tooltip.Trigger>
       <Tooltip.Content
         placement={placement}

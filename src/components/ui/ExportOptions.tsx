@@ -79,7 +79,7 @@ export function ExportDestinationPicker({
                   <Icon name={option.icon} className="size-4" />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <strong className="block text-sm">
+                  <strong className="block text-sm text-foreground">
                     {t(option.titleKey)}
                   </strong>
                   <span className="mt-0.5 block text-xs leading-5 text-muted">
@@ -164,8 +164,8 @@ export function ExportSelectionList({
         ))}
       </Surface>
       <p className="mt-2 text-xs text-muted">
-        {t('exportOptions.selected')}
-        {selectedIds.length} {t('exportOptions.of')}
+        {t('exportOptions.selected')} {selectedIds.length}{' '}
+        {t('exportOptions.of')}
         {items.length}
       </p>
     </section>

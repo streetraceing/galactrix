@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Icon, type IconName } from '../../../components/Icon';
 import { AppAvatar } from '../../../components/ui/AppAvatar';
 import { TooltipIconButton } from '../../../components/ui/TooltipIconButton';
-import { formatRelativeTime } from '../../../i18n';
+import { useRelativeTime } from '../../../i18n/useRelativeTime';
 import { galaxyItemAvatar } from '../../../lib/avatar';
 import type { Chat, GalaxyItem, Provider } from '../../../types';
 import type { ChatAction } from '../types';
@@ -27,7 +27,7 @@ function ContextItem({
         <Icon name={icon} className="size-4" />
       </span>
       <span className="min-w-0">
-        <span className="block text-[0.68rem] font-medium uppercase tracking-wide text-muted">
+        <span className="block text-[0.68rem] font-medium tracking-wide text-foreground">
           {label}
         </span>
         <strong
@@ -58,6 +58,7 @@ function ConversationHeaderComponent({
   onAction: (action: ChatAction, chat: Chat) => void;
 }) {
   const { t } = useTranslation('chats');
+  const relativeUpdatedAt = useRelativeTime(chat.updatedAt);
   const [overviewOpen, setOverviewOpen] = useState(false);
   const persona = galaxyItems.find(
     (item) => item.kind === 'persona' && item.id === chat.personaId,
@@ -165,7 +166,7 @@ function ConversationHeaderComponent({
 
               <div className="grid grid-cols-2 gap-2 border-b border-separator p-3">
                 <div className="min-w-0 rounded-xl bg-default/55 p-3">
-                  <span className="flex items-center gap-1.5 text-[0.68rem] font-medium uppercase tracking-wide text-muted">
+                  <span className="flex items-center gap-1.5 text-[0.68rem] font-medium tracking-wide text-foreground">
                     <Icon name="telescope" className="size-3.5" />
                     {t('conversationHeader.connection')}
                   </span>
@@ -180,29 +181,29 @@ function ConversationHeaderComponent({
                   ) : null}
                 </div>
                 <div className="min-w-0 rounded-xl bg-default/55 p-3">
-                  <span className="flex items-center gap-1.5 text-[0.68rem] font-medium uppercase tracking-wide text-muted">
+                  <span className="flex items-center gap-1.5 text-[0.68rem] font-medium tracking-wide text-foreground">
                     <Icon name="history" className="size-3.5" />
                     {t('conversationHeader.lastActivity')}
                   </span>
                   <strong className="mt-1.5 block truncate text-sm">
-                    {formatRelativeTime(chat.updatedAt)}
+                    {relativeUpdatedAt}
                   </strong>
                 </div>
               </div>
 
               <div className="space-y-4 p-4">
                 <section>
-                  <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">
+                  <h3 className="text-xs font-semibold tracking-wide text-foreground">
                     {t('conversationHeader.latestMessage')}
                   </h3>
-                  <p className="mt-2 line-clamp-3 text-sm leading-5 text-foreground/85">
+                  <p className="mt-2 line-clamp-3 text-sm leading-5 text-muted">
                     {chat.preview ||
                       t('conversationHeader.thereAreNoMessagesInThisChatYet')}
                   </p>
                 </section>
 
                 <section>
-                  <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">
+                  <h3 className="text-xs font-semibold tracking-wide text-foreground">
                     {t('chatContextPicker.roleplayContext')}
                   </h3>
                   <div className="mt-2 grid gap-2 sm:grid-cols-2">

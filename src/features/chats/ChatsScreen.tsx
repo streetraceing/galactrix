@@ -75,6 +75,7 @@ export function ChatsScreen({
     chat: Chat;
   } | null>(null);
   const messageScrollRef = useRef<HTMLDivElement | null>(null);
+  const sendInFlightRef = useRef(false);
 
   const activeChat = chats.find((chat) => chat.id === activeChatId) ?? chats[0];
   const activeMessages = useMemo(
@@ -165,7 +166,15 @@ export function ChatsScreen({
 
   const send = useCallback(
     async (value: string) => {
-      if (!activeChat || !activeProvider || sending) return;
+      if (
+        !activeChat ||
+        !activeProvider ||
+        sending ||
+        sendInFlightRef.current
+      ) {
+        return;
+      }
+      sendInFlightRef.current = true;
       setPendingMessage({ chatId: activeChat.id, content: value });
       try {
         await onSend(value);
@@ -173,6 +182,7 @@ export function ChatsScreen({
         showChatError(error);
         throw error;
       } finally {
+        sendInFlightRef.current = false;
         setPendingMessage(null);
       }
     },

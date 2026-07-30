@@ -1,14 +1,14 @@
 import { Chip, Surface } from '@heroui/react';
 import { memo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Icon } from '../../../components/Icon';
 import { AppAvatar } from '../../../components/ui/AppAvatar';
+import { useRelativeTime } from '../../../i18n/useRelativeTime';
 import { galaxyItemAvatar } from '../../../lib/avatar';
 import type { Chat, GalaxyItem } from '../../../types';
 import type { ChatAction } from '../types';
 import { markdownToPreview } from '../utils';
-import { formatRelativeTime } from '../../../i18n';
 import { ChatActions } from './ChatActions';
-import { useTranslation } from 'react-i18next';
 
 function ChatListItemComponent({
   chat,
@@ -24,6 +24,7 @@ function ChatListItemComponent({
   onAction: (action: ChatAction, chat: Chat) => void;
 }) {
   const { t } = useTranslation('chats');
+  const relativeUpdatedAt = useRelativeTime(chat.updatedAt);
   const character = galaxyItems.find(
     (item) => item.kind === 'character' && item.id === chat.characterId,
   );
@@ -68,9 +69,7 @@ function ChatListItemComponent({
                 {markdownToPreview(chat.preview) ||
                   t('chatListItem.noMessagesYet')}
               </span>
-              <span className="shrink-0">
-                {formatRelativeTime(chat.updatedAt)}
-              </span>
+              <span className="shrink-0">{relativeUpdatedAt}</span>
             </span>
           </span>
         </button>

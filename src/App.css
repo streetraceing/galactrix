@@ -172,6 +172,13 @@
     -webkit-app-region: drag;
     @apply select-none;
   }
+
+  .accordion__trigger {
+    @apply outline-none! border-none! ring-transparent! ring-0! ring-offset-0;
+    --tw-ring-offset-width: 0px !important;
+    --tw-ring-offset-shadow: none !important;
+    --tw-ring-offset-color: transparent !important;
+  }
 }
 
 @layer base {
@@ -442,14 +449,6 @@
   html[data-compact='on'] .message-enter > div > .surface {
     @apply px-3 py-2;
   }
-
-  /*   .modal__header {
-    @apply border-b border-separator/80 pb-4;
-  }
-
-  .modal__footer {
-    @apply border-t border-separator/80 pt-4;
-  } */
 }
 
 @keyframes galactrix-screen-enter {

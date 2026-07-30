@@ -724,6 +724,7 @@ function MessageListComponent({
   const [regeneratingMessageId, setRegeneratingMessageId] = useState<
     string | null
   >(null);
+  const regeneratingMessageRef = useRef<string | null>(null);
   const [variantDirections, setVariantDirections] = useState<
     Record<string, VariantDirection>
   >({});
@@ -788,7 +789,8 @@ function MessageListComponent({
   };
 
   const regenerate = async (messageId: string) => {
-    if (regeneratingMessageId) return;
+    if (regeneratingMessageRef.current) return;
+    regeneratingMessageRef.current = messageId;
     setRegeneratingMessageId(messageId);
     setVariantDirections((current) => ({
       ...current,
@@ -797,7 +799,10 @@ function MessageListComponent({
     try {
       await onRegenerate(messageId);
     } finally {
-      setRegeneratingMessageId(null);
+      if (regeneratingMessageRef.current === messageId) {
+        regeneratingMessageRef.current = null;
+        setRegeneratingMessageId(null);
+      }
     }
   };
 
@@ -996,7 +1001,7 @@ function MessageListComponent({
             </article>
           ) : null}
 
-          {sending ? (
+          {sending && !regeneratingMessageId ? (
             <article className="message-enter flex items-start gap-2.5 sm:gap-3">
               {showAvatars ? (
                 <AppAvatar

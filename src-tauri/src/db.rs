@@ -1218,52 +1218,6 @@ pub fn add_assistant_message(
     transaction.commit().map_err(CommandError::internal)
 }
 
-pub fn add_exchange(
-    connection: &Connection,
-    chat_id: &str,
-    user_message_id: &str,
-    user_content: &str,
-    assistant_message_id: &str,
-    assistant_content: &str,
-) -> CommandResult<()> {
-    let now = now_unix();
-    let transaction = connection
-        .unchecked_transaction()?;
-    transaction
-        .execute(
-            "INSERT INTO messages (id, chat_id, role, content, created_at)
-             VALUES (?1, ?2, 'user', ?3, ?4)",
-            params![user_message_id, chat_id, user_content, now],
-        )?;
-    transaction
-        .execute(
-            "INSERT INTO messages (id, chat_id, role, content, created_at, active_variant_index)
-             VALUES (?1, ?2, 'assistant', ?3, ?4, 0)",
-            params![assistant_message_id, chat_id, assistant_content, now + 1],
-        )?;
-    transaction
-        .execute(
-            "INSERT INTO message_variants (id, message_id, position, content, created_at)
-             VALUES (?1, ?2, 0, ?3, ?4)",
-            params![
-                format!("{assistant_message_id}-variant-0"),
-                assistant_message_id,
-                assistant_content,
-                now + 1,
-            ],
-        )?;
-    transaction
-        .execute(
-            "UPDATE chats
-             SET preview = ?1,
-                 updated_at = ?2,
-                 message_count = message_count + 2
-             WHERE id = ?3",
-            params![assistant_content, now + 1, chat_id],
-        )?;
-    transaction.commit().map_err(CommandError::internal)
-}
-
 pub fn append_message_variant(
     connection: &Connection,
     message_id: &str,

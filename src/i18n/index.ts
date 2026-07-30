@@ -6,6 +6,7 @@ import {
   type LanguagePreference,
 } from './language';
 import type { AppLocale } from './resources';
+import { formatRelativeTimeForLocale } from './relativeTime';
 import type { I18nNamespace, TranslationKey } from './resources';
 
 export { i18next };
@@ -52,20 +53,10 @@ export function formatDate(
   return new Intl.DateTimeFormat(getLocale(), options).format(value);
 }
 
-export function formatRelativeTime(timestampSeconds: number) {
-  const elapsedSeconds = timestampSeconds - Math.floor(Date.now() / 1000);
-  const absoluteSeconds = Math.abs(elapsedSeconds);
-  const formatter = new Intl.RelativeTimeFormat(getLocale(), {
-    numeric: 'auto',
-    style: 'narrow',
-  });
-
-  if (absoluteSeconds < 60) return formatter.format(0, 'second');
-  if (absoluteSeconds < 3_600) {
-    return formatter.format(Math.round(elapsedSeconds / 60), 'minute');
-  }
-  if (absoluteSeconds < 86_400) {
-    return formatter.format(Math.round(elapsedSeconds / 3_600), 'hour');
-  }
-  return formatter.format(Math.round(elapsedSeconds / 86_400), 'day');
+export function formatRelativeTime(
+  timestampSeconds: number,
+  nowSeconds = Math.floor(Date.now() / 1000),
+  locale: AppLocale = getLocale(),
+) {
+  return formatRelativeTimeForLocale(timestampSeconds, nowSeconds, locale);
 }

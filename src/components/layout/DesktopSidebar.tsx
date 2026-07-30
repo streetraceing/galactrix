@@ -23,11 +23,11 @@ type SidebarButtonProps = {
 };
 
 const sidebarButtonClass =
-  'h-10 min-w-0 justify-start gap-3 overflow-hidden px-3 transition-[gap,padding,background-color,color] duration-[280ms] ease-[var(--motion-ease)] motion-reduce:transition-none group-data-[collapsed=true]/sidebar:gap-0';
+  'h-10 w-full min-w-0 justify-start gap-3 overflow-hidden px-3 transition-[gap,padding,background-color,color] duration-[280ms] ease-[var(--motion-ease)] motion-reduce:transition-none group-data-[collapsed=true]/sidebar:gap-0';
 
 function SidebarText({ children }: { children: ReactNode }) {
   return (
-    <span className="min-w-0 max-w-52 flex-1 translate-x-0 overflow-hidden whitespace-nowrap text-left text-sm font-medium opacity-100 transition-[max-width,opacity,transform] duration-[240ms] ease-[var(--motion-ease)] group-data-[collapsed=true]/sidebar:max-w-0 group-data-[collapsed=true]/sidebar:-translate-x-1 group-data-[collapsed=true]/sidebar:opacity-0 group-data-[collapsed=false]/sidebar:delay-75">
+    <span className="min-w-0 max-w-52 flex-1 translate-x-0 overflow-hidden whitespace-nowrap text-left text-sm font-medium opacity-100 transition-[max-width,opacity,transform] duration-240 ease-(--motion-ease) group-data-[collapsed=true]/sidebar:max-w-0 group-data-[collapsed=true]/sidebar:-translate-x-1 group-data-[collapsed=true]/sidebar:opacity-0 group-data-[collapsed=false]/sidebar:delay-75">
       {children}
     </span>
   );
@@ -67,7 +67,7 @@ function SidebarButton({
         <Chip
           size="sm"
           variant="soft"
-          className="max-w-14 shrink-0 overflow-hidden bg-transparent opacity-100 transition-[max-width,opacity,transform] duration-[220ms] ease-[var(--motion-ease)] group-data-[collapsed=true]/sidebar:max-w-0 group-data-[collapsed=true]/sidebar:translate-x-1 group-data-[collapsed=true]/sidebar:opacity-0 group-data-[collapsed=false]/sidebar:delay-75"
+          className="max-w-14 shrink-0 overflow-hidden bg-transparent opacity-100 transition-[max-width,opacity,transform] duration-220 ease-(--motion-ease) group-data-[collapsed=true]/sidebar:max-w-0 group-data-[collapsed=true]/sidebar:translate-x-1 group-data-[collapsed=true]/sidebar:opacity-0 group-data-[collapsed=false]/sidebar:delay-75"
         >
           {count}
         </Chip>
@@ -111,7 +111,7 @@ export function DesktopSidebar({
 
   return (
     <aside
-      className="group/sidebar flex h-full shrink-0 flex-col overflow-hidden border-r border-separator bg-background transition-[width] duration-[320ms] ease-[var(--motion-ease)] motion-reduce:transition-none"
+      className="group/sidebar flex h-full shrink-0 flex-col overflow-hidden border-r border-separator bg-background transition-[width] duration-320 ease-(--motion-ease) motion-reduce:transition-none"
       style={{ width: `${resolvedWidth}px` } as CSSProperties}
       data-collapsed={compact}
       aria-label={t('desktopSidebar.mainNavigation')}

@@ -1,4 +1,5 @@
 import { Chip, Surface } from '@heroui/react';
+import { useTranslation } from 'react-i18next';
 import { Icon } from '../../../components/Icon';
 import { AppAvatar } from '../../../components/ui/AppAvatar';
 import {
@@ -9,12 +10,11 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from '../../../components/ui/context-menu';
-import type { GalaxyItem } from '../../../types';
+import { useRelativeTime } from '../../../i18n/useRelativeTime';
 import { galaxyItemAvatar } from '../../../lib/avatar';
+import type { GalaxyItem } from '../../../types';
 import { galaxyKindIcons, galaxyKindLabels } from '../catalog';
 import { galaxyItemDetails } from '../summary';
-import { formatRelativeTime } from '../../../i18n';
-import { useTranslation } from 'react-i18next';
 
 export function GalaxyCard({
   item,
@@ -28,6 +28,7 @@ export function GalaxyCard({
   onDelete: () => void;
 }) {
   const { t } = useTranslation('galaxies');
+  const relativeUpdatedAt = useRelativeTime(item.updatedAt);
   const details = galaxyItemDetails(item);
   const avatar = galaxyItemAvatar(item);
   const hasIdentityAvatar =
@@ -77,7 +78,7 @@ export function GalaxyCard({
 
               <span className="mt-auto flex items-center justify-between gap-3 pt-4 text-xs text-muted">
                 <span>
-                  {`${t('galaxyCard.modified')} ${formatRelativeTime(item.updatedAt)}`}
+                  {`${t('galaxyCard.modified')} ${relativeUpdatedAt}`}
                 </span>
                 <Icon
                   name="chevron"
