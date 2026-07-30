@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   activeChatById,
+  groupMessagesByChat,
   messagesForChat,
 } from '../../src/features/chats/chatMessages.ts';
 import type { Chat, Message } from '../../src/types.ts';
@@ -61,4 +62,21 @@ test('chat message selection never includes messages from another chat', () => {
   );
   assert.deepEqual(messagesForChat(messages, 'missing-chat'), []);
   assert.deepEqual(messagesForChat(messages, ''), []);
+});
+
+test('messages are grouped once and looked up without rescanning all chats', () => {
+  const grouped = groupMessagesByChat([
+    message('a-1', 'chat-a'),
+    message('b-1', 'chat-b'),
+    message('a-2', 'chat-a'),
+  ]);
+
+  assert.deepEqual(
+    grouped.get('chat-a')?.map((item) => item.id),
+    ['a-1', 'a-2'],
+  );
+  assert.deepEqual(
+    grouped.get('chat-b')?.map((item) => item.id),
+    ['b-1'],
+  );
 });

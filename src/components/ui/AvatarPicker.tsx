@@ -4,6 +4,7 @@ import { prepareAvatar } from '../../lib/image';
 import { Icon } from '../Icon';
 import { AppAvatar } from './AppAvatar';
 import { useTranslation } from 'react-i18next';
+import clsx from 'clsx';
 
 export function AvatarPicker({
   value,
@@ -12,6 +13,7 @@ export function AvatarPicker({
   disabled = false,
   compact = false,
   onChange,
+  className,
 }: {
   value?: string;
   name: string;
@@ -19,6 +21,7 @@ export function AvatarPicker({
   disabled?: boolean;
   compact?: boolean;
   onChange: (value?: string) => void | Promise<void>;
+  className?: string;
 }) {
   const { t } = useTranslation('common');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -54,7 +57,12 @@ export function AvatarPicker({
   };
 
   return (
-    <div className={compact ? 'min-w-0' : 'flex min-w-0 items-center gap-4'}>
+    <div
+      className={clsx(
+        compact ? 'min-w-0' : 'flex min-w-0 items-center gap-4',
+        className,
+      )}
+    >
       {!compact ? (
         <AppAvatar src={value} name={name} className="size-20 sm:size-24" />
       ) : null}

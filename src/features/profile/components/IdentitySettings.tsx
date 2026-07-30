@@ -120,7 +120,7 @@ export function IdentitySettings({
             {t('identitySettings.thisNameAndImageAreUsedForYourMessagesWhen')}
           </p>
         </div>
-        <div className="grid gap-5 md:grid-cols-[auto_minmax(0,1fr)] md:items-center">
+        <div className="grid gap-5 md:grid-cols-[auto_minmax(0,1fr)] md:items-start">
           <AvatarPicker
             value={settings.profileAvatar}
             name={displayProfileName}
@@ -131,6 +131,7 @@ export function IdentitySettings({
             onChange={async (profileAvatar) => {
               await saveProfile({ profileAvatar });
             }}
+            className="items-start"
           />
           <div className="min-w-0">
             <label
@@ -190,7 +191,7 @@ export function IdentitySettings({
               return (
                 <Surface
                   key={item.id}
-                  className="mobile-card-enter flex min-w-0 items-center gap-3 rounded-2xl border border-separator bg-surface p-3 shadow-surface ring-1 ring-inset ring-foreground/5 sm:p-4"
+                  className="mobile-card-enter flex min-w-0 items-start gap-3 rounded-2xl border border-separator bg-surface p-3 shadow-surface ring-1 ring-inset ring-foreground/5 sm:p-4"
                   style={{ animationDelay: `${index * 45}ms` }}
                 >
                   <AppAvatar

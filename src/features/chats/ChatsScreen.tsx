@@ -8,7 +8,7 @@ import { galaxyItemAvatar } from '../../lib/avatar';
 import { isAndroidPlatform, isMobilePlatform } from '../../lib/platform';
 import { resolveProfileName } from '../../lib/profile';
 import type { Chat, ChatConfigInput, Message } from '../../types';
-import { activeChatById, messagesForChat } from './chatMessages';
+import { activeChatById, groupMessagesByChat } from './chatMessages';
 import { ChatComposer } from './components/ChatComposer';
 import { ChatDialogs } from './components/ChatDialogs';
 import { ChatSetupModal } from './components/ChatSetupModal';
@@ -82,22 +82,20 @@ export function ChatsScreen({
   const sendInFlightRef = useRef(false);
 
   const activeChat = activeChatById(chats, activeChatId);
-  const activeMessages = useMemo(
-    () =>
-      activeChat ? messagesForChat(messages, activeChat.id) : EMPTY_MESSAGES,
-    [activeChat, messages],
+  const messagesByChat = useMemo(
+    () => groupMessagesByChat(messages),
+    [messages],
   );
+  const activeMessages = activeChat
+    ? (messagesByChat.get(activeChat.id) ?? EMPTY_MESSAGES)
+    : EMPTY_MESSAGES;
   const configChatId =
     configTarget && configTarget !== 'new' ? configTarget.id : undefined;
-  const configRememberedMessages = useMemo(
-    () =>
-      configChatId
-        ? messagesForChat(messages, configChatId).filter(
-            (message) => message.remembered,
-          )
-        : EMPTY_MESSAGES,
-    [configChatId, messages],
-  );
+  const configRememberedMessages = configChatId
+    ? (messagesByChat.get(configChatId) ?? EMPTY_MESSAGES).filter(
+        (message) => message.remembered,
+      )
+    : EMPTY_MESSAGES;
   const activeProvider = providers.find(
     (provider) => provider.id === activeChat?.providerId,
   );
@@ -347,7 +345,6 @@ export function ChatsScreen({
               onAction={handleAction}
             />
             <MessageList
-              key={activeChat.id}
               chatId={activeChat.id}
               messages={activeMessages}
               provider={activeProvider}

@@ -449,6 +449,20 @@
   html[data-compact='on'] .message-enter > div > .surface {
     @apply px-3 py-2;
   }
+
+  .chat-message-scroller {
+    isolation: isolate;
+    contain: paint;
+    background: var(--background);
+    overflow-anchor: none;
+  }
+
+  .chat-message-canvas {
+    position: relative;
+    z-index: 0;
+    min-height: min-content;
+    background: var(--background);
+  }
 }
 
 @keyframes galactrix-screen-enter {

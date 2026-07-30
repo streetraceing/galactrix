@@ -11,7 +11,6 @@ import type {
   PointerEvent as ReactPointerEvent,
   ReactNode,
   RefObject,
-  UIEvent as ReactUIEvent,
 } from 'react';
 import { Icon } from '../../../components/Icon';
 import { AppAvatar } from '../../../components/ui/AppAvatar';
@@ -36,7 +35,6 @@ import { MessageHistoryModal } from './MessageHistoryModal';
 import { useTranslation } from 'react-i18next';
 import {
   initialMessageWindowStart,
-  messageWindowScrollState,
   previousMessageWindowStart,
 } from '../messageWindow';
 
@@ -821,42 +819,64 @@ function MessageListComponent({
   } | null>(null);
   const messageGenerationRef = useRef<string | null>(null);
   const variantSelectionRef = useRef<string | null>(null);
-  const historyExpandedRef = useRef(false);
-  const previousChatIdRef = useRef(chatId);
-  const autoLoadArmedRef = useRef(false);
   const pendingScrollRestoreRef = useRef<{
     scrollHeight: number;
     scrollTop: number;
   } | null>(null);
-  const [visibleStart, setVisibleStart] = useState(() =>
-    initialMessageWindowStart(messages.length),
-  );
+  const [messageWindow, setMessageWindow] = useState(() => ({
+    chatId,
+    start: initialMessageWindowStart(messages.length),
+    expanded: false,
+  }));
   const [variantDirections, setVariantDirections] = useState<
     Record<string, VariantDirection>
   >({});
   const messengerMode = viewMode === 'messenger';
+  const visibleStart =
+    messageWindow.chatId === chatId
+      ? Math.min(messageWindow.start, messages.length)
+      : initialMessageWindowStart(messages.length);
   const visibleMessages = useMemo(
     () => messages.slice(visibleStart),
     [messages, visibleStart],
   );
 
   useLayoutEffect(() => {
-    if (previousChatIdRef.current !== chatId) {
-      previousChatIdRef.current = chatId;
-      historyExpandedRef.current = false;
-      autoLoadArmedRef.current = false;
+    if (messageWindow.chatId !== chatId) {
       pendingScrollRestoreRef.current = null;
-      setVisibleStart(initialMessageWindowStart(messages.length));
+      setEditing(null);
+      setDeleting(null);
+      setHistoryMessageId(null);
+      setMessageGeneration(null);
+      messageGenerationRef.current = null;
+      variantSelectionRef.current = null;
+      setVariantDirections({});
+      setMessageWindow({
+        chatId,
+        start: initialMessageWindowStart(messages.length),
+        expanded: false,
+      });
       return;
     }
 
-    if (!historyExpandedRef.current) {
-      setVisibleStart(initialMessageWindowStart(messages.length));
+    if (!messageWindow.expanded) {
+      const start = initialMessageWindowStart(messages.length);
+      if (messageWindow.start !== start) {
+        setMessageWindow((current) =>
+          current.chatId === chatId ? { ...current, start } : current,
+        );
+      }
       return;
     }
 
-    setVisibleStart((current) => Math.min(current, messages.length));
-  }, [chatId, messages.length]);
+    if (messageWindow.start > messages.length) {
+      setMessageWindow((current) =>
+        current.chatId === chatId
+          ? { ...current, start: messages.length }
+          : current,
+      );
+    }
+  }, [chatId, messageWindow, messages.length]);
 
   useLayoutEffect(() => {
     const restore = pendingScrollRestoreRef.current;
@@ -878,21 +898,14 @@ function MessageListComponent({
         scrollTop: scroller.scrollTop,
       };
     }
-    historyExpandedRef.current = true;
-    setVisibleStart((current) => previousMessageWindowStart(current));
-  }, [scrollRef, visibleStart]);
-
-  const handleScroll = useCallback(
-    (event: ReactUIEvent<HTMLDivElement>) => {
-      const next = messageWindowScrollState(
-        event.currentTarget.scrollTop,
-        autoLoadArmedRef.current,
-      );
-      autoLoadArmedRef.current = next.armed;
-      if (next.shouldLoad) loadEarlierMessages();
-    },
-    [loadEarlierMessages],
-  );
+    setMessageWindow((current) => ({
+      chatId,
+      start: previousMessageWindowStart(
+        current.chatId === chatId ? current.start : visibleStart,
+      ),
+      expanded: true,
+    }));
+  }, [chatId, scrollRef, visibleStart]);
 
   const historyMessage = useMemo(
     () => messages.find((message) => message.id === historyMessageId) ?? null,
@@ -995,10 +1008,13 @@ function MessageListComponent({
     <>
       <div
         ref={scrollRef}
-        onScroll={handleScroll}
-        className="scrollbar-thin flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-5 sm:px-5"
+        data-chat-id={chatId}
+        className="chat-message-scroller scrollbar-thin flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-5 sm:px-5"
       >
-        <div className="mx-auto mt-auto flex w-full max-w-3xl flex-col gap-3 sm:gap-4">
+        <div
+          key={chatId}
+          className="chat-message-canvas mx-auto mt-auto flex w-full max-w-3xl flex-col gap-3 sm:gap-4"
+        >
           {visibleStart > 0 ? (
             <div className="flex justify-center py-1">
               <Button
