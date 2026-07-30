@@ -124,6 +124,14 @@ export function useAppController() {
 
   const refreshChat = useCallback(async (chatId: string) => {
     const state = await loadChatState(chatId);
+    if (state.chat.id !== chatId) {
+      throw new Error(
+        `Chat state mismatch: expected ${chatId}, got ${state.chat.id}`,
+      );
+    }
+    const chatMessages = state.messages.filter(
+      (message) => message.chatId === chatId,
+    );
     setSnapshot((current) => ({
       ...current,
       chats: sortChats([
@@ -132,10 +140,10 @@ export function useAppController() {
       ]),
       messages: [
         ...current.messages.filter((message) => message.chatId !== chatId),
-        ...state.messages,
+        ...chatMessages,
       ],
     }));
-    return state;
+    return { ...state, messages: chatMessages };
   }, []);
 
   const boot = useCallback(async () => {

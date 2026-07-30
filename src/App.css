@@ -615,11 +615,6 @@
       var(--motion-ease-exit) reverse both;
   }
 
-  .chat-message-row {
-    content-visibility: auto;
-    contain-intrinsic-block-size: auto 8rem;
-  }
-
   .usage-timeline {
     overscroll-behavior-x: contain;
   }

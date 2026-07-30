@@ -36,6 +36,7 @@ import { MessageHistoryModal } from './MessageHistoryModal';
 import { useTranslation } from 'react-i18next';
 import {
   initialMessageWindowStart,
+  messageWindowScrollState,
   previousMessageWindowStart,
 } from '../messageWindow';
 
@@ -764,6 +765,7 @@ function MessageEditModal({
 }
 
 function MessageListComponent({
+  chatId,
   messages,
   provider,
   assistantName,
@@ -785,6 +787,7 @@ function MessageListComponent({
   onContinue,
   onSelectVariant,
 }: {
+  chatId: string;
   messages: Message[];
   provider?: Provider;
   assistantName: string;
@@ -819,6 +822,8 @@ function MessageListComponent({
   const messageGenerationRef = useRef<string | null>(null);
   const variantSelectionRef = useRef<string | null>(null);
   const historyExpandedRef = useRef(false);
+  const previousChatIdRef = useRef(chatId);
+  const autoLoadArmedRef = useRef(false);
   const pendingScrollRestoreRef = useRef<{
     scrollHeight: number;
     scrollTop: number;
@@ -836,13 +841,22 @@ function MessageListComponent({
   );
 
   useLayoutEffect(() => {
+    if (previousChatIdRef.current !== chatId) {
+      previousChatIdRef.current = chatId;
+      historyExpandedRef.current = false;
+      autoLoadArmedRef.current = false;
+      pendingScrollRestoreRef.current = null;
+      setVisibleStart(initialMessageWindowStart(messages.length));
+      return;
+    }
+
     if (!historyExpandedRef.current) {
       setVisibleStart(initialMessageWindowStart(messages.length));
       return;
     }
 
     setVisibleStart((current) => Math.min(current, messages.length));
-  }, [messages.length]);
+  }, [chatId, messages.length]);
 
   useLayoutEffect(() => {
     const restore = pendingScrollRestoreRef.current;
@@ -870,7 +884,12 @@ function MessageListComponent({
 
   const handleScroll = useCallback(
     (event: ReactUIEvent<HTMLDivElement>) => {
-      if (event.currentTarget.scrollTop <= 80) loadEarlierMessages();
+      const next = messageWindowScrollState(
+        event.currentTarget.scrollTop,
+        autoLoadArmedRef.current,
+      );
+      autoLoadArmedRef.current = next.armed;
+      if (next.shouldLoad) loadEarlierMessages();
     },
     [loadEarlierMessages],
   );
