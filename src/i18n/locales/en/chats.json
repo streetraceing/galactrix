@@ -211,5 +211,7 @@
   "count.rule_other": "{{count}} rules",
   "preview.codeFragment": "Code fragment",
   "preview.character": "Character",
-  "errors.chatActionFailed": "Chat action failed"
+  "errors.chatActionFailed": "Chat action failed",
+  "chatsScreen.copyTitle": "{{value1}} — copy",
+  "messageList.branchTitle": "{{value1}} — branch"
 }

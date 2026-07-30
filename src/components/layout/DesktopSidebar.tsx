@@ -1,14 +1,86 @@
 import { Button, Chip } from '@heroui/react';
-import type { CSSProperties } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   primaryNavigationItems,
   settingsNavigationItem,
+  type NavigationItem,
 } from '../../app/navigation';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import type { TabId } from '../../types';
 import { Icon } from '../Icon';
 import { AppAvatar } from '../ui/AppAvatar';
-import { useTranslation } from 'react-i18next';
+import { AppTooltip } from '../ui/AppTooltip';
+
+type SidebarButtonProps = {
+  item: NavigationItem;
+  active: boolean;
+  compact: boolean;
+  count?: number;
+  profileName: string;
+  profileAvatar?: string;
+  onPress: () => void;
+};
+
+const sidebarButtonClass =
+  'h-10 min-w-0 justify-start gap-3 overflow-hidden px-3 transition-[gap,padding,background-color,color] duration-[280ms] ease-[var(--motion-ease)] motion-reduce:transition-none group-data-[collapsed=true]/sidebar:gap-0';
+
+function SidebarText({ children }: { children: ReactNode }) {
+  return (
+    <span className="min-w-0 max-w-52 flex-1 translate-x-0 overflow-hidden whitespace-nowrap text-left text-sm font-medium opacity-100 transition-[max-width,opacity,transform] duration-[240ms] ease-[var(--motion-ease)] group-data-[collapsed=true]/sidebar:max-w-0 group-data-[collapsed=true]/sidebar:-translate-x-1 group-data-[collapsed=true]/sidebar:opacity-0 group-data-[collapsed=false]/sidebar:delay-75">
+      {children}
+    </span>
+  );
+}
+
+function SidebarButton({
+  item,
+  active,
+  compact,
+  count,
+  profileName,
+  profileAvatar,
+  onPress,
+}: SidebarButtonProps) {
+  const button = (
+    <Button
+      size="lg"
+      fullWidth
+      variant={active ? 'secondary' : 'ghost'}
+      className={sidebarButtonClass}
+      aria-label={item.label}
+      onPress={onPress}
+    >
+      <span className="grid size-6 shrink-0 place-items-center">
+        {item.id === 'profile' ? (
+          <AppAvatar
+            src={profileAvatar}
+            name={profileName}
+            className="size-5"
+          />
+        ) : (
+          <Icon name={item.icon} className="size-5 shrink-0" />
+        )}
+      </span>
+      <SidebarText>{item.label}</SidebarText>
+      {count && count > 0 ? (
+        <Chip
+          size="sm"
+          variant="soft"
+          className="max-w-14 shrink-0 overflow-hidden bg-transparent opacity-100 transition-[max-width,opacity,transform] duration-[220ms] ease-[var(--motion-ease)] group-data-[collapsed=true]/sidebar:max-w-0 group-data-[collapsed=true]/sidebar:translate-x-1 group-data-[collapsed=true]/sidebar:opacity-0 group-data-[collapsed=false]/sidebar:delay-75"
+        >
+          {count}
+        </Chip>
+      ) : null}
+    </Button>
+  );
+
+  return (
+    <AppTooltip content={item.label} placement="right" disabled={!compact}>
+      {button}
+    </AppTooltip>
+  );
+}
 
 export function DesktopSidebar({
   activeTab,
@@ -32,92 +104,65 @@ export function DesktopSidebar({
   const { t } = useTranslation('common');
   const forcedCompact = useMediaQuery('(max-width: 920px)');
   const compact = collapsed || forcedCompact;
+  const resolvedWidth = compact ? 64 : width;
+  const collapseLabel = collapsed
+    ? t('desktopSidebar.expandSidebar')
+    : t('desktopSidebar.collapseSidebar');
 
   return (
     <aside
-      className="group/sidebar bg-background flex h-full w-[min(var(--sidebar-width),30vw)] shrink-0 flex-col border-separator transition-[width] min-[1300px]:w-(--sidebar-width) border-r"
-      style={
-        {
-          '--sidebar-width': `${width}px`,
-          ...(compact ? { width: 57 } : {}),
-        } as CSSProperties
-      }
-      data-collapsed={compact || undefined}
+      className="group/sidebar flex h-full shrink-0 flex-col overflow-hidden border-r border-separator bg-background transition-[width] duration-[320ms] ease-[var(--motion-ease)] motion-reduce:transition-none"
+      style={{ width: `${resolvedWidth}px` } as CSSProperties}
+      data-collapsed={compact}
+      aria-label={t('desktopSidebar.mainNavigation')}
     >
-      <nav
-        className="flex flex-1 flex-col gap-1 px-2 pt-3"
-        aria-label={t('desktopSidebar.mainNavigation')}
-      >
+      <nav className="flex flex-1 flex-col gap-1 px-2 pt-3">
         {primaryNavigationItems.map((item) => (
-          <Button
+          <SidebarButton
             key={item.id}
-            size="lg"
-            fullWidth
-            variant={activeTab === item.id ? 'secondary' : 'ghost'}
-            className="justify-start gap-3 px-3 group-data-collapsed/sidebar:justify-center group-data-collapsed/sidebar:px-0"
-            aria-label={item.label}
+            item={item}
+            active={activeTab === item.id}
+            compact={compact}
+            count={item.id === 'chats' ? chatCount : undefined}
+            profileName={profileName}
+            profileAvatar={profileAvatar}
             onPress={() => onNavigate(item.id)}
-          >
-            {item.id === 'profile' ? (
-              <AppAvatar
-                src={profileAvatar}
-                name={profileName}
-                className="size-6"
-              />
-            ) : (
-              <Icon name={item.icon} className="size-5 shrink-0" />
-            )}
-            <span className="min-w-0 flex-1 truncate text-left text-sm font-medium group-data-collapsed/sidebar:hidden">
-              {item.label}
-            </span>
-            {item.id === 'chats' && chatCount > 0 ? (
-              <Chip
-                size="sm"
-                variant="soft"
-                className="bg-transparent group-data-collapsed/sidebar:hidden"
-              >
-                {chatCount}
-              </Chip>
-            ) : null}
-          </Button>
+          />
         ))}
       </nav>
 
       <div className="space-y-1 p-2">
         {!forcedCompact ? (
-          <Button
-            fullWidth
-            size="lg"
-            variant="ghost"
-            className="justify-start gap-2 group-data-collapsed/sidebar:justify-center"
-            aria-label={
-              collapsed
-                ? t('desktopSidebar.expandSidebar')
-                : t('desktopSidebar.collapseSidebar')
-            }
-            onPress={onToggleCollapsed}
+          <AppTooltip
+            content={collapseLabel}
+            placement="right"
+            disabled={!compact}
           >
-            <Icon name="sidebar" className="size-4" />
-            <span className="group-data-collapsed/sidebar:hidden">
-              {t('desktopSidebar.collapsePanel')}
-            </span>
-          </Button>
+            <Button
+              fullWidth
+              size="lg"
+              variant="ghost"
+              className={sidebarButtonClass}
+              aria-label={collapseLabel}
+              aria-expanded={!collapsed}
+              onPress={onToggleCollapsed}
+            >
+              <span className="grid size-6 shrink-0 place-items-center">
+                <Icon name="sidebar" className="size-4" />
+              </span>
+              <SidebarText>{collapseLabel}</SidebarText>
+            </Button>
+          </AppTooltip>
         ) : null}
-        <Button
-          fullWidth
-          size="lg"
-          variant={
-            activeTab === settingsNavigationItem.id ? 'secondary' : 'ghost'
-          }
-          className="justify-start gap-2 group-data-collapsed/sidebar:justify-center"
-          aria-label={settingsNavigationItem.label}
+
+        <SidebarButton
+          item={settingsNavigationItem}
+          active={activeTab === settingsNavigationItem.id}
+          compact={compact}
+          profileName={profileName}
+          profileAvatar={profileAvatar}
           onPress={() => onNavigate(settingsNavigationItem.id)}
-        >
-          <Icon name="settings" className="size-4" />
-          <span className="group-data-collapsed/sidebar:hidden">
-            {settingsNavigationItem.label}
-          </span>
-        </Button>
+        />
       </div>
     </aside>
   );

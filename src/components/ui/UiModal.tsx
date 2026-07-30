@@ -105,20 +105,20 @@ export function UiModal({
           <Modal.Dialog
             className={
               isMobile
-                ? 'h-full min-h-0 w-full max-w-none min-w-0 rounded-none border-0! shadow-none! ring-0! bg-background-secondary'
-                : 'max-h-[90dvh] min-w-0 border-transparent bg-background-secondary'
+                ? 'h-full min-h-0 w-full max-w-none min-w-0 rounded-none border-0! bg-background shadow-none! ring-0!'
+                : 'ui-overlay-surface max-h-[90dvh] min-w-0 bg-overlay/95'
             }
             style={mobileViewportStyle}
           >
             <Modal.CloseTrigger />
             <div className="contents" onKeyDown={handleDialogKeyDown}>
-              <Modal.Header className="shrink-0 px-4 pb-3 pt-4 pr-12 sm:px-6 sm:pt-5">
+              <Modal.Header className="shrink-0 border-b border-separator px-4 pb-3 pt-4 pr-12 sm:px-6 sm:pt-5">
                 <Modal.Heading>{title}</Modal.Heading>
                 {description ? (
                   <p className="mt-1 text-sm text-muted">{description}</p>
                 ) : null}
               </Modal.Header>
-              <Modal.Body className="scrollbar-thin min-w-0 overflow-x-hidden overflow-y-auto px-4 sm:px-6 scrollbar-gutter-stable">
+              <Modal.Body className="scrollbar-thin min-w-0 overflow-x-hidden overflow-y-auto px-4 py-4 sm:px-6 scrollbar-gutter-stable">
                 {children}
               </Modal.Body>
               {footer ? (

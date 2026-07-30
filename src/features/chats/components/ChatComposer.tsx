@@ -1,7 +1,8 @@
-import { Button, Surface, TextArea, Tooltip } from '@heroui/react';
+import { Surface, TextArea } from '@heroui/react';
 import { memo, useEffect, useRef, useState } from 'react';
 import type { ChangeEvent, KeyboardEvent } from 'react';
 import { Icon } from '../../../components/Icon';
+import { TooltipIconButton } from '../../../components/ui/TooltipIconButton';
 import type { Provider } from '../../../types';
 import { useTranslation } from 'react-i18next';
 import { draftKey } from '../utils';
@@ -142,23 +143,17 @@ function ChatComposerComponent({
               disabled={!provider || sending}
               className="max-h-48 min-h-12 resize-none overflow-y-auto transition-none ring-0"
             />
-            <Tooltip delay={450} closeDelay={75}>
-              <Tooltip.Trigger>
-                <Button
-                  isIconOnly
-                  size="lg"
-                  variant="primary"
-                  className="shrink-0"
-                  isDisabled={!draft.trim() || !provider || sending}
-                  isPending={sending}
-                  aria-label={t('chatComposer.sendMessage')}
-                  onPress={() => void submit()}
-                >
-                  <Icon name="send" className="size-5" />
-                </Button>
-              </Tooltip.Trigger>
-              <Tooltip.Content>{t('chatComposer.sendMessage')}</Tooltip.Content>
-            </Tooltip>
+            <TooltipIconButton
+              label={t('chatComposer.sendMessage')}
+              size="lg"
+              variant="primary"
+              className="shrink-0"
+              isDisabled={!draft.trim() || !provider || sending}
+              isPending={sending}
+              onPress={() => void submit()}
+            >
+              <Icon name="send" className="size-5" />
+            </TooltipIconButton>
           </div>
           <div className="hidden flex-wrap items-center justify-between gap-2 px-2 pb-1 pt-2 text-[0.7rem] text-muted sm:flex">
             <span>

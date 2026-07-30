@@ -17,7 +17,7 @@
   "backend.provider.apiKeyRequired": "This provider requires an API key",
   "backend.provider.apiKeyMissing": "The API key has not been added yet",
   "backend.provider.apiKeyNotInStorage": "The connection API key was not found in secure storage",
-  "backend.provider.unknownKind": "Unknown provider type",
+  "backend.provider.unknownKind": "Unknown provider type: {{kind}}",
   "backend.provider.notOpenAiCompatible": "The provider does not use an OpenAI-compatible API",
   "backend.provider.temperatureRange": "Temperature must be between 0 and 2",
   "backend.provider.topPRange": "Top P must be between 0 and 1",
@@ -26,7 +26,7 @@
   "backend.provider.connectionFailed": "Could not connect to the API: {{detail}}",
   "backend.provider.requestFailed": "The model request failed: {{detail}}",
   "backend.provider.responseReadFailed": "Could not read the API response: {{detail}}",
-  "backend.provider.httpError": "The API returned an error: {{detail}}",
+  "backend.provider.httpError": "The API returned HTTP {{status}}: {{detail}}",
   "backend.common.nameRequired": "Enter a name",
   "backend.common.nameTooLong": "The name is too long",
   "backend.common.fieldRequired": "Enter or select {{field}}",
@@ -57,5 +57,13 @@
   "backend.profile.nameTooLong": "The profile name is too long",
   "backend.profile.imageUnsupported": "Unsupported profile image format",
   "backend.profile.imageTooLarge": "The profile image is too large",
-  "backend.secureStorage.unavailable": "Secure storage is unavailable: {{detail}}"
+  "backend.secureStorage.unavailable": "Secure storage is unavailable: {{detail}}",
+  "backend.provider.baseUrlRequired": "Enter the base API URL",
+  "backend.provider.accountIdRequired": "Enter the Cloudflare Account ID",
+  "backend.galaxy.contextPersonaNotFound": "The linked user persona was not found",
+  "backend.galaxy.contextCharacterNotFound": "The linked assistant character was not found",
+  "backend.galaxy.contextUniverseNotFound": "The linked universe was not found",
+  "backend.galaxy.contextWorldbookNotFound": "A linked worldbook was not found",
+  "backend.galaxy.contextStyleNotFound": "The linked messaging style was not found",
+  "backend.galaxy.contextPromptSetNotFound": "A linked prompt set was not found"
 }

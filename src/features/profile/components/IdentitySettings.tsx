@@ -4,11 +4,7 @@ import { Icon } from '../../../components/Icon';
 import { AppAvatar } from '../../../components/ui/AppAvatar';
 import { AvatarPicker } from '../../../components/ui/AvatarPicker';
 import { toast } from '../../../i18n/toast';
-import {
-  galaxyItemAvatar,
-  galaxyInputAvatar,
-  withAvatar,
-} from '../../../lib/avatar';
+import { galaxyItemAvatar, withAvatar } from '../../../lib/avatar';
 import { resolveProfileName } from '../../../lib/profile';
 import type { AppSettings, GalaxyItem, GalaxyItemInput } from '../../../types';
 import { galaxyKindLabels } from '../../galaxies/catalog';
@@ -30,11 +26,19 @@ export function IdentitySettings({
   const [profileName, setProfileName] = useState(settings.profileName);
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingItemId, setSavingItemId] = useState('');
+  const [avatarOverrides, setAvatarOverrides] = useState(
+    () => new Map<string, string | null>(),
+  );
   const identities = useMemo(
     () =>
-      galaxyItems.filter(
-        (item) => item.kind === 'persona' || item.kind === 'character',
-      ),
+      galaxyItems
+        .filter((item) => item.kind === 'persona' || item.kind === 'character')
+        .sort((left, right) => {
+          const kindOrder = left.kind.localeCompare(right.kind);
+          if (kindOrder !== 0) return kindOrder;
+          const nameOrder = left.name.localeCompare(right.name);
+          return nameOrder !== 0 ? nameOrder : left.id.localeCompare(right.id);
+        }),
     [galaxyItems],
   );
   const normalizedProfileName = profileName.trim();
@@ -44,6 +48,23 @@ export function IdentitySettings({
   );
 
   useEffect(() => setProfileName(settings.profileName), [settings.profileName]);
+
+  useEffect(() => {
+    setAvatarOverrides((current) => {
+      if (current.size === 0) return current;
+      const next = new Map(current);
+      let changed = false;
+      for (const [id, expected] of current) {
+        const item = galaxyItems.find((candidate) => candidate.id === id);
+        const persisted = galaxyItemAvatar(item) ?? null;
+        if (!item || persisted === expected) {
+          next.delete(id);
+          changed = true;
+        }
+      }
+      return changed ? next : current;
+    });
+  }, [galaxyItems]);
 
   const saveProfile = async (patch: Partial<AppSettings>) => {
     if (savingProfile) return false;
@@ -62,6 +83,11 @@ export function IdentitySettings({
   const saveIdentityAvatar = async (item: GalaxyItem, avatar?: string) => {
     if (savingItemId) return;
     setSavingItemId(item.id);
+    setAvatarOverrides((current) => {
+      const next = new Map(current);
+      next.set(item.id, avatar ?? null);
+      return next;
+    });
     try {
       const draft = draftFromItem(item);
       await onSaveGalaxyItem({
@@ -73,6 +99,13 @@ export function IdentitySettings({
           ? t('identitySettings.photoForValue1Updated', { value1: item.name })
           : t('identitySettings.photoForValue1Removed', { value1: item.name }),
       );
+    } catch (error) {
+      setAvatarOverrides((current) => {
+        const next = new Map(current);
+        next.delete(item.id);
+        return next;
+      });
+      throw error;
     } finally {
       setSavingItemId('');
     }
@@ -80,8 +113,8 @@ export function IdentitySettings({
 
   return (
     <div className="space-y-5 sm:space-y-6">
-      <Surface className="overflow-hidden rounded-2xl border border-separator flex flex-col gap-4 p-4">
-        <div className="border-b border-separator">
+      <Surface className="flex flex-col gap-4 overflow-hidden rounded-2xl border border-separator bg-surface p-4 shadow-surface ring-1 ring-inset ring-foreground/5">
+        <div className="border-b border-separator pb-4">
           <h2 className="section-title">{t('identitySettings.yourProfile')}</h2>
           <p className="section-description">
             {t('identitySettings.thisNameAndImageAreUsedForYourMessagesWhen')}
@@ -151,11 +184,13 @@ export function IdentitySettings({
         {identities.length > 0 ? (
           <div className="grid gap-3 md:grid-cols-2">
             {identities.map((item, index) => {
-              const avatar = galaxyItemAvatar(item);
+              const avatar = avatarOverrides.has(item.id)
+                ? (avatarOverrides.get(item.id) ?? undefined)
+                : galaxyItemAvatar(item);
               return (
                 <Surface
                   key={item.id}
-                  className="mobile-card-enter flex min-w-0 items-center gap-3 rounded-2xl border border-separator p-3 sm:p-4"
+                  className="mobile-card-enter flex min-w-0 items-center gap-3 rounded-2xl border border-separator bg-surface p-3 shadow-surface ring-1 ring-inset ring-foreground/5 sm:p-4"
                   style={{ animationDelay: `${index * 45}ms` }}
                 >
                   <AppAvatar
@@ -173,7 +208,7 @@ export function IdentitySettings({
                     <div className="mt-2">
                       <AvatarPicker
                         compact
-                        value={galaxyInputAvatar(item.data)}
+                        value={avatar}
                         name={item.name}
                         disabled={Boolean(
                           savingItemId && savingItemId !== item.id,

@@ -1,8 +1,9 @@
-import { Button, Chip, Popover, Tooltip } from '@heroui/react';
+import { Button, Chip, Popover } from '@heroui/react';
 import { memo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Icon, type IconName } from '../../../components/Icon';
 import { AppAvatar } from '../../../components/ui/AppAvatar';
+import { TooltipIconButton } from '../../../components/ui/TooltipIconButton';
 import { formatRelativeTime } from '../../../i18n';
 import { galaxyItemAvatar } from '../../../lib/avatar';
 import type { Chat, GalaxyItem, Provider } from '../../../types';
@@ -81,16 +82,15 @@ function ConversationHeaderComponent({
     <header className="shrink-0 border-b border-separator bg-background px-3 py-3 sm:px-4">
       <div className="flex min-w-0 items-center gap-2">
         {showBack ? (
-          <Button
-            isIconOnly
+          <TooltipIconButton
+            label={t('conversationHeader.backToChats')}
             size="sm"
             variant="ghost"
             className="shrink-0"
-            aria-label={t('conversationHeader.backToChats')}
             onPress={onBack}
           >
             <Icon name="back" className="size-5" />
-          </Button>
+          </TooltipIconButton>
         ) : null}
 
         <AppAvatar
@@ -250,21 +250,15 @@ function ConversationHeaderComponent({
           </Popover.Content>
         </Popover>
 
-        <Tooltip delay={450} closeDelay={75}>
-          <Tooltip.Trigger>
-            <Button
-              isIconOnly
-              size="sm"
-              variant="ghost"
-              className="ml-auto shrink-0"
-              aria-label={t('conversationHeader.configureChatContext')}
-              onPress={() => onAction('configure', chat)}
-            >
-              <Icon name="settings" className="size-5" />
-            </Button>
-          </Tooltip.Trigger>
-          <Tooltip.Content>{t('chatSetupModal.chatSettings')}</Tooltip.Content>
-        </Tooltip>
+        <TooltipIconButton
+          label={t('chatSetupModal.chatSettings')}
+          size="sm"
+          variant="ghost"
+          className="ml-auto shrink-0"
+          onPress={() => onAction('configure', chat)}
+        >
+          <Icon name="settings" className="size-5" />
+        </TooltipIconButton>
         <ChatActionsButton chat={chat} onAction={onAction} />
       </div>
     </header>

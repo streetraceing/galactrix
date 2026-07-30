@@ -1,6 +1,7 @@
 import { Button, Chip, Tabs } from '@heroui/react';
 import { useEffect, useMemo, useState } from 'react';
 import { Icon } from '../../components/Icon';
+import { TooltipIconButton } from '../../components/ui/TooltipIconButton';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { toast } from '../../i18n/toast';
 import {
@@ -249,14 +250,14 @@ export function GalaxiesScreen({
                 <Icon name="upload" className="size-4" />{' '}
                 {t('galaxiesScreen.import')}
               </Button>
-              <Button
+              <TooltipIconButton
+                label={`${t('galaxiesScreen.create')} ${galaxyKindCreateLabels[section]}`}
                 variant="primary"
                 className="flex lg:hidden"
                 onPress={() => openCreate(section)}
-                isIconOnly
               >
-                <Icon name="plus" className="size-4" />{' '}
-              </Button>
+                <Icon name="plus" className="size-4" />
+              </TooltipIconButton>
               <Button
                 variant="primary"
                 className="w-full sm:w-auto hidden lg:flex"

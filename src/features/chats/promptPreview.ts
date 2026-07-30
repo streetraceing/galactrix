@@ -70,8 +70,12 @@ export function promptPreviewFromChat(
     ),
     promptConfig: config.promptConfig,
     rememberedMessages,
-    userName: persona?.name || profileName,
-    characterName: character?.name,
+    userName:
+      persona?.name ||
+      profileName ||
+      i18next.t('user.defaultName', { ns: 'common' }),
+    characterName:
+      character?.name || i18next.t('preview.character', { ns: 'chats' }),
     responseLanguage,
   };
 }

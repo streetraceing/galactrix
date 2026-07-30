@@ -1,4 +1,5 @@
 import { Button, ListBox, Select, Surface } from '@heroui/react';
+import { TooltipIconButton } from '../../../components/ui/TooltipIconButton';
 import { useTranslation } from 'react-i18next';
 
 const scales = [0.8, 0.9, 1, 1.1, 1.25, 1.4, 1.5];
@@ -58,18 +59,17 @@ export function ScaleSettings({
       </div>
 
       <div className="mt-4 flex items-center gap-2">
-        <Button
-          aria-label={t('scaleSettings.decreaseScale')}
+        <TooltipIconButton
+          label={t('scaleSettings.decreaseScale')}
           size="sm"
           variant="secondary"
-          isIconOnly
           isDisabled={currentIndex === 0}
           onPress={decreaseScale}
         >
-          <span aria-hidden="true" className="text-lg text-center">
+          <span aria-hidden="true" className="text-center text-lg">
             −
           </span>
-        </Button>
+        </TooltipIconButton>
 
         <Select
           aria-label={t('scaleSettings.interfaceScale')}
@@ -100,7 +100,6 @@ export function ScaleSettings({
                   <ListBox.Item
                     key={scale}
                     id={String(scale)}
-                    className="hover:bg-accent-soft"
                     textValue={label}
                   >
                     {label}
@@ -112,18 +111,17 @@ export function ScaleSettings({
           </Select.Popover>
         </Select>
 
-        <Button
-          aria-label={t('scaleSettings.increaseScale')}
+        <TooltipIconButton
+          label={t('scaleSettings.increaseScale')}
           size="sm"
           variant="secondary"
-          isIconOnly
           isDisabled={currentIndex === scales.length - 1}
           onPress={increaseScale}
         >
-          <span aria-hidden="true" className="text-lg text-center">
+          <span aria-hidden="true" className="text-center text-lg">
             +
           </span>
-        </Button>
+        </TooltipIconButton>
       </div>
     </Surface>
   );

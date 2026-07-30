@@ -82,21 +82,24 @@ export async function sendChatMessage(
 
 export async function cloneChat(
   chatId: string,
+  title: string,
   includeMessages: boolean,
   input?: ChatConfigInput,
 ) {
   requireTauri();
   return invokeBackend<{ id: string; title: string }>('clone_chat', {
     chatId,
+    title,
     includeMessages,
     input: input ?? null,
   });
 }
 
-export async function branchChat(messageId: string) {
+export async function branchChat(messageId: string, title: string) {
   requireTauri();
   return invokeBackend<{ id: string; title: string }>('branch_chat', {
     messageId,
+    title,
   });
 }
 

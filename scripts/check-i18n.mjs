@@ -176,6 +176,38 @@ for (const filePath of sourceFiles) {
   }
 }
 
+const rustI18nPath = path.join(process.cwd(), 'src-tauri', 'src', 'i18n.rs');
+if (fs.existsSync(rustI18nPath)) {
+  const rustI18n = fs.readFileSync(rustI18nPath, 'utf8');
+  const backendKeys = new Set(
+    Object.keys(referenceResources.backend ?? {}).map(canonicalKey),
+  );
+  for (const match of rustI18n.matchAll(
+    /pub const\s+\w+\s*:\s*&str\s*=\s*"(backend\.[^"]+)"/gu,
+  )) {
+    const key = canonicalKey(match[1]);
+    if (!backendKeys.has(key)) {
+      errors.push(`src-tauri/src/i18n.rs: unknown backend key ${match[1]}`);
+    }
+  }
+
+  const keyedBackendFiles = [
+    'db.rs',
+    'lib.rs',
+    'provider_client.rs',
+    'secure_storage.rs',
+  ];
+  for (const fileName of keyedBackendFiles) {
+    const filePath = path.join(process.cwd(), 'src-tauri', 'src', fileName);
+    const source = fs.readFileSync(filePath, 'utf8');
+    if (/\bErr\(\s*"/gu.test(source)) {
+      errors.push(
+        `src-tauri/src/${fileName}: contains a direct string error instead of CommandError key`,
+      );
+    }
+  }
+}
+
 if (errors.length) {
   console.error(errors.join('\n'));
   process.exitCode = 1;

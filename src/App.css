@@ -91,14 +91,16 @@
     --danger-foreground: var(--snow);
     --segment: oklch(0.3964 0.01 285.93);
     --segment-foreground: var(--foreground);
-    --border: oklch(22% 0.006 286.033);
-    --separator: oklch(22% 0.006 286.033);
+    --border: oklch(25% 0.006 286.033);
+    --separator: oklch(25% 0.006 286.033);
     --focus: var(--accent);
     --link: var(--foreground);
     --backdrop: rgba(0, 0, 0, 0.6);
-    --surface-shadow: 0 0 0 0 transparent inset;
-    --overlay-shadow: 0 0 0 0 transparent inset;
-    --field-shadow: 0 0 0 0 transparent inset;
+    --surface-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.025) inset, 0 10px 30px rgba(0, 0, 0, 0.14);
+    --overlay-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 18px 48px rgba(0, 0, 0, 0.32);
+    --field-shadow: 0 1px 0 rgba(255, 255, 255, 0.02) inset;
   }
 
   html,
@@ -655,6 +657,7 @@
   }
 
   .interactive-card {
+    @apply shadow-surface ring-1 ring-inset ring-foreground/5;
     backface-visibility: hidden;
     transition-property: border-color, background-color, box-shadow, transform;
     transition-duration: var(--motion-standard);

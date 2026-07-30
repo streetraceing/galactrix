@@ -91,5 +91,6 @@
   "export.destination.share.description": "Choose an app or storage location from the system menu.",
   "export.destination.downloads.title": "Save to Downloads",
   "export.destination.downloads.description": "Downloads the file with an automatically generated name.",
-  "user.defaultName": "User"
+  "user.defaultName": "User",
+  "errors.unknown": "Unknown error"
 }

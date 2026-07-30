@@ -27,6 +27,7 @@ function AppAvatarComponent({
 
   return (
     <Avatar
+      key={src ?? `fallback:${fallback}`}
       variant="soft"
       color="default"
       className={`${className} ${shapeClass} shrink-0 border border-separator`}

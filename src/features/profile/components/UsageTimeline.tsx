@@ -1,6 +1,7 @@
 import { Button, Chip, Surface } from '@heroui/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '../../../components/Icon';
+import { TooltipIconButton } from '../../../components/ui/TooltipIconButton';
 import { formatDate, formatNumber } from '../../../i18n';
 import type { UsagePoint } from '../../../types';
 import { formatTokens } from '../format';
@@ -100,7 +101,7 @@ export function UsageTimeline({
 
   if (!selected) {
     return (
-      <Surface className="grid min-h-64 place-items-center rounded-2xl border border-separator p-6 text-center text-muted">
+      <Surface className="grid min-h-64 place-items-center rounded-2xl border border-separator bg-surface p-6 text-center text-muted shadow-surface ring-1 ring-inset ring-foreground/5">
         {t('usageTimeline.statisticsWillAppearAfterTheFirstModelRequest')}
       </Surface>
     );
@@ -110,7 +111,7 @@ export function UsageTimeline({
     selected.requests > 0 ? Math.round(selected.tokens / selected.requests) : 0;
 
   return (
-    <Surface className="overflow-hidden rounded-2xl border border-separator">
+    <Surface className="overflow-hidden rounded-2xl border border-separator bg-surface shadow-surface ring-1 ring-inset ring-foreground/5">
       <div className="flex flex-wrap items-start justify-between gap-4 border-b border-separator p-4 sm:p-5">
         <div key={`${metric}-${selected.day}`} className="metric-enter">
           <p className="text-sm capitalize text-muted">
@@ -127,27 +128,25 @@ export function UsageTimeline({
         </div>
 
         <div className="flex items-center gap-1">
-          <Button
-            isIconOnly
+          <TooltipIconButton
+            label={t('usageTimeline.showPreviousPeriod')}
             size="sm"
             variant="ghost"
-            aria-label={t('usageTimeline.showPreviousPeriod')}
             onPress={() => scrollPeriod(-1)}
           >
             <Icon name="chevron-left" className="size-4" />
-          </Button>
+          </TooltipIconButton>
           <Button size="sm" variant="secondary" onPress={goToLatest}>
             {t('usageTimeline.today')}
           </Button>
-          <Button
-            isIconOnly
+          <TooltipIconButton
+            label={t('usageTimeline.showNextPeriod')}
             size="sm"
             variant="ghost"
-            aria-label={t('usageTimeline.showNextPeriod')}
             onPress={() => scrollPeriod(1)}
           >
             <Icon name="chevron-right" className="size-4" />
-          </Button>
+          </TooltipIconButton>
         </div>
       </div>
 

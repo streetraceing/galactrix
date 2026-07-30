@@ -16,7 +16,7 @@ export function SettingsCard({
   children: ReactNode;
 }) {
   return (
-    <Surface className="settings-card-enter rounded-2xl border border-separator p-4 sm:p-5">
+    <Surface className="settings-card-enter rounded-2xl border border-separator bg-surface p-4 shadow-surface ring-1 ring-inset ring-foreground/5 sm:p-5">
       <div className="flex items-center gap-3">
         <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent/10 text-accent">
           <Icon name={icon} className="size-5" />

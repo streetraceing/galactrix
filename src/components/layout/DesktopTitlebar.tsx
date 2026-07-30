@@ -7,6 +7,7 @@ import { isMobilePlatform } from '../../lib/platform';
 import type { Chat, TabId } from '../../types';
 import { BrandMark } from '../BrandMark';
 import { Icon } from '../Icon';
+import { TooltipIconButton } from '../ui/TooltipIconButton';
 import type { IconName } from '../Icon';
 import { useTranslation } from 'react-i18next';
 
@@ -376,43 +377,43 @@ export function DesktopTitlebar({
       </div>
 
       <div className="flex h-full w-36 items-stretch justify-self-end">
-        <Button
-          isIconOnly
+        <TooltipIconButton
+          label={t('desktopTitlebar.minimizeWindow')}
+          tooltipPlacement="bottom"
           size="sm"
           variant="ghost"
           className="h-full w-12 min-w-12 rounded-none"
-          aria-label={t('desktopTitlebar.minimizeWindow')}
           onPress={() => void appWindow.minimize()}
         >
           <Icon name="minimize" className="size-4" />
-        </Button>
-        <Button
-          isIconOnly
-          size="sm"
-          variant="ghost"
-          className="h-full w-12 min-w-12 rounded-none"
-          aria-label={
+        </TooltipIconButton>
+        <TooltipIconButton
+          label={
             maximized
               ? t('desktopTitlebar.restoreWindow')
               : t('desktopTitlebar.maximizeWindow')
           }
+          tooltipPlacement="bottom"
+          size="sm"
+          variant="ghost"
+          className="h-full w-12 min-w-12 rounded-none"
           onPress={() => void toggleWindowMaximize()}
         >
           <Icon
             name={maximized ? 'restore' : 'maximize'}
             className="size-3.5"
           />
-        </Button>
-        <Button
-          isIconOnly
+        </TooltipIconButton>
+        <TooltipIconButton
+          label={t('desktopTitlebar.closeWindow')}
+          tooltipPlacement="bottom end"
           size="sm"
           variant="ghost"
           className="h-full w-12 min-w-12 rounded-none hover:bg-danger hover:text-danger-foreground"
-          aria-label={t('desktopTitlebar.closeWindow')}
           onPress={() => void appWindow.close()}
         >
           <Icon name="close" className="size-4" />
-        </Button>
+        </TooltipIconButton>
       </div>
     </header>
   );

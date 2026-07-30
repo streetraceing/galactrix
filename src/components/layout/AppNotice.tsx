@@ -1,5 +1,6 @@
-import { Button, Surface } from '@heroui/react';
+import { Surface } from '@heroui/react';
 import { Icon } from '../Icon';
+import { TooltipIconButton } from '../ui/TooltipIconButton';
 import { useTranslation } from 'react-i18next';
 
 export function AppNotice({
@@ -20,15 +21,14 @@ export function AppNotice({
       <span className="selectable min-w-0 flex-1 wrap-break-word text-sm">
         {message}
       </span>
-      <Button
-        isIconOnly
+      <TooltipIconButton
+        label={t('appNotice.dismissNotification')}
         size="sm"
         variant="ghost"
-        aria-label={t('appNotice.dismissNotification')}
         onPress={onClose}
       >
         <Icon name="close" className="size-4" />
-      </Button>
+      </TooltipIconButton>
     </Surface>
   );
 }

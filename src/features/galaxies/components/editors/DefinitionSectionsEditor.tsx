@@ -1,5 +1,6 @@
 import { Button, Input, TextArea } from '@heroui/react';
 import { Icon } from '../../../../components/Icon';
+import { TooltipIconButton } from '../../../../components/ui/TooltipIconButton';
 import type { DefinitionSection } from '../../../../types';
 import { createId } from '../../model';
 import { EditorSection } from './EditorSection';
@@ -73,17 +74,17 @@ export function DefinitionSectionsEditor({
                     patch(section.id, 'title', event.target.value)
                   }
                 />
-                <Button
-                  isIconOnly
+                <TooltipIconButton
+                  label={t('definitionSectionsEditor.deleteEntry')}
                   size="sm"
                   variant="ghost"
-                  aria-label={t('definitionSectionsEditor.deleteEntry')}
+                  className="text-danger"
                   onPress={() =>
                     onChange(sections.filter((item) => item.id !== section.id))
                   }
                 >
-                  <Icon name="trash" className="size-4 text-danger" />
-                </Button>
+                  <Icon name="trash" className="size-4" />
+                </TooltipIconButton>
               </div>
               <TextArea
                 autoComplete="off"

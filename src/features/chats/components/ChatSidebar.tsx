@@ -1,7 +1,8 @@
-import { Button, Chip, SearchField, Tooltip } from '@heroui/react';
+import { Chip, SearchField } from '@heroui/react';
 import { memo, useDeferredValue, useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { Icon } from '../../../components/Icon';
+import { TooltipIconButton } from '../../../components/ui/TooltipIconButton';
 import type { Chat, GalaxyItem } from '../../../types';
 import type { ChatAction } from '../types';
 import { ChatListItem } from './ChatListItem';
@@ -60,18 +61,14 @@ function ChatSidebarComponent({
             {t('chatSidebar.conversationHistory')}
           </p>
         </div>
-        <Tooltip delay={450} closeDelay={75}>
-          <Button
-            isIconOnly
-            size="lg"
-            variant="primary"
-            aria-label={t('chatSetupModal.newChat')}
-            onPress={onNewChat}
-          >
-            <Icon name="plus" className="size-5" />
-          </Button>
-          <Tooltip.Content>{t('chatSetupModal.newChat')}</Tooltip.Content>
-        </Tooltip>
+        <TooltipIconButton
+          label={t('chatSetupModal.newChat')}
+          size="lg"
+          variant="primary"
+          onPress={onNewChat}
+        >
+          <Icon name="plus" className="size-5" />
+        </TooltipIconButton>
       </header>
 
       <div className="px-3 pb-3">

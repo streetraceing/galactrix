@@ -1,8 +1,103 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Display};
 
 use serde::Serialize;
 
-#[derive(Debug, Serialize)]
+pub mod keys {
+    pub const INTERNAL: &str = "backend.internal";
+
+    pub const CHAT_TITLE_REQUIRED: &str = "backend.chat.titleRequired";
+    pub const CHAT_TITLE_TOO_LONG: &str = "backend.chat.titleTooLong";
+    pub const CHAT_NOT_FOUND: &str = "backend.chat.notFound";
+
+    pub const MESSAGE_NOT_FOUND: &str = "backend.message.notFound";
+    pub const MESSAGE_EMPTY: &str = "backend.message.empty";
+    pub const MESSAGE_USER_BEFORE_ASSISTANT_MISSING: &str =
+        "backend.message.userBeforeAssistantMissing";
+    pub const MESSAGE_REGENERATE_ASSISTANT_ONLY: &str =
+        "backend.message.regenerateAssistantOnly";
+    pub const MESSAGE_VARIANTS_ASSISTANT_ONLY: &str =
+        "backend.message.variantsAssistantOnly";
+    pub const MESSAGE_VARIANT_NOT_FOUND: &str = "backend.message.variantNotFound";
+
+    pub const PROVIDER_EMPTY_RESPONSE: &str = "backend.provider.emptyResponse";
+    pub const PROVIDER_SELECT_FOR_CHAT: &str = "backend.provider.selectForChat";
+    pub const PROVIDER_NOT_FOUND: &str = "backend.provider.notFound";
+    pub const PROVIDER_NAME_REQUIRED: &str = "backend.provider.nameRequired";
+    pub const PROVIDER_MODEL_REQUIRED: &str = "backend.provider.modelRequired";
+    pub const PROVIDER_API_KEY_REQUIRED: &str = "backend.provider.apiKeyRequired";
+    pub const PROVIDER_API_KEY_MISSING: &str = "backend.provider.apiKeyMissing";
+    pub const PROVIDER_API_KEY_NOT_IN_STORAGE: &str =
+        "backend.provider.apiKeyNotInStorage";
+    pub const PROVIDER_UNKNOWN_KIND: &str = "backend.provider.unknownKind";
+    pub const PROVIDER_NOT_OPENAI_COMPATIBLE: &str =
+        "backend.provider.notOpenAiCompatible";
+    pub const PROVIDER_TEMPERATURE_RANGE: &str = "backend.provider.temperatureRange";
+    pub const PROVIDER_TOP_P_RANGE: &str = "backend.provider.topPRange";
+    pub const PROVIDER_MAX_TOKENS_POSITIVE: &str = "backend.provider.maxTokensPositive";
+    pub const PROVIDER_CHARACTER_AI_UNSUPPORTED: &str =
+        "backend.provider.characterAiUnsupported";
+    pub const PROVIDER_CONNECTION_FAILED: &str = "backend.provider.connectionFailed";
+    pub const PROVIDER_REQUEST_FAILED: &str = "backend.provider.requestFailed";
+    pub const PROVIDER_RESPONSE_READ_FAILED: &str =
+        "backend.provider.responseReadFailed";
+    pub const PROVIDER_HTTP_ERROR: &str = "backend.provider.httpError";
+    pub const PROVIDER_BASE_URL_REQUIRED: &str = "backend.provider.baseUrlRequired";
+    pub const PROVIDER_ACCOUNT_ID_REQUIRED: &str = "backend.provider.accountIdRequired";
+
+    pub const COMMON_NAME_REQUIRED: &str = "backend.common.nameRequired";
+    pub const COMMON_NAME_TOO_LONG: &str = "backend.common.nameTooLong";
+
+    pub const GALAXY_NOT_FOUND: &str = "backend.galaxy.notFound";
+    pub const GALAXY_CONTEXT_PERSONA_NOT_FOUND: &str =
+        "backend.galaxy.contextPersonaNotFound";
+    pub const GALAXY_CONTEXT_CHARACTER_NOT_FOUND: &str =
+        "backend.galaxy.contextCharacterNotFound";
+    pub const GALAXY_CONTEXT_UNIVERSE_NOT_FOUND: &str =
+        "backend.galaxy.contextUniverseNotFound";
+    pub const GALAXY_CONTEXT_WORLDBOOK_NOT_FOUND: &str =
+        "backend.galaxy.contextWorldbookNotFound";
+    pub const GALAXY_CONTEXT_STYLE_NOT_FOUND: &str =
+        "backend.galaxy.contextStyleNotFound";
+    pub const GALAXY_CONTEXT_PROMPT_SET_NOT_FOUND: &str =
+        "backend.galaxy.contextPromptSetNotFound";
+    pub const GALAXY_CONTEXT_OBJECT_NOT_FOUND: &str =
+        "backend.galaxy.contextObjectNotFound";
+    pub const GALAXY_DATA_MUST_BE_OBJECT: &str = "backend.galaxy.dataMustBeObject";
+    pub const GALAXY_KIND_IMMUTABLE: &str = "backend.galaxy.kindImmutable";
+    pub const GALAXY_DATA_TOO_LARGE: &str = "backend.galaxy.dataTooLarge";
+    pub const GALAXY_STYLE_PRESET_UNKNOWN: &str = "backend.galaxy.stylePresetUnknown";
+    pub const GALAXY_SAVED_STYLE_REQUIRED: &str = "backend.galaxy.savedStyleRequired";
+    pub const GALAXY_PROMPT_SET_REFERENCE_INVALID: &str =
+        "backend.galaxy.promptSetReferenceInvalid";
+    pub const GALAXY_KIND_UNKNOWN: &str = "backend.galaxy.kindUnknown";
+
+    pub const PROMPT_SET_INVALID: &str = "backend.promptSet.invalid";
+    pub const PROMPT_SET_NESTED_NOT_ALLOWED: &str = "backend.promptSet.nestedNotAllowed";
+    pub const PROMPT_SET_LIMIT: &str = "backend.promptSet.limit";
+    pub const PROMPT_SET_DUPLICATE: &str = "backend.promptSet.duplicate";
+
+    pub const PROMPT_RULE_UNKNOWN: &str = "backend.prompt.ruleUnknown";
+    pub const PROMPT_RULE_DUPLICATE: &str = "backend.prompt.ruleDuplicate";
+    pub const PROMPT_PRIORITY_UNKNOWN: &str = "backend.prompt.priorityUnknown";
+    pub const PROMPT_BLOCK_LIMIT: &str = "backend.prompt.blockLimit";
+    pub const PROMPT_BLOCK_ID_DUPLICATE: &str = "backend.prompt.blockIdDuplicate";
+    pub const PROMPT_BLOCK_TITLE_TOO_LONG: &str = "backend.prompt.blockTitleTooLong";
+    pub const PROMPT_BLOCK_TITLE_REQUIRED: &str = "backend.prompt.blockTitleRequired";
+    pub const PROMPT_BLOCK_PRIORITY_UNKNOWN: &str =
+        "backend.prompt.blockPriorityUnknown";
+    pub const PROMPT_BLOCK_CONTENT_REQUIRED: &str =
+        "backend.prompt.blockContentRequired";
+    pub const PROMPT_BLOCK_TOO_LONG: &str = "backend.prompt.blockTooLong";
+    pub const PROMPT_BLOCKS_TOO_LARGE: &str = "backend.prompt.blocksTooLarge";
+
+    pub const PROFILE_NAME_TOO_LONG: &str = "backend.profile.nameTooLong";
+    pub const PROFILE_IMAGE_UNSUPPORTED: &str = "backend.profile.imageUnsupported";
+    pub const PROFILE_IMAGE_TOO_LARGE: &str = "backend.profile.imageTooLarge";
+
+    pub const SECURE_STORAGE_UNAVAILABLE: &str = "backend.secureStorage.unavailable";
+}
+
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CommandError {
     pub key: String,
@@ -12,165 +107,71 @@ pub struct CommandError {
 
 pub type CommandResult<T> = Result<T, CommandError>;
 
-impl From<&str> for CommandError {
-    fn from(message: &str) -> Self {
-        Self::from(message.to_owned())
+impl CommandError {
+    pub fn new(key: impl Into<String>) -> Self {
+        Self {
+            key: key.into(),
+            variables: HashMap::new(),
+        }
+    }
+
+    pub fn with_variable(
+        mut self,
+        name: impl Into<String>,
+        value: impl ToString,
+    ) -> Self {
+        self.variables.insert(name.into(), value.to_string());
+        self
+    }
+
+    pub fn with_detail(key: impl Into<String>, detail: impl Display) -> Self {
+        Self::new(key).with_variable("detail", detail)
+    }
+
+    pub fn internal(detail: impl Display) -> Self {
+        Self::with_detail(keys::INTERNAL, detail)
     }
 }
 
-impl From<String> for CommandError {
-    fn from(message: String) -> Self {
-        let key = message_key(&message).to_owned();
-        let mut variables = HashMap::new();
-        if key == "backend.internal" {
-            variables.insert("detail".into(), message.clone());
-        } else if matches!(
-            key.as_str(),
-            "backend.provider.connectionFailed"
-                | "backend.provider.requestFailed"
-                | "backend.provider.responseReadFailed"
-                | "backend.provider.httpError"
-                | "backend.secureStorage.unavailable"
-                | "backend.provider.unknownKind"
-        ) {
-            if key == "backend.provider.httpError" {
-                variables.insert("detail".into(), message.clone());
-            } else if let Some((_, detail)) = message.split_once(": ") {
-                variables.insert("detail".into(), detail.to_owned());
-            }
-        } else if key == "backend.galaxy.contextObjectNotFound" {
-            let kind = message
-                .strip_prefix("Объект типа ")
-                .and_then(|value| value.strip_suffix(" не найден"));
-            if let Some(kind) = kind {
-                variables.insert("kind".into(), kind.to_owned());
-            }
-        } else if key == "backend.common.fieldRequired" {
-            if let Some(field) = message.strip_prefix("Укажите ") {
-                variables.insert("field".into(), field.to_owned());
-            }
+impl Display for CommandError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.variables.is_empty() {
+            return formatter.write_str(&self.key);
         }
-        Self { key, variables }
+        write!(formatter, "{} {:?}", self.key, self.variables)
     }
 }
 
-fn message_key(message: &str) -> &'static str {
-    match message {
-        "Название чата не может быть пустым" | "Укажите название чата" => {
-            "backend.chat.titleRequired"
-        }
-        "Название чата слишком длинное" => "backend.chat.titleTooLong",
-        "Чат не найден" => "backend.chat.notFound",
-        "Сообщение не найдено" => "backend.message.notFound",
-        "Сообщение не может быть пустым" | "Пустое сообщение не отправляется" => {
-            "backend.message.empty"
-        }
-        "Перед ответом ассистента не найдено сообщение пользователя" => {
-            "backend.message.userBeforeAssistantMissing"
-        }
-        "Модель вернула пустой ответ"
-        | "Ollama вернул ответ без текста"
-        | "Провайдер вернул ответ без choices[0].message.content"
-        | "Провайдер вернул пустой текст" => "backend.provider.emptyResponse",
-        "Перегенерировать можно только ответ ассистента" => {
-            "backend.message.regenerateAssistantOnly"
-        }
-        "История вариантов доступна только для ответов ассистента" => {
-            "backend.message.variantsAssistantOnly"
-        }
-        "Вариант ответа не найден" => "backend.message.variantNotFound",
-        "Выберите провайдера в настройках чата" => "backend.provider.selectForChat",
-        "Подключение не найдено" => "backend.provider.notFound",
-        "Укажите название подключения" => "backend.provider.nameRequired",
-        "Укажите модель" | "У подключения не выбрана модель" => {
-            "backend.provider.modelRequired"
-        }
-        "Для этого провайдера нужен API-ключ" => "backend.provider.apiKeyRequired",
-        "API-ключ ещё не добавлен" => "backend.provider.apiKeyMissing",
-        "API-ключ подключения не найден в защищённом хранилище" => {
-            "backend.provider.apiKeyNotInStorage"
-        }
-        "Неизвестный тип провайдера" => "backend.provider.unknownKind",
-        "Провайдер не использует OpenAI-compatible API" => {
-            "backend.provider.notOpenAiCompatible"
-        }
-        "Temperature должна быть от 0 до 2" => "backend.provider.temperatureRange",
-        "Top P должна быть от 0 до 1" => "backend.provider.topPRange",
-        "Max tokens должно быть больше нуля" => "backend.provider.maxTokensPositive",
-        "Character.AI требует отдельного адаптера; подключение не было сохранено"
-        | "Character.AI нельзя импортировать без отдельного адаптера"
-        | "Character.AI не предоставляет совместимый публичный API; нужен отдельный адаптер"
-        | "Для Character.AI ещё не реализован отдельный адаптер авторизации" => {
-            "backend.provider.characterAiUnsupported"
-        }
-        "Укажите название" => "backend.common.nameRequired",
-        "Название слишком длинное" => "backend.common.nameTooLong",
-        "Объект Галактики не найден" => "backend.galaxy.notFound",
-        "Параметры объекта должны быть JSON-объектом" => "backend.galaxy.dataMustBeObject",
-        "Тип существующего объекта нельзя изменить" => "backend.galaxy.kindImmutable",
-        "Параметры объекта слишком большие" => "backend.galaxy.dataTooLarge",
-        "Некорректная структура набора промптов" => "backend.promptSet.invalid",
-        "Набор промптов не может подключать другие наборы" => {
-            "backend.promptSet.nestedNotAllowed"
-        }
-        "Можно подключить не больше 16 наборов промптов" => "backend.promptSet.limit",
-        "Наборы промптов не должны повторяться" => "backend.promptSet.duplicate",
-        "Неизвестный пресет стиля персонажа" => "backend.galaxy.stylePresetUnknown",
-        "Выберите сохранённый стиль переписки" => "backend.galaxy.savedStyleRequired",
-        "Некорректная ссылка на набор промптов" => {
-            "backend.galaxy.promptSetReferenceInvalid"
-        }
-        "Неизвестный тип объекта галактики" => "backend.galaxy.kindUnknown",
-        "Неизвестное правило системного промпта" => "backend.prompt.ruleUnknown",
-        "Правила системного промпта не должны повторяться" => {
-            "backend.prompt.ruleDuplicate"
-        }
-        "Неизвестный приоритет системного промпта" => "backend.prompt.priorityUnknown",
-        "В одном чате можно создать не больше 16 блоков промпта" => {
-            "backend.prompt.blockLimit"
-        }
-        "Блоки промпта должны иметь уникальные идентификаторы" => {
-            "backend.prompt.blockIdDuplicate"
-        }
-        "Название блока промпта не должно быть длиннее 80 символов" => {
-            "backend.prompt.blockTitleTooLong"
-        }
-        "У включённого блока промпта должно быть название" => {
-            "backend.prompt.blockTitleRequired"
-        }
-        "Неизвестный приоритет блока промпта" => "backend.prompt.blockPriorityUnknown",
-        "Включённый блок промпта не может быть пустым" => {
-            "backend.prompt.blockContentRequired"
-        }
-        "Один блок промпта не может быть длиннее 12 000 символов" => {
-            "backend.prompt.blockTooLong"
-        }
-        "Суммарный объём пользовательских блоков промпта слишком большой" => {
-            "backend.prompt.blocksTooLarge"
-        }
-        "Имя профиля слишком длинное" => "backend.profile.nameTooLong",
-        "Неподдерживаемый формат изображения профиля" => {
-            "backend.profile.imageUnsupported"
-        }
-        "Изображение профиля слишком большое" => "backend.profile.imageTooLarge",
-        _ if message.starts_with("Не удалось подключиться к API:") => {
-            "backend.provider.connectionFailed"
-        }
-        _ if message.starts_with("Запрос к модели не выполнен:") => {
-            "backend.provider.requestFailed"
-        }
-        _ if message.starts_with("Не удалось прочитать ответ API:") => {
-            "backend.provider.responseReadFailed"
-        }
-        _ if message.starts_with("Защищённое хранилище недоступно:") => {
-            "backend.secureStorage.unavailable"
-        }
-        _ if message.starts_with("Неизвестный тип провайдера:") => {
-            "backend.provider.unknownKind"
-        }
-        _ if message.starts_with("HTTP ") => "backend.provider.httpError",
-        _ if message.starts_with("Объект типа ") => "backend.galaxy.contextObjectNotFound",
-        _ if message.starts_with("Укажите ") => "backend.common.fieldRequired",
-        _ => "backend.internal",
+impl std::error::Error for CommandError {}
+
+impl From<rusqlite::Error> for CommandError {
+    fn from(error: rusqlite::Error) -> Self {
+        Self::internal(error)
+    }
+}
+
+impl From<serde_json::Error> for CommandError {
+    fn from(error: serde_json::Error) -> Self {
+        Self::internal(error)
+    }
+}
+
+impl From<std::io::Error> for CommandError {
+    fn from(error: std::io::Error) -> Self {
+        Self::internal(error)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{keys, CommandError};
+
+    #[test]
+    fn serializes_translation_key_and_variables() {
+        let error = CommandError::new(keys::PROVIDER_UNKNOWN_KIND)
+            .with_variable("kind", "example");
+        let value = serde_json::to_value(error).expect("command error must serialize");
+        assert_eq!(value["key"], keys::PROVIDER_UNKNOWN_KIND);
+        assert_eq!(value["variables"]["kind"], "example");
     }
 }

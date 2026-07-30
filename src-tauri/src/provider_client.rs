@@ -3,6 +3,7 @@ use std::time::Instant;
 use reqwest::{Client, RequestBuilder, Response};
 use serde_json::{json, Value};
 
+use crate::i18n::{keys, CommandError, CommandResult};
 use crate::models::{CompletionResult, Message, Provider, ProviderInput, ProviderModelResult};
 
 const DEFAULT_MISTRAL_URL: &str = "https://api.mistral.ai/v1";
@@ -18,7 +19,7 @@ const DEFAULT_OLLAMA_CLOUD_URL: &str = "https://ollama.com/api";
 pub async fn list_models(
     provider: &ProviderInput,
     api_key: Option<&str>,
-) -> Result<ProviderModelResult, String> {
+) -> CommandResult<ProviderModelResult> {
     validate_provider(provider, api_key)?;
     let client = http_client()?;
     let started = Instant::now();
@@ -29,24 +30,24 @@ pub async fn list_models(
             authenticated(client.get(url), api_key).send().await
         }
         "cloudflare-workers-ai" => {
-            let account_id = required_text(provider.account_id.as_deref(), "Cloudflare Account ID")?;
+            let account_id = required_text(
+                provider.account_id.as_deref(),
+                keys::PROVIDER_ACCOUNT_ID_REQUIRED,
+            )?;
             let url = format!(
                 "https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/models/search?per_page=1000"
             );
             authenticated(client.get(url), api_key).send().await
         }
         "character-ai" => {
-            return Err(
-                "Character.AI не предоставляет совместимый публичный API; нужен отдельный адаптер"
-                    .into(),
-            );
+            return Err(CommandError::new(keys::PROVIDER_CHARACTER_AI_UNSUPPORTED));
         }
         _ => {
             let url = format!("{}/models", openai_base(provider)?);
             authenticated(client.get(url), api_key).send().await
         }
     }
-    .map_err(|error| format!("Не удалось подключиться к API: {error}"))?;
+    .map_err(|error| CommandError::with_detail(keys::PROVIDER_CONNECTION_FAILED, error))?;
 
     let value = response_json(response).await?;
     let mut models = match provider.kind.as_str() {
@@ -103,7 +104,7 @@ pub async fn complete(
     history: &[Message],
     system_prompt: Option<&str>,
     user_content: Option<&str>,
-) -> Result<CompletionResult, String> {
+) -> CommandResult<CompletionResult> {
     validate_saved_provider(provider, api_key)?;
     let client = http_client()?;
     let messages = system_prompt
@@ -139,9 +140,7 @@ pub async fn complete(
             authenticated(client.post(url), api_key).json(&body).send().await
         }
         "character-ai" => {
-            return Err(
-                "Для Character.AI ещё не реализован отдельный адаптер авторизации".into(),
-            );
+            return Err(CommandError::new(keys::PROVIDER_CHARACTER_AI_UNSUPPORTED));
         }
         _ => {
             let url = format!("{}/chat/completions", openai_base_saved(provider)?);
@@ -156,7 +155,7 @@ pub async fn complete(
             authenticated(client.post(url), api_key).json(&body).send().await
         }
     }
-    .map_err(|error| format!("Запрос к модели не выполнен: {error}"))?;
+    .map_err(|error| CommandError::with_detail(keys::PROVIDER_REQUEST_FAILED, error))?;
 
     let value = response_json(response).await?;
     let latency_ms = started.elapsed().as_millis().min(i64::MAX as u128) as i64;
@@ -167,7 +166,7 @@ pub async fn complete(
             .and_then(Value::as_str)
             .map(str::trim)
             .filter(|content| !content.is_empty())
-            .ok_or_else(|| "Ollama вернул ответ без текста".to_string())?
+            .ok_or_else(|| CommandError::new(keys::PROVIDER_EMPTY_RESPONSE))?
             .to_owned();
         return Ok(CompletionResult {
             content,
@@ -185,13 +184,13 @@ pub async fn complete(
 
     let content_value = value
         .pointer("/choices/0/message/content")
-        .ok_or_else(|| "Провайдер вернул ответ без choices[0].message.content".to_string())?;
+        .ok_or_else(|| CommandError::new(keys::PROVIDER_EMPTY_RESPONSE))?;
     let extracted = extract_text(content_value);
     let content = extracted
         .as_deref()
         .map(str::trim)
         .filter(|content| !content.is_empty())
-        .ok_or_else(|| "Провайдер вернул пустой текст".to_string())?
+        .ok_or_else(|| CommandError::new(keys::PROVIDER_EMPTY_RESPONSE))?
         .to_owned();
 
     Ok(CompletionResult {
@@ -208,13 +207,13 @@ pub async fn complete(
     })
 }
 
-fn http_client() -> Result<Client, String> {
+fn http_client() -> CommandResult<Client> {
     Client::builder()
         .connect_timeout(std::time::Duration::from_secs(15))
         .timeout(std::time::Duration::from_secs(180))
-        .user_agent("Galactrix/0.1")
+        .user_agent("Galactrix/1.0")
         .build()
-        .map_err(|error| error.to_string())
+        .map_err(CommandError::internal)
 }
 
 fn authenticated(request: RequestBuilder, api_key: Option<&str>) -> RequestBuilder {
@@ -224,64 +223,69 @@ fn authenticated(request: RequestBuilder, api_key: Option<&str>) -> RequestBuild
     }
 }
 
-async fn response_json(response: Response) -> Result<Value, String> {
+async fn response_json(response: Response) -> CommandResult<Value> {
     let status = response.status();
     let text = response
         .text()
         .await
-        .map_err(|error| format!("Не удалось прочитать ответ API: {error}"))?;
+        .map_err(|error| CommandError::with_detail(keys::PROVIDER_RESPONSE_READ_FAILED, error))?;
     let value = serde_json::from_str::<Value>(&text).unwrap_or_else(|_| json!({ "raw": text }));
 
     if status.is_success() {
         return Ok(value);
     }
 
-    let message = value
+    let detail = value
         .pointer("/error/message")
         .or_else(|| value.get("error"))
         .or_else(|| value.get("message"))
         .and_then(Value::as_str)
         .or_else(|| value.get("raw").and_then(Value::as_str))
-        .unwrap_or("API вернул ошибку");
-    Err(format!("HTTP {}: {message}", status.as_u16()))
+        .map(str::trim)
+        .filter(|message| !message.is_empty())
+        .unwrap_or("—");
+    Err(CommandError::new(keys::PROVIDER_HTTP_ERROR)
+        .with_variable("status", status.as_u16())
+        .with_variable("detail", detail))
 }
 
-fn validate_provider(provider: &ProviderInput, api_key: Option<&str>) -> Result<(), String> {
+fn validate_provider(provider: &ProviderInput, api_key: Option<&str>) -> CommandResult<()> {
     if provider.name.trim().is_empty() {
-        return Err("Укажите название подключения".into());
+        return Err(CommandError::new(keys::PROVIDER_NAME_REQUIRED));
     }
     validate_kind(&provider.kind)?;
     validate_supported_kind(&provider.kind)?;
     validate_auth(&provider.kind, api_key, provider.id.is_some())?;
     if provider.kind == "custom" {
-        required_text(provider.base_url.as_deref(), "Base URL")?;
+        required_text(provider.base_url.as_deref(), keys::PROVIDER_BASE_URL_REQUIRED)?;
     }
     if provider.kind == "cloudflare-workers-ai" {
-        required_text(provider.account_id.as_deref(), "Cloudflare Account ID")?;
+        required_text(
+            provider.account_id.as_deref(),
+            keys::PROVIDER_ACCOUNT_ID_REQUIRED,
+        )?;
     }
     Ok(())
 }
 
-fn validate_saved_provider(provider: &Provider, api_key: Option<&str>) -> Result<(), String> {
+fn validate_saved_provider(provider: &Provider, api_key: Option<&str>) -> CommandResult<()> {
     validate_kind(&provider.kind)?;
     validate_supported_kind(&provider.kind)?;
     validate_auth(&provider.kind, api_key, false)?;
     if provider.model.trim().is_empty() {
-        return Err("У подключения не выбрана модель".into());
+        return Err(CommandError::new(keys::PROVIDER_MODEL_REQUIRED));
     }
     Ok(())
 }
 
-fn validate_supported_kind(kind: &str) -> Result<(), String> {
+fn validate_supported_kind(kind: &str) -> CommandResult<()> {
     if kind == "character-ai" {
-        return Err(
-            "Для Character.AI ещё не реализован отдельный адаптер авторизации".into(),
-        );
+        return Err(CommandError::new(keys::PROVIDER_CHARACTER_AI_UNSUPPORTED));
     }
     Ok(())
 }
 
-fn validate_kind(kind: &str) -> Result<(), String> {
+fn validate_kind(kind: &str) -> CommandResult<()> {
     match kind {
         "mistral"
         | "character-ai"
@@ -295,11 +299,11 @@ fn validate_kind(kind: &str) -> Result<(), String> {
         | "ollama-cloud"
         | "cloudflare-workers-ai"
         | "custom" => Ok(()),
-        _ => Err(format!("Неизвестный тип провайдера: {kind}")),
+        _ => Err(CommandError::new(keys::PROVIDER_UNKNOWN_KIND).with_variable("kind", kind)),
     }
 }
 
-fn validate_auth(kind: &str, api_key: Option<&str>, existing_id: bool) -> Result<(), String> {
+fn validate_auth(kind: &str, api_key: Option<&str>, existing_id: bool) -> CommandResult<()> {
     let requires_key = matches!(
         kind,
         "mistral"
@@ -317,12 +321,12 @@ fn validate_auth(kind: &str, api_key: Option<&str>, existing_id: bool) -> Result
         && !existing_id
         && api_key.map(str::trim).filter(|key| !key.is_empty()).is_none()
     {
-        return Err("Для этого провайдера нужен API-ключ".into());
+        return Err(CommandError::new(keys::PROVIDER_API_KEY_REQUIRED));
     }
     Ok(())
 }
 
-fn openai_base(provider: &ProviderInput) -> Result<String, String> {
+fn openai_base(provider: &ProviderInput) -> CommandResult<String> {
     let base = match provider.kind.as_str() {
         "mistral" => provider.base_url.as_deref().unwrap_or(DEFAULT_MISTRAL_URL),
         "cerebras" => provider.base_url.as_deref().unwrap_or(DEFAULT_CEREBRAS_URL),
@@ -335,18 +339,21 @@ fn openai_base(provider: &ProviderInput) -> Result<String, String> {
             .as_deref()
             .unwrap_or(DEFAULT_HUGGINGFACE_URL),
         "cloudflare-workers-ai" => {
-            let account_id = required_text(provider.account_id.as_deref(), "Cloudflare Account ID")?;
+            let account_id = required_text(
+                provider.account_id.as_deref(),
+                keys::PROVIDER_ACCOUNT_ID_REQUIRED,
+            )?;
             return Ok(format!(
                 "https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/v1"
             ));
         }
-        "custom" => required_text(provider.base_url.as_deref(), "Base URL")?,
-        _ => return Err("Провайдер не использует OpenAI-compatible API".into()),
+        "custom" => required_text(provider.base_url.as_deref(), keys::PROVIDER_BASE_URL_REQUIRED)?,
+        _ => return Err(CommandError::new(keys::PROVIDER_NOT_OPENAI_COMPATIBLE)),
     };
     Ok(base.trim_end_matches('/').to_owned())
 }
 
-fn openai_base_saved(provider: &Provider) -> Result<String, String> {
+fn openai_base_saved(provider: &Provider) -> CommandResult<String> {
     let input = ProviderInput {
         id: Some(provider.id.clone()),
         name: provider.name.clone(),
@@ -388,11 +395,11 @@ fn normalize_ollama_base(base: &str) -> String {
     }
 }
 
-fn required_text<'a>(value: Option<&'a str>, label: &str) -> Result<&'a str, String> {
+fn required_text<'a>(value: Option<&'a str>, error_key: &'static str) -> CommandResult<&'a str> {
     value
         .map(str::trim)
         .filter(|value| !value.is_empty())
-        .ok_or_else(|| format!("Укажите {label}"))
+        .ok_or_else(|| CommandError::new(error_key))
 }
 
 fn extract_text(value: &Value) -> Option<String> {

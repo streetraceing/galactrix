@@ -90,7 +90,7 @@ export function ProfileOverview({
       />
 
       <div className="grid gap-4 md:grid-cols-2">
-        <Surface className="rounded-2xl border border-separator p-4 sm:p-5">
+        <Surface className="rounded-2xl border border-separator bg-surface p-4 shadow-surface ring-1 ring-inset ring-foreground/5 sm:p-5">
           <h2 className="section-title">
             {t('profileOverview.libraryAndChats')}
           </h2>
@@ -119,7 +119,7 @@ export function ProfileOverview({
           </dl>
         </Surface>
 
-        <Surface className="rounded-2xl border border-separator p-4 sm:p-5">
+        <Surface className="rounded-2xl border border-separator bg-surface p-4 shadow-surface ring-1 ring-inset ring-foreground/5 sm:p-5">
           <h2 className="section-title">{t('profileOverview.appReadiness')}</h2>
           <p className="section-description">
             {t('profileOverview.aQuickSummaryOfTheConfiguredEnvironment')}

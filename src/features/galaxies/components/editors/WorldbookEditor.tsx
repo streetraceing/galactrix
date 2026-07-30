@@ -1,5 +1,6 @@
 import { Button, Checkbox, Input, TextArea } from '@heroui/react';
 import { Icon } from '../../../../components/Icon';
+import { TooltipIconButton } from '../../../../components/ui/TooltipIconButton';
 import type { WorldbookData, WorldbookEntry } from '../../../../types';
 import { createId } from '../../model';
 import { EditorSection } from './EditorSection';
@@ -90,11 +91,11 @@ export function WorldbookEditor({
                     patchEntry(entry.id, 'title', event.target.value)
                   }
                 />
-                <Button
-                  isIconOnly
+                <TooltipIconButton
+                  label={t('definitionSectionsEditor.deleteEntry')}
                   size="sm"
                   variant="ghost"
-                  aria-label={t('definitionSectionsEditor.deleteEntry')}
+                  className="text-danger"
                   onPress={() =>
                     onChange({
                       ...data,
@@ -104,8 +105,8 @@ export function WorldbookEditor({
                     })
                   }
                 >
-                  <Icon name="trash" className="size-4 text-danger" />
-                </Button>
+                  <Icon name="trash" className="size-4" />
+                </TooltipIconButton>
               </div>
               <Input
                 autoComplete="off"

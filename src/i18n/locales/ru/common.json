@@ -97,5 +97,6 @@
   "export.destination.share.description": "Выберите приложение или хранилище в системном меню.",
   "export.destination.downloads.title": "Сохранить в загрузки",
   "export.destination.downloads.description": "Файл будет скачан с автоматически созданным именем.",
-  "user.defaultName": "Пользователь"
+  "user.defaultName": "Пользователь",
+  "errors.unknown": "Неизвестная ошибка"
 }

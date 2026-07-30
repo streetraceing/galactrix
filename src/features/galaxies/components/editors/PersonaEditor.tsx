@@ -1,6 +1,7 @@
 import { Button, Input, Label, ListBox, Select, TextArea } from '@heroui/react';
 import type { Key } from 'react';
 import { Icon } from '../../../../components/Icon';
+import { TooltipIconButton } from '../../../../components/ui/TooltipIconButton';
 import type { NamedValue, PersonaData } from '../../../../types';
 import { createId, pronounsForGender } from '../../model';
 import { EditorSection } from './EditorSection';
@@ -199,11 +200,11 @@ export function PersonaEditor({
                       patchAttribute(attribute.id, 'title', event.target.value)
                     }
                   />
-                  <Button
-                    isIconOnly
+                  <TooltipIconButton
+                    label={t('personaEditor.deleteAttribute')}
                     size="sm"
                     variant="ghost"
-                    aria-label={t('personaEditor.deleteAttribute')}
+                    className="text-danger"
                     onPress={() =>
                       patch(
                         'attributes',
@@ -213,8 +214,8 @@ export function PersonaEditor({
                       )
                     }
                   >
-                    <Icon name="trash" className="size-4 text-danger" />
-                  </Button>
+                    <Icon name="trash" className="size-4" />
+                  </TooltipIconButton>
                 </div>
                 <TextArea
                   fullWidth

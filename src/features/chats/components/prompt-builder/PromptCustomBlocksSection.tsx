@@ -10,6 +10,7 @@ import {
 import { useState } from 'react';
 import type { DragEvent } from 'react';
 import { Icon } from '../../../../components/Icon';
+import { TooltipIconButton } from '../../../../components/ui/TooltipIconButton';
 import { formatNumber } from '../../../../i18n';
 import type { PromptBlock, PromptConfig } from '../../../../types';
 import { createPromptBlock } from './promptBuilderModel';
@@ -172,40 +173,35 @@ export function PromptCustomBlocksSection({
                       </Checkbox.Content>
                     </Checkbox>
                     <span className="ml-auto flex items-center gap-0.5">
-                      <Button
-                        isIconOnly
+                      <TooltipIconButton
+                        label={t('promptCustomBlocksSection.moveBlockUp')}
                         size="sm"
                         variant="ghost"
                         isDisabled={index === 0}
-                        aria-label={t('promptCustomBlocksSection.moveBlockUp')}
                         onPress={() => moveBlock(index, -1)}
                       >
                         <Icon
                           name="chevron-left"
                           className="size-4 rotate-90"
                         />
-                      </Button>
-                      <Button
-                        isIconOnly
+                      </TooltipIconButton>
+                      <TooltipIconButton
+                        label={t('promptCustomBlocksSection.moveBlockDown')}
                         size="sm"
                         variant="ghost"
                         isDisabled={index === value.customBlocks.length - 1}
-                        aria-label={t(
-                          'promptCustomBlocksSection.moveBlockDown',
-                        )}
                         onPress={() => moveBlock(index, 1)}
                       >
                         <Icon
                           name="chevron-right"
                           className="size-4 rotate-90"
                         />
-                      </Button>
-                      <Button
-                        isIconOnly
+                      </TooltipIconButton>
+                      <TooltipIconButton
+                        label={t('promptCustomBlocksSection.deleteBlock')}
                         size="sm"
                         variant="ghost"
                         className="text-danger"
-                        aria-label={t('promptCustomBlocksSection.deleteBlock')}
                         onPress={() =>
                           onChange({
                             ...value,
@@ -216,7 +212,7 @@ export function PromptCustomBlocksSection({
                         }
                       >
                         <Icon name="trash" className="size-4" />
-                      </Button>
+                      </TooltipIconButton>
                     </span>
                   </div>
 

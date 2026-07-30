@@ -14,15 +14,54 @@ function isBackendError(value: unknown): value is BackendErrorPayload {
   );
 }
 
-export function localizeBackendError(error: unknown) {
-  if (isBackendError(error)) {
-    const translated = i18next.t(error.key as never, {
-      ns: 'backend',
-      ...error.variables,
-      defaultValue: '',
-    });
-    if (translated) return translated;
+function parseJson(value: string): unknown {
+  const trimmed = value.trim();
+  if (!trimmed.startsWith('{')) return undefined;
+  try {
+    return JSON.parse(trimmed) as unknown;
+  } catch {
+    return undefined;
+  }
+}
+
+function parsePayload(
+  value: unknown,
+  depth = 0,
+): BackendErrorPayload | undefined {
+  if (depth > 4) return undefined;
+  if (isBackendError(value)) return value;
+
+  if (value instanceof Error) {
+    return (
+      parsePayload(value.cause, depth + 1) ??
+      parsePayload(value.message, depth + 1)
+    );
   }
 
-  return error instanceof Error ? error.message : String(error);
+  if (typeof value === 'string') {
+    return parsePayload(parseJson(value), depth + 1);
+  }
+
+  if (typeof value !== 'object' || value === null) return undefined;
+  const record = value as Record<string, unknown>;
+  return (
+    parsePayload(record.error, depth + 1) ??
+    parsePayload(record.cause, depth + 1) ??
+    parsePayload(record.message, depth + 1)
+  );
+}
+
+export function localizeBackendError(error: unknown) {
+  const payload = parsePayload(error);
+  if (payload && i18next.exists(payload.key, { ns: 'backend' })) {
+    return i18next.t(payload.key as never, {
+      ns: 'backend',
+      ...payload.variables,
+    });
+  }
+
+  return i18next.t('backend.internal' as never, {
+    ns: 'backend',
+    detail: i18next.t('errors.unknown'),
+  });
 }

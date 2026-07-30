@@ -8,7 +8,7 @@ export type Metric = {
 
 export function MetricGrid({ metrics }: { metrics: Metric[] }) {
   return (
-    <Surface className="grid grid-cols-2 overflow-hidden rounded-2xl border border-separator md:grid-cols-4">
+    <Surface className="grid grid-cols-2 overflow-hidden rounded-2xl border border-separator bg-surface shadow-surface ring-1 ring-inset ring-foreground/5 md:grid-cols-4">
       {metrics.map((metric, index) => (
         <div
           key={metric.label}

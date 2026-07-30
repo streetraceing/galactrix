@@ -17,7 +17,7 @@
   "backend.provider.apiKeyRequired": "Для этого провайдера нужен API-ключ",
   "backend.provider.apiKeyMissing": "API-ключ ещё не добавлен",
   "backend.provider.apiKeyNotInStorage": "API-ключ подключения не найден в защищённом хранилище",
-  "backend.provider.unknownKind": "Неизвестный тип провайдера",
+  "backend.provider.unknownKind": "Неизвестный тип провайдера: {{kind}}",
   "backend.provider.notOpenAiCompatible": "Провайдер не использует OpenAI-совместимый API",
   "backend.provider.temperatureRange": "Temperature должна быть от 0 до 2",
   "backend.provider.topPRange": "Top P должна быть от 0 до 1",
@@ -26,7 +26,7 @@
   "backend.provider.connectionFailed": "Не удалось подключиться к API: {{detail}}",
   "backend.provider.requestFailed": "Запрос к модели не выполнен: {{detail}}",
   "backend.provider.responseReadFailed": "Не удалось прочитать ответ API: {{detail}}",
-  "backend.provider.httpError": "API вернул ошибку: {{detail}}",
+  "backend.provider.httpError": "API вернул HTTP {{status}}: {{detail}}",
   "backend.common.nameRequired": "Укажите название",
   "backend.common.nameTooLong": "Название слишком длинное",
   "backend.common.fieldRequired": "Укажите {{field}}",
@@ -57,5 +57,13 @@
   "backend.profile.nameTooLong": "Имя профиля слишком длинное",
   "backend.profile.imageUnsupported": "Неподдерживаемый формат изображения профиля",
   "backend.profile.imageTooLarge": "Изображение профиля слишком большое",
-  "backend.secureStorage.unavailable": "Защищённое хранилище недоступно: {{detail}}"
+  "backend.secureStorage.unavailable": "Защищённое хранилище недоступно: {{detail}}",
+  "backend.provider.baseUrlRequired": "Укажите базовый URL API",
+  "backend.provider.accountIdRequired": "Укажите Cloudflare Account ID",
+  "backend.galaxy.contextPersonaNotFound": "Связанная персона пользователя не найдена",
+  "backend.galaxy.contextCharacterNotFound": "Связанный персонаж ассистента не найден",
+  "backend.galaxy.contextUniverseNotFound": "Связанная вселенная не найдена",
+  "backend.galaxy.contextWorldbookNotFound": "Один из связанных ворлдбуков не найден",
+  "backend.galaxy.contextStyleNotFound": "Связанный стиль переписки не найден",
+  "backend.galaxy.contextPromptSetNotFound": "Один из связанных наборов промптов не найден"
 }

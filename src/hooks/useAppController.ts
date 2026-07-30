@@ -40,6 +40,7 @@ import { useMobileBackEntry } from './useMobileBackEntry';
 import {
   getLanguagePreference,
   getLocale,
+  i18next,
   setLanguagePreference,
 } from '../i18n';
 
@@ -302,26 +303,45 @@ export function useAppController() {
       includeMessages: boolean,
       input?: ChatConfigInput,
     ) => {
-      const created = await cloneChat(chatId, includeMessages, input);
+      const sourceTitle =
+        snapshot.chats.find((chat) => chat.id === chatId)?.title ||
+        i18next.t('setup.defaultTitle', { ns: 'chats' });
+      const title =
+        input?.title.trim() ||
+        i18next.t('chatsScreen.copyTitle', {
+          ns: 'chats',
+          value1: sourceTitle,
+        });
+      const created = await cloneChat(chatId, title, includeMessages, input);
       await refresh();
       setActiveChatId(created.id);
       setIsChatOpen(true);
       setActiveTab('chats');
       haptic();
     },
-    [haptic, refresh],
+    [haptic, refresh, snapshot.chats],
   );
 
   const branchFromMessage = useCallback(
     async (messageId: string) => {
-      const created = await branchChat(messageId);
+      const sourceMessage = snapshot.messages.find(
+        (message) => message.id === messageId,
+      );
+      const sourceTitle =
+        snapshot.chats.find((chat) => chat.id === sourceMessage?.chatId)
+          ?.title || i18next.t('setup.defaultTitle', { ns: 'chats' });
+      const title = i18next.t('messageList.branchTitle', {
+        ns: 'chats',
+        value1: sourceTitle,
+      });
+      const created = await branchChat(messageId, title);
       await refresh();
       setActiveChatId(created.id);
       setIsChatOpen(true);
       setActiveTab('chats');
       haptic();
     },
-    [haptic, refresh],
+    [haptic, refresh, snapshot.chats, snapshot.messages],
   );
 
   const editExistingMessage = useCallback(
