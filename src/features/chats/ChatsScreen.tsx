@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ResizeHandle } from '../../components/ResizeHandle';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
@@ -14,7 +14,6 @@ import { ChatSidebar } from './components/ChatSidebar';
 import { ConversationHeader } from './components/ConversationHeader';
 import { MessageList } from './components/MessageList';
 import type { ChatAction, ChatsScreenProps } from './types';
-import { draftKey } from './utils';
 import { useTranslation } from 'react-i18next';
 
 export function ChatsScreen({
@@ -60,8 +59,6 @@ export function ChatsScreen({
   const isSinglePane = isMobile || isNarrowDesktop;
   const { bottomInset: keyboardInset, viewportHeight } =
     useVisualViewportMetrics(isMobile && isSinglePane && isChatOpen);
-  const [query, setQuery] = useState('');
-  const [draft, setDraft] = useState('');
   const [pendingMessage, setPendingMessage] = useState('');
   const [working, setWorking] = useState(false);
   const [renameTarget, setRenameTarget] = useState<Chat | null>(null);
@@ -73,17 +70,10 @@ export function ChatsScreen({
   } | null>(null);
   const messageScrollRef = useRef<HTMLDivElement | null>(null);
 
-  const filteredChats = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
-    if (!normalized) return chats;
-    return chats.filter((chat) =>
-      `${chat.title} ${chat.preview}`.toLowerCase().includes(normalized),
-    );
-  }, [chats, query]);
-
   const activeChat = chats.find((chat) => chat.id === activeChatId) ?? chats[0];
-  const activeMessages = messages.filter(
-    (message) => message.chatId === activeChat?.id,
+  const activeMessages = useMemo(
+    () => messages.filter((message) => message.chatId === activeChat?.id),
+    [activeChat?.id, messages],
   );
   const configChatId =
     configTarget && configTarget !== 'new' ? configTarget.id : undefined;
@@ -111,11 +101,14 @@ export function ChatsScreen({
     configTarget == null &&
     renameTarget == null &&
     confirmTarget == null;
-  const showChatError = (error: unknown) =>
-    toast.danger(t('errors.chatActionFailed'), {
-      description: error instanceof Error ? error.message : String(error),
-      timeout: 3_500,
-    });
+  const showChatError = useCallback(
+    (error: unknown) =>
+      toast.danger(t('errors.chatActionFailed'), {
+        description: error instanceof Error ? error.message : String(error),
+        timeout: 3_500,
+      }),
+    [t],
+  );
 
   useEffect(() => {
     const openNewChat = () => {
@@ -124,22 +117,6 @@ export function ChatsScreen({
     window.addEventListener('galactrix:new-chat', openNewChat);
     return () => window.removeEventListener('galactrix:new-chat', openNewChat);
   }, []);
-
-  useEffect(() => {
-    if (!activeChat?.id) {
-      setDraft('');
-      return;
-    }
-    setDraft(
-      saveDrafts ? (localStorage.getItem(draftKey(activeChat.id)) ?? '') : '',
-    );
-  }, [activeChat?.id, saveDrafts]);
-
-  useEffect(() => {
-    if (!activeChat?.id) return;
-    if (saveDrafts) localStorage.setItem(draftKey(activeChat.id), draft);
-    else localStorage.removeItem(draftKey(activeChat.id));
-  }, [activeChat?.id, draft, saveDrafts]);
 
   useEffect(() => {
     if (!activeChat?.id) return;
@@ -177,60 +154,60 @@ export function ChatsScreen({
     return () => window.cancelAnimationFrame(frame);
   }, [keyboardInset, viewportHeight]);
 
-  const selectChat = (id: string) => {
-    onSelectChat(id);
-  };
+  const send = useCallback(
+    async (value: string) => {
+      if (!activeChat || !activeProvider || sending) return;
+      setPendingMessage(value);
+      try {
+        await onSend(value);
+      } catch (error) {
+        showChatError(error);
+        throw error;
+      } finally {
+        setPendingMessage('');
+      }
+    },
+    [activeChat, activeProvider, onSend, sending, showChatError],
+  );
 
-  const send = async () => {
-    const value = draft.trim();
-    if (!value || !activeChat || !activeProvider || sending) return;
-    setPendingMessage(value);
-    setDraft('');
-    try {
-      await onSend(value);
-      localStorage.removeItem(draftKey(activeChat.id));
-    } catch (error) {
-      setDraft((current) => current || value);
-      showChatError(error);
-    } finally {
-      setPendingMessage('');
-    }
-  };
-
-  const handleAction = (action: ChatAction, chat: Chat) => {
-    if (action === 'configure') {
-      setConfigTarget(chat);
-      return;
-    }
-    if (action === 'duplicate' || action === 'duplicate-with-messages') {
-      setWorking(true);
-      void onCloneChat(chat.id, action === 'duplicate-with-messages')
-        .then(() => toast.success(t('chatsScreen.chatCopyCreated')))
-        .catch(showChatError)
-        .finally(() => setWorking(false));
-      return;
-    }
-    if (action === 'rename') {
-      setRenameTarget(chat);
-      setRenameValue(chat.title);
-      return;
-    }
-    if (action === 'pin') {
-      setWorking(true);
-      void onSetPinned(chat.id, !chat.pinned)
-        .then(() =>
-          toast.success(
-            chat.pinned
-              ? t('chatsScreen.chatUnpinned')
-              : t('chatsScreen.chatPinned'),
-          ),
-        )
-        .catch(showChatError)
-        .finally(() => setWorking(false));
-      return;
-    }
-    setConfirmTarget({ type: action, chat });
-  };
+  const handleAction = useCallback(
+    (action: ChatAction, chat: Chat) => {
+      if (action === 'configure') {
+        setConfigTarget(chat);
+        return;
+      }
+      if (action === 'duplicate' || action === 'duplicate-with-messages') {
+        setWorking(true);
+        void onCloneChat(chat.id, action === 'duplicate-with-messages')
+          .then(() => toast.success(t('chatsScreen.chatCopyCreated')))
+          .catch(showChatError)
+          .finally(() => setWorking(false));
+        return;
+      }
+      if (action === 'rename') {
+        setRenameTarget(chat);
+        setRenameValue(chat.title);
+        return;
+      }
+      if (action === 'pin') {
+        setWorking(true);
+        void onSetPinned(chat.id, !chat.pinned)
+          .then(() =>
+            toast.success(
+              chat.pinned
+                ? t('chatsScreen.chatUnpinned')
+                : t('chatsScreen.chatPinned'),
+            ),
+          )
+          .catch(showChatError)
+          .finally(() => setWorking(false));
+        return;
+      }
+      setConfirmTarget({ type: action, chat });
+    },
+    [onCloneChat, onSetPinned, showChatError, t],
+  );
+  const openNewChat = useCallback(() => setConfigTarget('new'), []);
 
   const saveConfig = async (input: ChatConfigInput) => {
     if (!configTarget || working) return;
@@ -289,18 +266,14 @@ export function ChatsScreen({
   return (
     <div className="flex flex-1 h-full min-w-0 overflow-hidden bg-background">
       <ChatSidebar
-        chats={filteredChats}
+        chats={chats}
         galaxyItems={galaxyItems}
         activeChatId={activeChat?.id ?? ''}
-        query={query}
         width={chatSidebarWidth}
         isVisibleMobile={!isChatOpen}
         isSinglePane={isSinglePane}
-        onQueryChange={setQuery}
-        onSelect={selectChat}
-        onNewChat={() => {
-          setConfigTarget('new');
-        }}
+        onSelect={onSelectChat}
+        onNewChat={openNewChat}
         onAction={handleAction}
       />
 
@@ -351,9 +324,7 @@ export function ChatsScreen({
               showTimestamps={showMessageTimestamps}
               providersAvailable={providers.length > 0}
               scrollRef={messageScrollRef}
-              onBranch={async (messageId) => {
-                await onBranchMessage(messageId);
-              }}
+              onBranch={onBranchMessage}
               onEdit={onEditMessage}
               onDelete={onDeleteMessage}
               onRemember={onRememberMessage}
@@ -361,14 +332,15 @@ export function ChatsScreen({
               onSelectVariant={onSelectMessageVariant}
             />
             <ChatComposer
-              draft={draft}
+              key={activeChat.id}
+              chatId={activeChat.id}
               provider={activeProvider}
               sending={sending}
               sendOnEnter={sendOnEnter}
+              saveDrafts={saveDrafts}
               shouldAutoFocus={shouldAutoFocusComposer}
               focusKey={`${activeChat.id}:${isChatOpen}`}
-              onDraftChange={setDraft}
-              onSend={() => void send()}
+              onSend={send}
             />
           </>
         ) : (

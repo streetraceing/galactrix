@@ -1,5 +1,5 @@
 import { Button, Chip, Popover, Tooltip } from '@heroui/react';
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Icon, type IconName } from '../../../components/Icon';
 import { AppAvatar } from '../../../components/ui/AppAvatar';
@@ -41,7 +41,7 @@ function ContextItem({
   );
 }
 
-export function ConversationHeader({
+function ConversationHeaderComponent({
   chat,
   provider,
   galaxyItems,
@@ -78,7 +78,7 @@ export function ConversationHeader({
   ].filter((name): name is string => Boolean(name));
 
   return (
-    <header className="shrink-0 border-b border-separator bg-background/95 px-3 py-3 backdrop-blur sm:px-4">
+    <header className="shrink-0 border-b border-separator bg-background px-3 py-3 sm:px-4">
       <div className="flex min-w-0 items-center gap-2">
         {showBack ? (
           <Button
@@ -270,3 +270,5 @@ export function ConversationHeader({
     </header>
   );
 }
+
+export const ConversationHeader = memo(ConversationHeaderComponent);

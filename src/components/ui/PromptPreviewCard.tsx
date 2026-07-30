@@ -1,5 +1,5 @@
 import { Button, Chip, Surface } from '@heroui/react';
-import { useEffect, useMemo, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { toast } from '../../i18n/toast';
 import { previewPrompt } from '../../lib/backend';
 import type { PromptPreviewInput, PromptPreviewResult } from '../../types';
@@ -20,7 +20,11 @@ export function PromptPreviewCard({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [previewOpen, setPreviewOpen] = useState(false);
-  const serializedInput = useMemo(() => JSON.stringify(input), [input]);
+  const deferredInput = useDeferredValue(input);
+  const serializedInput = useMemo(
+    () => JSON.stringify(deferredInput),
+    [deferredInput],
+  );
 
   useEffect(() => {
     let active = true;

@@ -172,15 +172,15 @@ export function GalaxiesScreen({
     setModalOpen(true);
   };
 
-  const save = async () => {
-    if (!draft.name.trim() || saving) return;
+  const save = async (nextDraft: GalaxyItemInput) => {
+    if (!nextDraft.name.trim() || saving) return;
     setSaving(true);
     setError('');
     try {
       await onSave({
-        ...draft,
-        name: draft.name.trim(),
-        description: draft.description.trim(),
+        ...nextDraft,
+        name: nextDraft.name.trim(),
+        description: nextDraft.description.trim(),
       });
       setModalOpen(false);
       toast.success(
@@ -188,7 +188,7 @@ export function GalaxiesScreen({
           ? t('galaxiesScreen.objectUpdated')
           : t('galaxiesScreen.objectAdded'),
         {
-          description: draft.name.trim(),
+          description: nextDraft.name.trim(),
         },
       );
     } catch (caught) {
@@ -347,14 +347,13 @@ export function GalaxiesScreen({
       <GalaxyEditorModal
         isOpen={modalOpen}
         editing={editing}
-        draft={draft}
+        initialDraft={draft}
         styles={styles}
         promptSets={promptSets}
         saving={saving}
         error={error}
         onOpenChange={(open) => !saving && setModalOpen(open)}
-        onDraftChange={setDraft}
-        onSave={() => void save()}
+        onSave={(nextDraft) => void save(nextDraft)}
       />
 
       <UiModal

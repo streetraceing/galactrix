@@ -1,38 +1,82 @@
 import { Button, Surface, TextArea, Tooltip } from '@heroui/react';
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import type { ChangeEvent, KeyboardEvent } from 'react';
 import { Icon } from '../../../components/Icon';
 import type { Provider } from '../../../types';
 import { useTranslation } from 'react-i18next';
+import { draftKey } from '../utils';
 
-export function ChatComposer({
-  draft,
+function readDraft(chatId: string, saveDrafts: boolean) {
+  return saveDrafts ? (localStorage.getItem(draftKey(chatId)) ?? '') : '';
+}
+
+function persistDraft(chatId: string, value: string) {
+  if (value) localStorage.setItem(draftKey(chatId), value);
+  else localStorage.removeItem(draftKey(chatId));
+}
+
+function ChatComposerComponent({
+  chatId,
   provider,
   sending,
   sendOnEnter,
+  saveDrafts,
   shouldAutoFocus,
   focusKey,
-  onDraftChange,
   onSend,
 }: {
-  draft: string;
+  chatId: string;
   provider?: Provider;
   sending: boolean;
   sendOnEnter: boolean;
+  saveDrafts: boolean;
   shouldAutoFocus: boolean;
   focusKey: string;
-  onDraftChange: (value: string) => void;
-  onSend: () => void;
+  onSend: (value: string) => Promise<void>;
 }) {
   const { t } = useTranslation('chats');
+  const [draft, setDraft] = useState(() => readDraft(chatId, saveDrafts));
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
+  const draftRef = useRef(draft);
+  const submittingRef = useRef(false);
   const providerId = provider?.id;
 
-  useLayoutEffect(() => {
-    const textArea = textAreaRef.current;
-    if (!textArea) return;
-    textArea.style.height = 'auto';
-    textArea.style.height = `${Math.min(textArea.scrollHeight, 192)}px`;
+  useEffect(() => {
+    draftRef.current = draft;
+  }, [draft]);
+
+  useEffect(() => {
+    setDraft(readDraft(chatId, saveDrafts));
+  }, [chatId, saveDrafts]);
+
+  useEffect(() => {
+    if (!saveDrafts) {
+      localStorage.removeItem(draftKey(chatId));
+      return;
+    }
+
+    const timer = window.setTimeout(
+      () => persistDraft(chatId, draftRef.current),
+      300,
+    );
+    return () => window.clearTimeout(timer);
+  }, [chatId, draft, saveDrafts]);
+
+  useEffect(
+    () => () => {
+      if (saveDrafts) persistDraft(chatId, draftRef.current);
+    },
+    [chatId, saveDrafts],
+  );
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      const textArea = textAreaRef.current;
+      if (!textArea) return;
+      textArea.style.height = 'auto';
+      textArea.style.height = `${Math.min(textArea.scrollHeight, 192)}px`;
+    });
+    return () => window.cancelAnimationFrame(frame);
   }, [draft]);
 
   useEffect(() => {
@@ -48,10 +92,26 @@ export function ChatComposer({
     return () => window.cancelAnimationFrame(frame);
   }, [focusKey, providerId, sending, shouldAutoFocus]);
 
+  const submit = async () => {
+    const value = draft.trim();
+    if (!value || !provider || sending || submittingRef.current) return;
+
+    submittingRef.current = true;
+    setDraft('');
+    try {
+      await onSend(value);
+      localStorage.removeItem(draftKey(chatId));
+    } catch {
+      setDraft((current) => current || value);
+    } finally {
+      submittingRef.current = false;
+    }
+  };
+
   return (
-    <div className="shrink-0 border-t border-separator bg-background/95 px-3 py-2 backdrop-blur sm:px-5 sm:py-4">
+    <div className="shrink-0 border-t border-separator bg-background px-3 py-2 sm:px-5 sm:py-4">
       <div className="mx-auto w-full max-w-3xl">
-        <Surface className="rounded-2xl border border-separator p-2 transition-[border-color,box-shadow] focus-within:border-accent/45 focus-within:ring-2 focus-within:ring-accent/10 focus-within:bg-accent-soft/5">
+        <Surface className="rounded-2xl border border-separator p-2 transition-[border-color,box-shadow]">
           <div className="flex items-end gap-2">
             <TextArea
               autoComplete="off"
@@ -61,7 +121,7 @@ export function ChatComposer({
               rows={1}
               value={draft}
               onChange={(event: ChangeEvent<HTMLTextAreaElement>) =>
-                onDraftChange(event.target.value)
+                setDraft(event.target.value)
               }
               onKeyDown={(event: KeyboardEvent<HTMLTextAreaElement>) => {
                 const sendWithShortcut =
@@ -73,14 +133,14 @@ export function ChatComposer({
                   (sendOnEnter || event.ctrlKey || event.metaKey);
                 if (sendWithShortcut) {
                   event.preventDefault();
-                  onSend();
+                  void submit();
                 }
               }}
               enterKeyHint={sendOnEnter ? 'send' : 'enter'}
               placeholder={t('chatComposer.placeholder')}
               aria-label={t('chatComposer.label')}
               disabled={!provider || sending}
-              className="max-h-48 min-h-12 resize-none overflow-y-auto focus-within:bg-accent/5"
+              className="max-h-48 min-h-12 resize-none overflow-y-auto transition-none ring-0"
             />
             <Tooltip delay={450} closeDelay={75}>
               <Tooltip.Trigger>
@@ -92,7 +152,7 @@ export function ChatComposer({
                   isDisabled={!draft.trim() || !provider || sending}
                   isPending={sending}
                   aria-label={t('chatComposer.sendMessage')}
-                  onPress={onSend}
+                  onPress={() => void submit()}
                 >
                   <Icon name="send" className="size-5" />
                 </Button>
@@ -117,3 +177,5 @@ export function ChatComposer({
     </div>
   );
 }
+
+export const ChatComposer = memo(ChatComposerComponent);

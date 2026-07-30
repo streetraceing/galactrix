@@ -1,5 +1,5 @@
 import { Button, Surface, TextArea, Tooltip } from '@heroui/react';
-import { useMemo, useRef, useState } from 'react';
+import { memo, useMemo, useRef, useState } from 'react';
 import type {
   PointerEvent as ReactPointerEvent,
   ReactNode,
@@ -596,7 +596,85 @@ function SwipeableMessage({
   );
 }
 
-export function MessageList({
+function MessageEditModal({
+  message,
+  onClose,
+  onEdit,
+}: {
+  message: Message | null;
+  onClose: () => void;
+  onEdit: (messageId: string, content: string) => Promise<void>;
+}) {
+  const { t } = useTranslation('chats');
+  const isMobile = isMobilePlatform();
+  const [value, setValue] = useState(message?.content ?? '');
+  const [saving, setSaving] = useState(false);
+
+  const commit = async () => {
+    const content = value.trim();
+    if (!message || !content || saving) return;
+
+    setSaving(true);
+    try {
+      await onEdit(message.id, content);
+      onClose();
+    } catch (error) {
+      const description =
+        error instanceof Error ? error.message : String(error);
+      if (description) {
+        toast.danger(t('errors.chatActionFailed'), {
+          description,
+          timeout: 3_500,
+        });
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <UiModal
+      isOpen={Boolean(message)}
+      onOpenChange={(open) => !open && !saving && onClose()}
+      onConfirm={() => void commit()}
+      isConfirmDisabled={!message || !value.trim() || saving}
+      title={t('messageList.editMessage')}
+      description={
+        message?.role === 'assistant'
+          ? t('messageList.theEditedTextWillBeSavedAsANewResponse')
+          : t('messageList.theChangeAppliesToTheCurrentConversationHistory')
+      }
+      size={isMobile ? 'full' : 'cover'}
+      footer={
+        <>
+          <Button variant="ghost" isDisabled={saving} onPress={onClose}>
+            {t('chatDialogs.cancel')}
+          </Button>
+          <Button
+            variant="primary"
+            isPending={saving}
+            isDisabled={!value.trim()}
+            onPress={() => void commit()}
+          >
+            {t('chatDialogs.save')}
+          </Button>
+        </>
+      }
+    >
+      <TextArea
+        autoComplete="off"
+        fullWidth
+        variant="secondary"
+        value={value}
+        className="[&_textarea]:min-h-72 h-full"
+        aria-label={t('messageList.messageText')}
+        onChange={(event) => setValue(event.target.value)}
+      />
+    </UiModal>
+  );
+}
+
+function MessageListComponent({
   messages,
   provider,
   assistantName,
@@ -640,7 +718,6 @@ export function MessageList({
   const { t } = useTranslation('chats');
   const isMobile = isMobilePlatform();
   const [editing, setEditing] = useState<Message | null>(null);
-  const [editValue, setEditValue] = useState('');
   const [deleting, setDeleting] = useState<Message | null>(null);
   const [historyMessageId, setHistoryMessageId] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
@@ -659,7 +736,6 @@ export function MessageList({
 
   const requestEdit = (message: Message) => {
     setEditing(message);
-    setEditValue(message.content);
   };
 
   const reportError = (error: unknown) => {
@@ -684,20 +760,6 @@ export function MessageList({
       }));
     }
     await onSelectVariant(messageId, variantIndex);
-  };
-
-  const commitEdit = async () => {
-    const value = editValue.trim();
-    if (!editing || !value || working) return;
-    setWorking(true);
-    try {
-      await onEdit(editing.id, value);
-      setEditing(null);
-    } catch (nextError) {
-      reportError(nextError);
-    } finally {
-      setWorking(false);
-    }
   };
 
   const commitDelete = async () => {
@@ -985,48 +1047,12 @@ export function MessageList({
         </div>
       </div>
 
-      <UiModal
-        isOpen={Boolean(editing)}
-        onOpenChange={(open) => !open && !working && setEditing(null)}
-        onConfirm={() => void commitEdit()}
-        isConfirmDisabled={!editValue.trim() || working}
-        title={t('messageList.editMessage')}
-        description={
-          editing?.role === 'assistant'
-            ? t('messageList.theEditedTextWillBeSavedAsANewResponse')
-            : t('messageList.theChangeAppliesToTheCurrentConversationHistory')
-        }
-        size={isMobile ? 'full' : 'cover'}
-        footer={
-          <>
-            <Button
-              variant="ghost"
-              isDisabled={working}
-              onPress={() => setEditing(null)}
-            >
-              {t('chatDialogs.cancel')}
-            </Button>
-            <Button
-              variant="primary"
-              isPending={working}
-              isDisabled={!editValue.trim()}
-              onPress={() => void commitEdit()}
-            >
-              {t('chatDialogs.save')}
-            </Button>
-          </>
-        }
-      >
-        <TextArea
-          autoComplete="off"
-          fullWidth
-          variant="secondary"
-          value={editValue}
-          className="[&_textarea]:min-h-72 h-full"
-          aria-label={t('messageList.messageText')}
-          onChange={(event) => setEditValue(event.target.value)}
-        />
-      </UiModal>
+      <MessageEditModal
+        key={editing?.id ?? 'closed'}
+        message={editing}
+        onClose={() => setEditing(null)}
+        onEdit={onEdit}
+      />
 
       <UiModal
         isOpen={Boolean(deleting)}
@@ -1071,3 +1097,5 @@ export function MessageList({
     </>
   );
 }
+
+export const MessageList = memo(MessageListComponent);

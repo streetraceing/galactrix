@@ -1,4 +1,5 @@
 import { Avatar } from '@heroui/react';
+import { memo } from 'react';
 import { Icon } from '../Icon';
 
 function initials(name: string) {
@@ -10,7 +11,7 @@ function initials(name: string) {
     .join('');
 }
 
-export function AppAvatar({
+function AppAvatarComponent({
   src,
   name,
   className = 'size-10',
@@ -45,3 +46,5 @@ export function AppAvatar({
     </Avatar>
   );
 }
+
+export const AppAvatar = memo(AppAvatarComponent);

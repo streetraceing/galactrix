@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import type { ReactNode, SVGProps } from 'react';
 
 export type IconName =
@@ -44,11 +45,10 @@ export type IconName =
   | 'chevron-left'
   | 'chevron-right';
 
-export function Icon({
-  name,
-  ...props
-}: { name: IconName } & SVGProps<SVGSVGElement>) {
-  const paths: Record<IconName, ReactNode> = {
+const paths = createIconPaths();
+
+function createIconPaths(): Record<IconName, ReactNode> {
+  return {
     chats: (
       <>
         <path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719" />
@@ -283,7 +283,12 @@ export function Icon({
       </>
     ),
   };
+}
 
+function IconComponent({
+  name,
+  ...props
+}: { name: IconName } & SVGProps<SVGSVGElement>) {
   return (
     <svg
       viewBox="-1 -1 26 26"
@@ -300,3 +305,5 @@ export function Icon({
     </svg>
   );
 }
+
+export const Icon = memo(IconComponent);

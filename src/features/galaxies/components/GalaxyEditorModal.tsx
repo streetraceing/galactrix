@@ -1,4 +1,5 @@
 import { Button, Input, Label, Surface, TextArea } from '@heroui/react';
+import { useEffect, useState } from 'react';
 import { AvatarPicker } from '../../../components/ui/AvatarPicker';
 import { UiModal } from '../../../components/ui/UiModal';
 import { PromptPreviewCard } from '../../../components/ui/PromptPreviewCard';
@@ -45,27 +46,31 @@ function descriptionPlaceholder(kind: GalaxyKind) {
 export function GalaxyEditorModal({
   isOpen,
   editing,
-  draft,
+  initialDraft,
   styles,
   promptSets,
   saving,
   error,
   onOpenChange,
-  onDraftChange,
   onSave,
 }: {
   isOpen: boolean;
   editing: GalaxyItem | null;
-  draft: GalaxyItemInput;
+  initialDraft: GalaxyItemInput;
   styles: GalaxyItem[];
   promptSets: GalaxyItem[];
   saving: boolean;
   error: string;
   onOpenChange: (open: boolean) => void;
-  onDraftChange: (draft: GalaxyItemInput) => void;
-  onSave: () => void;
+  onSave: (draft: GalaxyItemInput) => void;
 }) {
   const { t } = useTranslation('galaxies');
+  const [draft, setDraft] = useState(initialDraft);
+
+  useEffect(() => {
+    if (isOpen) setDraft(initialDraft);
+  }, [initialDraft, isOpen]);
+
   const characterData =
     draft.kind === 'character' ? (draft.data as CharacterData) : null;
   const customStyleMissing = Boolean(
@@ -77,7 +82,7 @@ export function GalaxyEditorModal({
     <UiModal
       isOpen={isOpen}
       onOpenChange={onOpenChange}
-      onConfirm={onSave}
+      onConfirm={() => onSave(draft)}
       isConfirmDisabled={!canSave || saving}
       title={
         editing
@@ -101,7 +106,7 @@ export function GalaxyEditorModal({
             variant="primary"
             isPending={saving}
             isDisabled={!canSave}
-            onPress={onSave}
+            onPress={() => onSave(draft)}
           >
             {t('galaxyEditorModal.save')}
           </Button>
@@ -119,7 +124,7 @@ export function GalaxyEditorModal({
               )}
               disabled={saving}
               onChange={(avatar) =>
-                onDraftChange({
+                setDraft({
                   ...draft,
                   data: withAvatar(
                     draft.data as Record<string, unknown>,
@@ -145,7 +150,7 @@ export function GalaxyEditorModal({
                 autoComplete="off"
                 maxLength={120}
                 onChange={(event) =>
-                  onDraftChange({ ...draft, name: event.target.value })
+                  setDraft({ ...draft, name: event.target.value })
                 }
               />
             </div>
@@ -164,7 +169,7 @@ export function GalaxyEditorModal({
               placeholder={descriptionPlaceholder(draft.kind)}
               autoComplete="off"
               onChange={(event) =>
-                onDraftChange({ ...draft, description: event.target.value })
+                setDraft({ ...draft, description: event.target.value })
               }
             />
           </div>
@@ -173,7 +178,7 @@ export function GalaxyEditorModal({
         {draft.kind === 'persona' ? (
           <PersonaEditor
             data={draft.data as PersonaData}
-            onChange={(data) => onDraftChange({ ...draft, data })}
+            onChange={(data) => setDraft({ ...draft, data })}
           />
         ) : null}
         {draft.kind === 'character' ? (
@@ -181,32 +186,32 @@ export function GalaxyEditorModal({
             data={draft.data as CharacterData}
             styles={styles}
             promptSets={promptSets}
-            onChange={(data) => onDraftChange({ ...draft, data })}
+            onChange={(data) => setDraft({ ...draft, data })}
           />
         ) : null}
         {draft.kind === 'universe' ? (
           <UniverseEditor
             data={draft.data as UniverseData}
-            onChange={(data) => onDraftChange({ ...draft, data })}
+            onChange={(data) => setDraft({ ...draft, data })}
           />
         ) : null}
         {draft.kind === 'worldbook' ? (
           <WorldbookEditor
             data={draft.data as WorldbookData}
-            onChange={(data) => onDraftChange({ ...draft, data })}
+            onChange={(data) => setDraft({ ...draft, data })}
           />
         ) : null}
         {draft.kind === 'style' ? (
           <StyleEditor
             data={draft.data as StyleData}
-            onChange={(data) => onDraftChange({ ...draft, data })}
+            onChange={(data) => setDraft({ ...draft, data })}
           />
         ) : null}
         {draft.kind === 'prompt-set' ? (
           <PromptBuilder
             mode="set"
             value={draft.data as PromptSetData}
-            onChange={(data) => onDraftChange({ ...draft, data })}
+            onChange={(data) => setDraft({ ...draft, data })}
           />
         ) : null}
 

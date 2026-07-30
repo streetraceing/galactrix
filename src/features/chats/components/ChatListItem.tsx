@@ -1,4 +1,5 @@
 import { Chip, Surface } from '@heroui/react';
+import { memo } from 'react';
 import { Icon } from '../../../components/Icon';
 import { AppAvatar } from '../../../components/ui/AppAvatar';
 import { galaxyItemAvatar } from '../../../lib/avatar';
@@ -9,7 +10,7 @@ import { formatRelativeTime } from '../../../i18n';
 import { ChatActions } from './ChatActions';
 import { useTranslation } from 'react-i18next';
 
-export function ChatListItem({
+function ChatListItemComponent({
   chat,
   galaxyItems,
   isActive,
@@ -77,3 +78,5 @@ export function ChatListItem({
     </ChatActions>
   );
 }
+
+export const ChatListItem = memo(ChatListItemComponent);
