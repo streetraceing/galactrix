@@ -1,4 +1,4 @@
-import { Button, Popover } from '@heroui/react';
+import { Button, Popover, Tooltip } from '@heroui/react';
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { Icon } from '../../../components/Icon';
@@ -89,15 +89,18 @@ export function ChatActionsButton({
 
   return (
     <Popover isOpen={open} onOpenChange={setOpen}>
-      <Button
-        isIconOnly
-        size="sm"
-        variant="ghost"
-        className="shrink-0"
-        aria-label={t('chatActions.chatActions')}
-      >
-        <Icon name="more" className="size-5" />
-      </Button>
+      <Tooltip delay={450} closeDelay={75} isDisabled={open}>
+        <Button
+          isIconOnly
+          size="sm"
+          variant="ghost"
+          className="shrink-0"
+          aria-label={t('chatActions.chatActions')}
+        >
+          <Icon name="more" className="size-5" />
+        </Button>
+        <Tooltip.Content>{t('chatActions.chatActions')}</Tooltip.Content>
+      </Tooltip>
       <Popover.Content placement="bottom end" className="w-fit">
         <Popover.Dialog className="p-1">
           <Popover.Heading className="truncate px-2.5 pb-1.5 pt-1 text-xs font-medium text-muted">

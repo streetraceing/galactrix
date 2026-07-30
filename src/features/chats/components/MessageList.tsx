@@ -988,6 +988,8 @@ export function MessageList({
       <UiModal
         isOpen={Boolean(editing)}
         onOpenChange={(open) => !open && !working && setEditing(null)}
+        onConfirm={() => void commitEdit()}
+        isConfirmDisabled={!editValue.trim() || working}
         title={t('messageList.editMessage')}
         description={
           editing?.role === 'assistant'
@@ -1029,6 +1031,8 @@ export function MessageList({
       <UiModal
         isOpen={Boolean(deleting)}
         onOpenChange={(open) => !open && !working && setDeleting(null)}
+        onConfirm={() => void commitDelete()}
+        isConfirmDisabled={!deleting || working}
         title={t('messageList.deleteMessage2')}
         description={t(
           'messageList.theMessageAndItsEntireVariantHistoryWillBeRemoved',
@@ -1044,6 +1048,7 @@ export function MessageList({
             </Button>
             <Button
               variant="danger"
+              autoFocus
               isPending={working}
               onPress={() => void commitDelete()}
             >

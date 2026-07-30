@@ -1,5 +1,5 @@
 import { Button, Input } from '@heroui/react';
-import type { ChangeEvent, KeyboardEvent } from 'react';
+import type { ChangeEvent } from 'react';
 import { UiModal } from '../../../components/ui/UiModal';
 import type { Chat } from '../../../types';
 import { useTranslation } from 'react-i18next';
@@ -31,6 +31,8 @@ export function ChatDialogs({
       <UiModal
         isOpen={Boolean(renameTarget)}
         onOpenChange={(open) => !open && !working && onCloseRename()}
+        onConfirm={onCommitRename}
+        isConfirmDisabled={!renameValue.trim() || working}
         title={t('chatDialogs.renameChat')}
         description={t('chatDialogs.enterANewName')}
         footer={
@@ -63,9 +65,6 @@ export function ChatDialogs({
           onChange={(event: ChangeEvent<HTMLInputElement>) =>
             onRenameValueChange(event.target.value)
           }
-          onKeyDown={(event: KeyboardEvent<HTMLInputElement>) => {
-            if (event.key === 'Enter') onCommitRename();
-          }}
           aria-label={t('chatDialogs.newChatName')}
         />
       </UiModal>
@@ -73,6 +72,8 @@ export function ChatDialogs({
       <UiModal
         isOpen={Boolean(confirmTarget)}
         onOpenChange={(open) => !open && !working && onCloseConfirm()}
+        onConfirm={onCommitDestructive}
+        isConfirmDisabled={!confirmTarget || working}
         title={
           confirmTarget?.type === 'delete'
             ? t('chatDialogs.deleteChat')
@@ -98,6 +99,7 @@ export function ChatDialogs({
             </Button>
             <Button
               variant="danger"
+              autoFocus
               isPending={working}
               onPress={onCommitDestructive}
             >

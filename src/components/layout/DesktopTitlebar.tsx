@@ -124,6 +124,15 @@ export function DesktopTitlebar({
   useEffect(() => {
     if (isMobile) return;
     const onKeyDown = (event: KeyboardEvent) => {
+      if (
+        event.defaultPrevented ||
+        event.isComposing ||
+        event.altKey ||
+        event.getModifierState('AltGraph')
+      ) {
+        return;
+      }
+
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
         searchInputRef.current?.focus();

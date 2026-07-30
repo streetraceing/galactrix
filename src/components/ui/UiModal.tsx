@@ -3,6 +3,7 @@ import {
   useLayoutEffect,
   useState,
   type CSSProperties,
+  type KeyboardEvent,
   type ReactNode,
 } from 'react';
 import { useMobileBackEntry } from '../../hooks/useMobileBackEntry';
@@ -16,6 +17,8 @@ export function UiModal({
   children,
   footer,
   size = 'md',
+  onConfirm,
+  isConfirmDisabled = false,
 }: {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
@@ -24,6 +27,8 @@ export function UiModal({
   children: ReactNode;
   footer?: ReactNode;
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'cover' | 'full';
+  onConfirm?: () => void;
+  isConfirmDisabled?: boolean;
 }) {
   const isMobile = isMobilePlatform();
   const [mobileHeight, setMobileHeight] = useState<number>();
@@ -48,6 +53,41 @@ export function UiModal({
         }
       : undefined;
 
+  const handleDialogKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    if (
+      !onConfirm ||
+      isConfirmDisabled ||
+      event.defaultPrevented ||
+      event.repeat ||
+      event.key !== 'Enter' ||
+      event.shiftKey ||
+      event.altKey ||
+      event.nativeEvent.isComposing
+    ) {
+      return;
+    }
+
+    const target =
+      event.target instanceof HTMLElement ? event.target : undefined;
+    if (!target) return;
+
+    const isMultiline =
+      target instanceof HTMLTextAreaElement || target.isContentEditable;
+    if (isMultiline && !event.ctrlKey && !event.metaKey) return;
+
+    if (
+      target.closest(
+        'button, a, [role="button"], [role="option"], [role="menuitem"], [role="checkbox"], [role="radio"], [role="slider"], [role="listbox"]',
+      ) ||
+      target.matches('[role="combobox"][aria-expanded="true"]')
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+    onConfirm();
+  };
+
   return (
     <Modal>
       <Modal.Backdrop
@@ -71,20 +111,22 @@ export function UiModal({
             style={mobileViewportStyle}
           >
             <Modal.CloseTrigger />
-            <Modal.Header className="shrink-0 px-4 pb-3 pt-4 pr-12 sm:px-6 sm:pt-5">
-              <Modal.Heading>{title}</Modal.Heading>
-              {description ? (
-                <p className="mt-1 text-sm text-muted">{description}</p>
+            <div className="contents" onKeyDown={handleDialogKeyDown}>
+              <Modal.Header className="shrink-0 px-4 pb-3 pt-4 pr-12 sm:px-6 sm:pt-5">
+                <Modal.Heading>{title}</Modal.Heading>
+                {description ? (
+                  <p className="mt-1 text-sm text-muted">{description}</p>
+                ) : null}
+              </Modal.Header>
+              <Modal.Body className="scrollbar-thin min-w-0 overflow-x-hidden overflow-y-auto px-4 sm:px-6 scrollbar-gutter-stable">
+                {children}
+              </Modal.Body>
+              {footer ? (
+                <Modal.Footer className="shrink-0 gap-2 border-t border-separator px-4 py-3 [&>button]:min-h-11 [&>button]:flex-1 sm:px-6 sm:[&>button]:flex-none">
+                  {footer}
+                </Modal.Footer>
               ) : null}
-            </Modal.Header>
-            <Modal.Body className="scrollbar-thin min-w-0 overflow-x-hidden overflow-y-auto px-4 sm:px-6 scrollbar-gutter-stable">
-              {children}
-            </Modal.Body>
-            {footer ? (
-              <Modal.Footer className="shrink-0 gap-2 border-t border-separator px-4 py-3 [&>button]:min-h-11 [&>button]:flex-1 sm:px-6 sm:[&>button]:flex-none">
-                {footer}
-              </Modal.Footer>
-            ) : null}
+            </div>
           </Modal.Dialog>
         </Modal.Container>
       </Modal.Backdrop>

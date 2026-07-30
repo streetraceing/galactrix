@@ -77,6 +77,8 @@ export function GalaxyEditorModal({
     <UiModal
       isOpen={isOpen}
       onOpenChange={onOpenChange}
+      onConfirm={onSave}
+      isConfirmDisabled={!canSave || saving}
       title={
         editing
           ? t('galaxyEditorModal.editingValue1', { value1: editing.name })

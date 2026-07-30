@@ -59,8 +59,8 @@
       0 2px 4px 0 rgba(0, 0, 0, 0.04), 0 1px 2px 0 rgba(0, 0, 0, 0.06),
       0 0 1px 0 rgba(0, 0, 0, 0.06);
     --skeleton-animation: shimmer;
-    --tooltip-delay: 1500ms;
-    --tooltip-close-delay: 500ms;
+    --tooltip-delay: 500ms;
+    --tooltip-close-delay: 100ms;
     --motion-fast: 180ms;
     --motion-standard: 280ms;
     --motion-slow: 420ms;

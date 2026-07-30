@@ -81,6 +81,11 @@ export function ChatSetupModal({
     (block) =>
       !block.enabled || Boolean(block.title.trim() && block.content.trim()),
   );
+  const canSubmit = Boolean(form.title.trim()) && promptIsValid && !saving;
+  const submit = () => {
+    if (!canSubmit) return;
+    onSubmit({ ...form, title: form.title.trim() });
+  };
   const activePromptSources: Array<keyof PromptContextPriorities> = [
     ...(form.personaId ? (['persona'] as const) : []),
     ...(form.characterId ? (['character'] as const) : []),
@@ -94,6 +99,8 @@ export function ChatSetupModal({
     <UiModal
       isOpen={isOpen}
       onOpenChange={(open) => !saving && onOpenChange(open)}
+      onConfirm={submit}
+      isConfirmDisabled={!canSubmit}
       size="cover"
       title={
         chat ? t('chatSetupModal.chatSettings') : t('chatSetupModal.newChat')
@@ -113,8 +120,8 @@ export function ChatSetupModal({
           <Button
             variant="primary"
             isPending={saving}
-            isDisabled={!form.title.trim() || !promptIsValid}
-            onPress={() => onSubmit({ ...form, title: form.title.trim() })}
+            isDisabled={!canSubmit}
+            onPress={submit}
           >
             {chat ? t('chatDialogs.save') : t('chatSetupModal.createChat')}
           </Button>

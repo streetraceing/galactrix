@@ -1,4 +1,4 @@
-import { Button, Chip, SearchField } from '@heroui/react';
+import { Button, Chip, SearchField, Tooltip } from '@heroui/react';
 import type { CSSProperties } from 'react';
 import { Icon } from '../../../components/Icon';
 import type { Chat, GalaxyItem } from '../../../types';
@@ -53,15 +53,18 @@ export function ChatSidebar({
             {t('chatSidebar.conversationHistory')}
           </p>
         </div>
-        <Button
-          isIconOnly
-          size="lg"
-          variant="primary"
-          aria-label={t('chatSetupModal.newChat')}
-          onPress={onNewChat}
-        >
-          <Icon name="plus" className="size-5" />
-        </Button>
+        <Tooltip delay={450} closeDelay={75}>
+          <Button
+            isIconOnly
+            size="lg"
+            variant="primary"
+            aria-label={t('chatSetupModal.newChat')}
+            onPress={onNewChat}
+          >
+            <Icon name="plus" className="size-5" />
+          </Button>
+          <Tooltip.Content>{t('chatSetupModal.newChat')}</Tooltip.Content>
+        </Tooltip>
       </header>
 
       <div className="px-3 pb-3">
@@ -77,6 +80,11 @@ export function ChatSidebar({
               autoComplete="off"
               placeholder={t('chatSidebar.searchChats')}
               aria-label={t('chatSidebar.searchChats')}
+              onKeyDown={(event) => {
+                if (event.key !== 'Enter' || !chats[0]) return;
+                event.preventDefault();
+                onSelect(chats[0].id);
+              }}
             />
             <SearchField.ClearButton
               aria-label={t('chatSidebar.clearSearch')}

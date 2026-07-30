@@ -360,6 +360,8 @@ export function GalaxiesScreen({
       <UiModal
         isOpen={exportOpen}
         onOpenChange={(open) => !exporting && setExportOpen(open)}
+        onConfirm={() => void exportItems()}
+        isConfirmDisabled={exportIds.length === 0 || exporting}
         title={t('galaxiesScreen.exportGalaxies')}
         description={t(
           'galaxiesScreen.selectOnlyTheObjectsYouNeedAndWhereToSave',
@@ -376,6 +378,7 @@ export function GalaxiesScreen({
             </Button>
             <Button
               variant="primary"
+              autoFocus
               isPending={exporting}
               isDisabled={exportIds.length === 0}
               onPress={() => void exportItems()}
@@ -410,6 +413,8 @@ export function GalaxiesScreen({
       <UiModal
         isOpen={Boolean(deleteTarget)}
         onOpenChange={(open) => !open && !saving && setDeleteTarget(null)}
+        onConfirm={() => void remove()}
+        isConfirmDisabled={!deleteTarget || saving}
         title={t('galaxiesScreen.deleteObject')}
         description={
           deleteTarget
@@ -429,6 +434,7 @@ export function GalaxiesScreen({
             </Button>
             <Button
               variant="danger"
+              autoFocus
               isPending={saving}
               onPress={() => void remove()}
             >

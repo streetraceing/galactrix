@@ -105,6 +105,12 @@ export function ChatsScreen({
     activeCharacter?.name ?? t('chatsScreen.assistant');
   const activeUserName =
     (activePersona?.name ?? profileName.trim()) || t('chatsScreen.you');
+  const shouldAutoFocusComposer =
+    !isMobile &&
+    (!isSinglePane || isChatOpen) &&
+    configTarget == null &&
+    renameTarget == null &&
+    confirmTarget == null;
   const showChatError = (error: unknown) =>
     toast.danger(t('errors.chatActionFailed'), {
       description: error instanceof Error ? error.message : String(error),
@@ -325,6 +331,7 @@ export function ChatsScreen({
           <>
             <ConversationHeader
               chat={activeChat}
+              provider={activeProvider}
               galaxyItems={galaxyItems}
               showBack={isSinglePane}
               onBack={onCloseChat}
@@ -358,6 +365,8 @@ export function ChatsScreen({
               provider={activeProvider}
               sending={sending}
               sendOnEnter={sendOnEnter}
+              shouldAutoFocus={shouldAutoFocusComposer}
+              focusKey={`${activeChat.id}:${isChatOpen}`}
               onDraftChange={setDraft}
               onSend={() => void send()}
             />

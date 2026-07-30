@@ -5,6 +5,8 @@ mod prompt_builder;
 mod provider_client;
 mod response_rules;
 mod secure_storage;
+#[cfg(windows)]
+mod windows_window;
 
 use std::{collections::HashMap, sync::Mutex};
 
@@ -826,6 +828,13 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
+            #[cfg(windows)]
+            if let Some(window) = app.get_webview_window("main") {
+                if let Err(error) = windows_window::install_keyboard_system_menu_guard(&window) {
+                    eprintln!("Failed to install the Windows system menu guard: {error}");
+                }
+            }
+
             if let Err(error) = secure_storage::initialize() {
                 eprintln!("Secure storage is unavailable: {error}");
             }

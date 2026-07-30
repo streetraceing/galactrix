@@ -376,6 +376,8 @@ export function TelescopeScreen({
       <UiModal
         isOpen={exportOpen}
         onOpenChange={(open) => !transferring && setExportOpen(open)}
+        onConfirm={() => void exportConnections()}
+        isConfirmDisabled={exportIds.length === 0 || transferring}
         title={t('telescopeScreen.exportConnections')}
         description={t(
           'telescopeScreen.theJsonFileCanBeImportedIntoGalactrixOnAnother',
@@ -392,6 +394,7 @@ export function TelescopeScreen({
             </Button>
             <Button
               variant="primary"
+              autoFocus
               isPending={transferring}
               isDisabled={exportIds.length === 0}
               onPress={() => void exportConnections()}
@@ -453,6 +456,8 @@ export function TelescopeScreen({
       <UiModal
         isOpen={Boolean(deleteTarget)}
         onOpenChange={(open) => !open && !deleting && setDeleteTarget(null)}
+        onConfirm={() => void removeProvider()}
+        isConfirmDisabled={!deleteTarget || deleting}
         title={t('telescopeScreen.deleteConnection')}
         description={
           deleteTarget
@@ -472,6 +477,7 @@ export function TelescopeScreen({
             </Button>
             <Button
               variant="danger"
+              autoFocus
               isPending={deleting}
               onPress={() => void removeProvider()}
             >

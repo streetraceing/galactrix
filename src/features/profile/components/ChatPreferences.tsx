@@ -53,7 +53,7 @@ export function ChatPreferences({
         >
           <ToggleButton
             id="conversation"
-            variant="ghost"
+            variant="default"
             className="h-auto min-w-0 justify-start gap-3 rounded-xl px-3 py-2.5 text-left"
           >
             <Icon name="chats" className="size-4 shrink-0" />
@@ -68,7 +68,7 @@ export function ChatPreferences({
           </ToggleButton>
           <ToggleButton
             id="messenger"
-            variant="ghost"
+            variant="default"
             className="h-auto min-w-0 justify-start gap-3 rounded-xl px-3 py-2.5 text-left"
           >
             <Icon name="message_box" className="size-4 shrink-0" />

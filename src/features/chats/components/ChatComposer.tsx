@@ -1,5 +1,5 @@
 import { Button, Surface, TextArea, Tooltip } from '@heroui/react';
-import { useLayoutEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import type { ChangeEvent, KeyboardEvent } from 'react';
 import { Icon } from '../../../components/Icon';
 import type { Provider } from '../../../types';
@@ -10,6 +10,8 @@ export function ChatComposer({
   provider,
   sending,
   sendOnEnter,
+  shouldAutoFocus,
+  focusKey,
   onDraftChange,
   onSend,
 }: {
@@ -17,11 +19,14 @@ export function ChatComposer({
   provider?: Provider;
   sending: boolean;
   sendOnEnter: boolean;
+  shouldAutoFocus: boolean;
+  focusKey: string;
   onDraftChange: (value: string) => void;
   onSend: () => void;
 }) {
   const { t } = useTranslation('chats');
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
+  const providerId = provider?.id;
 
   useLayoutEffect(() => {
     const textArea = textAreaRef.current;
@@ -30,10 +35,23 @@ export function ChatComposer({
     textArea.style.height = `${Math.min(textArea.scrollHeight, 192)}px`;
   }, [draft]);
 
+  useEffect(() => {
+    if (!shouldAutoFocus || !providerId || sending) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      const textArea = textAreaRef.current;
+      if (!textArea || textArea.disabled) return;
+      textArea.focus({ preventScroll: true });
+      textArea.setSelectionRange(textArea.value.length, textArea.value.length);
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [focusKey, providerId, sending, shouldAutoFocus]);
+
   return (
     <div className="shrink-0 border-t border-separator bg-background/95 px-3 py-2 backdrop-blur sm:px-5 sm:py-4">
       <div className="mx-auto w-full max-w-3xl">
-        <Surface className="rounded-2xl border border-separator p-2">
+        <Surface className="rounded-2xl border border-separator p-2 transition-[border-color,box-shadow] focus-within:border-accent/45 focus-within:ring-2 focus-within:ring-accent/10 focus-within:bg-accent-soft/5">
           <div className="flex items-end gap-2">
             <TextArea
               autoComplete="off"
@@ -46,7 +64,14 @@ export function ChatComposer({
                 onDraftChange(event.target.value)
               }
               onKeyDown={(event: KeyboardEvent<HTMLTextAreaElement>) => {
-                if (sendOnEnter && event.key === 'Enter' && !event.shiftKey) {
+                const sendWithShortcut =
+                  event.key === 'Enter' &&
+                  !event.shiftKey &&
+                  !event.altKey &&
+                  !event.getModifierState('AltGraph') &&
+                  !event.nativeEvent.isComposing &&
+                  (sendOnEnter || event.ctrlKey || event.metaKey);
+                if (sendWithShortcut) {
                   event.preventDefault();
                   onSend();
                 }
@@ -55,9 +80,9 @@ export function ChatComposer({
               placeholder={t('chatComposer.placeholder')}
               aria-label={t('chatComposer.label')}
               disabled={!provider || sending}
-              className="max-h-48 min-h-12 resize-none overflow-y-auto"
+              className="max-h-48 min-h-12 resize-none overflow-y-auto focus-within:bg-accent/5"
             />
-            <Tooltip>
+            <Tooltip delay={450} closeDelay={75}>
               <Tooltip.Trigger>
                 <Button
                   isIconOnly
@@ -84,7 +109,7 @@ export function ChatComposer({
             <span>
               {sendOnEnter
                 ? t('chatComposer.enterSend')
-                : t('chatComposer.sendWithButton')}
+                : t('chatComposer.ctrlEnterSend')}
             </span>
           </div>
         </Surface>

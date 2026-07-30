@@ -51,10 +51,19 @@ export function ProviderEditorModal({
   onSave: () => void;
 }) {
   const { t } = useTranslation('telescope');
+  const canSave =
+    step === 2 &&
+    Boolean(form.name.trim()) &&
+    Boolean(form.model.trim()) &&
+    form.kind !== 'character-ai' &&
+    !saving;
+
   return (
     <UiModal
       isOpen={isOpen}
       onOpenChange={(open) => !open && onClose()}
+      onConfirm={step === 2 ? onSave : undefined}
+      isConfirmDisabled={!canSave}
       size="lg"
       title={
         step === 1
@@ -84,11 +93,7 @@ export function ProviderEditorModal({
             <Button
               variant="primary"
               isPending={saving}
-              isDisabled={
-                !form.name.trim() ||
-                !form.model.trim() ||
-                form.kind === 'character-ai'
-              }
+              isDisabled={!canSave}
               onPress={onSave}
             >
               {t('providerEditorModal.save')}
