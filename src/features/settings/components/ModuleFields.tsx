@@ -1,15 +1,16 @@
 import { Input, Label, ListBox, Select, Surface } from '@heroui/react';
 import {
+  useEffect,
   useId,
   useState,
   type ChangeEvent,
   type Key,
   type ReactNode,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Icon, type IconName } from '../../../components/Icon';
 import type { Provider } from '../../../types';
 import { SettingSwitchRow } from '../../profile/components/SettingSwitchRow';
-import { useTranslation } from 'react-i18next';
 
 export function ModuleNumberField({
   label,
@@ -136,22 +137,28 @@ export function ModuleSettingsCard({
   children: ReactNode;
 }) {
   const { t } = useTranslation('settings');
-  const [isExpanded, setIsExpanded] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(enabled);
   const panelId = useId();
+  const detailsVisible = enabled && isExpanded;
+
+  useEffect(() => {
+    setIsExpanded(enabled);
+  }, [enabled]);
 
   return (
-    <Surface className="settings-card-enter w-full min-w-0 max-w-full overflow-hidden rounded-2xl border border-separator bg-surface p-4 shadow-surface ring-1 ring-inset ring-foreground/5 sm:p-5">
+    <Surface className="settings-card-enter w-full min-w-0 max-w-full overflow-hidden rounded-2xl border border-separator bg-surface p-4 shadow-surface ring-1 ring-inset ring-foreground/5 transition sm:p-5">
       <button
         type="button"
-        className="flex w-full min-w-0 items-center gap-3 rounded-xl text-left outline-none transition focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
-        aria-expanded={isExpanded}
+        className="flex w-full min-w-0 items-center gap-3 rounded-xl text-left outline-none transition focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:cursor-default"
+        aria-expanded={detailsVisible}
         aria-controls={panelId}
         aria-label={t(
-          isExpanded
+          detailsVisible
             ? 'ai.module.collapseSettings'
             : 'ai.module.expandSettings',
           { module: title },
         )}
+        disabled={!enabled}
         onClick={() => setIsExpanded((current) => !current)}
       >
         <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent/10 text-accent">
@@ -159,13 +166,11 @@ export function ModuleSettingsCard({
         </span>
         <span className="min-w-0 flex-1">
           <span className="section-title block">{title}</span>
-          {isExpanded ? (
-            <span className="section-description block">{description}</span>
-          ) : null}
+          <span className="section-description block">{description}</span>
         </span>
         <Icon
           name="chevron"
-          className={`size-4 shrink-0 text-muted transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+          className={`size-4 shrink-0 text-muted transition-transform duration-[var(--motion-standard)] ease-[var(--motion-ease)] ${detailsVisible ? 'rotate-90' : ''}`}
         />
       </button>
 
@@ -174,15 +179,29 @@ export function ModuleSettingsCard({
           label={enabledLabel}
           description={enabledDescription}
           value={enabled}
-          onChange={onEnabledChange}
-          showDescription={isExpanded}
+          showDescription={detailsVisible}
+          onChange={(nextEnabled) => {
+            setIsExpanded(nextEnabled);
+            onEnabledChange(nextEnabled);
+          }}
         />
         <div
-          id={panelId}
-          hidden={!isExpanded || !enabled}
-          className="mt-3 divide-y divide-separator border-t border-separator pt-3"
+          className={`grid transition-[grid-template-rows,margin-top,opacity] duration-[var(--motion-standard)] ease-[var(--motion-ease)] motion-reduce:transition-none ${
+            detailsVisible
+              ? 'mt-3 grid-rows-[1fr] opacity-100'
+              : 'mt-0 grid-rows-[0fr] opacity-0'
+          }`}
+          aria-hidden={!detailsVisible}
+          inert={!detailsVisible}
         >
-          {children}
+          <div className="min-h-0 overflow-hidden">
+            <div
+              id={panelId}
+              className="divide-y divide-separator border-t border-separator pt-3"
+            >
+              {children}
+            </div>
+          </div>
         </div>
       </div>
     </Surface>

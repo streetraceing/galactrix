@@ -8,6 +8,7 @@ type ResizeHandleProps = {
   max: number;
   onChange: (value: number) => void;
   onCommit: (value: number) => void;
+  onCollapse?: () => void;
   label: string;
   className?: string;
   shift?: boolean;
@@ -19,6 +20,7 @@ export function ResizeHandle({
   max,
   onChange,
   onCommit,
+  onCollapse,
   label,
   className = '',
   shift = false,
@@ -45,22 +47,35 @@ export function ResizeHandle({
         const startX = event.clientX;
         const startValue = value;
         const target = event.currentTarget;
+        let finished = false;
         target.setPointerCapture(event.pointerId);
         document.body.dataset.resizing = 'true';
 
-        const move = (moveEvent: PointerEvent) => {
-          const next = clamp(startValue + moveEvent.clientX - startX);
-          latestValue.current = next;
-          onChange(next);
-        };
-        const end = (upEvent: PointerEvent) => {
-          if (target.hasPointerCapture(upEvent.pointerId)) {
-            target.releasePointerCapture(upEvent.pointerId);
+        const cleanup = (pointerId: number) => {
+          if (finished) return;
+          finished = true;
+          if (target.hasPointerCapture(pointerId)) {
+            target.releasePointerCapture(pointerId);
           }
           document.body.removeAttribute('data-resizing');
           window.removeEventListener('pointermove', move);
           window.removeEventListener('pointerup', end);
           window.removeEventListener('pointercancel', end);
+        };
+        const move = (moveEvent: PointerEvent) => {
+          const rawValue = startValue + moveEvent.clientX - startX;
+          if (rawValue < min && onCollapse) {
+            cleanup(moveEvent.pointerId);
+            onCollapse();
+            return;
+          }
+
+          const next = clamp(rawValue);
+          latestValue.current = next;
+          onChange(next);
+        };
+        const end = (upEvent: PointerEvent) => {
+          cleanup(upEvent.pointerId);
           onCommit(latestValue.current);
         };
 
@@ -71,6 +86,10 @@ export function ResizeHandle({
       onKeyDown={(event: KeyboardEvent<HTMLDivElement>) => {
         if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
         event.preventDefault();
+        if (event.key === 'ArrowLeft' && value <= min && onCollapse) {
+          onCollapse();
+          return;
+        }
         const next = clamp(value + (event.key === 'ArrowRight' ? 12 : -12));
         onChange(next);
         onCommit(next);

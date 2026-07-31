@@ -89,6 +89,9 @@ export function ApplicationFrame({
             onCommit={(sidebarWidth) =>
               onSettingsCommit({ ...settings, sidebarWidth })
             }
+            onCollapse={() =>
+              onSettingsCommit({ ...settings, sidebarCollapsed: true })
+            }
             shift
           />
         ) : null}

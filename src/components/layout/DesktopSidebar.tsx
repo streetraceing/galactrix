@@ -23,11 +23,11 @@ type SidebarButtonProps = {
 };
 
 const sidebarButtonClass =
-  'h-10 w-full min-w-0 shrink-0 justify-start gap-3 overflow-hidden px-3 transition-[gap,padding,background-color,color] duration-[280ms] ease-[var(--motion-ease)] motion-reduce:transition-none group-data-[collapsed=true]/sidebar:gap-0 ring-0! ring-transparent!';
+  'h-10 w-full min-w-0 shrink-0 justify-start gap-3 overflow-hidden px-3 transition-[gap,padding,background-color,color] duration-[280ms] ease-[var(--motion-ease)] motion-reduce:transition-none group-data-[collapsed=true]/sidebar:gap-0 group-data-[collapsed=true]/sidebar:px-0 ring-0! ring-transparent!';
 
 function SidebarText({ children }: { children: ReactNode }) {
   return (
-    <span className="min-w-0 flex-1 truncate translate-x-0 overflow-hidden whitespace-nowrap text-left text-sm font-medium opacity-100 transition-[max-width,opacity,transform] duration-240 ease-(--motion-ease) group-data-[collapsed=true]/sidebar:max-w-0 group-data-[collapsed=true]/sidebar:-translate-x-1 group-data-[collapsed=true]/sidebar:opacity-0 group-data-[collapsed=false]/sidebar:delay-75">
+    <span className="max-w-[16rem] min-w-0 flex-1 truncate translate-x-0 overflow-hidden whitespace-nowrap text-left text-sm font-medium opacity-100 transition-[max-width,opacity,transform] duration-240 ease-(--motion-ease) group-data-[collapsed=true]/sidebar:max-w-0 group-data-[collapsed=true]/sidebar:-translate-x-1 group-data-[collapsed=true]/sidebar:opacity-0 group-data-[collapsed=false]/sidebar:delay-75">
       {children}
     </span>
   );
@@ -63,7 +63,7 @@ function SidebarButton({
         )}
       </span>
       <SidebarText>{item.label}</SidebarText>
-      {count && count > 0 ? (
+      {!compact && count && count > 0 ? (
         <Chip
           size="sm"
           variant="soft"
@@ -111,15 +111,16 @@ export function DesktopSidebar({
   const { t } = useTranslation('common');
   const forcedCompact = useMediaQuery('(max-width: 920px)');
   const compact = collapsed || forcedCompact;
-  const resolvedWidth = compact ? 64 : width;
   const collapseLabel = collapsed
     ? t('desktopSidebar.expandSidebar')
     : t('desktopSidebar.collapseSidebar');
 
   return (
     <aside
-      className="group/sidebar relative isolate flex h-full shrink-0 transform-gpu flex-col overflow-hidden border-r border-separator bg-background transition-[width] duration-320 ease-(--motion-ease) contain-[layout_paint] motion-reduce:transition-none"
-      style={{ width: `${resolvedWidth}px` } as CSSProperties}
+      className={`group/sidebar relative isolate flex h-full shrink-0 transform-gpu flex-col overflow-hidden bg-background transition-[width] duration-320 ease-(--motion-ease) contain-[layout_paint] after:pointer-events-none after:absolute after:inset-y-0 after:right-0 after:w-px after:bg-separator motion-reduce:transition-none ${
+        compact ? 'w-14' : ''
+      }`}
+      style={compact ? undefined : ({ width: `${width}px` } as CSSProperties)}
       data-collapsed={compact}
       aria-label={t('desktopSidebar.mainNavigation')}
     >
