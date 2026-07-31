@@ -75,10 +75,10 @@ export function PromptPreviewCard({
               <Icon name="database" className="size-4" />
             </span>
             <span className="min-w-0 flex-1">
-              <strong className="block break-words text-sm">
+              <strong className="block wrap-break-word text-sm">
                 {resolvedTitle}
               </strong>
-              <span className="mt-0.5 block break-words text-xs leading-5 text-muted">
+              <span className="mt-0.5 block wrap-break-word text-xs leading-5 text-muted">
                 {t('promptPreviewCard.resultAfterSubstitutingNamesFor')}
                 {'{{user}}'} {t('promptPreviewCard.and')}
                 {'{{char}}'}.
@@ -138,7 +138,7 @@ export function PromptPreviewCard({
           </>
         }
       >
-        <pre className="selectable min-h-48 whitespace-pre-wrap break-words rounded-2xl border border-separator bg-default/50 p-4 font-mono text-xs leading-5">
+        <pre className="selectable min-h-48 whitespace-pre-wrap wrap-break-word rounded-2xl border border-separator bg-default/50 p-4 font-mono text-xs leading-5">
           {result?.prompt ||
             t('promptPreviewCard.thereAreNoActiveSourcesInThePromptYet')}
         </pre>

@@ -454,7 +454,23 @@
     isolation: isolate;
     contain: paint;
     background: var(--background);
+    overflow-y: scroll;
     overflow-anchor: none;
+  }
+
+  .chat-message-scroller::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .chat-message-scroller::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .chat-message-scroller::-webkit-scrollbar-thumb {
+    border: 2px solid transparent;
+    border-radius: 999px;
+    background: color-mix(in oklab, var(--scrollbar) 55%, transparent);
+    background-clip: padding-box;
   }
 
   .chat-message-canvas {

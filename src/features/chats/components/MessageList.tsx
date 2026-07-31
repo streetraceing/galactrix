@@ -1009,7 +1009,7 @@ function MessageListComponent({
       <div
         ref={scrollRef}
         data-chat-id={chatId}
-        className="chat-message-scroller scrollbar-thin flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-5 sm:px-5"
+        className="chat-message-scroller scrollbar-thin flex min-h-0 flex-1 flex-col overflow-y-scroll px-3 py-5 sm:px-5"
       >
         <div
           key={chatId}

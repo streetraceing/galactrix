@@ -106,7 +106,7 @@ export function UiModal({
             className={
               isMobile
                 ? 'h-full min-h-0 w-full max-w-none min-w-0 rounded-none border-0! bg-background shadow-none! ring-0!'
-                : 'ui-overlay-surface max-h-[90dvh] min-w-0 bg-overlay/95'
+                : 'ui-overlay-surface max-h-[90dvh] min-w-0 bg-background-secondary'
             }
             style={mobileViewportStyle}
           >
