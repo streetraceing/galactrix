@@ -2406,13 +2406,12 @@ pub fn list_semantic_memories(
     let records = statement
         .query_map(params![chat_id, provider_id, model], |row| {
             let raw: String = row.get(3)?;
-            Ok(SemanticMemoryRecord {
-                source_kind: row.get(0)?,
-                source_id: row.get(1)?,
-                content: row.get(2)?,
-                embedding: serde_json::from_str::<Vec<f32>>(&raw).unwrap_or_default(),
-                similarity: 0.0,
-            })
+            Ok(SemanticMemoryRecord::from_storage(
+                row.get(0)?,
+                row.get(1)?,
+                row.get(2)?,
+                serde_json::from_str::<Vec<f32>>(&raw).unwrap_or_default(),
+            ))
         })?
         .collect::<Result<Vec<_>, _>>()?;
     Ok(records)
@@ -2453,6 +2452,4 @@ fn clock_time(timestamp: i64) -> String {
 }
 
 #[cfg(test)]
-mod tests {
-    include!(concat!(env!("CARGO_MANIFEST_DIR"), "/../test/rust/db.rs"));
-}
+mod tests;

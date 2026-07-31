@@ -574,6 +574,23 @@ pub struct SemanticMemoryRecord {
     pub similarity: f64,
 }
 
+impl SemanticMemoryRecord {
+    pub fn from_storage(
+        source_kind: String,
+        source_id: String,
+        content: String,
+        embedding: Vec<f32>,
+    ) -> Self {
+        Self {
+            source_kind,
+            source_id,
+            content,
+            embedding,
+            similarity: 0.0,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct SemanticMemoryCandidate {
     pub source_kind: String,
