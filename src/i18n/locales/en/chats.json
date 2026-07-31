@@ -217,5 +217,8 @@
   "source.universe.label": "Universe",
   "source.worldbooks.description": "Connected lore entries",
   "source.worldbooks.label": "Worldbooks",
-  "messageList.loadEarlierMessages": "Load earlier messages"
+  "messageList.loadEarlierMessages": "Load earlier messages",
+  "promptRule.casualBrief.label": "Brief and conversational",
+  "promptRule.casualBrief.description": "Usually 1–3 short, simple sentences without long constructions, preambles, or unsolicited detail.",
+  "messageList.scrollToBottom": "Scroll to bottom"
 }

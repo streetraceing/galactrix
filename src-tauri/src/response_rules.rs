@@ -3,6 +3,9 @@ fn instruction(preset: &str) -> Option<&'static str> {
         "human" => Some(
             "Use natural conversational rhythm, concrete wording, and emotionally credible reactions. Avoid assistant-like disclaimers, repetitive summaries, sterile headings, and generic offers to help.",
         ),
+        "casual-brief" => Some(
+            "Default to a brief everyday chat reply. Usually write 1–3 short sentences, with one idea per sentence and simple vocabulary. Avoid long compound sentences, formal exposition, preambles, summaries, and unsolicited detail. Match the user's length, and expand only when they explicitly ask for detail or the task genuinely requires it.",
+        ),
         "dialogue-only" => Some(
             "Return dialogue only. Do not write actions, stage directions, narration, asterisks, roleplay descriptions, or describe what either participant is doing.",
         ),
@@ -41,6 +44,28 @@ pub fn instructions(presets: &[String]) -> Option<String> {
 
 pub fn normalize_response(content: &str) -> String {
     content.trim().to_owned()
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RegenerationMode {
+    Reply,
+    Continuation,
+}
+
+pub fn regeneration_mode(previous_role: Option<&str>) -> Option<RegenerationMode> {
+    match previous_role {
+        Some("user") => Some(RegenerationMode::Reply),
+        Some("assistant") => Some(RegenerationMode::Continuation),
+        _ => None,
+    }
+}
+
+pub fn regeneration_instruction(
+    mode: RegenerationMode,
+    response_language: Option<&str>,
+) -> Option<&'static str> {
+    matches!(mode, RegenerationMode::Continuation)
+        .then(|| continuation_instruction(response_language))
 }
 
 pub fn continuation_instruction(response_language: Option<&str>) -> &'static str {

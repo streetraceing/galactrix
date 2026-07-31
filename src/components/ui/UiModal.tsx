@@ -33,45 +33,60 @@ export function UiModal({
   bodyClassName?: string;
 }) {
   const isMobile = isMobilePlatform();
-  const [mobileHeight, setMobileHeight] = useState<number>();
+  const [mobileLayoutViewport, setMobileLayoutViewport] = useState<{
+    width: number;
+    height: number;
+  }>();
 
   useMobileBackEntry(isOpen, () => onOpenChange(false));
 
   useLayoutEffect(() => {
     if (!isOpen || !isMobile) {
-      setMobileHeight(undefined);
+      setMobileLayoutViewport(undefined);
       return;
     }
 
-    const updateHeight = () => {
-      const visualHeight = window.visualViewport?.height;
-      const nextHeight = Math.round(
-        visualHeight && visualHeight > 0
-          ? visualHeight
-          : Math.min(window.innerHeight, document.documentElement.clientHeight),
-      );
-      setMobileHeight(nextHeight);
+    const layoutViewport = () => ({
+      width: Math.round(
+        document.documentElement.clientWidth || window.innerWidth || 0,
+      ),
+      height: Math.round(
+        document.documentElement.clientHeight || window.innerHeight || 0,
+      ),
+    });
+    let frame = 0;
+    const updateForOrientation = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        setMobileLayoutViewport(layoutViewport());
+      });
     };
 
-    updateHeight();
-    window.addEventListener('resize', updateHeight);
-    window.addEventListener('orientationchange', updateHeight);
-    window.visualViewport?.addEventListener('resize', updateHeight);
+    updateForOrientation();
+    window.addEventListener('orientationchange', updateForOrientation);
+    window.screen.orientation?.addEventListener('change', updateForOrientation);
 
     return () => {
-      window.removeEventListener('resize', updateHeight);
-      window.removeEventListener('orientationchange', updateHeight);
-      window.visualViewport?.removeEventListener('resize', updateHeight);
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener('orientationchange', updateForOrientation);
+      window.screen.orientation?.removeEventListener(
+        'change',
+        updateForOrientation,
+      );
     };
   }, [isMobile, isOpen]);
 
-  const mobileViewportStyle: CSSProperties | undefined =
-    isMobile && mobileHeight
-      ? {
-          height: mobileHeight,
-          minHeight: mobileHeight,
-          maxHeight: mobileHeight,
-        }
+  const mobileLayoutViewportStyle: CSSProperties | undefined =
+    isMobile && mobileLayoutViewport
+      ? ({
+          width: mobileLayoutViewport.width,
+          minWidth: mobileLayoutViewport.width,
+          maxWidth: mobileLayoutViewport.width,
+          height: mobileLayoutViewport.height,
+          minHeight: mobileLayoutViewport.height,
+          maxHeight: mobileLayoutViewport.height,
+          '--ui-modal-layout-height': `${mobileLayoutViewport.height}px`,
+        } as CSSProperties)
       : undefined;
 
   const handleDialogKeyDown = (event: KeyboardEvent<HTMLElement>) => {
@@ -118,14 +133,14 @@ export function UiModal({
         className={
           isMobile ? 'h-full min-h-0 max-h-full overflow-hidden' : undefined
         }
-        style={mobileViewportStyle}
+        style={mobileLayoutViewportStyle}
       >
         <Modal.Container
           size={isMobile ? 'full' : size}
           scroll="inside"
           className={
             isMobile
-              ? 'h-full min-h-0 max-h-full w-full overflow-hidden p-0'
+              ? 'h-(--ui-modal-layout-height)! min-h-(--ui-modal-layout-height)! max-h-(--ui-modal-layout-height)! w-full overflow-hidden p-0'
               : undefined
           }
         >
@@ -135,7 +150,7 @@ export function UiModal({
                 ? 'flex h-full min-h-0 max-h-full w-full max-w-none min-w-0 flex-col overflow-hidden rounded-none border-0! bg-background shadow-none! ring-0!'
                 : 'ui-overlay-surface max-h-[90dvh] min-w-0 bg-background-secondary'
             }
-            style={mobileViewportStyle}
+            style={mobileLayoutViewportStyle}
           >
             <Modal.CloseTrigger />
             <div className="contents" onKeyDown={handleDialogKeyDown}>

@@ -18,6 +18,15 @@ export const promptPresets: Array<{
     },
   },
   {
+    id: 'casual-brief',
+    get label() {
+      return i18next.t('promptRule.casualBrief.label', { ns: 'chats' });
+    },
+    get description() {
+      return i18next.t('promptRule.casualBrief.description', { ns: 'chats' });
+    },
+  },
+  {
     id: 'dialogue-only',
     get label() {
       return i18next.t('promptRule.dialogueOnly.label', { ns: 'chats' });

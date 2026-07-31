@@ -80,6 +80,7 @@ export const priorityFields: Array<{
 
 export const livingDialogueBundle: PromptPresetId[] = [
   'human',
+  'casual-brief',
   'first-person',
   'no-emoji',
   'dialogue-only',

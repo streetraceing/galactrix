@@ -712,6 +712,11 @@
 }
 
 @media (max-width: 820px) {
+  .page-header {
+    position: static !important;
+    inset: auto !important;
+  }
+
   .page-scroll {
     width: 100%;
     max-width: 100%;

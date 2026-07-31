@@ -204,3 +204,52 @@ fn messages_through_message_rejects_user_messages() {
         .expect_err("user messages cannot be continued");
     assert_eq!(error.key, keys::MESSAGE_CONTINUE_ASSISTANT_ONLY);
 }
+
+#[test]
+fn usage_history_always_contains_at_least_six_weeks() {
+    let connection = test_database();
+    let points = usage_history(&connection).expect("usage history must load");
+    assert!(points.len() >= 42);
+    assert_eq!(points.last().unwrap().day - points.first().unwrap().day, 41);
+}
+
+#[test]
+fn history_before_a_continuation_ends_with_an_assistant_message() {
+    let connection = test_database();
+    create_test_chat(&connection, "chat-1");
+    add_user_message(&connection, "chat-1", "user-1", "hello")
+        .expect("user message must persist");
+    add_assistant_message(&connection, "chat-1", "assistant-1", "first part")
+        .expect("assistant message must persist");
+    add_assistant_message(&connection, "chat-1", "assistant-2", "continued part")
+        .expect("continuation must persist");
+
+    let (_, history) = messages_before_message(&connection, "assistant-2")
+        .expect("history before continuation must load");
+    assert_eq!(history.last().map(|message| message.role.as_str()), Some("assistant"));
+}
+
+#[test]
+fn regeneration_history_is_stable_when_imported_messages_share_a_timestamp() {
+    let connection = test_database();
+    create_test_chat(&connection, "chat-1");
+    add_user_message(&connection, "chat-1", "user-1", "hello")
+        .expect("user message must persist");
+    add_assistant_message(&connection, "chat-1", "assistant-1", "first part")
+        .expect("assistant message must persist");
+    add_assistant_message(&connection, "chat-1", "assistant-2", "continued part")
+        .expect("continuation must persist");
+    connection
+        .execute(
+            "UPDATE messages SET created_at = 100 WHERE chat_id = 'chat-1'",
+            [],
+        )
+        .expect("timestamps must update");
+
+    let (_, history) = messages_before_message(&connection, "assistant-2")
+        .expect("history before continuation must load");
+    assert_eq!(history.len(), 2);
+    assert_eq!(history[0].role, "user");
+    assert_eq!(history[1].role, "assistant");
+    assert_eq!(history[1].content, "first part");
+}

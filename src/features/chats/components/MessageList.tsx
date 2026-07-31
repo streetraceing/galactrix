@@ -973,6 +973,7 @@ function MessageListComponent({
   const [deleting, setDeleting] = useState<Message | null>(null);
   const [historyMessageId, setHistoryMessageId] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [messageGeneration, setMessageGeneration] = useState<{
     messageId: string;
     mode: 'regenerate' | 'continue';
@@ -1001,6 +1002,31 @@ function MessageListComponent({
     [messages, visibleStart],
   );
 
+  const updateScrollToBottomVisibility = useCallback(() => {
+    const scroller = scrollRef.current;
+    if (!scroller) return;
+    const distanceFromBottom =
+      scroller.scrollHeight - scroller.clientHeight - scroller.scrollTop;
+    const shouldShow =
+      distanceFromBottom > Math.max(240, scroller.clientHeight * 0.55);
+    setShowScrollToBottom((current) =>
+      current === shouldShow ? current : shouldShow,
+    );
+  }, [scrollRef]);
+
+  const scrollToBottom = useCallback(() => {
+    const scroller = scrollRef.current;
+    if (!scroller) return;
+    scroller.scrollTo({
+      top: scroller.scrollHeight,
+      behavior:
+        document.documentElement.dataset.animations === 'off'
+          ? 'auto'
+          : 'smooth',
+    });
+    setShowScrollToBottom(false);
+  }, [scrollRef]);
+
   useLayoutEffect(() => {
     if (messageWindow.chatId !== chatId) {
       pendingScrollRestoreRef.current = null;
@@ -1011,6 +1037,7 @@ function MessageListComponent({
       messageGenerationRef.current = null;
       variantSelectionRef.current = null;
       setVariantDirections({});
+      setShowScrollToBottom(false);
       setMessageWindow({
         chatId,
         start: initialMessageWindowStart(messages.length),
@@ -1047,6 +1074,18 @@ function MessageListComponent({
     scroller.scrollTop =
       restore.scrollTop + (scroller.scrollHeight - restore.scrollHeight);
   }, [scrollRef, visibleStart]);
+
+  useLayoutEffect(() => {
+    const frame = window.requestAnimationFrame(updateScrollToBottomVisibility);
+    return () => window.cancelAnimationFrame(frame);
+  }, [
+    chatId,
+    messages.length,
+    pendingMessage,
+    sending,
+    updateScrollToBottomVisibility,
+    visibleStart,
+  ]);
 
   const loadEarlierMessages = useCallback(() => {
     if (visibleStart <= 0) return;
@@ -1165,269 +1204,286 @@ function MessageListComponent({
 
   return (
     <>
-      <div
-        ref={scrollRef}
-        data-chat-id={chatId}
-        className="chat-message-scroller scrollbar-thin flex min-h-0 flex-1 flex-col overflow-y-scroll px-3 py-5 sm:px-5"
-      >
+      <div className="relative flex min-h-0 flex-1">
         <div
-          key={chatId}
-          className="chat-message-canvas mx-auto mt-auto flex w-full max-w-3xl flex-col gap-3 sm:gap-4"
+          ref={scrollRef}
+          data-chat-id={chatId}
+          className="chat-message-scroller scrollbar-thin flex min-h-0 w-full flex-1 flex-col overflow-y-scroll px-3 py-5 sm:px-5"
+          onScroll={updateScrollToBottomVisibility}
         >
-          {visibleStart > 0 ? (
-            <div className="flex justify-center py-1">
-              <Button
-                size="sm"
-                variant="ghost"
-                className="text-muted"
-                onPress={loadEarlierMessages}
-              >
-                <Icon name="chevron-left" className="size-3.5 rotate-90" />
-                {t('messageList.loadEarlierMessages')}
-              </Button>
-            </div>
-          ) : null}
-
-          {visibleMessages.map((message) => {
-            const isUser = message.role === 'user';
-            const displayName = isUser
-              ? userName
-              : message.role === 'assistant'
-                ? assistantName
-                : t('messageList.system');
-            const avatar = isUser
-              ? userAvatar
-              : message.role === 'assistant'
-                ? assistantAvatar
-                : undefined;
-            const edit = () => requestEdit(message);
-            const remove = () => {
-              setDeleting(message);
-            };
-            const history = () => setHistoryMessageId(message.id);
-            const isGenerating = messageGeneration?.messageId === message.id;
-            const isRegenerating =
-              isGenerating && messageGeneration?.mode === 'regenerate';
-
-            const content = (
-              <MessageMenu
-                message={message}
-                onBranch={onBranch}
-                onRemember={onRemember}
-                onRegenerate={regenerate}
-                onContinue={continueResponse}
-                onSelectVariant={selectVariant}
-                onEditRequest={edit}
-                onDeleteRequest={remove}
-                onHistoryRequest={history}
-                onError={reportError}
-              >
-                <article
-                  className={`chat-message-row group flex items-start gap-2.5 sm:gap-3 ${
-                    isUser && !messengerMode ? 'flex-row-reverse' : ''
-                  }`}
+          <div
+            key={chatId}
+            className="chat-message-canvas mx-auto mt-auto flex w-full max-w-3xl flex-col gap-3 sm:gap-4"
+          >
+            {visibleStart > 0 ? (
+              <div className="flex justify-center py-1">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-muted"
+                  onPress={loadEarlierMessages}
                 >
-                  {showAvatars ? (
-                    <AppAvatar
-                      src={avatar}
-                      name={displayName}
-                      className="size-8 sm:size-9"
-                      square
-                    />
-                  ) : null}
-                  <div
-                    className={`flex min-w-0 flex-col ${
-                      messengerMode
-                        ? 'items-start w-full'
-                        : isUser
-                          ? 'max-w-[min(91%,44rem)] items-end sm:max-w-[min(88%,44rem)]'
-                          : 'w-full items-start'
+                  <Icon name="chevron-left" className="size-3.5 rotate-90" />
+                  {t('messageList.loadEarlierMessages')}
+                </Button>
+              </div>
+            ) : null}
+
+            {visibleMessages.map((message) => {
+              const isUser = message.role === 'user';
+              const displayName = isUser
+                ? userName
+                : message.role === 'assistant'
+                  ? assistantName
+                  : t('messageList.system');
+              const avatar = isUser
+                ? userAvatar
+                : message.role === 'assistant'
+                  ? assistantAvatar
+                  : undefined;
+              const edit = () => requestEdit(message);
+              const remove = () => {
+                setDeleting(message);
+              };
+              const history = () => setHistoryMessageId(message.id);
+              const isGenerating = messageGeneration?.messageId === message.id;
+              const isRegenerating =
+                isGenerating && messageGeneration?.mode === 'regenerate';
+
+              const content = (
+                <MessageMenu
+                  message={message}
+                  onBranch={onBranch}
+                  onRemember={onRemember}
+                  onRegenerate={regenerate}
+                  onContinue={continueResponse}
+                  onSelectVariant={selectVariant}
+                  onEditRequest={edit}
+                  onDeleteRequest={remove}
+                  onHistoryRequest={history}
+                  onError={reportError}
+                >
+                  <article
+                    className={`chat-message-row group flex items-start gap-2.5 sm:gap-3 ${
+                      isUser && !messengerMode ? 'flex-row-reverse' : ''
                     }`}
                   >
+                    {showAvatars ? (
+                      <AppAvatar
+                        src={avatar}
+                        name={displayName}
+                        className="size-8 sm:size-9"
+                        square
+                      />
+                    ) : null}
                     <div
-                      className={`mb-1 flex min-w-0 items-center gap-2 text-xs text-muted ${
-                        isUser && !messengerMode ? 'flex-row-reverse' : ''
+                      className={`flex min-w-0 flex-col ${
+                        messengerMode
+                          ? 'items-start w-full'
+                          : isUser
+                            ? 'max-w-[min(91%,44rem)] items-end sm:max-w-[min(88%,44rem)]'
+                            : 'w-full items-start'
                       }`}
                     >
-                      <strong className="truncate font-medium text-foreground">
-                        {displayName}
-                      </strong>
-                      {showTimestamps ? (
-                        <span className="shrink-0">{message.createdAt}</span>
-                      ) : null}
-                      {message.remembered ? (
-                        <span className="inline-flex shrink-0 items-center gap-1 text-accent">
-                          <Icon name="memory" className="size-3" />
-                          {t('messageList.remembered')}
-                        </span>
-                      ) : null}
-                    </div>
-                    <Surface
-                      variant={isUser ? 'tertiary' : 'default'}
-                      className={`${isMobile ? 'select-none' : 'selectable'} min-w-0 max-w-full overflow-hidden rounded-2xl border px-4 py-3 shadow-xs ${
-                        messengerMode ? 'w-fit' : ''
-                      } ${
-                        isUser
-                          ? 'border-accent/10 bg-accent/10'
-                          : 'border-separator'
-                      }`}
-                    >
-                      {isRegenerating ? (
-                        <div
-                          className="flex h-5 min-w-12 items-center gap-1"
-                          role="status"
-                          aria-label={t('messageList.isTyping')}
-                        >
-                          {[0, 1, 2].map((index) => (
-                            <span
-                              key={index}
-                              className="typing-dot size-1.5 rounded-full bg-accent"
-                              style={{ animationDelay: `${index * 140}ms` }}
+                      <div
+                        className={`mb-1 flex min-w-0 items-center gap-2 text-xs text-muted ${
+                          isUser && !messengerMode ? 'flex-row-reverse' : ''
+                        }`}
+                      >
+                        <strong className="truncate font-medium text-foreground">
+                          {displayName}
+                        </strong>
+                        {showTimestamps ? (
+                          <span className="shrink-0">{message.createdAt}</span>
+                        ) : null}
+                        {message.remembered ? (
+                          <span className="inline-flex shrink-0 items-center gap-1 text-accent">
+                            <Icon name="memory" className="size-3" />
+                            {t('messageList.remembered')}
+                          </span>
+                        ) : null}
+                      </div>
+                      <Surface
+                        variant={isUser ? 'tertiary' : 'default'}
+                        className={`${isMobile ? 'select-none' : 'selectable'} min-w-0 max-w-full overflow-hidden rounded-2xl border px-4 py-3 shadow-xs ${
+                          messengerMode ? 'w-fit' : ''
+                        } ${
+                          isUser
+                            ? 'border-accent/10 bg-accent/10'
+                            : 'border-separator'
+                        }`}
+                      >
+                        {isRegenerating ? (
+                          <div
+                            className="flex h-5 min-w-12 items-center gap-1"
+                            role="status"
+                            aria-label={t('messageList.isTyping')}
+                          >
+                            {[0, 1, 2].map((index) => (
+                              <span
+                                key={index}
+                                className="typing-dot size-1.5 rounded-full bg-accent"
+                                style={{ animationDelay: `${index * 140}ms` }}
+                              />
+                            ))}
+                          </div>
+                        ) : (
+                          <>
+                            <AnimatedVariantContent
+                              message={message}
+                              direction={
+                                variantDirections[message.id] ?? 'next'
+                              }
+                              enabled={!isMobile}
                             />
-                          ))}
-                        </div>
+                          </>
+                        )}
+                      </Surface>
+                      {!isMobile ? (
+                        <DesktopMessageActions
+                          message={message}
+                          onBranch={onBranch}
+                          onRemember={onRemember}
+                          onRegenerate={regenerate}
+                          onContinue={continueResponse}
+                          onSelectVariant={selectVariant}
+                          onEditRequest={edit}
+                          onDeleteRequest={remove}
+                          onHistoryRequest={history}
+                          onError={reportError}
+                        />
                       ) : (
-                        <>
-                          <AnimatedVariantContent
-                            message={message}
-                            direction={variantDirections[message.id] ?? 'next'}
-                            enabled={!isMobile}
-                          />
-                        </>
+                        <VariantNavigator
+                          message={message}
+                          compact
+                          onSelect={(index) =>
+                            void selectVariant(message.id, index).catch(
+                              reportError,
+                            )
+                          }
+                          onHistory={history}
+                        />
                       )}
-                    </Surface>
-                    {!isMobile ? (
-                      <DesktopMessageActions
-                        message={message}
-                        onBranch={onBranch}
-                        onRemember={onRemember}
-                        onRegenerate={regenerate}
-                        onContinue={continueResponse}
-                        onSelectVariant={selectVariant}
-                        onEditRequest={edit}
-                        onDeleteRequest={remove}
-                        onHistoryRequest={history}
-                        onError={reportError}
-                      />
-                    ) : (
-                      <VariantNavigator
-                        message={message}
-                        compact
-                        onSelect={(index) =>
-                          void selectVariant(message.id, index).catch(
-                            reportError,
-                          )
-                        }
-                        onHistory={history}
-                      />
-                    )}
-                  </div>
-                </article>
-              </MessageMenu>
-            );
+                    </div>
+                  </article>
+                </MessageMenu>
+              );
 
-            return isMobile ? (
-              <SwipeableMessage
-                key={message.id}
-                message={message}
-                onSelectVariant={selectVariant}
-                onRegenerate={regenerate}
-                onError={reportError}
-              >
-                {content}
-              </SwipeableMessage>
-            ) : (
-              <div key={message.id}>{content}</div>
-            );
-          })}
+              return isMobile ? (
+                <SwipeableMessage
+                  key={message.id}
+                  message={message}
+                  onSelectVariant={selectVariant}
+                  onRegenerate={regenerate}
+                  onError={reportError}
+                >
+                  {content}
+                </SwipeableMessage>
+              ) : (
+                <div key={message.id}>{content}</div>
+              );
+            })}
 
-          {pendingMessage ? (
-            <article
-              className={`message-enter flex items-start gap-2.5 opacity-75 sm:gap-3 ${
-                messengerMode ? '' : 'flex-row-reverse'
-              }`}
-            >
-              {showAvatars ? (
-                <AppAvatar
-                  src={userAvatar}
-                  name={userName}
-                  className="size-8 sm:size-9"
-                  square
-                />
-              ) : null}
-              <div
-                className={`flex min-w-0 flex-col ${
-                  messengerMode
-                    ? 'max-w-[min(90%,42rem)] items-start'
-                    : 'w-full items-end'
+            {pendingMessage ? (
+              <article
+                className={`message-enter flex items-start gap-2.5 opacity-75 sm:gap-3 ${
+                  messengerMode ? '' : 'flex-row-reverse'
                 }`}
               >
-                <div className="mb-1 flex items-center gap-2 text-xs text-muted">
-                  <span>{t('messageList.sending')}</span>
-                  <strong className="font-medium text-foreground">
-                    {userName}
-                  </strong>
-                </div>
-                <Surface
-                  variant="tertiary"
-                  className={`${messengerMode ? 'w-fit' : ''} min-w-0 max-w-full overflow-hidden rounded-2xl border border-accent/10 bg-accent/10 px-4 py-3 shadow-xs`}
+                {showAvatars ? (
+                  <AppAvatar
+                    src={userAvatar}
+                    name={userName}
+                    className="size-8 sm:size-9"
+                    square
+                  />
+                ) : null}
+                <div
+                  className={`flex min-w-0 flex-col ${
+                    messengerMode
+                      ? 'max-w-[min(90%,42rem)] items-start'
+                      : 'w-full items-end'
+                  }`}
                 >
-                  <MarkdownContent>{pendingMessage}</MarkdownContent>
-                </Surface>
-              </div>
-            </article>
-          ) : null}
+                  <div className="mb-1 flex items-center gap-2 text-xs text-muted">
+                    <span>{t('messageList.sending')}</span>
+                    <strong className="font-medium text-foreground">
+                      {userName}
+                    </strong>
+                  </div>
+                  <Surface
+                    variant="tertiary"
+                    className={`${messengerMode ? 'w-fit' : ''} min-w-0 max-w-full overflow-hidden rounded-2xl border border-accent/10 bg-accent/10 px-4 py-3 shadow-xs`}
+                  >
+                    <MarkdownContent>{pendingMessage}</MarkdownContent>
+                  </Surface>
+                </div>
+              </article>
+            ) : null}
 
-          {sending &&
-          (!messageGeneration || messageGeneration.mode === 'continue') ? (
-            <article className="message-enter flex items-start gap-2.5 sm:gap-3">
-              {showAvatars ? (
-                <AppAvatar
-                  src={assistantAvatar}
-                  name={assistantName}
-                  className="size-8 sm:size-9"
-                  square
-                />
-              ) : null}
-              <div className="flex flex-col items-start">
-                <span className="mb-1 text-xs font-medium text-muted">
-                  {assistantName} {t('messageList.isTyping')}
-                </span>
-                <Surface className="flex h-11 items-center gap-1 rounded-2xl border border-separator px-4">
-                  {[0, 1, 2].map((index) => (
-                    <span
-                      key={index}
-                      className="typing-dot size-1.5 rounded-full bg-accent"
-                      style={{ animationDelay: `${index * 140}ms` }}
-                    />
-                  ))}
-                </Surface>
-              </div>
-            </article>
-          ) : null}
+            {sending &&
+            (!messageGeneration || messageGeneration.mode === 'continue') ? (
+              <article className="message-enter flex items-start gap-2.5 sm:gap-3">
+                {showAvatars ? (
+                  <AppAvatar
+                    src={assistantAvatar}
+                    name={assistantName}
+                    className="size-8 sm:size-9"
+                    square
+                  />
+                ) : null}
+                <div className="flex flex-col items-start">
+                  <span className="mb-1 text-xs font-medium text-muted">
+                    {assistantName} {t('messageList.isTyping')}
+                  </span>
+                  <Surface className="flex h-11 items-center gap-1 rounded-2xl border border-separator px-4">
+                    {[0, 1, 2].map((index) => (
+                      <span
+                        key={index}
+                        className="typing-dot size-1.5 rounded-full bg-accent"
+                        style={{ animationDelay: `${index * 140}ms` }}
+                      />
+                    ))}
+                  </Surface>
+                </div>
+              </article>
+            ) : null}
 
-          {messages.length === 0 && !pendingMessage && !sending ? (
-            <div className="grid min-h-[50vh] place-items-center text-center">
-              <div className="max-w-md">
-                <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-accent/10 text-accent">
-                  <Icon name="chats" className="size-6" />
-                </span>
-                <h3 className="mt-4 text-lg font-semibold">
-                  {t('messageList.startTheConversation')}
-                </h3>
-                <p className="mt-1.5 text-sm leading-6 text-muted">
-                  {providersAvailable
-                    ? provider
-                      ? t('messageList.providerReady', {
-                          value1: provider.name,
-                        })
-                      : t('messageList.openChatSettingsAndSelectAProvider')
-                    : t('messageList.firstAddAProviderInTelescope')}
-                </p>
+            {messages.length === 0 && !pendingMessage && !sending ? (
+              <div className="grid min-h-[50vh] place-items-center text-center">
+                <div className="max-w-md">
+                  <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-accent/10 text-accent">
+                    <Icon name="chats" className="size-6" />
+                  </span>
+                  <h3 className="mt-4 text-lg font-semibold">
+                    {t('messageList.startTheConversation')}
+                  </h3>
+                  <p className="mt-1.5 text-sm leading-6 text-muted">
+                    {providersAvailable
+                      ? provider
+                        ? t('messageList.providerReady', {
+                            value1: provider.name,
+                          })
+                        : t('messageList.openChatSettingsAndSelectAProvider')
+                      : t('messageList.firstAddAProviderInTelescope')}
+                  </p>
+                </div>
               </div>
-            </div>
-          ) : null}
+            ) : null}
+          </div>
         </div>
+        {showScrollToBottom ? (
+          <Button
+            isIconOnly
+            size="lg"
+            variant="secondary"
+            className="absolute bottom-3 right-4 z-20 size-11 min-w-11 rounded-full border border-separator bg-overlay/95 shadow-overlay backdrop-blur-xl sm:bottom-4 sm:right-6"
+            aria-label={t('messageList.scrollToBottom')}
+            onPress={scrollToBottom}
+          >
+            <Icon name="chevron-left" className="size-5 -rotate-90" />
+          </Button>
+        ) : null}
       </div>
 
       <MessageEditModal

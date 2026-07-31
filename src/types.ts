@@ -17,6 +17,7 @@ export type Chat = {
 
 export type PromptPresetId =
   | 'human'
+  | 'casual-brief'
   | 'dialogue-only'
   | 'no-emoji'
   | 'first-person'

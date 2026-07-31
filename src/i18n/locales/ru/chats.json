@@ -225,5 +225,8 @@
   "source.universe.label": "Вселенная",
   "source.worldbooks.description": "Подключённые записи лора",
   "source.worldbooks.label": "Ворлдбуки",
-  "messageList.loadEarlierMessages": "Загрузить предыдущие сообщения"
+  "messageList.loadEarlierMessages": "Загрузить предыдущие сообщения",
+  "promptRule.casualBrief.label": "Коротко и по-человечески",
+  "promptRule.casualBrief.description": "Обычно 1–3 коротких простых предложения без длинных конструкций, вступлений и лишних пояснений.",
+  "messageList.scrollToBottom": "Промотать вниз"
 }

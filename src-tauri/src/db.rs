@@ -580,16 +580,19 @@ fn message_variants_before(
     connection: &Connection,
     chat_id: &str,
     created_at: i64,
+    message_rowid: i64,
 ) -> CommandResult<HashMap<String, Vec<MessageVariant>>> {
     let mut statement = connection.prepare(
         "SELECT variants.message_id, variants.id, variants.position, variants.content, variants.created_at
          FROM message_variants variants
          INNER JOIN messages ON messages.id = variants.message_id
-         WHERE messages.chat_id = ?1 AND messages.created_at < ?2
+         WHERE messages.chat_id = ?1
+           AND (messages.created_at < ?2
+                OR (messages.created_at = ?2 AND messages.rowid < ?3))
          ORDER BY variants.message_id, variants.position ASC",
     )?;
     let rows = statement
-        .query_map(params![chat_id, created_at], |row| {
+        .query_map(params![chat_id, created_at, message_rowid], |row| {
             Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?))
         })?
         .collect::<Result<Vec<_>, _>>()?;
@@ -600,16 +603,19 @@ fn message_variants_through(
     connection: &Connection,
     chat_id: &str,
     created_at: i64,
+    message_rowid: i64,
 ) -> CommandResult<HashMap<String, Vec<MessageVariant>>> {
     let mut statement = connection.prepare(
         "SELECT variants.message_id, variants.id, variants.position, variants.content, variants.created_at
          FROM message_variants variants
          INNER JOIN messages ON messages.id = variants.message_id
-         WHERE messages.chat_id = ?1 AND messages.created_at <= ?2
+         WHERE messages.chat_id = ?1
+           AND (messages.created_at < ?2
+                OR (messages.created_at = ?2 AND messages.rowid <= ?3))
          ORDER BY variants.message_id, variants.position ASC",
     )?;
     let rows = statement
-        .query_map(params![chat_id, created_at], |row| {
+        .query_map(params![chat_id, created_at, message_rowid], |row| {
             Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?))
         })?
         .collect::<Result<Vec<_>, _>>()?;
@@ -767,6 +773,7 @@ fn get_settings(connection: &Connection) -> CommandResult<AppSettings> {
 
 fn usage_history(connection: &Connection) -> CommandResult<Vec<UsagePoint>> {
     const DAY_SECONDS: i64 = 86_400;
+    const MIN_HISTORY_DAYS: i64 = 42;
 
     let today = now_unix().div_euclid(DAY_SECONDS);
     let earliest_timestamp = connection
@@ -775,8 +782,8 @@ fn usage_history(connection: &Connection) -> CommandResult<Vec<UsagePoint>> {
         })?;
     let first_day = earliest_timestamp
         .map(|timestamp| timestamp.div_euclid(DAY_SECONDS))
-        .unwrap_or(today - 27)
-        .min(today - 27)
+        .unwrap_or(today - (MIN_HISTORY_DAYS - 1))
+        .min(today - (MIN_HISTORY_DAYS - 1))
         .min(today);
 
     let mut statement = connection
@@ -925,8 +932,9 @@ fn validate_chat_links(connection: &Connection, input: &ChatConfigInput) -> Comm
 }
 
 fn validate_prompt_config(config: &PromptConfig) -> CommandResult<()> {
-    const PRESETS: [&str; 8] = [
+    const PRESETS: [&str; 9] = [
         "human",
+        "casual-brief",
         "dialogue-only",
         "no-emoji",
         "first-person",
@@ -1138,15 +1146,16 @@ pub fn messages_before_message(
     connection: &Connection,
     message_id: &str,
 ) -> CommandResult<(String, Vec<Message>)> {
-    let (chat_id, created_at, role) = connection
+    let (chat_id, created_at, role, message_rowid) = connection
         .query_row(
-            "SELECT chat_id, created_at, role FROM messages WHERE id = ?1",
+            "SELECT chat_id, created_at, role, rowid FROM messages WHERE id = ?1",
             params![message_id],
             |row| {
                 Ok((
                     row.get::<_, String>(0)?,
                     row.get::<_, i64>(1)?,
                     row.get::<_, String>(2)?,
+                    row.get::<_, i64>(3)?,
                 ))
             },
         )
@@ -1156,15 +1165,17 @@ pub fn messages_before_message(
         return Err(CommandError::new(keys::MESSAGE_REGENERATE_ASSISTANT_ONLY));
     }
 
-    let variants = message_variants_before(connection, &chat_id, created_at)?;
+    let variants =
+        message_variants_before(connection, &chat_id, created_at, message_rowid)?;
     let mut statement = connection.prepare(
         "SELECT id, chat_id, role, content, created_at, remembered, active_variant_index
          FROM messages
-         WHERE chat_id = ?1 AND created_at < ?2
-         ORDER BY created_at ASC",
+         WHERE chat_id = ?1
+           AND (created_at < ?2 OR (created_at = ?2 AND rowid < ?3))
+         ORDER BY created_at ASC, rowid ASC",
     )?;
     let rows = statement
-        .query_map(params![chat_id, created_at], |row| {
+        .query_map(params![chat_id, created_at, message_rowid], |row| {
             Ok((
                 row.get::<_, String>(0)?,
                 row.get::<_, String>(1)?,
@@ -1184,15 +1195,16 @@ pub fn messages_through_message(
     connection: &Connection,
     message_id: &str,
 ) -> CommandResult<(String, Vec<Message>)> {
-    let (chat_id, created_at, role) = connection
+    let (chat_id, created_at, role, message_rowid) = connection
         .query_row(
-            "SELECT chat_id, created_at, role FROM messages WHERE id = ?1",
+            "SELECT chat_id, created_at, role, rowid FROM messages WHERE id = ?1",
             params![message_id],
             |row| {
                 Ok((
                     row.get::<_, String>(0)?,
                     row.get::<_, i64>(1)?,
                     row.get::<_, String>(2)?,
+                    row.get::<_, i64>(3)?,
                 ))
             },
         )
@@ -1202,15 +1214,17 @@ pub fn messages_through_message(
         return Err(CommandError::new(keys::MESSAGE_CONTINUE_ASSISTANT_ONLY));
     }
 
-    let variants = message_variants_through(connection, &chat_id, created_at)?;
+    let variants =
+        message_variants_through(connection, &chat_id, created_at, message_rowid)?;
     let mut statement = connection.prepare(
         "SELECT id, chat_id, role, content, created_at, remembered, active_variant_index
          FROM messages
-         WHERE chat_id = ?1 AND created_at <= ?2
-         ORDER BY created_at ASC",
+         WHERE chat_id = ?1
+           AND (created_at < ?2 OR (created_at = ?2 AND rowid <= ?3))
+         ORDER BY created_at ASC, rowid ASC",
     )?;
     let rows = statement
-        .query_map(params![chat_id, created_at], |row| {
+        .query_map(params![chat_id, created_at, message_rowid], |row| {
             Ok((
                 row.get::<_, String>(0)?,
                 row.get::<_, String>(1)?,

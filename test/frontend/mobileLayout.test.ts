@@ -58,3 +58,12 @@ test('usage statistic chips stack before the desktop breakpoint', async () => {
   assert.match(source, /flex flex-col gap-2[^"']*sm:flex-row/);
   assert.match(source, /w-full justify-center[^"']*sm:flex-1/);
 });
+
+test('mobile page headers are explicitly non-sticky', async () => {
+  const cssSource = await readFile(appCssPath, 'utf8');
+
+  assert.match(
+    cssSource,
+    /@media \(max-width: 820px\)[\s\S]*?\.page-header\s*\{[\s\S]*?position:\s*static/,
+  );
+});

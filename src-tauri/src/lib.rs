@@ -439,12 +439,13 @@ async fn regenerate_message(
     response_language: Option<String>,
     state: State<'_, AppState>,
 ) -> CommandResult<()> {
-    let (provider, history, system_prompt) = {
+    let (provider, history, system_prompt, regeneration_mode) = {
         let database = state.database.lock().map_err(CommandError::internal)?;
         let (chat_id, history) = db::messages_before_message(&database, &message_id)?;
-        if !matches!(history.last(), Some(message) if message.role == "user") {
-            return Err(CommandError::new(keys::MESSAGE_USER_BEFORE_ASSISTANT_MISSING));
-        }
+        let regeneration_mode = response_rules::regeneration_mode(
+            history.last().map(|message| message.role.as_str()),
+        )
+        .ok_or_else(|| CommandError::new(keys::MESSAGE_USER_BEFORE_ASSISTANT_MISSING))?;
         let provider_id = db::chat_provider_id(&database, &chat_id)?;
         let system_prompt = build_chat_system_prompt(
             &database,
@@ -456,16 +457,19 @@ async fn regenerate_message(
             db::get_provider(&database, &provider_id)?,
             history,
             system_prompt,
+            regeneration_mode,
         )
     };
     let secret = secret_for_saved_provider(&provider)?;
     let cancellation = register_generation(&state, &generation_id)?;
+    let regeneration_instruction =
+        response_rules::regeneration_instruction(regeneration_mode, response_language.as_deref());
     let completion = complete_cancellable(
         &provider,
         secret.as_deref(),
         &history,
         system_prompt.as_deref(),
-        None,
+        regeneration_instruction,
         cancellation,
     )
     .await;

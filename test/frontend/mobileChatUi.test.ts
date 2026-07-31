@@ -64,17 +64,14 @@ test('mobile message actions open dialogs directly from menu item clicks', async
 });
 
 test('mobile variant history is viewport bounded and does not use a side submenu', async () => {
-  const [messageSource, modalSource, uiModalSource] = await Promise.all([
+  const [messageSource, modalSource] = await Promise.all([
     readFile(messageListPath, 'utf8'),
     readFile(historyModalPath, 'utf8'),
-    readFile(uiModalPath, 'utf8'),
   ]);
 
   assert.match(messageSource, /max-h-\[calc\(100dvh-1rem\)\]/);
   assert.match(modalSource, /max-h-\[min\(28dvh,12rem\)\]/);
   assert.match(modalSource, /bodyClassName="max-h-full"/);
-  assert.match(uiModalSource, /window\.visualViewport\?\.height/);
-  assert.match(uiModalSource, /min-h-0 min-w-0 flex-1/);
 });
 
 test('chat title uses a full mobile modal and keeps desktop popover', async () => {
@@ -93,4 +90,21 @@ test('mobile modal transitions reuse the pending history entry', async () => {
   assert.match(source, /window\.history\.replaceState/);
   assert.match(source, /scheduleHistoryEntryRemoval/);
   assert.match(source, /window\.setTimeout\([\s\S]*window\.history\.back\(\)/);
+});
+
+test('mobile modal keeps its layout viewport while the keyboard changes the visual viewport', async () => {
+  const source = await readFile(uiModalPath, 'utf8');
+
+  assert.match(source, /const layoutViewport = \(\) => \(\{/);
+  assert.match(source, /setMobileLayoutViewport\(layoutViewport\(\)\)/);
+  assert.match(source, /!h-\[var\(--ui-modal-layout-height\)\]/);
+  assert.match(source, /minWidth: mobileLayoutViewport\.width/);
+  assert.match(source, /maxHeight: mobileLayoutViewport\.height/);
+  assert.match(source, /'--ui-modal-layout-height'/);
+  assert.match(
+    source,
+    /window\.addEventListener\('orientationchange', updateForOrientation\)/,
+  );
+  assert.doesNotMatch(source, /window\.visualViewport/);
+  assert.doesNotMatch(source, /window\.addEventListener\('resize'/);
 });
