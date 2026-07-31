@@ -22,6 +22,8 @@
   "ai.dynamic.title": "Dynamic context",
   "ai.dynamic.triggerMessages": "Analysis trigger",
   "ai.dynamic.triggerMessagesDescription": "Run compaction after this many unsummarized messages accumulate.",
+  "ai.module.collapseSettings": "Collapse {{module}} settings",
+  "ai.module.expandSettings": "Expand {{module}} settings",
   "ai.retry.description": "Automatically retry temporary provider and network failures.",
   "ai.retry.enabled": "Retry failed AI requests",
   "ai.retry.enabledDescription": "Applies to generation, analysis, model discovery, health checks, and embeddings.",
@@ -55,5 +57,9 @@
   "ai.semantic.topK": "Retrieved memories",
   "ai.semantic.topKDescription": "Maximum number of the most relevant memories added to a prompt.",
   "settingsScreen.interfaceChatBehaviorAndSettingsForThisDevice": "Interface, chat behavior, and settings for this device.",
-  "settingsScreen.settings": "Settings"
+  "settingsScreen.modules": "Modules",
+  "settingsScreen.parameters": "Parameters",
+  "settingsScreen.parametersAndModulesForThisDevice": "Application parameters and optional AI modules for this device.",
+  "settingsScreen.settings": "Settings",
+  "settingsScreen.settingsSections": "Settings sections"
 }

@@ -10,6 +10,10 @@ const settingsPath = new URL(
   '../../src/features/settings/SettingsScreen.tsx',
   import.meta.url,
 );
+const moduleCardPath = new URL(
+  '../../src/features/settings/components/ModuleFields.tsx',
+  import.meta.url,
+);
 const telescopeTransferPath = new URL(
   '../../src/features/telescope/transfer.ts',
   import.meta.url,
@@ -30,6 +34,30 @@ test('new AI modules are backward-compatible and independently configurable', as
   assert.match(controller, /semanticMemory:\s*\{[\s\S]*enabled: false/);
   assert.match(settings, /<AiModulesSettings/);
   assert.match(settings, /providers=\{providers\}/);
+});
+
+test('settings separate parameters and independently collapsible modules', async () => {
+  const [settings, moduleCard] = await Promise.all([
+    readFile(settingsPath, 'utf8'),
+    readFile(moduleCardPath, 'utf8'),
+  ]);
+
+  assert.match(settings, /useState<SettingsSection>\('parameters'\)/);
+  assert.match(settings, /<Tabs\.Tab id=\"parameters\">/);
+  assert.match(settings, /<Tabs\.Tab id=\"modules\">/);
+  assert.match(
+    settings,
+    /<Tabs\.Panel id=\"parameters\"[\s\S]*<ProfilePreferences/,
+  );
+  assert.match(
+    settings,
+    /<Tabs\.Panel id=\"modules\"[\s\S]*<AiModulesSettings/,
+  );
+  assert.match(moduleCard, /useState\(true\)/);
+  assert.match(moduleCard, /aria-expanded=\{isExpanded\}/);
+  assert.match(moduleCard, /showDescription=\{isExpanded\}/);
+  assert.match(moduleCard, /hidden=\{!isExpanded \|\| !enabled\}/);
+  assert.doesNotMatch(moduleCard, /Accordion|DisclosureGroup/);
 });
 
 test('embedding capability survives Telescope export and has a backend probe', async () => {

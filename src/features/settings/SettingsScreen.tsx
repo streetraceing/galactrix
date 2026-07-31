@@ -1,8 +1,12 @@
+import { Tabs } from '@heroui/react';
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { PageHeader } from '../../components/ui/PageHeader';
 import type { AppSettings, Provider } from '../../types';
 import { ProfilePreferences } from '../profile/components/ProfilePreferences';
 import { AiModulesSettings } from './components/AiModulesSettings';
-import { useTranslation } from 'react-i18next';
+
+type SettingsSection = 'parameters' | 'modules';
 
 export function SettingsScreen({
   settings,
@@ -16,29 +20,56 @@ export function SettingsScreen({
   onChangeSettings: (settings: AppSettings) => Promise<boolean>;
 }) {
   const { t } = useTranslation('settings');
+  const [section, setSection] = useState<SettingsSection>('parameters');
+
   return (
     <div className="page-scroll mobile-screen-enter flex-1">
       <div className="page-container">
         <PageHeader
           title={t('settingsScreen.settings')}
-          description={t(
-            'settingsScreen.interfaceChatBehaviorAndSettingsForThisDevice',
-          )}
+          description={t('settingsScreen.parametersAndModulesForThisDevice')}
         />
-        <div className="space-y-4 sm:space-y-5">
-          <AiModulesSettings
-            value={settings.aiModules}
-            providers={providers}
-            onChange={(aiModules) => {
-              void onChangeSettings({ ...settings, aiModules });
-            }}
-          />
-          <ProfilePreferences
-            settings={settings}
-            appVersion={appVersion}
-            onChangeSettings={onChangeSettings}
-          />
-        </div>
+
+        <Tabs
+          selectedKey={section}
+          onSelectionChange={(key) =>
+            setSection(String(key) as SettingsSection)
+          }
+          className="w-full"
+        >
+          <Tabs.ListContainer className="w-full">
+            <Tabs.List
+              aria-label={t('settingsScreen.settingsSections')}
+              className="w-full *:min-w-0 *:flex-1 *:px-3 sm:*:px-4"
+            >
+              <Tabs.Tab id="parameters">
+                {t('settingsScreen.parameters')}
+                <Tabs.Indicator />
+              </Tabs.Tab>
+              <Tabs.Tab id="modules">
+                {t('settingsScreen.modules')}
+                <Tabs.Indicator />
+              </Tabs.Tab>
+            </Tabs.List>
+          </Tabs.ListContainer>
+
+          <Tabs.Panel id="parameters" className="pt-5 sm:pt-6">
+            <ProfilePreferences
+              settings={settings}
+              appVersion={appVersion}
+              onChangeSettings={onChangeSettings}
+            />
+          </Tabs.Panel>
+          <Tabs.Panel id="modules" className="pt-5 sm:pt-6">
+            <AiModulesSettings
+              value={settings.aiModules}
+              providers={providers}
+              onChange={(aiModules) => {
+                void onChangeSettings({ ...settings, aiModules });
+              }}
+            />
+          </Tabs.Panel>
+        </Tabs>
       </div>
     </div>
   );

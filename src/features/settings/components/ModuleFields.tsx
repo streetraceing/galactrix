@@ -1,6 +1,15 @@
-import { Input, Label, ListBox, Select } from '@heroui/react';
-import type { ChangeEvent, Key } from 'react';
+import { Input, Label, ListBox, Select, Surface } from '@heroui/react';
+import {
+  useId,
+  useState,
+  type ChangeEvent,
+  type Key,
+  type ReactNode,
+} from 'react';
+import { Icon, type IconName } from '../../../components/Icon';
 import type { Provider } from '../../../types';
+import { SettingSwitchRow } from '../../profile/components/SettingSwitchRow';
+import { useTranslation } from 'react-i18next';
 
 export function ModuleNumberField({
   label,
@@ -104,5 +113,78 @@ export function ModuleProviderSelect({
         </Select.Popover>
       </Select>
     </div>
+  );
+}
+
+export function ModuleSettingsCard({
+  icon,
+  title,
+  description,
+  enabledLabel,
+  enabledDescription,
+  enabled,
+  onEnabledChange,
+  children,
+}: {
+  icon: IconName;
+  title: string;
+  description: string;
+  enabledLabel: string;
+  enabledDescription: string;
+  enabled: boolean;
+  onEnabledChange: (enabled: boolean) => void;
+  children: ReactNode;
+}) {
+  const { t } = useTranslation('settings');
+  const [isExpanded, setIsExpanded] = useState(true);
+  const panelId = useId();
+
+  return (
+    <Surface className="settings-card-enter w-full min-w-0 max-w-full overflow-hidden rounded-2xl border border-separator bg-surface p-4 shadow-surface ring-1 ring-inset ring-foreground/5 sm:p-5">
+      <button
+        type="button"
+        className="flex w-full min-w-0 items-center gap-3 rounded-xl text-left outline-none transition focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+        aria-expanded={isExpanded}
+        aria-controls={panelId}
+        aria-label={t(
+          isExpanded
+            ? 'ai.module.collapseSettings'
+            : 'ai.module.expandSettings',
+          { module: title },
+        )}
+        onClick={() => setIsExpanded((current) => !current)}
+      >
+        <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent/10 text-accent">
+          <Icon name={icon} className="size-5" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="section-title block">{title}</span>
+          {isExpanded ? (
+            <span className="section-description block">{description}</span>
+          ) : null}
+        </span>
+        <Icon
+          name="chevron"
+          className={`size-4 shrink-0 text-muted transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+        />
+      </button>
+
+      <div className="mt-4">
+        <SettingSwitchRow
+          label={enabledLabel}
+          description={enabledDescription}
+          value={enabled}
+          onChange={onEnabledChange}
+          showDescription={isExpanded}
+        />
+        <div
+          id={panelId}
+          hidden={!isExpanded || !enabled}
+          className="mt-3 divide-y divide-separator border-t border-separator pt-3"
+        >
+          {children}
+        </div>
+      </div>
+    </Surface>
   );
 }
