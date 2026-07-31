@@ -29,7 +29,7 @@ export function LanguageSettings({
 }) {
   const { t } = useTranslation('profile');
   return (
-    <Surface className="rounded-2xl border border-separator p-4 sm:p-5">
+    <Surface className="w-full min-w-0 max-w-full overflow-hidden rounded-2xl border border-separator p-4 sm:p-5">
       <h2 className="section-title">
         {t('languageSettings.interfaceLanguage')}
       </h2>
@@ -38,6 +38,8 @@ export function LanguageSettings({
       </p>
       <div className="mt-4 flex flex-col gap-1.5">
         <Select
+          fullWidth
+          className="w-full min-w-0 max-w-full"
           aria-label={t('languageSettings.interfaceLanguage')}
           variant="secondary"
           value={value}
@@ -47,7 +49,7 @@ export function LanguageSettings({
             }
           }}
         >
-          <Select.Trigger className="w-full">
+          <Select.Trigger className="w-full min-w-0 max-w-full">
             <Select.Value />
             <Select.Indicator />
           </Select.Trigger>

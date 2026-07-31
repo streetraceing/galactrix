@@ -38,9 +38,9 @@ export function ScaleSettings({
   };
 
   return (
-    <Surface className="h-full rounded-2xl border border-separator p-4 sm:p-5">
+    <Surface className="h-full w-full min-w-0 max-w-full overflow-hidden rounded-2xl border border-separator p-4 sm:p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
+        <div className="min-w-0">
           <h2 className="section-title">{t('scaleSettings.interfaceScale')}</h2>
           <p className="section-description">
             {t('scaleSettings.currentScale')}
@@ -72,8 +72,9 @@ export function ScaleSettings({
         </TooltipIconButton>
 
         <Select
+          fullWidth
           aria-label={t('scaleSettings.interfaceScale')}
-          className="min-w-0 flex-1"
+          className="w-full min-w-0 flex-1"
           variant="secondary"
           value={String(currentScale)}
           onChange={(selected) => {
@@ -86,7 +87,7 @@ export function ScaleSettings({
             }
           }}
         >
-          <Select.Trigger className="w-full">
+          <Select.Trigger className="w-full min-w-0 max-w-full">
             <Select.Value />
             <Select.Indicator />
           </Select.Trigger>

@@ -64,6 +64,39 @@ fn assistant_message_creates_initial_variant_and_updates_summary() {
 }
 
 #[test]
+fn continuation_is_saved_as_a_separate_assistant_message() {
+    let connection = test_database();
+    create_test_chat(&connection, "chat-1");
+    add_user_message(&connection, "chat-1", "user-1", "continue please")
+        .expect("user message must persist");
+    add_assistant_message(&connection, "chat-1", "assistant-1", "first part")
+        .expect("initial assistant message must persist");
+    add_assistant_message(&connection, "chat-1", "assistant-2", "second part")
+        .expect("continuation must persist as another assistant message");
+
+    let state = chat_state(&connection, "chat-1").expect("chat state must load");
+    assert_eq!(state.chat.message_count, 3);
+    assert_eq!(state.chat.preview, "second part");
+    assert_eq!(state.messages.len(), 3);
+
+    let first = state
+        .messages
+        .iter()
+        .find(|message| message.id == "assistant-1")
+        .expect("initial assistant message must remain");
+    let continuation = state
+        .messages
+        .iter()
+        .find(|message| message.id == "assistant-2")
+        .expect("continuation message must exist");
+
+    assert_eq!(first.content, "first part");
+    assert_eq!(first.variants.len(), 1);
+    assert_eq!(continuation.content, "second part");
+    assert_eq!(continuation.variants.len(), 1);
+}
+
+#[test]
 fn get_chat_loads_worldbooks_in_position_order() {
     let connection = test_database();
     create_test_chat(&connection, "chat-1");

@@ -43,7 +43,7 @@ export function ChatPreferences({
           disallowEmptySelection
           selectionMode="single"
           selectedKeys={new Set([settings.chatViewMode])}
-          className="mt-3 flex gap-2"
+          className="mt-3 flex flex-col gap-2 sm:flex-row"
           onSelectionChange={(keys) => {
             const value = [...keys][0];
             if (value === 'conversation' || value === 'messenger') {
@@ -54,7 +54,7 @@ export function ChatPreferences({
           <ToggleButton
             id="conversation"
             variant="default"
-            className="h-auto min-w-0 justify-start gap-3 rounded-xl px-3 py-2.5 text-left"
+            className="h-auto w-full min-w-0 justify-start gap-3 rounded-xl px-3 py-2.5 text-left"
           >
             <Icon name="chats" className="size-4 shrink-0" />
             <span className="min-w-0">
@@ -69,7 +69,7 @@ export function ChatPreferences({
           <ToggleButton
             id="messenger"
             variant="default"
-            className="h-auto min-w-0 justify-start gap-3 rounded-xl px-3 py-2.5 text-left"
+            className="h-auto w-full min-w-0 justify-start gap-3 rounded-xl px-3 py-2.5 text-left"
           >
             <Icon name="message_box" className="size-4 shrink-0" />
             <span className="min-w-0">
@@ -116,6 +116,7 @@ export function ChatPreferences({
         </p>
         <Select
           fullWidth
+          className="min-w-0 max-w-full"
           variant="secondary"
           value={settings.responseLanguage}
           aria-label={t('profilePreferences.responseLanguage')}
@@ -125,7 +126,7 @@ export function ChatPreferences({
             }
           }}
         >
-          <Select.Trigger className="mt-1">
+          <Select.Trigger className="mt-1 w-full min-w-0 max-w-full">
             <Select.Value />
             <Select.Indicator />
           </Select.Trigger>

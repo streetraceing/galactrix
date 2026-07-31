@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 export function AppInfo({ version }: { version: string }) {
   const { t } = useTranslation('profile');
   return (
-    <Surface className="flex items-center gap-3 rounded-2xl border border-separator p-4">
+    <Surface className="flex w-full min-w-0 max-w-full items-center gap-3 overflow-hidden rounded-2xl border border-separator p-4">
       <div>
         <BrandMark size={38} />
       </div>

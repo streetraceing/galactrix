@@ -404,12 +404,12 @@
 
 @layer components {
   .page-scroll {
-    @apply scrollbar-thin h-full overflow-y-auto bg-background flex justify-center;
+    @apply scrollbar-thin flex h-full min-w-0 max-w-full justify-center overflow-x-hidden overflow-y-auto bg-background;
     scrollbar-gutter: stable;
   }
 
   .page-container {
-    @apply flex flex-1 w-full max-w-7xl flex-col gap-5 px-4 py-5 sm:gap-6 sm:px-6 sm:py-6 lg:px-8;
+    @apply flex min-w-0 max-w-full flex-1 w-full max-w-7xl flex-col gap-5 overflow-x-clip px-4 py-5 sm:gap-6 sm:px-6 sm:py-6 lg:px-8;
   }
 
   .page-title {
@@ -712,6 +712,42 @@
 }
 
 @media (max-width: 820px) {
+  .page-scroll {
+    width: 100%;
+    max-width: 100%;
+    justify-content: flex-start;
+  }
+
+  .page-container {
+    flex: 0 0 100%;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  .page-header-copy {
+    height: 5.5rem;
+    min-height: 5.5rem;
+    max-height: 5.5rem;
+  }
+
+  .page-title {
+    font-size: 1.25rem;
+    line-height: 1.75rem;
+    text-align: center;
+  }
+
+  .page-description {
+    display: -webkit-box;
+    max-width: 32rem;
+    margin-right: auto;
+    margin-left: auto;
+    overflow: hidden;
+    text-align: center;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
   .mobile-screen-enter {
     animation: galactrix-screen-enter var(--motion-standard) var(--motion-ease)
       both;

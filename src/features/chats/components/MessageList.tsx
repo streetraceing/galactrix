@@ -94,13 +94,20 @@ function MessageMenu({
     void action().catch((error) => onError(String(error)));
   };
   const isAssistant = message.role === 'assistant';
+  const [menuOpen, setMenuOpen] = useState(false);
+  const deferOverlayAction = (action: () => void) => {
+    setMenuOpen(false);
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(action);
+    });
+  };
 
   return (
-    <ContextMenu>
+    <ContextMenu open={menuOpen} onOpenChange={setMenuOpen}>
       <ContextMenuTrigger className="block min-w-0">
         {children}
       </ContextMenuTrigger>
-      <ContextMenuContent className="w-64">
+      <ContextMenuContent className="w-[min(16rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)]">
         <ContextMenuLabel>
           {isAssistant
             ? t('messageList.assistantResponse')
@@ -126,7 +133,7 @@ function MessageMenu({
                   {message.activeVariantIndex + 1}/{message.variants.length}
                 </span>
               </ContextMenuSubTrigger>
-              <ContextMenuSubContent className="w-72">
+              <ContextMenuSubContent className="w-[min(18rem,calc(100vw-1rem))] max-h-[min(60dvh,24rem)] max-w-[calc(100vw-1rem)] overflow-y-auto overscroll-contain">
                 <ContextMenuLabel>
                   {t('messageList.savedVariants')}
                 </ContextMenuLabel>
@@ -152,7 +159,9 @@ function MessageMenu({
                   </ContextMenuItem>
                 ))}
                 <ContextMenuSeparator />
-                <ContextMenuItem onClick={onHistoryRequest}>
+                <ContextMenuItem
+                  onClick={() => deferOverlayAction(onHistoryRequest)}
+                >
                   <Icon name="history" className="size-4" />
                   {t('messageList.openFullHistory')}
                 </ContextMenuItem>
@@ -169,7 +178,7 @@ function MessageMenu({
           <Icon name="copy" className="size-4" />
           {t('messageList.copy')}
         </ContextMenuItem>
-        <ContextMenuItem onClick={onEditRequest}>
+        <ContextMenuItem onClick={() => deferOverlayAction(onEditRequest)}>
           <Icon name="edit" className="size-4" />
           {t('messageList.edit')}
         </ContextMenuItem>
@@ -182,7 +191,10 @@ function MessageMenu({
             : t('messageList.remember')}
         </ContextMenuItem>
         <ContextMenuSeparator />
-        <ContextMenuItem variant="destructive" onClick={onDeleteRequest}>
+        <ContextMenuItem
+          variant="destructive"
+          onClick={() => deferOverlayAction(onDeleteRequest)}
+        >
           <Icon name="trash" className="size-4" />
           {t('chatDialogs.delete')}
         </ContextMenuItem>
@@ -208,9 +220,11 @@ function getActiveVariantPosition(message: Message) {
 function AnimatedVariantContent({
   message,
   direction,
+  enabled = true,
 }: {
   message: Message;
   direction: VariantDirection;
+  enabled?: boolean;
 }) {
   const contentRef = useRef<HTMLDivElement | null>(null);
   const animationRef = useRef<Animation | null>(null);
@@ -240,6 +254,7 @@ function AnimatedVariantContent({
     animationRef.current = null;
 
     if (
+      !enabled ||
       !element ||
       document.documentElement.dataset.animations === 'off' ||
       typeof element.animate !== 'function'
@@ -270,7 +285,7 @@ function AnimatedVariantContent({
       });
 
     return () => animation.cancel();
-  }, [message.activeVariantIndex, message.content]);
+  }, [enabled, message.activeVariantIndex, message.content]);
 
   return (
     <div ref={contentRef}>
@@ -285,14 +300,12 @@ function VariantNavigator({
   onSelect,
   onHistory,
   onRegenerate,
-  onContinue,
 }: {
   message: Message;
   compact?: boolean;
   onSelect: (index: number) => void;
   onHistory: () => void;
   onRegenerate?: () => void;
-  onContinue?: () => void;
 }) {
   const { t } = useTranslation('chats');
   const count = message.variants.length;
@@ -315,18 +328,6 @@ function VariantNavigator({
             <Icon name="chevron-right" className="size-3" />
           ) : null}
         </span>
-        {onContinue ? (
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-6 min-w-0 gap-1 px-2 text-xs text-accent"
-            aria-label={t('messageList.continueResponse')}
-            onPress={onContinue}
-          >
-            <Icon name="sparkles" className="size-3.5" />
-            {t('messageList.continueResponseShort')}
-          </Button>
-        ) : null}
         <Button
           size="sm"
           variant="ghost"
@@ -503,6 +504,23 @@ function DesktopMessageActions({
   );
 }
 
+function nextAnimationFrame() {
+  return new Promise<void>((resolve) => {
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => resolve());
+    });
+  });
+}
+
+async function finishAnimation(animation: Animation | null) {
+  if (!animation) return;
+  try {
+    await animation.finished;
+  } catch {
+    // A newer gesture can cancel the previous animation.
+  }
+}
+
 function SwipeableMessage({
   message,
   children,
@@ -517,22 +535,71 @@ function SwipeableMessage({
   onError: (message: string) => void;
 }) {
   const { t } = useTranslation('chats');
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const motionRef = useRef<HTMLDivElement | null>(null);
   const pointerStart = useRef<{
     id: number;
     x: number;
     y: number;
+    axis: 'pending' | 'horizontal' | 'vertical';
   } | null>(null);
+  const dragOffsetRef = useRef(0);
   const selectingVariant = useRef(false);
+  const gestureAnimations = useRef<Animation[]>([]);
   const [dragOffset, setDragOffset] = useState(0);
   const [dragging, setDragging] = useState(false);
+
+  const cancelGestureAnimations = () => {
+    for (const animation of gestureAnimations.current) animation.cancel();
+    gestureAnimations.current = [];
+  };
 
   const resetPointer = () => {
     pointerStart.current = null;
   };
 
+  const setOffset = (offset: number) => {
+    dragOffsetRef.current = offset;
+    setDragOffset(offset);
+  };
+
   const settle = () => {
     setDragging(false);
-    setDragOffset(0);
+    setOffset(0);
+  };
+
+  const animateBackToRest = async () => {
+    const motion = motionRef.current;
+    if (
+      !motion ||
+      typeof motion.animate !== 'function' ||
+      document.documentElement.dataset.animations === 'off'
+    ) {
+      settle();
+      return;
+    }
+
+    cancelGestureAnimations();
+    setDragging(false);
+    const animation = motion.animate(
+      [
+        {
+          opacity: 1 - Math.min(Math.abs(dragOffsetRef.current) / 56, 1) * 0.08,
+          transform: `translate3d(${dragOffsetRef.current}px, 0, 0)`,
+        },
+        { opacity: 1, transform: 'translate3d(0, 0, 0)' },
+      ],
+      {
+        duration: 170,
+        easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)',
+      },
+    );
+    gestureAnimations.current = [animation];
+    await finishAnimation(animation);
+    if (gestureAnimations.current.includes(animation)) {
+      gestureAnimations.current = [];
+    }
+    setOffset(0);
   };
 
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -545,13 +612,13 @@ function SwipeableMessage({
       return;
     }
 
+    cancelGestureAnimations();
     pointerStart.current = {
       id: event.pointerId,
       x: event.clientX,
       y: event.clientY,
+      axis: 'pending',
     };
-    setDragging(true);
-    event.currentTarget.setPointerCapture(event.pointerId);
   };
 
   const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -562,13 +629,127 @@ function SwipeableMessage({
 
     const dx = event.clientX - start.x;
     const dy = event.clientY - start.y;
-    if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 10) return;
+    if (start.axis === 'pending') {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) < 9) return;
+      start.axis =
+        Math.abs(dx) > Math.abs(dy) * 1.15 ? 'horizontal' : 'vertical';
+      if (start.axis === 'vertical') return;
+      if (!event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.setPointerCapture(event.pointerId);
+      }
+      setDragging(true);
+    }
+
+    if (start.axis !== 'horizontal') return;
+    event.preventDefault();
 
     const activePosition = getActiveVariantPosition(message);
     const hasTarget =
       dx < 0 ? true : Boolean(message.variants[activePosition - 1]);
     const resistance = hasTarget ? 0.58 : 0.16;
-    setDragOffset(Math.max(-88, Math.min(88, dx * resistance)));
+    setOffset(Math.max(-88, Math.min(88, dx * resistance)));
+  };
+
+  const runCommittedGesture = async (
+    direction: -1 | 1,
+    action: () => Promise<void>,
+    waitForCompletionBeforeEntry: boolean,
+  ) => {
+    const container = containerRef.current;
+    const motion = motionRef.current;
+    const oldHeight = container?.getBoundingClientRect().height ?? 0;
+    const animationsEnabled =
+      document.documentElement.dataset.animations !== 'off' &&
+      typeof motion?.animate === 'function';
+
+    cancelGestureAnimations();
+    setDragging(false);
+    selectingVariant.current = true;
+
+    if (container && oldHeight > 0) {
+      container.style.height = `${oldHeight}px`;
+      container.style.overflow = 'clip';
+    }
+
+    const exitAnimation = animationsEnabled
+      ? motion!.animate(
+          [
+            {
+              opacity:
+                1 - Math.min(Math.abs(dragOffsetRef.current) / 56, 1) * 0.08,
+              transform: `translate3d(${dragOffsetRef.current}px, 0, 0)`,
+            },
+            {
+              opacity: 0.08,
+              transform: `translate3d(${direction * 72}px, 0, 0)`,
+            },
+          ],
+          {
+            duration: 135,
+            easing: 'cubic-bezier(0.4, 0, 1, 1)',
+            fill: 'forwards',
+          },
+        )
+      : null;
+    if (exitAnimation) gestureAnimations.current = [exitAnimation];
+    await finishAnimation(exitAnimation);
+
+    const resultPromise = action().then(
+      () => ({ ok: true as const }),
+      (error: unknown) => ({ ok: false as const, error }),
+    );
+    let result: { ok: true } | { ok: false; error: unknown } | undefined;
+    if (waitForCompletionBeforeEntry) result = await resultPromise;
+    await nextAnimationFrame();
+
+    setOffset(0);
+    exitAnimation?.cancel();
+
+    const nextHeight = motion?.getBoundingClientRect().height ?? oldHeight;
+    const entryAnimation = animationsEnabled
+      ? motion!.animate(
+          [
+            {
+              opacity: 0.18,
+              transform: `translate3d(${-direction * 56}px, 0, 0)`,
+            },
+            { opacity: 1, transform: 'translate3d(0, 0, 0)' },
+          ],
+          {
+            duration: 210,
+            easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
+          },
+        )
+      : null;
+    const heightAnimation =
+      animationsEnabled && container && oldHeight > 0 && nextHeight > 0
+        ? container.animate(
+            [{ height: `${oldHeight}px` }, { height: `${nextHeight}px` }],
+            {
+              duration: 210,
+              easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
+            },
+          )
+        : null;
+    gestureAnimations.current = [entryAnimation, heightAnimation].filter(
+      (animation): animation is Animation => Boolean(animation),
+    );
+    await Promise.all([
+      finishAnimation(entryAnimation),
+      finishAnimation(heightAnimation),
+    ]);
+
+    cancelGestureAnimations();
+    if (container) {
+      container.style.removeProperty('height');
+      container.style.removeProperty('overflow');
+    }
+
+    if (!result) result = await resultPromise;
+    if (!result.ok) {
+      onError(String(result.error));
+    }
+    selectingVariant.current = false;
   };
 
   const onPointerUp = async (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -584,8 +765,12 @@ function SwipeableMessage({
 
     const dx = event.clientX - start.x;
     const dy = event.clientY - start.y;
-    if (Math.abs(dx) < 48 || Math.abs(dx) <= Math.abs(dy) * 1.2) {
-      settle();
+    if (
+      start.axis !== 'horizontal' ||
+      Math.abs(dx) < 48 ||
+      Math.abs(dx) <= Math.abs(dy) * 1.2
+    ) {
+      await animateBackToRest();
       return;
     }
 
@@ -594,31 +779,24 @@ function SwipeableMessage({
     const nextVariant = message.variants[nextPosition];
     const shouldRegenerate = dx < 0 && !nextVariant;
     if (!nextVariant && !shouldRegenerate) {
-      settle();
+      await animateBackToRest();
       return;
     }
 
-    selectingVariant.current = true;
-    setDragging(false);
-    setDragOffset(0);
-
-    try {
-      if (shouldRegenerate) {
-        await onRegenerate(message.id);
-      } else if (nextVariant) {
-        await onSelectVariant(message.id, nextVariant.index);
-      }
-    } catch (error) {
-      onError(String(error));
-      settle();
-    } finally {
-      selectingVariant.current = false;
-    }
+    const direction = dx < 0 ? -1 : 1;
+    await runCommittedGesture(
+      direction,
+      () =>
+        shouldRegenerate
+          ? onRegenerate(message.id)
+          : onSelectVariant(message.id, nextVariant!.index),
+      !shouldRegenerate,
+    );
   };
 
   const cancelPointer = () => {
     resetPointer();
-    settle();
+    void animateBackToRest();
   };
 
   const activePosition = getActiveVariantPosition(message);
@@ -630,10 +808,11 @@ function SwipeableMessage({
 
   return (
     <div
-      className="relative touch-pan-y"
+      ref={containerRef}
+      className="relative touch-pan-y overflow-x-clip"
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
+      onPointerUp={(event) => void onPointerUp(event)}
       onPointerCancel={cancelPointer}
       onLostPointerCapture={resetPointer}
     >
@@ -669,11 +848,15 @@ function SwipeableMessage({
         </span>
       </div>
       <div
-        className={`${dragging ? '' : 'transition-[transform,opacity] duration-(--motion-standard) ease-(--motion-ease)'} relative z-10`}
+        ref={motionRef}
+        className="relative z-10"
         style={{
           opacity: 1 - revealProgress * 0.08,
           transform: `translate3d(${dragOffset}px, 0, 0)`,
-          willChange: dragOffset ? 'transform, opacity' : 'auto',
+          willChange:
+            dragging || selectingVariant.current
+              ? 'transform, opacity'
+              : 'auto',
         }}
       >
         {children}
@@ -941,13 +1124,12 @@ function MessageListComponent({
     }));
     try {
       await onSelectVariant(messageId, variantIndex);
-      await new Promise((resolve) =>
-        window.setTimeout(resolve, VARIANT_SELECTION_LOCK_MS),
-      );
     } finally {
-      if (variantSelectionRef.current === messageId) {
-        variantSelectionRef.current = null;
-      }
+      window.setTimeout(() => {
+        if (variantSelectionRef.current === messageId) {
+          variantSelectionRef.current = null;
+        }
+      }, VARIANT_SELECTION_LOCK_MS);
     }
   };
 
@@ -1049,8 +1231,6 @@ function MessageListComponent({
             const isGenerating = messageGeneration?.messageId === message.id;
             const isRegenerating =
               isGenerating && messageGeneration?.mode === 'regenerate';
-            const isContinuing =
-              isGenerating && messageGeneration?.mode === 'continue';
 
             const content = (
               <MessageMenu
@@ -1134,22 +1314,8 @@ function MessageListComponent({
                           <AnimatedVariantContent
                             message={message}
                             direction={variantDirections[message.id] ?? 'next'}
+                            enabled={!isMobile}
                           />
-                          {isContinuing ? (
-                            <div
-                              className="mt-2 flex h-4 items-center gap-1"
-                              role="status"
-                              aria-label={t('messageList.isTyping')}
-                            >
-                              {[0, 1, 2].map((index) => (
-                                <span
-                                  key={index}
-                                  className="typing-dot size-1 rounded-full bg-accent"
-                                  style={{ animationDelay: `${index * 140}ms` }}
-                                />
-                              ))}
-                            </div>
-                          ) : null}
                         </>
                       )}
                     </Surface>
@@ -1176,9 +1342,6 @@ function MessageListComponent({
                           )
                         }
                         onHistory={history}
-                        onContinue={() =>
-                          void continueResponse(message.id).catch(reportError)
-                        }
                       />
                     )}
                   </div>
@@ -1238,7 +1401,8 @@ function MessageListComponent({
             </article>
           ) : null}
 
-          {sending && !messageGeneration ? (
+          {sending &&
+          (!messageGeneration || messageGeneration.mode === 'continue') ? (
             <article className="message-enter flex items-start gap-2.5 sm:gap-3">
               {showAvatars ? (
                 <AppAvatar

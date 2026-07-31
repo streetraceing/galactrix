@@ -236,30 +236,36 @@ export function UsageTimeline({
         })}
       </div>
 
-      <div className="flex gap-3 border-t border-separator p-4 sm:p-5">
+      <div className="flex flex-col gap-2 border-t border-separator p-4 sm:flex-row sm:gap-3 sm:p-5">
         {metric === 'tokens' ? (
           <>
-            <Chip variant="soft" className="justify-center flex-1 gap-1">
+            <Chip
+              variant="soft"
+              className="w-full justify-center gap-1 sm:flex-1"
+            >
               <span className="size-2 rounded-full bg-accent" />
               {`${t('usageTimeline.context')} ${formatTokens(selected.inputTokens)}`}
             </Chip>
-            <Chip variant="soft" className="justify-center flex-1 gap-1">
+            <Chip
+              variant="soft"
+              className="w-full justify-center gap-1 sm:flex-1"
+            >
               <span className="size-2 rounded-full bg-success" />
               {`${t('usageTimeline.responses')} ${formatTokens(selected.outputTokens)}`}
             </Chip>
-            <Chip variant="soft" className="justify-center flex-1">
+            <Chip variant="soft" className="w-full justify-center sm:flex-1">
               {`${t('usageTimeline.average')} ${formatTokens(average)} ${t('usageTimeline.request')}`}
             </Chip>
           </>
         ) : (
           <>
-            <Chip variant="soft" className="justify-center flex-1">
+            <Chip variant="soft" className="w-full justify-center sm:flex-1">
               {`${t('usageTimeline.perDay')} ${t('count.request', { count: selected.requests })}`}
             </Chip>
-            <Chip variant="soft" className="justify-center flex-1">
+            <Chip variant="soft" className="w-full justify-center sm:flex-1">
               {`${t('usageTimeline.tokens')} ${formatTokens(selected.tokens)}`}
             </Chip>
-            <Chip variant="soft" className="justify-center flex-1">
+            <Chip variant="soft" className="w-full justify-center sm:flex-1">
               {`${t('usageTimeline.periodTotal')} ${t('count.request', { count: total })}`}
             </Chip>
           </>

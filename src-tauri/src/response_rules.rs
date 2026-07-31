@@ -51,36 +51,6 @@ pub fn continuation_instruction(response_language: Option<&str>) -> &'static str
     }
 }
 
-pub fn merge_continuation(original: &str, continuation: &str) -> String {
-    let original = original.trim_end();
-    let continuation = continuation.trim_start();
-    if original.is_empty() {
-        return continuation.to_owned();
-    }
-    if continuation.is_empty() {
-        return original.to_owned();
-    }
-
-    let starts_with_punctuation = continuation.chars().next().is_some_and(|character| {
-        matches!(character, ',' | '.' | '!' | '?' | ':' | ';' | '…')
-    });
-    let ends_complete_thought = original.chars().next_back().is_some_and(|character| {
-        matches!(
-            character,
-            '.' | '!' | '?' | '…' | ':' | ';' | ')' | ']' | '}' | '"' | '»'
-        )
-    });
-    let separator = if starts_with_punctuation {
-        ""
-    } else if ends_complete_thought {
-        "\n\n"
-    } else {
-        " "
-    };
-
-    format!("{original}{separator}{continuation}")
-}
-
 #[cfg(test)]
 #[path = "../../test/rust/response_rules.rs"]
 mod tests;

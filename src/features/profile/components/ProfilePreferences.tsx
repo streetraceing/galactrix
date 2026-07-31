@@ -23,8 +23,8 @@ export function ProfilePreferences({
     void onChangeSettings({ ...settings, [key]: value });
 
   return (
-    <div className="space-y-5 sm:space-y-6">
-      <div className="grid gap-4 md:grid-cols-2">
+    <div className="mobile-settings-stack w-full min-w-0 max-w-full space-y-5 overflow-x-hidden sm:space-y-6">
+      <div className="grid w-full min-w-0 grid-cols-1 gap-4 md:grid-cols-2">
         <SettingsCard
           icon="settings"
           title={t('profilePreferences.interface')}
@@ -69,7 +69,7 @@ export function ProfilePreferences({
         onChange={(value) => patch('language', value)}
       />
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid w-full min-w-0 grid-cols-1 gap-4 md:grid-cols-2">
         <ScaleSettings
           value={settings.interfaceScale}
           onChange={(value) => patch('interfaceScale', value)}

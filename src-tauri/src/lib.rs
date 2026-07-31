@@ -521,14 +521,9 @@ async fn continue_message(
     response_language: Option<String>,
     state: State<'_, AppState>,
 ) -> CommandResult<()> {
-    let (provider, history, system_prompt, original_content) = {
+    let (chat_id, provider, history, system_prompt) = {
         let database = state.database.lock().map_err(CommandError::internal)?;
         let (chat_id, history) = db::messages_through_message(&database, &message_id)?;
-        let original_content = history
-            .last()
-            .filter(|message| message.role == "assistant")
-            .map(|message| message.content.clone())
-            .ok_or_else(|| CommandError::new(keys::MESSAGE_CONTINUE_ASSISTANT_ONLY))?;
         let provider_id = db::chat_provider_id(&database, &chat_id)?;
         let system_prompt = build_chat_system_prompt(
             &database,
@@ -537,10 +532,10 @@ async fn continue_message(
             response_language.as_deref(),
         )?;
         (
+            chat_id,
             db::get_provider(&database, &provider_id)?,
             history,
             system_prompt,
-            original_content,
         )
     };
     let secret = secret_for_saved_provider(&provider)?;
@@ -575,14 +570,12 @@ async fn continue_message(
         }
         return Err(CommandError::new(keys::PROVIDER_EMPTY_RESPONSE));
     }
-    let response_content = response_rules::merge_continuation(&original_content, &continuation);
-
     let database = state.database.lock().map_err(CommandError::internal)?;
-    db::append_message_variant(
+    db::add_assistant_message(
         &database,
-        &message_id,
+        &chat_id,
         &Uuid::new_v4().to_string(),
-        &response_content,
+        &continuation,
     )?;
     db::record_usage(
         &database,

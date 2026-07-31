@@ -28,7 +28,7 @@ export function ThemeSettings({
 }) {
   const { t } = useTranslation('profile');
   return (
-    <Surface className="rounded-2xl border border-separator p-4 sm:p-5">
+    <Surface className="w-full min-w-0 max-w-full overflow-hidden rounded-2xl border border-separator p-4 sm:p-5">
       <h2 className="section-title">{t('themeSettings.appearance')}</h2>
       <p className="section-description">
         {t('themeSettings.theLightOrDarkModeIsSelectedSeparatelyFromThe')}
@@ -37,6 +37,8 @@ export function ThemeSettings({
         <div className="flex flex-col gap-1.5">
           <Label>{t('themeSettings.mode')}</Label>
           <Select
+            fullWidth
+            className="w-full min-w-0 max-w-full"
             aria-label={t('themeSettings.themeMode')}
             variant="secondary"
             value={mode}
@@ -46,7 +48,7 @@ export function ThemeSettings({
               }
             }}
           >
-            <Select.Trigger className="w-full">
+            <Select.Trigger className="w-full min-w-0 max-w-full">
               <Select.Value />
               <Select.Indicator />
             </Select.Trigger>
@@ -69,6 +71,8 @@ export function ThemeSettings({
         <div className="flex flex-col gap-1.5">
           <Label>{t('themeSettings.colorTheme')}</Label>
           <Select
+            fullWidth
+            className="w-full min-w-0 max-w-full"
             aria-label={t('themeSettings.themeColorVariant')}
             value={variant}
             variant="secondary"
@@ -78,7 +82,7 @@ export function ThemeSettings({
               }
             }}
           >
-            <Select.Trigger className="w-full">
+            <Select.Trigger className="w-full min-w-0 max-w-full">
               <Select.Value />
               <Select.Indicator />
             </Select.Trigger>
