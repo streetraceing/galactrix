@@ -7,6 +7,7 @@ import type {
   ChatConfigInput,
   ChatState,
   GalaxyItem,
+  EmbeddingProbeResult,
   GalaxyItemInput,
   Provider,
   ProviderImportInput,
@@ -241,6 +242,17 @@ export async function fetchProviderModels(
 ): Promise<ProviderModelResult> {
   requireTauri();
   return invokeBackend<ProviderModelResult>('fetch_provider_models', {
+    provider,
+    apiKey: apiKey || null,
+  });
+}
+
+export async function testProviderEmbeddings(
+  provider: ProviderInput,
+  apiKey?: string,
+): Promise<EmbeddingProbeResult> {
+  requireTauri();
+  return invokeBackend<EmbeddingProbeResult>('test_provider_embeddings', {
     provider,
     apiKey: apiKey || null,
   });

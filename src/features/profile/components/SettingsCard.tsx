@@ -1,8 +1,6 @@
 import { Surface } from '@heroui/react';
 import type { ReactNode } from 'react';
-import { Icon } from '../../../components/Icon';
-
-type SettingsIcon = 'settings' | 'chats' | 'profile';
+import { Icon, type IconName } from '../../../components/Icon';
 
 export function SettingsCard({
   icon,
@@ -10,7 +8,7 @@ export function SettingsCard({
   description,
   children,
 }: {
-  icon: SettingsIcon;
+  icon: IconName;
   title: string;
   description: string;
   children: ReactNode;

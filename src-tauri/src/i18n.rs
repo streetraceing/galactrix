@@ -26,6 +26,11 @@ pub mod keys {
     pub const PROVIDER_NOT_FOUND: &str = "backend.provider.notFound";
     pub const PROVIDER_NAME_REQUIRED: &str = "backend.provider.nameRequired";
     pub const PROVIDER_MODEL_REQUIRED: &str = "backend.provider.modelRequired";
+    pub const PROVIDER_EMBEDDING_MODEL_REQUIRED: &str =
+        "backend.provider.embeddingModelRequired";
+    pub const PROVIDER_EMBEDDING_MODEL_TOO_LONG: &str =
+        "backend.provider.embeddingModelTooLong";
+    pub const PROVIDER_BASE_URL_TOO_LONG: &str = "backend.provider.baseUrlTooLong";
     pub const PROVIDER_API_KEY_REQUIRED: &str = "backend.provider.apiKeyRequired";
     pub const PROVIDER_API_KEY_MISSING: &str = "backend.provider.apiKeyMissing";
     pub const PROVIDER_API_KEY_NOT_IN_STORAGE: &str =

@@ -1,9 +1,14 @@
 import { Button, Surface } from '@heroui/react';
 import { UiModal } from '../../../components/ui/UiModal';
 import type { providerCatalog } from '../catalog';
-import type { ProviderInput, ProviderKind } from '../../../types';
+import type {
+  EmbeddingProbeResult,
+  ProviderInput,
+  ProviderKind,
+} from '../../../types';
 import { GenerationSettings } from './GenerationSettings';
 import { ProviderCredentials } from './ProviderCredentials';
+import { ProviderEmbeddingSection } from './ProviderEmbeddingSection';
 import { ProviderModelSection } from './ProviderModelSection';
 import { ProviderTypePicker } from './ProviderTypePicker';
 import { useTranslation } from 'react-i18next';
@@ -18,6 +23,8 @@ export function ProviderEditorModal({
   models,
   latency,
   loadingModels,
+  testingEmbeddings,
+  embeddingProbe,
   saving,
   error,
   catalog,
@@ -27,6 +34,7 @@ export function ProviderEditorModal({
   onPatch,
   onTokenChange,
   onLoadModels,
+  onTestEmbeddings,
   onSave,
 }: {
   isOpen: boolean;
@@ -36,6 +44,8 @@ export function ProviderEditorModal({
   models: string[];
   latency: number | null;
   loadingModels: boolean;
+  testingEmbeddings: boolean;
+  embeddingProbe: EmbeddingProbeResult | null;
   saving: boolean;
   error: string;
   catalog: CatalogEntry;
@@ -48,6 +58,7 @@ export function ProviderEditorModal({
   ) => void;
   onTokenChange: (value: string) => void;
   onLoadModels: () => void;
+  onTestEmbeddings: () => void;
   onSave: () => void;
 }) {
   const { t } = useTranslation('telescope');
@@ -123,14 +134,23 @@ export function ProviderEditorModal({
           />
 
           {form.kind !== 'character-ai' ? (
-            <ProviderModelSection
-              form={form}
-              models={models}
-              latency={latency}
-              loading={loadingModels}
-              onPatch={onPatch}
-              onLoadModels={onLoadModels}
-            />
+            <>
+              <ProviderModelSection
+                form={form}
+                models={models}
+                latency={latency}
+                loading={loadingModels}
+                onPatch={onPatch}
+                onLoadModels={onLoadModels}
+              />
+              <ProviderEmbeddingSection
+                form={form}
+                testing={testingEmbeddings}
+                probe={embeddingProbe}
+                onPatch={onPatch}
+                onTest={onTestEmbeddings}
+              />
+            </>
           ) : null}
 
           <GenerationSettings form={form} onPatch={onPatch} />

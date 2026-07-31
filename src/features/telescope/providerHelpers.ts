@@ -24,6 +24,8 @@ export function defaultProviderInput(kind: ProviderKind): ProviderInput {
     temperature: 0.7,
     topP: 0.95,
     maxTokens: 4096,
+    embeddingModel: undefined,
+    embeddingBaseUrl: undefined,
   };
 }
 
@@ -38,5 +40,7 @@ export function providerToInput(provider: Provider): ProviderInput {
     temperature: provider.temperature,
     topP: provider.topP,
     maxTokens: provider.maxTokens,
+    embeddingModel: provider.embeddingModel,
+    embeddingBaseUrl: provider.embeddingBaseUrl,
   };
 }

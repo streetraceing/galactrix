@@ -84,6 +84,7 @@ export function AppScreenRouter({ controller }: { controller: Controller }) {
       <TelescopeScreen
         providers={snapshot.providers}
         onFetchModels={controller.fetchProviderModels}
+        onTestEmbeddings={controller.testProviderEmbeddingConnection}
         onExportSecrets={controller.exportProviderSecrets}
         onImport={controller.importProviders}
         onSave={controller.saveProviderConnection}
@@ -97,6 +98,7 @@ export function AppScreenRouter({ controller }: { controller: Controller }) {
     return (
       <SettingsScreen
         settings={snapshot.settings}
+        providers={snapshot.providers}
         appVersion={snapshot.appVersion}
         onChangeSettings={controller.saveSettings}
       />

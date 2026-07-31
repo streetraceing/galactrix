@@ -1,14 +1,17 @@
 import { PageHeader } from '../../components/ui/PageHeader';
-import type { AppSettings } from '../../types';
+import type { AppSettings, Provider } from '../../types';
 import { ProfilePreferences } from '../profile/components/ProfilePreferences';
+import { AiModulesSettings } from './components/AiModulesSettings';
 import { useTranslation } from 'react-i18next';
 
 export function SettingsScreen({
   settings,
+  providers,
   appVersion,
   onChangeSettings,
 }: {
   settings: AppSettings;
+  providers: Provider[];
   appVersion: string;
   onChangeSettings: (settings: AppSettings) => Promise<boolean>;
 }) {
@@ -22,11 +25,20 @@ export function SettingsScreen({
             'settingsScreen.interfaceChatBehaviorAndSettingsForThisDevice',
           )}
         />
-        <ProfilePreferences
-          settings={settings}
-          appVersion={appVersion}
-          onChangeSettings={onChangeSettings}
-        />
+        <div className="space-y-4 sm:space-y-5">
+          <AiModulesSettings
+            value={settings.aiModules}
+            providers={providers}
+            onChange={(aiModules) => {
+              void onChangeSettings({ ...settings, aiModules });
+            }}
+          />
+          <ProfilePreferences
+            settings={settings}
+            appVersion={appVersion}
+            onChangeSettings={onChangeSettings}
+          />
+        </div>
       </div>
     </div>
   );

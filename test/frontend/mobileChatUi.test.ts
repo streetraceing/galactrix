@@ -97,7 +97,10 @@ test('mobile modal keeps its layout viewport while the keyboard changes the visu
 
   assert.match(source, /const layoutViewport = \(\) => \(\{/);
   assert.match(source, /setMobileLayoutViewport\(layoutViewport\(\)\)/);
-  assert.match(source, /!h-\[var\(--ui-modal-layout-height\)\]/);
+  assert.match(
+    source,
+    /h-\(--ui-modal-layout-height\)!|!h-\[var\(--ui-modal-layout-height\)\]/,
+  );
   assert.match(source, /minWidth: mobileLayoutViewport\.width/);
   assert.match(source, /maxHeight: mobileLayoutViewport\.height/);
   assert.match(source, /'--ui-modal-layout-height'/);

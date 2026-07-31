@@ -1,8 +1,11 @@
+mod ai_context;
 mod db;
+mod dynamic_context;
 mod i18n;
 mod models;
 mod prompt_builder;
 mod provider_client;
+mod semantic_memory;
 mod response_rules;
 mod secure_storage;
 #[cfg(windows)]
@@ -14,8 +17,9 @@ use futures_util::future::{select, Either};
 use i18n::{keys, CommandError, CommandResult};
 use models::{
     AppSettings, AppSnapshot, ChatConfigInput, ChatState, CompletionResult, CreatedChat,
-    GalaxyItem, GalaxyItemInput, Message, Provider, PromptPreviewInput, PromptPreviewResult,
-    ProviderImportInput, ProviderInput, ProviderModelResult,
+    EmbeddingProbeResult, GalaxyItem, GalaxyItemInput, Message, Provider,
+    PromptPreviewInput, PromptPreviewResult, ProviderImportInput, ProviderInput,
+    ProviderModelResult, RetrySettings,
 };
 use rusqlite::Connection;
 use tauri::{Manager, State};
@@ -83,6 +87,7 @@ async fn complete_cancellable(
     history: &[Message],
     system_prompt: Option<&str>,
     appended_user_message: Option<&str>,
+    retry: &RetrySettings,
     mut cancellation: oneshot::Receiver<()>,
 ) -> CommandResult<CompletionResult> {
     match cancellation.try_recv() {
@@ -98,6 +103,7 @@ async fn complete_cancellable(
         history,
         system_prompt,
         appended_user_message,
+        retry,
     ));
     let cancellation = Box::pin(cancellation);
     match select(completion, cancellation).await {
@@ -341,6 +347,262 @@ fn build_chat_system_prompt(
     ))
 }
 
+
+struct PreparedGeneration {
+    history: Vec<Message>,
+    system_prompt: Option<String>,
+    retry: RetrySettings,
+}
+
+fn append_prompt_section(base: &mut Option<String>, section: Option<String>) {
+    let Some(section) = section.map(|value| value.trim().to_owned()).filter(|value| !value.is_empty()) else {
+        return;
+    };
+    match base {
+        Some(prompt) if !prompt.trim().is_empty() => {
+            prompt.push_str("\n\n");
+            prompt.push_str(&section);
+        }
+        _ => *base = Some(section),
+    }
+}
+
+fn provider_secret_or_none(provider: &Provider) -> Option<String> {
+    match secret_for_saved_provider(provider) {
+        Ok(secret) => secret,
+        Err(error) => {
+            eprintln!(
+                "AI auxiliary provider '{}' is unavailable: {}",
+                provider.name, error
+            );
+            None
+        }
+    }
+}
+
+async fn prepare_generation_context(
+    state: &AppState,
+    chat_id: &str,
+    full_history: &[Message],
+    chat_provider: &Provider,
+    query_text: &str,
+    response_language: Option<&str>,
+) -> CommandResult<PreparedGeneration> {
+    let (settings, mut context, mut system_prompt, analysis_provider, embedding_provider) = {
+        let database = state.database.lock().map_err(CommandError::internal)?;
+        let settings = db::get_settings(&database)?;
+        let context = db::get_dynamic_context(&database, chat_id)?;
+        let system_prompt = build_chat_system_prompt(
+            &database,
+            chat_id,
+            full_history,
+            response_language,
+        )?;
+        let analysis_provider = settings
+            .ai_modules
+            .dynamic_context
+            .provider_id
+            .as_deref()
+            .and_then(|id| db::provider_optional(&database, id).ok().flatten())
+            .or_else(|| Some(chat_provider.clone()));
+        let embedding_provider = settings
+            .ai_modules
+            .semantic_memory
+            .provider_id
+            .as_deref()
+            .and_then(|id| db::provider_optional(&database, id).ok().flatten())
+            .or_else(|| Some(chat_provider.clone()));
+        (
+            settings,
+            context,
+            system_prompt,
+            analysis_provider,
+            embedding_provider,
+        )
+    };
+
+    let retry = settings.ai_modules.retry.clone();
+    let dynamic_settings = &settings.ai_modules.dynamic_context;
+    if dynamic_settings.enabled {
+        let batch = dynamic_context::pending_batch(
+            full_history,
+            context.as_ref(),
+            dynamic_settings,
+        );
+        if !batch.is_empty() {
+            let analysis_secret = analysis_provider
+                .as_ref()
+                .and_then(provider_secret_or_none);
+            let model_provider = if dynamic_settings.mode == "local" {
+                None
+            } else {
+                analysis_provider.as_ref()
+            };
+            let outcome = ai_context::analyze_dialogue(
+                dynamic_settings,
+                context.as_ref(),
+                &batch,
+                model_provider,
+                analysis_secret.as_deref(),
+                &retry,
+            )
+            .await;
+            if let Some(warning) = outcome.warning.as_ref() {
+                eprintln!("Dynamic context analysis fell back to local mode: {warning}");
+            }
+            {
+                let database = state.database.lock().map_err(CommandError::internal)?;
+                db::save_dynamic_context(&database, chat_id, &outcome.state)?;
+                if let (Some(usage), Some(provider)) =
+                    (outcome.usage.as_ref(), analysis_provider.as_ref())
+                {
+                    db::record_usage(
+                        &database,
+                        &Uuid::new_v4().to_string(),
+                        &provider.id,
+                        &provider.model,
+                        usage.input_tokens,
+                        usage.output_tokens,
+                    )?;
+                }
+            }
+            context = Some(outcome.state);
+        }
+        append_prompt_section(
+            &mut system_prompt,
+            context
+                .as_ref()
+                .and_then(dynamic_context::render_context_section),
+        );
+    }
+
+    let semantic_settings = &settings.ai_modules.semantic_memory;
+    if semantic_settings.enabled {
+        if let Some(provider) = embedding_provider.as_ref() {
+            let embedding_model = provider
+                .embedding_model
+                .as_deref()
+                .map(str::trim)
+                .filter(|model| !model.is_empty());
+            if let Some(embedding_model) = embedding_model {
+                let semantic_context = dynamic_settings
+                    .enabled
+                    .then_some(context.as_ref())
+                    .flatten();
+                let candidates = semantic_memory::build_candidates(
+                    full_history,
+                    semantic_context,
+                    semantic_settings,
+                );
+                let embedding_secret = provider_secret_or_none(provider);
+                let indexed = {
+                    let database = state.database.lock().map_err(CommandError::internal)?;
+                    db::prune_semantic_memories(
+                        &database,
+                        chat_id,
+                        &provider.id,
+                        embedding_model,
+                        &candidates,
+                    )?;
+                    db::semantic_memory_indexed_contents(
+                        &database,
+                        chat_id,
+                        &provider.id,
+                        embedding_model,
+                    )?
+                };
+
+                match ai_context::embed_missing_candidates(
+                    provider,
+                    embedding_secret.as_deref(),
+                    &retry,
+                    &candidates,
+                    &indexed,
+                    semantic_settings.batch_size,
+                )
+                .await
+                {
+                    Ok(embedded) if !embedded.is_empty() => {
+                        let database = state.database.lock().map_err(CommandError::internal)?;
+                        db::upsert_semantic_memories(
+                            &database,
+                            chat_id,
+                            &provider.id,
+                            embedding_model,
+                            &embedded,
+                        )?;
+                    }
+                    Ok(_) => {}
+                    Err(error) => {
+                        eprintln!("Semantic memory indexing skipped: {error}");
+                    }
+                }
+
+                let query = query_text.trim();
+                if !query.is_empty() {
+                    match provider_client::embed(
+                        provider,
+                        embedding_secret.as_deref(),
+                        &[query.to_owned()],
+                        &retry,
+                    )
+                    .await
+                    {
+                        Ok(result) => {
+                            if let Some(query_embedding) = result.embeddings.first() {
+                                let mut records = {
+                                    let database =
+                                        state.database.lock().map_err(CommandError::internal)?;
+                                    db::list_semantic_memories(
+                                        &database,
+                                        chat_id,
+                                        &provider.id,
+                                        embedding_model,
+                                    )?
+                                };
+                                let selected = semantic_memory::select_relevant(
+                                    &mut records,
+                                    query_embedding,
+                                    semantic_settings.top_k,
+                                    semantic_settings.similarity_threshold,
+                                );
+                                append_prompt_section(
+                                    &mut system_prompt,
+                                    semantic_memory::render_memory_section(&selected),
+                                );
+                            }
+                        }
+                        Err(error) => {
+                            eprintln!("Semantic memory retrieval skipped: {error}");
+                        }
+                    }
+                }
+            } else {
+                eprintln!(
+                    "Semantic memory is enabled, but provider '{}' has no embedding model",
+                    provider.name
+                );
+            }
+        }
+    }
+
+    let history = if dynamic_settings.enabled {
+        dynamic_context::trim_history(
+            full_history,
+            context.as_ref(),
+            dynamic_settings.direct_message_limit,
+        )
+    } else {
+        full_history.to_vec()
+    };
+
+    Ok(PreparedGeneration {
+        history,
+        system_prompt,
+        retry,
+    })
+}
+
 fn preview_galaxy_item(input: GalaxyItemInput) -> GalaxyItem {
     GalaxyItem {
         id: input.id.unwrap_or_else(|| Uuid::new_v4().to_string()),
@@ -439,7 +701,7 @@ async fn regenerate_message(
     response_language: Option<String>,
     state: State<'_, AppState>,
 ) -> CommandResult<()> {
-    let (provider, history, system_prompt, regeneration_mode) = {
+    let (chat_id, provider, full_history, regeneration_mode) = {
         let database = state.database.lock().map_err(CommandError::internal)?;
         let (chat_id, history) = db::messages_before_message(&database, &message_id)?;
         let regeneration_mode = response_rules::regeneration_mode(
@@ -447,29 +709,38 @@ async fn regenerate_message(
         )
         .ok_or_else(|| CommandError::new(keys::MESSAGE_USER_BEFORE_ASSISTANT_MISSING))?;
         let provider_id = db::chat_provider_id(&database, &chat_id)?;
-        let system_prompt = build_chat_system_prompt(
-            &database,
-            &chat_id,
-            &history,
-            response_language.as_deref(),
-        )?;
         (
+            chat_id,
             db::get_provider(&database, &provider_id)?,
             history,
-            system_prompt,
             regeneration_mode,
         )
     };
-    let secret = secret_for_saved_provider(&provider)?;
-    let cancellation = register_generation(&state, &generation_id)?;
     let regeneration_instruction =
         response_rules::regeneration_instruction(regeneration_mode, response_language.as_deref());
+    let query_text = full_history
+        .last()
+        .map(|message| message.content.as_str())
+        .or(regeneration_instruction)
+        .unwrap_or("Regenerate the response");
+    let prepared = prepare_generation_context(
+        &state,
+        &chat_id,
+        &full_history,
+        &provider,
+        query_text,
+        response_language.as_deref(),
+    )
+    .await?;
+    let secret = secret_for_saved_provider(&provider)?;
+    let cancellation = register_generation(&state, &generation_id)?;
     let completion = complete_cancellable(
         &provider,
         secret.as_deref(),
-        &history,
-        system_prompt.as_deref(),
+        &prepared.history,
+        prepared.system_prompt.as_deref(),
         regeneration_instruction,
+        &prepared.retry,
         cancellation,
     )
     .await;
@@ -525,32 +796,39 @@ async fn continue_message(
     response_language: Option<String>,
     state: State<'_, AppState>,
 ) -> CommandResult<()> {
-    let (chat_id, provider, history, system_prompt) = {
+    let (chat_id, provider, full_history) = {
         let database = state.database.lock().map_err(CommandError::internal)?;
         let (chat_id, history) = db::messages_through_message(&database, &message_id)?;
         let provider_id = db::chat_provider_id(&database, &chat_id)?;
-        let system_prompt = build_chat_system_prompt(
-            &database,
-            &chat_id,
-            &history,
-            response_language.as_deref(),
-        )?;
         (
             chat_id,
             db::get_provider(&database, &provider_id)?,
             history,
-            system_prompt,
         )
     };
+    let instruction = response_rules::continuation_instruction(response_language.as_deref());
+    let query_text = full_history
+        .last()
+        .map(|message| message.content.as_str())
+        .unwrap_or(instruction);
+    let prepared = prepare_generation_context(
+        &state,
+        &chat_id,
+        &full_history,
+        &provider,
+        query_text,
+        response_language.as_deref(),
+    )
+    .await?;
     let secret = secret_for_saved_provider(&provider)?;
     let cancellation = register_generation(&state, &generation_id)?;
-    let instruction = response_rules::continuation_instruction(response_language.as_deref());
     let completion = complete_cancellable(
         &provider,
         secret.as_deref(),
-        &history,
-        system_prompt.as_deref(),
+        &prepared.history,
+        prepared.system_prompt.as_deref(),
         Some(instruction),
+        &prepared.retry,
         cancellation,
     )
     .await;
@@ -616,32 +894,37 @@ async fn send_chat_message(
     }
 
     let user_message_id = Uuid::new_v4().to_string();
-    let (provider, history, system_prompt) = {
+    let (provider, full_history) = {
         let database = state.database.lock().map_err(CommandError::internal)?;
         db::add_user_message(&database, &chat_id, &user_message_id, &content)?;
         (|| -> CommandResult<_> {
             let provider_id = db::chat_provider_id(&database, &chat_id)?;
             let provider = db::get_provider(&database, &provider_id)?;
             let history = db::messages_for_chat(&database, &chat_id)?;
-            let system_prompt = build_chat_system_prompt(
-                &database,
-                &chat_id,
-                &history,
-                response_language.as_deref(),
-            )?;
-            Ok((provider, history, system_prompt))
+            Ok((provider, history))
         })()
         .map_err(persisted)?
     };
+    let prepared = prepare_generation_context(
+        &state,
+        &chat_id,
+        &full_history,
+        &provider,
+        &content,
+        response_language.as_deref(),
+    )
+    .await
+    .map_err(persisted)?;
     let secret = secret_for_saved_provider(&provider).map_err(persisted)?;
 
     let cancellation = register_generation(&state, &generation_id).map_err(persisted)?;
     let completion = complete_cancellable(
         &provider,
         secret.as_deref(),
-        &history,
-        system_prompt.as_deref(),
+        &prepared.history,
+        prepared.system_prompt.as_deref(),
         None,
+        &prepared.retry,
         cancellation,
     )
     .await;
@@ -743,9 +1026,56 @@ fn delete_galaxy_item(id: String, state: State<'_, AppState>) -> CommandResult<(
 async fn fetch_provider_models(
     provider: ProviderInput,
     api_key: Option<String>,
+    state: State<'_, AppState>,
 ) -> CommandResult<ProviderModelResult> {
+    let retry = {
+        let database = state.database.lock().map_err(CommandError::internal)?;
+        db::get_settings(&database)?.ai_modules.retry
+    };
     let secret = resolve_input_secret(&provider, api_key.as_deref())?;
-    Ok(provider_client::list_models(&provider, secret.as_deref()).await?)
+    provider_client::list_models(&provider, secret.as_deref(), &retry).await
+}
+
+#[tauri::command]
+async fn test_provider_embeddings(
+    provider: ProviderInput,
+    api_key: Option<String>,
+    state: State<'_, AppState>,
+) -> CommandResult<EmbeddingProbeResult> {
+    validate_provider_input(&provider)?;
+    let embedding_model = provider
+        .embedding_model
+        .as_deref()
+        .map(str::trim)
+        .filter(|model| !model.is_empty())
+        .map(str::to_owned)
+        .ok_or_else(|| CommandError::new(keys::PROVIDER_EMBEDDING_MODEL_REQUIRED))?;
+    let retry = {
+        let database = state.database.lock().map_err(CommandError::internal)?;
+        db::get_settings(&database)?.ai_modules.retry
+    };
+    let secret = resolve_input_secret(&provider, api_key.as_deref())?;
+    let id = provider
+        .id
+        .clone()
+        .unwrap_or_else(|| "embedding-probe".to_owned());
+    let mut saved = provider.into_provider(id, "disabled".into(), None);
+    saved.embedding_model = Some(embedding_model);
+    let result = provider_client::embed(
+        &saved,
+        secret.as_deref(),
+        &["Galactrix semantic memory connection test".to_owned()],
+        &retry,
+    )
+    .await?;
+    let dimensions = result.embeddings.first().map_or(0, Vec::len);
+    if dimensions == 0 {
+        return Err(CommandError::new(keys::PROVIDER_EMPTY_RESPONSE));
+    }
+    Ok(EmbeddingProbeResult {
+        dimensions,
+        latency_ms: result.latency_ms,
+    })
 }
 
 #[tauri::command]
@@ -778,13 +1108,17 @@ async fn save_provider(
         secure_storage::read_provider_secret(&id).unwrap_or(None)
     };
     let effective_secret = supplied_secret.clone().or_else(|| previous_secret.clone());
+    let retry = {
+        let database = state.database.lock().map_err(CommandError::internal)?;
+        db::get_settings(&database)?.ai_modules.retry
+    };
 
     let mut probe_input = provider.clone();
     probe_input.id = Some(id.clone());
     let probe = if provider_requires_key(&probe_input.kind) && effective_secret.is_none() {
         Err(CommandError::new(keys::PROVIDER_API_KEY_MISSING))
     } else {
-        provider_client::list_models(&probe_input, effective_secret.as_deref()).await
+        provider_client::list_models(&probe_input, effective_secret.as_deref(), &retry).await
     };
     let (status, latency_ms) = match probe {
         Ok(result) => ("connected".to_string(), Some(result.latency_ms)),
@@ -922,6 +1256,10 @@ async fn check_provider(id: String, state: State<'_, AppState>) -> CommandResult
         db::get_provider(&database, &id)?
     };
     let input = provider_as_input(&provider);
+    let retry = {
+        let database = state.database.lock().map_err(CommandError::internal)?;
+        db::get_settings(&database)?.ai_modules.retry
+    };
     let secret = match secret_for_saved_provider(&provider) {
         Ok(secret) => secret,
         Err(_) => {
@@ -933,7 +1271,7 @@ async fn check_provider(id: String, state: State<'_, AppState>) -> CommandResult
             return Ok(provider);
         }
     };
-    let probe = provider_client::list_models(&input, secret.as_deref()).await;
+    let probe = provider_client::list_models(&input, secret.as_deref(), &retry).await;
 
     match probe {
         Ok(result) => {
@@ -1025,7 +1363,60 @@ fn update_app_settings(
         settings.response_language = "app".into();
     }
 
+    settings.ai_modules.retry.max_attempts =
+        settings.ai_modules.retry.max_attempts.clamp(1, 8);
+    settings.ai_modules.retry.initial_delay_ms =
+        settings.ai_modules.retry.initial_delay_ms.clamp(100, 60_000);
+    settings.ai_modules.retry.max_delay_ms = settings
+        .ai_modules
+        .retry
+        .max_delay_ms
+        .clamp(settings.ai_modules.retry.initial_delay_ms, 300_000);
+
+    let dynamic = &mut settings.ai_modules.dynamic_context;
+    if !matches!(dynamic.mode.as_str(), "local" | "provider" | "hybrid") {
+        dynamic.mode = "hybrid".into();
+    }
+    dynamic.provider_id = dynamic.provider_id.take().and_then(|value| {
+        let value = value.trim();
+        (!value.is_empty()).then(|| value.to_owned())
+    });
+    dynamic.direct_message_limit = dynamic.direct_message_limit.clamp(8, 200);
+    dynamic.summary_batch_size = dynamic.summary_batch_size.clamp(4, 100);
+    dynamic.trigger_messages = dynamic
+        .trigger_messages
+        .clamp(dynamic.direct_message_limit.saturating_add(4), 500);
+    dynamic.analysis_prompt = dynamic.analysis_prompt.trim().chars().take(12_000).collect();
+    if dynamic.analysis_prompt.is_empty() {
+        dynamic.analysis_prompt = models::DynamicContextSettings::default().analysis_prompt;
+    }
+
+    let semantic = &mut settings.ai_modules.semantic_memory;
+    semantic.provider_id = semantic.provider_id.take().and_then(|value| {
+        let value = value.trim();
+        (!value.is_empty()).then(|| value.to_owned())
+    });
+    semantic.top_k = semantic.top_k.clamp(1, 32);
+    semantic.similarity_threshold = semantic.similarity_threshold.clamp(0.0, 1.0);
+    semantic.batch_size = semantic.batch_size.clamp(1, 64);
+    semantic.archived_message_limit = semantic.archived_message_limit.clamp(20, 5_000);
+
     let database = state.database.lock().map_err(CommandError::internal)?;
+    let provider_ids = db::provider_ids(&database)?;
+    if dynamic
+        .provider_id
+        .as_ref()
+        .is_some_and(|id| !provider_ids.contains(id))
+    {
+        dynamic.provider_id = None;
+    }
+    if semantic
+        .provider_id
+        .as_ref()
+        .is_some_and(|id| !provider_ids.contains(id))
+    {
+        semantic.provider_id = None;
+    }
     db::update_settings(&database, &settings)?;
     Ok(settings)
 }
@@ -1045,6 +1436,27 @@ fn validate_provider_input(provider: &ProviderInput) -> CommandResult<()> {
     }
     if provider.max_tokens <= 0 {
         return Err(CommandError::new(keys::PROVIDER_MAX_TOKENS_POSITIVE));
+    }
+    if provider
+        .embedding_model
+        .as_deref()
+        .is_some_and(|model| model.trim().is_empty())
+    {
+        return Err(CommandError::new(keys::PROVIDER_EMBEDDING_MODEL_REQUIRED));
+    }
+    if provider
+        .embedding_model
+        .as_deref()
+        .is_some_and(|model| model.chars().count() > 240)
+    {
+        return Err(CommandError::new(keys::PROVIDER_EMBEDDING_MODEL_TOO_LONG));
+    }
+    if provider
+        .embedding_base_url
+        .as_deref()
+        .is_some_and(|url| url.chars().count() > 2_000)
+    {
+        return Err(CommandError::new(keys::PROVIDER_BASE_URL_TOO_LONG));
     }
     if !matches!(
         provider.kind.as_str(),
@@ -1077,6 +1489,8 @@ fn provider_as_input(provider: &Provider) -> ProviderInput {
         temperature: provider.temperature,
         top_p: provider.top_p,
         max_tokens: provider.max_tokens,
+        embedding_model: provider.embedding_model.clone(),
+        embedding_base_url: provider.embedding_base_url.clone(),
     }
 }
 
@@ -1193,6 +1607,7 @@ pub fn run() {
             import_galaxy_items,
             delete_galaxy_item,
             fetch_provider_models,
+            test_provider_embeddings,
             save_provider,
             export_provider_secrets,
             import_providers,

@@ -253,3 +253,180 @@ fn regeneration_history_is_stable_when_imported_messages_share_a_timestamp() {
     assert_eq!(history[1].role, "assistant");
     assert_eq!(history[1].content, "first part");
 }
+
+#[test]
+fn ai_module_settings_round_trip_without_affecting_existing_preferences() {
+    let connection = test_database();
+    let mut settings = get_settings(&connection).expect("settings must load");
+    settings.profile_name = "Tester".into();
+    settings.ai_modules.retry.max_attempts = 5;
+    settings.ai_modules.dynamic_context.enabled = true;
+    settings.ai_modules.dynamic_context.mode = "local".into();
+    settings.ai_modules.semantic_memory.enabled = true;
+    settings.ai_modules.semantic_memory.top_k = 12;
+
+    update_settings(&connection, &settings).expect("settings must save");
+    let loaded = get_settings(&connection).expect("settings must reload");
+
+    assert_eq!(loaded.profile_name, "Tester");
+    assert_eq!(loaded.ai_modules.retry.max_attempts, 5);
+    assert!(loaded.ai_modules.dynamic_context.enabled);
+    assert_eq!(loaded.ai_modules.dynamic_context.mode, "local");
+    assert!(loaded.ai_modules.semantic_memory.enabled);
+    assert_eq!(loaded.ai_modules.semantic_memory.top_k, 12);
+}
+
+#[test]
+fn dynamic_context_and_semantic_memory_are_invalidated_together() {
+    let connection = test_database();
+    create_test_chat(&connection, "chat-1");
+    let state = DynamicContextState {
+        summary: "User prefers concise answers.".into(),
+        covered_through_message_id: Some("message-1".into()),
+        ..DynamicContextState::default()
+    };
+    save_dynamic_context(&connection, "chat-1", &state)
+        .expect("dynamic context must save");
+
+    let provider = Provider {
+        id: "provider-1".into(),
+        name: "Embedding provider".into(),
+        kind: "ollama".into(),
+        model: "chat-model".into(),
+        status: "connected".into(),
+        base_url: None,
+        account_id: None,
+        latency_ms: None,
+        temperature: 0.7,
+        top_p: 0.95,
+        max_tokens: 4096,
+        embedding_model: Some("qwen3-embedding".into()),
+        embedding_base_url: None,
+        has_secret: false,
+    };
+    save_provider(&connection, &provider).expect("provider must save");
+    upsert_semantic_memories(
+        &connection,
+        "chat-1",
+        "provider-1",
+        "qwen3-embedding",
+        &[(
+            SemanticMemoryCandidate {
+                source_kind: "context-summary".into(),
+                source_id: "summary".into(),
+                content: "User prefers concise answers.".into(),
+            },
+            vec![0.1, 0.2, 0.3],
+        )],
+    )
+    .expect("semantic memory must save");
+
+    assert!(get_dynamic_context(&connection, "chat-1")
+        .expect("context must load")
+        .is_some());
+    assert_eq!(
+        list_semantic_memories(
+            &connection,
+            "chat-1",
+            "provider-1",
+            "qwen3-embedding"
+        )
+        .expect("memories must load")
+        .len(),
+        1
+    );
+
+    invalidate_chat_ai_context(&connection, "chat-1")
+        .expect("derived AI context must invalidate");
+    assert!(get_dynamic_context(&connection, "chat-1")
+        .expect("context query must succeed")
+        .is_none());
+    assert!(list_semantic_memories(
+        &connection,
+        "chat-1",
+        "provider-1",
+        "qwen3-embedding"
+    )
+    .expect("memory query must succeed")
+    .is_empty());
+}
+
+#[test]
+fn semantic_memory_reindexes_changed_content_and_prunes_stale_sources() {
+    let connection = test_database();
+    create_test_chat(&connection, "chat-1");
+    let provider = Provider {
+        id: "provider-1".into(),
+        name: "Embedding provider".into(),
+        kind: "ollama".into(),
+        model: "chat-model".into(),
+        status: "connected".into(),
+        base_url: None,
+        account_id: None,
+        latency_ms: None,
+        temperature: 0.7,
+        top_p: 0.95,
+        max_tokens: 4096,
+        embedding_model: Some("qwen3-embedding".into()),
+        embedding_base_url: None,
+        has_secret: false,
+    };
+    save_provider(&connection, &provider).expect("provider must save");
+
+    let original = SemanticMemoryCandidate {
+        source_kind: "remembered-message".into(),
+        source_id: "message-1".into(),
+        content: "Original content".into(),
+    };
+    upsert_semantic_memories(
+        &connection,
+        "chat-1",
+        "provider-1",
+        "qwen3-embedding",
+        &[(original.clone(), vec![1.0, 0.0])],
+    )
+    .expect("memory must save");
+
+    let indexed = semantic_memory_indexed_contents(
+        &connection,
+        "chat-1",
+        "provider-1",
+        "qwen3-embedding",
+    )
+    .expect("indexed contents must load");
+    assert_eq!(
+        indexed
+            .get(&("remembered-message".into(), "message-1".into()))
+            .map(String::as_str),
+        Some("Original content")
+    );
+
+    let changed = SemanticMemoryCandidate {
+        content: "Changed content".into(),
+        ..original
+    };
+    upsert_semantic_memories(
+        &connection,
+        "chat-1",
+        "provider-1",
+        "qwen3-embedding",
+        &[(changed.clone(), vec![0.0, 1.0])],
+    )
+    .expect("changed memory must update");
+    prune_semantic_memories(
+        &connection,
+        "chat-1",
+        "provider-1",
+        "qwen3-embedding",
+        &[],
+    )
+    .expect("stale memory must prune");
+    assert!(list_semantic_memories(
+        &connection,
+        "chat-1",
+        "provider-1",
+        "qwen3-embedding"
+    )
+    .expect("memory query must succeed")
+    .is_empty());
+}

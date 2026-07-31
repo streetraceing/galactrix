@@ -1,10 +1,13 @@
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use reqwest::{Client, RequestBuilder, Response};
 use serde_json::{json, Value};
 
 use crate::i18n::{keys, CommandError, CommandResult};
-use crate::models::{CompletionResult, Message, Provider, ProviderInput, ProviderModelResult};
+use crate::models::{
+    CompletionResult, EmbeddingResult, Message, Provider, ProviderInput, ProviderModelResult,
+    RetrySettings,
+};
 
 const DEFAULT_MISTRAL_URL: &str = "https://api.mistral.ai/v1";
 const DEFAULT_CEREBRAS_URL: &str = "https://api.cerebras.ai/v1";
@@ -19,6 +22,7 @@ const DEFAULT_OLLAMA_CLOUD_URL: &str = "https://ollama.com/api";
 pub async fn list_models(
     provider: &ProviderInput,
     api_key: Option<&str>,
+    retry: &RetrySettings,
 ) -> CommandResult<ProviderModelResult> {
     validate_provider(provider, api_key)?;
     let client = http_client()?;
@@ -27,7 +31,12 @@ pub async fn list_models(
     let response = match provider.kind.as_str() {
         "ollama" | "ollama-cloud" => {
             let url = format!("{}/tags", ollama_base(provider));
-            authenticated(client.get(url), api_key).send().await
+            send_with_retry(
+                || authenticated(client.get(&url), api_key),
+                retry,
+                keys::PROVIDER_CONNECTION_FAILED,
+            )
+            .await
         }
         "cloudflare-workers-ai" => {
             let account_id = required_text(
@@ -37,17 +46,26 @@ pub async fn list_models(
             let url = format!(
                 "https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/models/search?per_page=1000"
             );
-            authenticated(client.get(url), api_key).send().await
+            send_with_retry(
+                || authenticated(client.get(&url), api_key),
+                retry,
+                keys::PROVIDER_CONNECTION_FAILED,
+            )
+            .await
         }
         "character-ai" => {
             return Err(CommandError::new(keys::PROVIDER_CHARACTER_AI_UNSUPPORTED));
         }
         _ => {
             let url = format!("{}/models", openai_base(provider)?);
-            authenticated(client.get(url), api_key).send().await
+            send_with_retry(
+                || authenticated(client.get(&url), api_key),
+                retry,
+                keys::PROVIDER_CONNECTION_FAILED,
+            )
+            .await
         }
-    }
-    .map_err(|error| CommandError::with_detail(keys::PROVIDER_CONNECTION_FAILED, error))?;
+    }?;
 
     let value = response_json(response).await?;
     let mut models = match provider.kind.as_str() {
@@ -104,6 +122,7 @@ pub async fn complete(
     history: &[Message],
     system_prompt: Option<&str>,
     user_content: Option<&str>,
+    retry: &RetrySettings,
 ) -> CommandResult<CompletionResult> {
     validate_saved_provider(provider, api_key)?;
     let client = http_client()?;
@@ -137,7 +156,12 @@ pub async fn complete(
                     "num_predict": provider.max_tokens,
                 }
             });
-            authenticated(client.post(url), api_key).json(&body).send().await
+            send_with_retry(
+                || authenticated(client.post(&url), api_key).json(&body),
+                retry,
+                keys::PROVIDER_REQUEST_FAILED,
+            )
+            .await
         }
         "character-ai" => {
             return Err(CommandError::new(keys::PROVIDER_CHARACTER_AI_UNSUPPORTED));
@@ -152,10 +176,14 @@ pub async fn complete(
                 "max_tokens": provider.max_tokens,
                 "stream": false,
             });
-            authenticated(client.post(url), api_key).json(&body).send().await
+            send_with_retry(
+                || authenticated(client.post(&url), api_key).json(&body),
+                retry,
+                keys::PROVIDER_REQUEST_FAILED,
+            )
+            .await
         }
-    }
-    .map_err(|error| CommandError::with_detail(keys::PROVIDER_REQUEST_FAILED, error))?;
+    }?;
 
     let value = response_json(response).await?;
     let latency_ms = started.elapsed().as_millis().min(i64::MAX as u128) as i64;
@@ -205,6 +233,180 @@ pub async fn complete(
             .unwrap_or(0),
         latency_ms,
     })
+}
+
+pub async fn embed(
+    provider: &Provider,
+    api_key: Option<&str>,
+    inputs: &[String],
+    retry: &RetrySettings,
+) -> CommandResult<EmbeddingResult> {
+    validate_saved_provider(provider, api_key)?;
+    let model = provider
+        .embedding_model
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| CommandError::new(keys::PROVIDER_EMBEDDING_MODEL_REQUIRED))?;
+    if inputs.is_empty() {
+        return Ok(EmbeddingResult {
+            embeddings: Vec::new(),
+            latency_ms: 0,
+        });
+    }
+
+    let client = http_client()?;
+    let started = Instant::now();
+    let response = if matches!(provider.kind.as_str(), "ollama" | "ollama-cloud") {
+        let base = provider
+            .embedding_base_url
+            .as_deref()
+            .map(normalize_ollama_base)
+            .unwrap_or_else(|| ollama_base_saved(provider));
+        let url = format!("{base}/embed");
+        let body = json!({ "model": model, "input": inputs });
+        send_with_retry(
+            || authenticated(client.post(&url), api_key).json(&body),
+            retry,
+            keys::PROVIDER_REQUEST_FAILED,
+        )
+        .await?
+    } else {
+        let base = match provider.embedding_base_url.as_deref() {
+            Some(value) => value.trim_end_matches('/').to_owned(),
+            None => openai_base_saved(provider)?,
+        };
+        let url = format!("{base}/embeddings");
+        let body = json!({ "model": model, "input": inputs, "encoding_format": "float" });
+        send_with_retry(
+            || authenticated(client.post(&url), api_key).json(&body),
+            retry,
+            keys::PROVIDER_REQUEST_FAILED,
+        )
+        .await?
+    };
+
+    let value = response_json(response).await?;
+    let embeddings = if matches!(provider.kind.as_str(), "ollama" | "ollama-cloud") {
+        value
+            .get("embeddings")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .map(parse_embedding)
+            .collect::<CommandResult<Vec<_>>>()?
+    } else {
+        let mut indexed = value
+            .get("data")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .map(|item| {
+                let index = item.get("index").and_then(Value::as_u64).unwrap_or(0) as usize;
+                let vector = parse_embedding(
+                    item.get("embedding")
+                        .ok_or_else(|| CommandError::new(keys::PROVIDER_EMPTY_RESPONSE))?,
+                )?;
+                Ok((index, vector))
+            })
+            .collect::<CommandResult<Vec<_>>>()?;
+        indexed.sort_by_key(|(index, _)| *index);
+        indexed.into_iter().map(|(_, vector)| vector).collect()
+    };
+
+    if embeddings.len() != inputs.len() || embeddings.iter().any(Vec::is_empty) {
+        return Err(CommandError::new(keys::PROVIDER_EMPTY_RESPONSE));
+    }
+    let dimensions = embeddings[0].len();
+    if embeddings.iter().any(|embedding| embedding.len() != dimensions) {
+        return Err(CommandError::new(keys::PROVIDER_EMPTY_RESPONSE));
+    }
+
+    Ok(EmbeddingResult {
+        embeddings,
+        latency_ms: started.elapsed().as_millis().min(i64::MAX as u128) as i64,
+    })
+}
+
+async fn send_with_retry<F>(
+    mut build_request: F,
+    settings: &RetrySettings,
+    error_key: &'static str,
+) -> CommandResult<Response>
+where
+    F: FnMut() -> RequestBuilder,
+{
+    let attempts = if settings.enabled {
+        settings.max_attempts.clamp(1, 8)
+    } else {
+        1
+    };
+    let initial_delay = settings.initial_delay_ms.clamp(100, 60_000);
+    let max_delay = settings.max_delay_ms.clamp(initial_delay, 300_000);
+
+    for attempt in 1..=attempts {
+        match build_request().send().await {
+            Ok(response) => {
+                if attempt < attempts && is_retryable_status(response.status().as_u16()) {
+                    let delay = retry_after_delay(&response)
+                        .unwrap_or_else(|| exponential_delay(initial_delay, max_delay, attempt));
+                    tokio::time::sleep(delay).await;
+                    continue;
+                }
+                return Ok(response);
+            }
+            Err(error) => {
+                if attempt >= attempts || !is_retryable_request_error(&error) {
+                    return Err(CommandError::with_detail(error_key, error));
+                }
+                tokio::time::sleep(exponential_delay(initial_delay, max_delay, attempt)).await;
+            }
+        }
+    }
+
+    Err(CommandError::new(error_key))
+}
+
+fn exponential_delay(initial_ms: u64, max_ms: u64, failed_attempt: u32) -> Duration {
+    let multiplier = 1_u64
+        .checked_shl(failed_attempt.saturating_sub(1).min(20))
+        .unwrap_or(u64::MAX);
+    Duration::from_millis(initial_ms.saturating_mul(multiplier).min(max_ms))
+}
+
+fn retry_after_delay(response: &Response) -> Option<Duration> {
+    let seconds = response
+        .headers()
+        .get(reqwest::header::RETRY_AFTER)?
+        .to_str()
+        .ok()?
+        .trim()
+        .parse::<u64>()
+        .ok()?;
+    Some(Duration::from_secs(seconds.min(300)))
+}
+
+fn is_retryable_status(status: u16) -> bool {
+    matches!(status, 408 | 409 | 425 | 429 | 500..=599)
+}
+
+fn is_retryable_request_error(error: &reqwest::Error) -> bool {
+    error.is_timeout() || error.is_connect() || error.is_request() || error.is_body()
+}
+
+fn parse_embedding(value: &Value) -> CommandResult<Vec<f32>> {
+    value
+        .as_array()
+        .ok_or_else(|| CommandError::new(keys::PROVIDER_EMPTY_RESPONSE))?
+        .iter()
+        .map(|number| {
+            number
+                .as_f64()
+                .filter(|value| value.is_finite())
+                .map(|value| value as f32)
+                .ok_or_else(|| CommandError::new(keys::PROVIDER_EMPTY_RESPONSE))
+        })
+        .collect()
 }
 
 fn http_client() -> CommandResult<Client> {
@@ -364,6 +566,8 @@ fn openai_base_saved(provider: &Provider) -> CommandResult<String> {
         temperature: provider.temperature,
         top_p: provider.top_p,
         max_tokens: provider.max_tokens,
+        embedding_model: provider.embedding_model.clone(),
+        embedding_base_url: provider.embedding_base_url.clone(),
     };
     openai_base(&input)
 }
@@ -418,3 +622,7 @@ fn extract_text(value: &Value) -> Option<String> {
         .join("");
     (!text.is_empty()).then_some(text)
 }
+
+#[cfg(test)]
+#[path = "../../test/rust/provider_client.rs"]
+mod tests;

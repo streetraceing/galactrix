@@ -214,6 +214,8 @@ export type Provider = {
   temperature: number;
   topP: number;
   maxTokens: number;
+  embeddingModel?: string;
+  embeddingBaseUrl?: string;
   hasSecret: boolean;
 };
 
@@ -227,11 +229,50 @@ export type ProviderInput = {
   temperature: number;
   topP: number;
   maxTokens: number;
+  embeddingModel?: string;
+  embeddingBaseUrl?: string;
 };
 
 export type ProviderImportInput = {
   provider: ProviderInput;
   apiKey?: string;
+};
+
+export type RetrySettings = {
+  enabled: boolean;
+  maxAttempts: number;
+  initialDelayMs: number;
+  maxDelayMs: number;
+};
+
+export type DynamicContextMode = 'local' | 'provider' | 'hybrid';
+
+export type DynamicContextSettings = {
+  enabled: boolean;
+  mode: DynamicContextMode;
+  providerId?: string;
+  directMessageLimit: number;
+  summaryBatchSize: number;
+  triggerMessages: number;
+  analysisPrompt: string;
+};
+
+export type SemanticMemorySettings = {
+  enabled: boolean;
+  providerId?: string;
+  topK: number;
+  similarityThreshold: number;
+  batchSize: number;
+  includeRememberedMessages: boolean;
+  includeDynamicContext: boolean;
+  indexArchivedMessages: boolean;
+  archivedMessageLimit: number;
+};
+
+export type AiModuleSettings = {
+  retry: RetrySettings;
+  dynamicContext: DynamicContextSettings;
+  semanticMemory: SemanticMemorySettings;
 };
 
 export type AppSettings = {
@@ -253,6 +294,7 @@ export type AppSettings = {
   themeMode: 'light' | 'dark' | 'system';
   themeVariant: 'default' | 'lavender' | 'discord' | 'spotify';
   language: 'system' | 'ru' | 'en';
+  aiModules: AiModuleSettings;
 };
 
 export type UsagePoint = {
@@ -280,5 +322,10 @@ export type AppSnapshot = {
 
 export type ProviderModelResult = {
   models: string[];
+  latencyMs: number;
+};
+
+export type EmbeddingProbeResult = {
+  dimensions: number;
   latencyMs: number;
 };

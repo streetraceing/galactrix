@@ -77,6 +77,8 @@ export function parseTelescopeExport(value: unknown): TelescopeImportEntry[] {
         model,
         baseUrl: optionalString(provider.baseUrl),
         accountId: optionalString(provider.accountId),
+        embeddingModel: optionalString(provider.embeddingModel),
+        embeddingBaseUrl: optionalString(provider.embeddingBaseUrl),
         temperature: finiteNumber(provider.temperature, 0.7),
         topP: finiteNumber(provider.topP, 0.95),
         maxTokens: Math.round(finiteNumber(provider.maxTokens, 4096)),

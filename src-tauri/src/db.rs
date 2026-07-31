@@ -1,12 +1,16 @@
-use std::{collections::HashMap, path::Path};
+use std::{
+    collections::{HashMap, HashSet},
+    path::Path,
+};
 
 use rusqlite::{params, Connection, OptionalExtension};
 use serde_json::Value;
 
 use crate::i18n::{keys, CommandError, CommandResult};
 use crate::models::{
-    AppSettings, AppSnapshot, Chat, ChatConfigInput, ChatPromptContext, ChatState, GalaxyItem,
-    GalaxyItemInput, Message, MessageVariant, PromptConfig, Provider, UsagePoint,
+    AiModuleSettings, AppSettings, AppSnapshot, Chat, ChatConfigInput, ChatPromptContext,
+    ChatState, DynamicContextState, GalaxyItem, GalaxyItemInput, Message, MessageVariant,
+    PromptConfig, Provider, SemanticMemoryCandidate, SemanticMemoryRecord, UsagePoint,
 };
 
 pub fn open(path: &Path) -> CommandResult<Connection> {
@@ -101,6 +105,8 @@ fn migrate(connection: &Connection) -> CommandResult<()> {
                 temperature REAL NOT NULL DEFAULT 0.7,
                 top_p REAL NOT NULL DEFAULT 0.95,
                 max_tokens INTEGER NOT NULL DEFAULT 4096,
+                embedding_model TEXT,
+                embedding_base_url TEXT,
                 created_at INTEGER NOT NULL,
                 updated_at INTEGER NOT NULL
             );
@@ -124,8 +130,36 @@ fn migrate(connection: &Connection) -> CommandResult<()> {
                 sidebar_collapsed INTEGER NOT NULL DEFAULT 0,
                 theme_mode TEXT NOT NULL DEFAULT 'system',
                 theme_variant TEXT NOT NULL DEFAULT 'default',
-                language TEXT NOT NULL DEFAULT 'system'
+                language TEXT NOT NULL DEFAULT 'system',
+                ai_modules_json TEXT NOT NULL DEFAULT '{}'
             );
+
+            CREATE TABLE IF NOT EXISTS chat_contexts (
+                chat_id TEXT PRIMARY KEY,
+                context_json TEXT NOT NULL DEFAULT '{}',
+                covered_through_message_id TEXT,
+                updated_at INTEGER NOT NULL,
+                FOREIGN KEY(chat_id) REFERENCES chats(id) ON DELETE CASCADE
+            );
+
+            CREATE TABLE IF NOT EXISTS semantic_memories (
+                id TEXT PRIMARY KEY,
+                chat_id TEXT NOT NULL,
+                source_kind TEXT NOT NULL,
+                source_id TEXT NOT NULL,
+                content TEXT NOT NULL,
+                embedding_json TEXT NOT NULL,
+                embedding_provider_id TEXT NOT NULL,
+                embedding_model TEXT NOT NULL,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL,
+                UNIQUE(chat_id, source_kind, source_id),
+                FOREIGN KEY(chat_id) REFERENCES chats(id) ON DELETE CASCADE,
+                FOREIGN KEY(embedding_provider_id) REFERENCES providers(id) ON DELETE CASCADE
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_semantic_memories_lookup
+                ON semantic_memories(chat_id, embedding_provider_id, embedding_model);
 
             CREATE TABLE IF NOT EXISTS usage_events (
                 id TEXT PRIMARY KEY,
@@ -199,6 +233,14 @@ fn migrate(connection: &Connection) -> CommandResult<()> {
         "providers",
         "max_tokens",
         "INTEGER NOT NULL DEFAULT 4096",
+    )?;
+    ensure_column(connection, "providers", "embedding_model", "TEXT")?;
+    ensure_column(connection, "providers", "embedding_base_url", "TEXT")?;
+    ensure_column(
+        connection,
+        "app_settings",
+        "ai_modules_json",
+        "TEXT NOT NULL DEFAULT '{}'",
     )?;
     ensure_column(
         connection,
@@ -709,7 +751,7 @@ fn list_providers(connection: &Connection) -> CommandResult<Vec<Provider>> {
     let mut statement = connection
         .prepare(
             "SELECT id, name, kind, model, status, base_url, account_id, latency_ms,
-                    temperature, top_p, max_tokens
+                    temperature, top_p, max_tokens, embedding_model, embedding_base_url
              FROM providers ORDER BY updated_at DESC",
         )?;
     let result = statement
@@ -726,6 +768,8 @@ fn list_providers(connection: &Connection) -> CommandResult<Vec<Provider>> {
                 temperature: row.get(8)?,
                 top_p: row.get(9)?,
                 max_tokens: row.get(10)?,
+                embedding_model: row.get(11)?,
+                embedding_base_url: row.get(12)?,
                 has_secret: false,
             })
         })?
@@ -734,7 +778,7 @@ fn list_providers(connection: &Connection) -> CommandResult<Vec<Provider>> {
     result
 }
 
-fn get_settings(connection: &Connection) -> CommandResult<AppSettings> {
+pub fn get_settings(connection: &Connection) -> CommandResult<AppSettings> {
     connection
         .query_row(
             "SELECT profile_name, profile_avatar, animations, haptics,
@@ -742,7 +786,7 @@ fn get_settings(connection: &Connection) -> CommandResult<AppSettings> {
                     interface_scale, sidebar_width, chat_sidebar_width,
                     sidebar_collapsed, theme_mode, theme_variant, language,
                     chat_view_mode, show_message_avatars,
-                    show_message_timestamps, response_language
+                    show_message_timestamps, response_language, ai_modules_json
              FROM app_settings WHERE id = 1",
             [],
             |row| {
@@ -765,6 +809,10 @@ fn get_settings(connection: &Connection) -> CommandResult<AppSettings> {
                     show_message_avatars: row.get::<_, i64>(15)? != 0,
                     show_message_timestamps: row.get::<_, i64>(16)? != 0,
                     response_language: row.get(17)?,
+                    ai_modules: serde_json::from_str::<AiModuleSettings>(
+                        &row.get::<_, String>(18)?,
+                    )
+                    .unwrap_or_default(),
                 })
             },
         )
@@ -1112,6 +1160,8 @@ pub fn clear_chat(connection: &Connection, chat_id: &str) -> CommandResult<()> {
     }
     transaction
         .execute("DELETE FROM messages WHERE chat_id = ?1", params![chat_id])?;
+    transaction.execute("DELETE FROM chat_contexts WHERE chat_id = ?1", params![chat_id])?;
+    transaction.execute("DELETE FROM semantic_memories WHERE chat_id = ?1", params![chat_id])?;
     transaction
         .execute(
             "UPDATE chats SET preview = '', message_count = 0, updated_at = ?1 WHERE id = ?2",
@@ -1337,6 +1387,8 @@ pub fn append_message_variant(
             params![content.trim(), next_position, message_id],
         )?;
     refresh_chat_summary(&transaction, &chat_id)?;
+    transaction.execute("DELETE FROM chat_contexts WHERE chat_id = ?1", params![chat_id])?;
+    transaction.execute("DELETE FROM semantic_memories WHERE chat_id = ?1", params![chat_id])?;
     transaction.commit()?;
     Ok(next_position)
 }
@@ -1365,6 +1417,8 @@ pub fn select_message_variant(
             params![content, variant_index, message_id],
         )?;
     refresh_chat_summary(&transaction, &chat_id)?;
+    transaction.execute("DELETE FROM chat_contexts WHERE chat_id = ?1", params![chat_id])?;
+    transaction.execute("DELETE FROM semantic_memories WHERE chat_id = ?1", params![chat_id])?;
     transaction.commit().map_err(CommandError::internal)
 }
 
@@ -1567,7 +1621,8 @@ pub fn edit_message(
     if changed == 0 {
         return Err(CommandError::new(keys::MESSAGE_NOT_FOUND));
     }
-    refresh_chat_summary(connection, &chat_id)
+    refresh_chat_summary(connection, &chat_id)?;
+    invalidate_chat_ai_context(connection, &chat_id)
 }
 
 pub fn delete_message(connection: &Connection, message_id: &str) -> CommandResult<()> {
@@ -1581,7 +1636,8 @@ pub fn delete_message(connection: &Connection, message_id: &str) -> CommandResul
         .ok_or_else(|| CommandError::new(keys::MESSAGE_NOT_FOUND))?;
     connection
         .execute("DELETE FROM messages WHERE id = ?1", params![message_id])?;
-    refresh_chat_summary(connection, &chat_id)
+    refresh_chat_summary(connection, &chat_id)?;
+    invalidate_chat_ai_context(connection, &chat_id)
 }
 
 pub fn set_message_remembered(
@@ -1589,15 +1645,19 @@ pub fn set_message_remembered(
     message_id: &str,
     remembered: bool,
 ) -> CommandResult<()> {
-    let changed = connection
-        .execute(
-            "UPDATE messages SET remembered = ?1 WHERE id = ?2",
-            params![remembered as i64, message_id],
-        )?;
-    if changed == 0 {
-        return Err(CommandError::new(keys::MESSAGE_NOT_FOUND));
-    }
-    Ok(())
+    let chat_id = connection
+        .query_row(
+            "SELECT chat_id FROM messages WHERE id = ?1",
+            params![message_id],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()?
+        .ok_or_else(|| CommandError::new(keys::MESSAGE_NOT_FOUND))?;
+    connection.execute(
+        "UPDATE messages SET remembered = ?1 WHERE id = ?2",
+        params![remembered as i64, message_id],
+    )?;
+    invalidate_chat_ai_context(connection, &chat_id)
 }
 
 fn refresh_chat_summary(connection: &Connection, chat_id: &str) -> CommandResult<()> {
@@ -1628,7 +1688,7 @@ pub fn provider_optional(connection: &Connection, id: &str) -> CommandResult<Opt
     connection
         .query_row(
             "SELECT id, name, kind, model, status, base_url, account_id, latency_ms,
-                    temperature, top_p, max_tokens
+                    temperature, top_p, max_tokens, embedding_model, embedding_base_url
              FROM providers WHERE id = ?1",
             params![id],
             |row| {
@@ -1644,6 +1704,8 @@ pub fn provider_optional(connection: &Connection, id: &str) -> CommandResult<Opt
                     temperature: row.get(8)?,
                     top_p: row.get(9)?,
                     max_tokens: row.get(10)?,
+                    embedding_model: row.get(11)?,
+                    embedding_base_url: row.get(12)?,
                     has_secret: false,
                 })
             },
@@ -2025,8 +2087,9 @@ pub fn save_provider(connection: &Connection, provider: &Provider) -> CommandRes
         .execute(
             r#"INSERT INTO providers (
                     id, name, kind, model, status, base_url, account_id, latency_ms,
-                    temperature, top_p, max_tokens, created_at, updated_at
-               ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?12)
+                    temperature, top_p, max_tokens, embedding_model, embedding_base_url,
+                    created_at, updated_at
+               ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?14)
                ON CONFLICT(id) DO UPDATE SET
                     name = excluded.name,
                     kind = excluded.kind,
@@ -2038,6 +2101,8 @@ pub fn save_provider(connection: &Connection, provider: &Provider) -> CommandRes
                     temperature = excluded.temperature,
                     top_p = excluded.top_p,
                     max_tokens = excluded.max_tokens,
+                    embedding_model = excluded.embedding_model,
+                    embedding_base_url = excluded.embedding_base_url,
                     updated_at = excluded.updated_at"#,
             params![
                 provider.id,
@@ -2051,6 +2116,8 @@ pub fn save_provider(connection: &Connection, provider: &Provider) -> CommandRes
                 provider.temperature,
                 provider.top_p,
                 provider.max_tokens,
+                provider.embedding_model,
+                provider.embedding_base_url,
                 now_unix()
             ],
         )?;
@@ -2125,7 +2192,7 @@ pub fn update_settings(connection: &Connection, settings: &AppSettings) -> Comma
                  sidebar_collapsed = ?11, theme_mode = ?12, theme_variant = ?13,
                  language = ?14, chat_view_mode = ?15,
                  show_message_avatars = ?16, show_message_timestamps = ?17,
-                 response_language = ?18
+                 response_language = ?18, ai_modules_json = ?19
              WHERE id = 1",
             params![
                 settings.profile_name,
@@ -2145,10 +2212,218 @@ pub fn update_settings(connection: &Connection, settings: &AppSettings) -> Comma
                 settings.chat_view_mode,
                 settings.show_message_avatars as i64,
                 settings.show_message_timestamps as i64,
-                settings.response_language
+                settings.response_language,
+                serde_json::to_string(&settings.ai_modules)?
             ],
         )?;
     Ok(())
+}
+
+pub fn get_dynamic_context(
+    connection: &Connection,
+    chat_id: &str,
+) -> CommandResult<Option<DynamicContextState>> {
+    connection
+        .query_row(
+            "SELECT context_json, covered_through_message_id, updated_at
+             FROM chat_contexts WHERE chat_id = ?1",
+            params![chat_id],
+            |row| {
+                let raw: String = row.get(0)?;
+                let mut state = serde_json::from_str::<DynamicContextState>(&raw)
+                    .unwrap_or_default();
+                state.covered_through_message_id = row.get(1)?;
+                state.updated_at = row.get(2)?;
+                Ok(state)
+            },
+        )
+        .optional()
+        .map_err(CommandError::internal)
+}
+
+pub fn save_dynamic_context(
+    connection: &Connection,
+    chat_id: &str,
+    state: &DynamicContextState,
+) -> CommandResult<()> {
+    let transaction = connection.unchecked_transaction()?;
+    let now = now_unix();
+    let mut stored = state.clone();
+    stored.updated_at = now;
+    let context_json = serde_json::to_string(&stored)?;
+    let covered_through_message_id = stored.covered_through_message_id.clone();
+    transaction.execute(
+        "INSERT INTO chat_contexts (
+            chat_id, context_json, covered_through_message_id, updated_at
+         ) VALUES (?1, ?2, ?3, ?4)
+         ON CONFLICT(chat_id) DO UPDATE SET
+            context_json = excluded.context_json,
+            covered_through_message_id = excluded.covered_through_message_id,
+            updated_at = excluded.updated_at",
+        params![chat_id, context_json, covered_through_message_id, now],
+    )?;
+    transaction.execute(
+        "DELETE FROM semantic_memories
+         WHERE chat_id = ?1 AND source_kind LIKE 'context-%'",
+        params![chat_id],
+    )?;
+    transaction.commit().map_err(CommandError::internal)
+}
+
+pub fn invalidate_chat_ai_context(connection: &Connection, chat_id: &str) -> CommandResult<()> {
+    let transaction = connection.unchecked_transaction()?;
+    transaction.execute("DELETE FROM chat_contexts WHERE chat_id = ?1", params![chat_id])?;
+    transaction.execute("DELETE FROM semantic_memories WHERE chat_id = ?1", params![chat_id])?;
+    transaction.commit().map_err(CommandError::internal)
+}
+
+pub fn semantic_memory_indexed_contents(
+    connection: &Connection,
+    chat_id: &str,
+    provider_id: &str,
+    model: &str,
+) -> CommandResult<HashMap<(String, String), String>> {
+    let mut statement = connection.prepare(
+        "SELECT source_kind, source_id, content
+         FROM semantic_memories
+         WHERE chat_id = ?1 AND embedding_provider_id = ?2 AND embedding_model = ?3",
+    )?;
+    let rows = statement
+        .query_map(params![chat_id, provider_id, model], |row| {
+            Ok((
+                (row.get::<_, String>(0)?, row.get::<_, String>(1)?),
+                row.get::<_, String>(2)?,
+            ))
+        })?
+        .collect::<Result<HashMap<_, _>, _>>()?;
+    Ok(rows)
+}
+
+pub fn prune_semantic_memories(
+    connection: &Connection,
+    chat_id: &str,
+    provider_id: &str,
+    model: &str,
+    candidates: &[SemanticMemoryCandidate],
+) -> CommandResult<()> {
+    connection.execute(
+        "DELETE FROM semantic_memories
+         WHERE chat_id = ?1 AND (embedding_provider_id != ?2 OR embedding_model != ?3)",
+        params![chat_id, provider_id, model],
+    )?;
+    let keep = candidates
+        .iter()
+        .map(|candidate| (candidate.source_kind.as_str(), candidate.source_id.as_str()))
+        .collect::<HashSet<_>>();
+    let mut statement = connection.prepare(
+        "SELECT source_kind, source_id FROM semantic_memories
+         WHERE chat_id = ?1 AND embedding_provider_id = ?2 AND embedding_model = ?3",
+    )?;
+    let existing = statement
+        .query_map(params![chat_id, provider_id, model], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+    drop(statement);
+
+    let stale = existing
+        .into_iter()
+        .filter(|(kind, id)| !keep.contains(&(kind.as_str(), id.as_str())))
+        .collect::<Vec<_>>();
+    if stale.is_empty() {
+        return Ok(());
+    }
+
+    let transaction = connection.unchecked_transaction()?;
+    for (kind, id) in stale {
+        transaction.execute(
+            "DELETE FROM semantic_memories
+             WHERE chat_id = ?1 AND source_kind = ?2 AND source_id = ?3",
+            params![chat_id, kind, id],
+        )?;
+    }
+    transaction.commit().map_err(CommandError::internal)
+}
+
+pub fn upsert_semantic_memories(
+    connection: &Connection,
+    chat_id: &str,
+    provider_id: &str,
+    model: &str,
+    entries: &[(SemanticMemoryCandidate, Vec<f32>)],
+) -> CommandResult<()> {
+    if entries.is_empty() {
+        return Ok(());
+    }
+    let transaction = connection.unchecked_transaction()?;
+    let now = now_unix();
+    for (candidate, embedding) in entries {
+        if embedding.is_empty() {
+            continue;
+        }
+        let id = format!(
+            "{}:{}:{}",
+            chat_id, candidate.source_kind, candidate.source_id
+        );
+        transaction.execute(
+            "INSERT INTO semantic_memories (
+                id, chat_id, source_kind, source_id, content, embedding_json,
+                embedding_provider_id, embedding_model, created_at, updated_at
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?9)
+             ON CONFLICT(chat_id, source_kind, source_id) DO UPDATE SET
+                content = excluded.content,
+                embedding_json = excluded.embedding_json,
+                embedding_provider_id = excluded.embedding_provider_id,
+                embedding_model = excluded.embedding_model,
+                updated_at = excluded.updated_at",
+            params![
+                id,
+                chat_id,
+                candidate.source_kind,
+                candidate.source_id,
+                candidate.content,
+                serde_json::to_string(embedding)?,
+                provider_id,
+                model,
+                now
+            ],
+        )?;
+    }
+    transaction.commit().map_err(CommandError::internal)
+}
+
+pub fn list_semantic_memories(
+    connection: &Connection,
+    chat_id: &str,
+    provider_id: &str,
+    model: &str,
+) -> CommandResult<Vec<SemanticMemoryRecord>> {
+    let mut statement = connection.prepare(
+        "SELECT source_kind, source_id, content, embedding_json
+         FROM semantic_memories
+         WHERE chat_id = ?1 AND embedding_provider_id = ?2 AND embedding_model = ?3",
+    )?;
+    let records = statement
+        .query_map(params![chat_id, provider_id, model], |row| {
+            let raw: String = row.get(3)?;
+            Ok(SemanticMemoryRecord {
+                source_kind: row.get(0)?,
+                source_id: row.get(1)?,
+                content: row.get(2)?,
+                embedding: serde_json::from_str::<Vec<f32>>(&raw).unwrap_or_default(),
+                similarity: 0.0,
+            })
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(records)
+}
+
+pub fn provider_ids(connection: &Connection) -> CommandResult<HashSet<String>> {
+    let mut statement = connection.prepare("SELECT id FROM providers")?;
+    let ids = statement
+        .query_map([], |row| row.get::<_, String>(0))?
+        .collect::<Result<HashSet<_>, _>>()?;
+    Ok(ids)
 }
 
 fn galaxy_presentation(kind: &str) -> CommandResult<(&'static str, &'static str)> {
@@ -2178,5 +2453,6 @@ fn clock_time(timestamp: i64) -> String {
 }
 
 #[cfg(test)]
-#[path = "../../test/rust/db.rs"]
-mod tests;
+mod tests {
+    include!(concat!(env!("CARGO_MANIFEST_DIR"), "/../test/rust/db.rs"));
+}

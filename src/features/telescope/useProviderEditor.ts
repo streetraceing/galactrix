@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from '../../i18n/toast';
 import type {
+  EmbeddingProbeResult,
   Provider,
   ProviderInput,
   ProviderKind,
@@ -12,12 +13,17 @@ import { defaultProviderInput, providerToInput } from './providerHelpers';
 
 export function useProviderEditor({
   onFetchModels,
+  onTestEmbeddings,
   onSave,
 }: {
   onFetchModels: (
     provider: ProviderInput,
     apiKey?: string,
   ) => Promise<ProviderModelResult>;
+  onTestEmbeddings: (
+    provider: ProviderInput,
+    apiKey?: string,
+  ) => Promise<EmbeddingProbeResult>;
   onSave: (provider: ProviderInput, apiKey?: string) => Promise<Provider>;
 }) {
   const { t } = useTranslation('telescope');
@@ -30,6 +36,9 @@ export function useProviderEditor({
   const [models, setModels] = useState<string[]>([]);
   const [loadingModels, setLoadingModels] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [testingEmbeddings, setTestingEmbeddings] = useState(false);
+  const [embeddingProbe, setEmbeddingProbe] =
+    useState<EmbeddingProbeResult | null>(null);
   const [error, setError] = useState('');
   const [latency, setLatency] = useState<number | null>(null);
 
@@ -42,6 +51,7 @@ export function useProviderEditor({
     setToken('');
     setModels([]);
     setLatency(null);
+    setEmbeddingProbe(null);
     setError('');
   };
 
@@ -58,12 +68,13 @@ export function useProviderEditor({
     setToken('');
     setModels(provider.model ? [provider.model] : []);
     setLatency(provider.latencyMs ?? null);
+    setEmbeddingProbe(null);
     setError('');
     setIsOpen(true);
   };
 
   const close = () => {
-    if (saving || loadingModels) return;
+    if (saving || loadingModels || testingEmbeddings) return;
     setIsOpen(false);
   };
 
@@ -99,6 +110,21 @@ export function useProviderEditor({
     }
   };
 
+  const testEmbeddings = async () => {
+    if (testingEmbeddings || !form.embeddingModel?.trim()) return;
+    setTestingEmbeddings(true);
+    setEmbeddingProbe(null);
+    setError('');
+    try {
+      const result = await onTestEmbeddings(form, token.trim() || undefined);
+      setEmbeddingProbe(result);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : String(caught));
+    } finally {
+      setTestingEmbeddings(false);
+    }
+  };
+
   const save = async () => {
     if (!form.name.trim() || !form.model.trim() || saving) return;
     setSaving(true);
@@ -111,6 +137,11 @@ export function useProviderEditor({
           model: form.model.trim(),
           baseUrl: form.baseUrl?.trim() || undefined,
           accountId: form.accountId?.trim() || undefined,
+          embeddingModel:
+            form.embeddingModel === undefined
+              ? undefined
+              : form.embeddingModel.trim(),
+          embeddingBaseUrl: form.embeddingBaseUrl?.trim() || undefined,
         },
         token.trim() || undefined,
       );
@@ -133,6 +164,8 @@ export function useProviderEditor({
     models,
     loadingModels,
     saving,
+    testingEmbeddings,
+    embeddingProbe,
     error,
     latency,
     catalog,
@@ -144,6 +177,7 @@ export function useProviderEditor({
     close,
     chooseKind,
     loadModels,
+    testEmbeddings,
     save,
   };
 }

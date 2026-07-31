@@ -19,6 +19,7 @@ import {
   type ExportDestination,
 } from '../../lib/jsonTransfer';
 import type {
+  EmbeddingProbeResult,
   Provider,
   ProviderImportInput,
   ProviderInput,
@@ -33,6 +34,7 @@ import { useTranslation } from 'react-i18next';
 export function TelescopeScreen({
   providers,
   onFetchModels,
+  onTestEmbeddings,
   onExportSecrets,
   onImport,
   onSave,
@@ -44,6 +46,10 @@ export function TelescopeScreen({
     provider: ProviderInput,
     apiKey?: string,
   ) => Promise<ProviderModelResult>;
+  onTestEmbeddings: (
+    provider: ProviderInput,
+    apiKey?: string,
+  ) => Promise<EmbeddingProbeResult>;
   onExportSecrets: (ids: string[]) => Promise<Record<string, string>>;
   onImport: (entries: ProviderImportInput[]) => Promise<number>;
   onSave: (provider: ProviderInput, apiKey?: string) => Promise<Provider>;
@@ -63,7 +69,11 @@ export function TelescopeScreen({
   );
   const [includeSecrets, setIncludeSecrets] = useState(false);
   const [transferring, setTransferring] = useState(false);
-  const editor = useProviderEditor({ onFetchModels, onSave });
+  const editor = useProviderEditor({
+    onFetchModels,
+    onTestEmbeddings,
+    onSave,
+  });
   const connectedCount = providers.filter(
     (provider) => provider.status === 'connected',
   ).length;
@@ -361,6 +371,8 @@ export function TelescopeScreen({
         models={editor.models}
         latency={editor.latency}
         loadingModels={editor.loadingModels}
+        testingEmbeddings={editor.testingEmbeddings}
+        embeddingProbe={editor.embeddingProbe}
         saving={editor.saving}
         error={editor.error}
         catalog={editor.catalog}
@@ -370,6 +382,7 @@ export function TelescopeScreen({
         onPatch={editor.patch}
         onTokenChange={editor.setToken}
         onLoadModels={() => void editor.loadModels()}
+        onTestEmbeddings={() => void editor.testEmbeddings()}
         onSave={() => void editor.save()}
       />
 
