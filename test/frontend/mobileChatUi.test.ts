@@ -10,6 +10,18 @@ const conversationHeaderPath = new URL(
   '../../src/features/chats/components/ConversationHeader.tsx',
   import.meta.url,
 );
+const historyModalPath = new URL(
+  '../../src/features/chats/components/MessageHistoryModal.tsx',
+  import.meta.url,
+);
+const uiModalPath = new URL(
+  '../../src/components/ui/UiModal.tsx',
+  import.meta.url,
+);
+const mobileBackPath = new URL(
+  '../../src/hooks/useMobileBackEntry.ts',
+  import.meta.url,
+);
 
 test('mobile continuation is available only from the context menu', async () => {
   const source = await readFile(messageListPath, 'utf8');
@@ -25,32 +37,44 @@ test('mobile continuation is available only from the context menu', async () => 
   );
 });
 
-test('mobile swipe owns one height-locked release animation', async () => {
+test('mobile swipe is easy to acquire and uses one bounded release transition', async () => {
   const source = await readFile(messageListPath, 'utf8');
 
-  assert.match(source, /axis: 'pending' \| 'horizontal' \| 'vertical'/);
-  assert.match(source, /container\.style\.height = `\$\{oldHeight\}px`/);
-  assert.match(source, /container\.style\.overflow = 'clip'/);
+  assert.match(source, /startedAt: performance\.now\(\)/);
   assert.match(
     source,
-    /await finishAnimation\(exitAnimation\);[\s\S]*?const resultPromise = action\(\)/,
+    /event\.currentTarget\.setPointerCapture\(event\.pointerId\)/,
   );
-  assert.match(source, /duration: 210/);
-  assert.match(source, /className="relative z-10"/);
-  assert.doesNotMatch(source, /transition-\[transform,opacity\]/);
-  assert.match(source, /enabled=\{!isMobile\}/);
+  assert.match(source, /shouldCommitMobileSwipe\(dx, dy, elapsedMs\)/);
+  assert.match(source, /mobileSwipeDragOffset\(dx, hasTarget\)/);
+  assert.match(source, /setOffset\(direction \* 104\)/);
+  assert.match(source, /setOffset\(-direction \* 52\)/);
+  assert.match(source, /duration: 180/);
+  assert.doesNotMatch(source, /motion\.animate\(/);
   assert.match(source, /className="relative touch-pan-y overflow-x-clip"/);
 });
 
-test('mobile message overlays open after the context menu closes', async () => {
+test('mobile message actions open dialogs directly from menu item clicks', async () => {
   const source = await readFile(messageListPath, 'utf8');
 
-  assert.match(source, /const deferOverlayAction/);
-  assert.match(
-    source,
-    /onClick=\{\(\) => deferOverlayAction\(onEditRequest\)\}/,
-  );
-  assert.match(source, /max-h-\[min\(60dvh,24rem\)\][^"']*overflow-y-auto/);
+  assert.doesNotMatch(source, /deferOverlayAction/);
+  assert.match(source, /ContextMenuItem onClick=\{onEditRequest\}/);
+  assert.match(source, /ContextMenuItem onClick=\{onHistoryRequest\}/);
+  assert.match(source, /isMobile \? \([\s\S]*?responseHistory/);
+});
+
+test('mobile variant history is viewport bounded and does not use a side submenu', async () => {
+  const [messageSource, modalSource, uiModalSource] = await Promise.all([
+    readFile(messageListPath, 'utf8'),
+    readFile(historyModalPath, 'utf8'),
+    readFile(uiModalPath, 'utf8'),
+  ]);
+
+  assert.match(messageSource, /max-h-\[calc\(100dvh-1rem\)\]/);
+  assert.match(modalSource, /max-h-\[min\(28dvh,12rem\)\]/);
+  assert.match(modalSource, /bodyClassName="max-h-full"/);
+  assert.match(uiModalSource, /window\.visualViewport\?\.height/);
+  assert.match(uiModalSource, /min-h-0 min-w-0 flex-1/);
 });
 
 test('chat title uses a full mobile modal and keeps desktop popover', async () => {
@@ -60,4 +84,13 @@ test('chat title uses a full mobile modal and keeps desktop popover', async () =
   assert.match(source, /isMobile \? \([\s\S]*setOverviewOpen\(true\)/);
   assert.match(source, /<UiModal[\s\S]*title=\{chat\.title\}/);
   assert.match(source, /<Popover isOpen=\{overviewOpen\}/);
+});
+
+test('mobile modal transitions reuse the pending history entry', async () => {
+  const source = await readFile(mobileBackPath, 'utf8');
+
+  assert.match(source, /pendingHistoryBack/);
+  assert.match(source, /window\.history\.replaceState/);
+  assert.match(source, /scheduleHistoryEntryRemoval/);
+  assert.match(source, /window\.setTimeout\([\s\S]*window\.history\.back\(\)/);
 });

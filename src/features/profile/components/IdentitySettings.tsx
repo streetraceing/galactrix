@@ -120,19 +120,7 @@ export function IdentitySettings({
             {t('identitySettings.thisNameAndImageAreUsedForYourMessagesWhen')}
           </p>
         </div>
-        <div className="grid gap-5 md:grid-cols-[auto_minmax(0,1fr)] md:items-start">
-          <AvatarPicker
-            value={settings.profileAvatar}
-            name={displayProfileName}
-            disabled={savingProfile}
-            description={t(
-              'identitySettings.thePhotoIsCroppedToASquareAndStoredOnly',
-            )}
-            onChange={async (profileAvatar) => {
-              await saveProfile({ profileAvatar });
-            }}
-            className="items-start"
-          />
+        <div className="flex gap-5 md:flex-col md:items-start">
           <div className="min-w-0">
             <label
               htmlFor="profile-display-name"
@@ -167,6 +155,18 @@ export function IdentitySettings({
               </Button>
             </div>
           </div>
+          <AvatarPicker
+            value={settings.profileAvatar}
+            name={displayProfileName}
+            disabled={savingProfile}
+            description={t(
+              'identitySettings.thePhotoIsCroppedToASquareAndStoredOnly',
+            )}
+            onChange={async (profileAvatar) => {
+              await saveProfile({ profileAvatar });
+            }}
+            className="items-start"
+          />
         </div>
       </Surface>
 

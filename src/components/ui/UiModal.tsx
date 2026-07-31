@@ -19,6 +19,7 @@ export function UiModal({
   size = 'md',
   onConfirm,
   isConfirmDisabled = false,
+  bodyClassName,
 }: {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
@@ -29,6 +30,7 @@ export function UiModal({
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'cover' | 'full';
   onConfirm?: () => void;
   isConfirmDisabled?: boolean;
+  bodyClassName?: string;
 }) {
   const isMobile = isMobilePlatform();
   const [mobileHeight, setMobileHeight] = useState<number>();
@@ -36,12 +38,31 @@ export function UiModal({
   useMobileBackEntry(isOpen, () => onOpenChange(false));
 
   useLayoutEffect(() => {
-    if (!isOpen || !isMobile) return;
-    setMobileHeight(
-      Math.round(
-        Math.max(window.innerHeight, document.documentElement.clientHeight),
-      ),
-    );
+    if (!isOpen || !isMobile) {
+      setMobileHeight(undefined);
+      return;
+    }
+
+    const updateHeight = () => {
+      const visualHeight = window.visualViewport?.height;
+      const nextHeight = Math.round(
+        visualHeight && visualHeight > 0
+          ? visualHeight
+          : Math.min(window.innerHeight, document.documentElement.clientHeight),
+      );
+      setMobileHeight(nextHeight);
+    };
+
+    updateHeight();
+    window.addEventListener('resize', updateHeight);
+    window.addEventListener('orientationchange', updateHeight);
+    window.visualViewport?.addEventListener('resize', updateHeight);
+
+    return () => {
+      window.removeEventListener('resize', updateHeight);
+      window.removeEventListener('orientationchange', updateHeight);
+      window.visualViewport?.removeEventListener('resize', updateHeight);
+    };
   }, [isMobile, isOpen]);
 
   const mobileViewportStyle: CSSProperties | undefined =
@@ -94,18 +115,24 @@ export function UiModal({
         isOpen={isOpen}
         onOpenChange={onOpenChange}
         variant="blur"
-        className={isMobile ? 'h-full min-h-0' : undefined}
+        className={
+          isMobile ? 'h-full min-h-0 max-h-full overflow-hidden' : undefined
+        }
         style={mobileViewportStyle}
       >
         <Modal.Container
           size={isMobile ? 'full' : size}
           scroll="inside"
-          className={isMobile ? 'h-full min-h-0 w-full p-0' : undefined}
+          className={
+            isMobile
+              ? 'h-full min-h-0 max-h-full w-full overflow-hidden p-0'
+              : undefined
+          }
         >
           <Modal.Dialog
             className={
               isMobile
-                ? 'h-full min-h-0 w-full max-w-none min-w-0 rounded-none border-0! bg-background shadow-none! ring-0!'
+                ? 'flex h-full min-h-0 max-h-full w-full max-w-none min-w-0 flex-col overflow-hidden rounded-none border-0! bg-background shadow-none! ring-0!'
                 : 'ui-overlay-surface max-h-[90dvh] min-w-0 bg-background-secondary'
             }
             style={mobileViewportStyle}
@@ -118,7 +145,9 @@ export function UiModal({
                   <p className="mt-1 text-sm text-muted">{description}</p>
                 ) : null}
               </Modal.Header>
-              <Modal.Body className="scrollbar-thin min-w-0 overflow-x-hidden overflow-y-auto px-4 py-4 sm:px-6 scrollbar-gutter-stable">
+              <Modal.Body
+                className={`scrollbar-thin min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-4 py-4 sm:px-6 scrollbar-gutter-stable ${bodyClassName ?? ''}`}
+              >
                 {children}
               </Modal.Body>
               {footer ? (

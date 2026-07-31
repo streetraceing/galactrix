@@ -32,21 +32,22 @@ export function MessageHistoryModal({
           : undefined
       }
       size="cover"
+      bodyClassName="max-h-full"
       footer={
         <Button variant="ghost" isDisabled={isWorking} onPress={onClose}>
           {t('messageHistoryModal.close')}
         </Button>
       }
     >
-      <div className="flex flex-col gap-3">
+      <div className="flex min-h-0 w-full max-w-full flex-col gap-3">
         {message?.variants.map((variant) => {
           const selected = variant.index === message.activeVariantIndex;
           return (
             <Surface
               key={variant.id}
-              className="rounded-2xl border border-separator p-3 sm:p-4"
+              className="w-full max-w-full overflow-hidden rounded-2xl border border-separator p-3 sm:p-4"
             >
-              <div className="mb-3 flex items-center justify-between gap-3">
+              <div className="mb-3 flex min-w-0 flex-wrap items-center justify-between gap-2">
                 <div className="flex min-w-0 items-center gap-2">
                   <span className="text-sm font-semibold">
                     {t('messageHistoryModal.response')} {variant.index + 1}
@@ -65,7 +66,7 @@ export function MessageHistoryModal({
                   {variant.createdAt}
                 </span>
               </div>
-              <div className="selectable max-h-56 overflow-y-auto pr-1 text-sm">
+              <div className="selectable max-h-[min(28dvh,12rem)] overflow-y-auto overscroll-contain pr-1 text-sm">
                 <MarkdownContent>{variant.content}</MarkdownContent>
               </div>
               {!selected ? (
