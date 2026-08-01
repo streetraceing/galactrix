@@ -86,7 +86,7 @@ test('settings separate parameters and animated searchable modules', async () =>
   assert.doesNotMatch(moduleCard, /Accordion|DisclosureGroup/);
 });
 
-test('desktop sidebar keeps centered compact icons and reversible resize collapse', async () => {
+test('desktop sidebar keeps centered compact icons and continuous resize collapse', async () => {
   const [sidebar, frame, resizeHandle, appCss] = await Promise.all([
     readFile(sidebarPath, 'utf8'),
     readFile(framePath, 'utf8'),
@@ -96,15 +96,27 @@ test('desktop sidebar keeps centered compact icons and reversible resize collaps
 
   assert.match(sidebar, /compact \? 'w-14' : ''/);
   assert.match(sidebar, /group-data-\[collapsed=true\]\/sidebar:px-2/);
-  assert.match(sidebar, /transition-\[width\]/);
+  assert.match(sidebar, /const animateWidth = !resizing \|\| compact/);
+  assert.match(
+    sidebar,
+    /animateWidth[\s\S]*transition-\[width\][\s\S]*transition-none/,
+  );
   assert.match(sidebar, /after:w-px after:bg-separator/);
   assert.match(
     frame,
     /\{!isMobile && !hideDesktopNavigation \? \([\s\S]*<ResizeHandle/,
   );
+  assert.match(
+    frame,
+    /const \[sidebarResizing, setSidebarResizing\] = useState\(false\)/,
+  );
+  assert.match(frame, /resizing=\{sidebarResizing\}/);
   assert.match(frame, /collapsed=\{settings\.sidebarCollapsed\}/);
   assert.match(frame, /collapsedValue=\{DESKTOP_SIDEBAR_COLLAPSED_WIDTH\}/);
   assert.match(frame, /collapseThreshold=\{48\}/);
+  assert.match(frame, /resumeThreshold=\{12\}/);
+  assert.match(frame, /onResizeStart=\{\(\) => setSidebarResizing\(true\)\}/);
+  assert.match(frame, /onResizeEnd=\{\(\) => setSidebarResizing\(false\)\}/);
   assert.match(frame, /className="max-\[920px\]:hidden"/);
   assert.match(frame, /sidebarCollapsed: false/);
   assert.match(frame, /onCollapse=\{\(\) =>/);
@@ -114,10 +126,15 @@ test('desktop sidebar keeps centered compact icons and reversible resize collaps
   );
   assert.match(frame, /onCollapseCommit=\{\(\) =>/);
   assert.match(frame, /sidebarCollapsed: true/);
-  assert.match(resizeHandle, /rawValue < min - collapseThreshold/);
-  assert.match(resizeHandle, /collapsedValue \+ pointerOffset/);
-  assert.match(resizeHandle, /rawValue < min/);
   assert.match(resizeHandle, /let dragCollapsed = startedCollapsed/);
+  assert.match(resizeHandle, /let expandAtX = startedCollapsed/);
+  assert.match(
+    resizeHandle,
+    /expandAtX = moveEvent\.clientX \+ resumeThreshold/,
+  );
+  assert.match(resizeHandle, /expandedOriginX = expandAtX/);
+  assert.match(resizeHandle, /onResizeStart\?\.\(\)/);
+  assert.match(resizeHandle, /onResizeEnd\?\.\(\)/);
   assert.match(
     resizeHandle,
     /dragCollapsed = true;[\s\S]*onCollapse\(\);[\s\S]*return;/,

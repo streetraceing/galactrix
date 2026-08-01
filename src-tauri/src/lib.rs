@@ -340,13 +340,11 @@ fn build_chat_system_prompt(
     response_language: Option<&str>,
 ) -> CommandResult<Option<String>> {
     let context = db::get_chat_prompt_context(database, chat_id)?;
-    Ok(prompt_builder::build_system_prompt(
-        &context,
-        history,
-        response_language,
-    ))
+    let prompt = prompt_builder::build_system_prompt(&context, history, response_language);
+    Ok(prompt.map(|prompt| {
+        prompt_builder::resolve_assistant_placeholders(prompt, &context)
+    }))
 }
-
 
 struct PreparedGeneration {
     history: Vec<Message>,
@@ -659,7 +657,7 @@ fn preview_prompt(input: PromptPreviewInput) -> PromptPreviewResult {
                 .map(|item| item.name.trim())
                 .filter(|name| !name.is_empty())
         })
-        .unwrap_or("{{char}}")
+        .unwrap_or("Assistant")
         .to_owned();
     let context = models::ChatPromptContext {
         persona: input.persona.map(preview_galaxy_item),
@@ -683,9 +681,9 @@ fn preview_prompt(input: PromptPreviewInput) -> PromptPreviewResult {
         &input.remembered_messages,
         input.response_language.as_deref(),
     )
-        .unwrap_or_default()
-        .replace("{{user}}", &user_name)
-        .replace("{{char}}", &character_name);
+    .unwrap_or_default()
+    .replace("{{user}}", &user_name)
+    .replace("{{char}}", &character_name);
 
     PromptPreviewResult {
         approximate_tokens: approximate_token_count(&prompt),

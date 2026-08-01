@@ -37,6 +37,8 @@ export type IconName =
   | 'minimize'
   | 'maximize'
   | 'restore'
+  | 'screen-full'
+  | 'screen-normal'
   | 'history'
   | 'regenerate'
   | 'grip'
@@ -45,6 +47,7 @@ export type IconName =
   | 'chevron-left'
   | 'chevron-right';
 
+// screen-full and screen-normal use the MIT-licensed VS Code Codicons paths.
 const paths = createIconPaths();
 
 function createIconPaths(): Record<IconName, ReactNode> {
@@ -238,6 +241,12 @@ function createIconPaths(): Record<IconName, ReactNode> {
         <path d="M5 8h11a1 1 0 0 1 1 1v10H5Z" />
       </>
     ),
+    'screen-full': (
+      <path d="M3.75 3C3.33579 3 3 3.33579 3 3.75V5.5C3 5.77614 2.77614 6 2.5 6C2.22386 6 2 5.77614 2 5.5V3.75C2 2.7835 2.7835 2 3.75 2H5.5C5.77614 2 6 2.22386 6 2.5C6 2.77614 5.77614 3 5.5 3H3.75ZM10 2.5C10 2.22386 10.2239 2 10.5 2H12.25C13.2165 2 14 2.7835 14 3.75V5.5C14 5.77614 13.7761 6 13.5 6C13.2239 6 13 5.77614 13 5.5V3.75C13 3.33579 12.6642 3 12.25 3H10.5C10.2239 3 10 2.77614 10 2.5ZM2.5 10C2.77614 10 3 10.2239 3 10.5V12.25C3 12.6642 3.33579 13 3.75 13H5.5C5.77614 13 6 13.2239 6 13.5C6 13.7761 5.77614 14 5.5 14H3.75C2.7835 14 2 13.2165 2 12.25V10.5C2 10.2239 2.22386 10 2.5 10ZM13.5 10C13.7761 10 14 10.2239 14 10.5V12.25C14 13.2165 13.2165 14 12.25 14H10.5C10.2239 14 10 13.7761 10 13.5C10 13.2239 10.2239 13 10.5 13H12.25C12.6642 13 13 12.6642 13 12.25V10.5C13 10.2239 13.2239 10 13.5 10Z" />
+    ),
+    'screen-normal': (
+      <path d="M11 4C11 4.55228 11.4477 5 12 5H13.5C13.7761 5 14 5.22386 14 5.5C14 5.77614 13.7761 6 13.5 6H12C10.8954 6 10 5.10457 10 4V2.5C10 2.22386 10.2239 2 10.5 2C10.7761 2 11 2.22386 11 2.5V4ZM11 12C11 11.4477 11.4477 11 12 11H13.5C13.7761 11 14 10.7761 14 10.5C14 10.2239 13.7761 10 13.5 10H12C10.8954 10 10 10.8954 10 12V13.5C10 13.7761 10.2239 14 10.5 14C10.7761 14 11 13.7761 11 13.5V12ZM4 11C4.55228 11 5 11.4477 5 12V13.5C5 13.7761 5.22386 14 5.5 14C5.77614 14 6 13.7761 6 13.5V12C6 10.8954 5.10457 10 4 10H2.5C2.22386 10 2 10.2239 2 10.5C2 10.7761 2.22386 11 2.5 11H4ZM5 4C5 4.55228 4.55228 5 4 5H2.5C2.22386 5 2 5.22386 2 5.5C2 5.77614 2.22386 6 2.5 6H4C5.10457 6 6 5.10457 6 4V2.5C6 2.22386 5.77614 2 5.5 2C5.22386 2 5 2.22386 5 2.5V4Z" />
+    ),
     history: (
       <>
         <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
@@ -289,11 +298,13 @@ function IconComponent({
   name,
   ...props
 }: { name: IconName } & SVGProps<SVGSVGElement>) {
+  const isVsCodeScreenIcon = name === 'screen-full' || name === 'screen-normal';
+
   return (
     <svg
-      viewBox="-1 -1 26 26"
-      fill="none"
-      stroke="currentColor"
+      viewBox={isVsCodeScreenIcon ? '0 0 16 16' : '-1 -1 26 26'}
+      fill={isVsCodeScreenIcon ? 'currentColor' : 'none'}
+      stroke={isVsCodeScreenIcon ? 'none' : 'currentColor'}
       strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"

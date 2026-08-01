@@ -10,9 +10,12 @@ type ResizeHandleProps = {
   onCommit: (value: number) => void;
   onCollapse?: () => void;
   onCollapseCommit?: () => void;
+  onResizeStart?: () => void;
+  onResizeEnd?: () => void;
   collapsed?: boolean;
   collapsedValue?: number;
   collapseThreshold?: number;
+  resumeThreshold?: number;
   label: string;
   className?: string;
   shift?: boolean;
@@ -26,9 +29,12 @@ export function ResizeHandle({
   onCommit,
   onCollapse,
   onCollapseCommit,
+  onResizeStart,
+  onResizeEnd,
   collapsed = false,
   collapsedValue = 0,
   collapseThreshold = 48,
+  resumeThreshold = 12,
   label,
   className = '',
   shift = false,
@@ -53,16 +59,21 @@ export function ResizeHandle({
       className={`group relative block w-1 shrink-0 cursor-col-resize touch-none bg-transparent ${className}`}
       onPointerDown={(event: ReactPointerEvent<HTMLDivElement>) => {
         const startX = event.clientX;
-        const startValue = value;
         const startedCollapsed = collapsed;
         const target = event.currentTarget;
         let dragCollapsed = startedCollapsed;
+        let expandedOriginX = startX;
+        let expandedOriginValue = value;
+        let expandAtX = startedCollapsed
+          ? startX + Math.max(resumeThreshold, min - collapsedValue)
+          : null;
         let changedDuringDrag = false;
         let finished = false;
 
         event.preventDefault();
         target.setPointerCapture(event.pointerId);
         document.body.dataset.resizing = 'true';
+        onResizeStart?.();
 
         const cleanup = (pointerId: number) => {
           if (finished) return;
@@ -71,31 +82,37 @@ export function ResizeHandle({
             target.releasePointerCapture(pointerId);
           }
           document.body.removeAttribute('data-resizing');
+          onResizeEnd?.();
           window.removeEventListener('pointermove', move);
           window.removeEventListener('pointerup', end);
           window.removeEventListener('pointercancel', end);
         };
 
         const move = (moveEvent: PointerEvent) => {
-          const pointerOffset = moveEvent.clientX - startX;
-          const rawValue = startedCollapsed
-            ? collapsedValue + pointerOffset
-            : startValue + pointerOffset;
+          if (dragCollapsed) {
+            if (expandAtX == null || moveEvent.clientX < expandAtX) return;
 
-          if (
-            !dragCollapsed &&
-            rawValue < min - collapseThreshold &&
-            onCollapse
-          ) {
-            dragCollapsed = true;
-            changedDuringDrag = false;
-            onCollapse();
+            dragCollapsed = false;
+            expandedOriginX = expandAtX;
+            expandedOriginValue = min;
+            const next = clamp(
+              expandedOriginValue + (moveEvent.clientX - expandedOriginX),
+            );
+            latestValue.current = next;
+            changedDuringDrag = true;
+            onChange(next);
             return;
           }
 
-          if (dragCollapsed) {
-            if (rawValue < min) return;
-            dragCollapsed = false;
+          const rawValue =
+            expandedOriginValue + (moveEvent.clientX - expandedOriginX);
+
+          if (rawValue < min - collapseThreshold && onCollapse) {
+            dragCollapsed = true;
+            changedDuringDrag = false;
+            expandAtX = moveEvent.clientX + resumeThreshold;
+            onCollapse();
+            return;
           }
 
           const next = clamp(rawValue);

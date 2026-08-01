@@ -1,4 +1,5 @@
 import { Spinner } from '@heroui/react';
+import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { isMobilePlatform } from '../../lib/platform';
 import { resolveProfileName } from '../../lib/profile';
@@ -43,6 +44,7 @@ export function ApplicationFrame({
   onSettingsCommit: (settings: AppSettings) => void;
 }) {
   const { t } = useTranslation('common');
+  const [sidebarResizing, setSidebarResizing] = useState(false);
   const isMobile = isMobilePlatform();
   const hideDesktopNavigation =
     !isMobile && activeTab === 'chats' && chatMaximized;
@@ -74,6 +76,7 @@ export function ApplicationFrame({
             profileAvatar={settings.profileAvatar}
             width={settings.sidebarWidth}
             collapsed={settings.sidebarCollapsed}
+            resizing={sidebarResizing}
             onNavigate={onNavigate}
             onToggleCollapsed={() =>
               onSettingsCommit({
@@ -91,8 +94,11 @@ export function ApplicationFrame({
             collapsed={settings.sidebarCollapsed}
             collapsedValue={DESKTOP_SIDEBAR_COLLAPSED_WIDTH}
             collapseThreshold={48}
+            resumeThreshold={12}
             className="max-[920px]:hidden"
             label={t('applicationFrame.changeMainSidebarWidth')}
+            onResizeStart={() => setSidebarResizing(true)}
+            onResizeEnd={() => setSidebarResizing(false)}
             onChange={(sidebarWidth) =>
               onSettingsPreview({
                 ...settings,

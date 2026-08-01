@@ -350,7 +350,7 @@ function ConversationHeaderComponent({
               onPress={onToggleMaximized}
             >
               <Icon
-                name={maximized ? 'restore' : 'maximize'}
+                name={maximized ? 'screen-normal' : 'screen-full'}
                 className="size-5"
               />
             </TooltipIconButton>

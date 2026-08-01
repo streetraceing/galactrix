@@ -51,7 +51,10 @@ test('mobile swipe is easy to acquire and uses one bounded release transition', 
   assert.match(source, /setOffset\(-direction \* 52\)/);
   assert.match(source, /duration: 180/);
   assert.doesNotMatch(source, /motion\.animate\(/);
-  assert.match(source, /className="relative touch-pan-y overflow-x-clip"/);
+  assert.match(
+    source,
+    /className="relative -mx-4 px-4 touch-pan-y overflow-x-clip"/,
+  );
 });
 
 test('mobile message actions open dialogs directly from menu item clicks', async () => {

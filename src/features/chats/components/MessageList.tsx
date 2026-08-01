@@ -44,8 +44,10 @@ import {
   shouldCommitMobileSwipe,
 } from '../mobileSwipe';
 import {
+  addMessageSelection,
   mergeMessageSelection,
   messageSelectionRange,
+  shouldStartMessageRangeSelection,
   toggleMessageSelection,
 } from '../messageSelection';
 
@@ -131,9 +133,13 @@ function MessageMenu({
   onRegenerate,
   onContinue,
   onSelectVariant,
+  onSelectMessage,
   onHistoryRequest,
   onError,
-}: MessageActionProps & { children: ReactNode }) {
+}: MessageActionProps & {
+  children: ReactNode;
+  onSelectMessage: (messageId: string) => void;
+}) {
   const { t } = useTranslation('chats');
   const isMobile = isMobilePlatform();
   const run = (action: () => Promise<void>) => {
@@ -217,6 +223,10 @@ function MessageMenu({
             <ContextMenuSeparator />
           </>
         ) : null}
+        <ContextMenuItem onClick={() => onSelectMessage(message.id)}>
+          <Icon name="check" className="size-4" />
+          {t('messageList.selectMessage')}
+        </ContextMenuItem>
         <ContextMenuItem onClick={() => run(() => onBranch(message.id))}>
           <Icon name="branch" className="size-4" />
           {t('messageList.branchFromHere')}
@@ -840,7 +850,7 @@ function SwipeableMessage({
   return (
     <div
       ref={containerRef}
-      className="relative touch-pan-y overflow-x-clip"
+      className="relative -mx-4 px-4 touch-pan-y overflow-x-clip"
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={(event) => void onPointerUp(event)}
@@ -1217,10 +1227,14 @@ function MessageListComponent({
       if (!endId) return;
 
       if (!gesture.active) {
-        const movedToAnotherMessage = endId !== gesture.startId;
         if (
-          !movedToAnotherMessage &&
-          distance <= MESSAGE_SELECTION_DRAG_THRESHOLD
+          !shouldStartMessageRangeSelection(
+            gesture.startId,
+            endId,
+            dx,
+            dy,
+            MESSAGE_SELECTION_DRAG_THRESHOLD,
+          )
         ) {
           return;
         }
@@ -1489,6 +1503,10 @@ function MessageListComponent({
   const continueResponse = (messageId: string) =>
     runMessageGeneration(messageId, 'continue', onContinue);
 
+  const selectMessage = useCallback((messageId: string) => {
+    setSelectedMessageIds((current) => addMessageSelection(current, messageId));
+  }, []);
+
   return (
     <>
       <div className="relative flex min-h-0 flex-1">
@@ -1583,130 +1601,137 @@ function MessageListComponent({
                 <div
                   data-message-id={message.id}
                   data-selected={isSelected}
-                  className={`relative rounded-2xl transition-[box-shadow,background-color] duration-(--motion-fast) ease-(--motion-ease) ${
-                    isSelected
-                      ? 'bg-accent/5 ring-2 ring-accent/65 ring-offset-2 ring-offset-background'
-                      : ''
-                  }`}
+                  className="relative isolate rounded-2xl"
                 >
-                  <MessageMenu
-                    message={message}
-                    onBranch={onBranch}
-                    onRemember={onRemember}
-                    onRegenerate={regenerate}
-                    onContinue={continueResponse}
-                    onSelectVariant={selectVariant}
-                    onEditRequest={edit}
-                    onDeleteRequest={remove}
-                    onHistoryRequest={history}
-                    onError={reportError}
-                  >
-                    <article
-                      className={`chat-message-row group flex items-start gap-2.5 sm:gap-3 ${
-                        isUser && !messengerMode ? 'flex-row-reverse' : ''
-                      }`}
+                  {isSelected ? (
+                    <span
+                      aria-hidden="true"
+                      className="pointer-events-none absolute -inset-x-3 -inset-y-2 z-0 rounded-[1.5rem] bg-accent/5 ring-2 ring-accent/65"
+                    />
+                  ) : null}
+                  <div className="relative z-10">
+                    <MessageMenu
+                      message={message}
+                      onBranch={onBranch}
+                      onRemember={onRemember}
+                      onRegenerate={regenerate}
+                      onContinue={continueResponse}
+                      onSelectVariant={selectVariant}
+                      onSelectMessage={selectMessage}
+                      onEditRequest={edit}
+                      onDeleteRequest={remove}
+                      onHistoryRequest={history}
+                      onError={reportError}
                     >
-                      {showAvatars ? (
-                        <AppAvatar
-                          src={avatar}
-                          name={displayName}
-                          className="size-8 sm:size-9"
-                          square
-                        />
-                      ) : null}
-                      <div
-                        className={`flex min-w-0 flex-col ${
-                          messengerMode
-                            ? 'items-start w-full'
-                            : isUser
-                              ? 'max-w-[min(91%,44rem)] items-end sm:max-w-[min(88%,44rem)]'
-                              : 'w-full items-start'
+                      <article
+                        className={`chat-message-row group flex items-start gap-2.5 sm:gap-3 ${
+                          isUser && !messengerMode ? 'flex-row-reverse' : ''
                         }`}
                       >
+                        {showAvatars ? (
+                          <AppAvatar
+                            src={avatar}
+                            name={displayName}
+                            className="size-8 sm:size-9"
+                            square
+                          />
+                        ) : null}
                         <div
-                          className={`mb-1 flex min-w-0 items-center gap-2 text-xs text-muted ${
-                            isUser && !messengerMode ? 'flex-row-reverse' : ''
+                          className={`flex min-w-0 flex-col ${
+                            messengerMode
+                              ? 'items-start w-full'
+                              : isUser
+                                ? 'max-w-[min(91%,44rem)] items-end sm:max-w-[min(88%,44rem)]'
+                                : 'w-full items-start'
                           }`}
                         >
-                          <strong className="truncate font-medium text-foreground">
-                            {displayName}
-                          </strong>
-                          {showTimestamps ? (
-                            <span className="shrink-0">
-                              {message.createdAt}
-                            </span>
-                          ) : null}
-                          {message.remembered ? (
-                            <span className="inline-flex shrink-0 items-center gap-1 text-accent">
-                              <Icon name="memory" className="size-3" />
-                              {t('messageList.remembered')}
-                            </span>
-                          ) : null}
-                        </div>
-                        <Surface
-                          variant={isUser ? 'tertiary' : 'default'}
-                          className={`${isMobile ? 'select-none' : 'selectable'} min-w-0 max-w-full overflow-hidden rounded-2xl border px-4 py-3 shadow-xs ${
-                            messengerMode ? 'w-fit' : ''
-                          } ${
-                            isUser
-                              ? 'border-accent/10 bg-accent/10'
-                              : 'border-separator'
-                          }`}
-                        >
-                          {isRegenerating ? (
-                            <div
-                              className="flex h-5 min-w-12 items-center gap-1"
-                              role="status"
-                              aria-label={t('messageList.isTyping')}
-                            >
-                              {[0, 1, 2].map((index) => (
-                                <span
-                                  key={index}
-                                  className="typing-dot size-1.5 rounded-full bg-accent"
-                                  style={{ animationDelay: `${index * 140}ms` }}
+                          <div
+                            className={`mb-1 flex min-w-0 items-center gap-2 text-xs text-muted ${
+                              isUser && !messengerMode ? 'flex-row-reverse' : ''
+                            }`}
+                          >
+                            <strong className="truncate font-medium text-foreground">
+                              {displayName}
+                            </strong>
+                            {showTimestamps ? (
+                              <span className="shrink-0">
+                                {message.createdAt}
+                              </span>
+                            ) : null}
+                            {message.remembered ? (
+                              <span className="inline-flex shrink-0 items-center gap-1 text-accent">
+                                <Icon name="memory" className="size-3" />
+                                {t('messageList.remembered')}
+                              </span>
+                            ) : null}
+                          </div>
+                          <Surface
+                            variant={isUser ? 'tertiary' : 'default'}
+                            className={`${isMobile ? 'select-none' : 'selectable'} min-w-0 max-w-full overflow-hidden rounded-2xl border px-4 py-3 shadow-xs ${
+                              messengerMode ? 'w-fit' : ''
+                            } ${
+                              isUser
+                                ? 'border-accent/10 bg-accent/10'
+                                : 'border-separator'
+                            }`}
+                          >
+                            {isRegenerating ? (
+                              <div
+                                className="flex h-5 min-w-12 items-center gap-1"
+                                role="status"
+                                aria-label={t('messageList.isTyping')}
+                              >
+                                {[0, 1, 2].map((index) => (
+                                  <span
+                                    key={index}
+                                    className="typing-dot size-1.5 rounded-full bg-accent"
+                                    style={{
+                                      animationDelay: `${index * 140}ms`,
+                                    }}
+                                  />
+                                ))}
+                              </div>
+                            ) : (
+                              <>
+                                <AnimatedVariantContent
+                                  message={message}
+                                  direction={
+                                    variantDirections[message.id] ?? 'next'
+                                  }
+                                  enabled={!isMobile}
                                 />
-                              ))}
-                            </div>
+                              </>
+                            )}
+                          </Surface>
+                          {!isMobile ? (
+                            <DesktopMessageActions
+                              message={message}
+                              onBranch={onBranch}
+                              onRemember={onRemember}
+                              onRegenerate={regenerate}
+                              onContinue={continueResponse}
+                              onSelectVariant={selectVariant}
+                              onEditRequest={edit}
+                              onDeleteRequest={remove}
+                              onHistoryRequest={history}
+                              onError={reportError}
+                            />
                           ) : (
-                            <>
-                              <AnimatedVariantContent
-                                message={message}
-                                direction={
-                                  variantDirections[message.id] ?? 'next'
-                                }
-                                enabled={!isMobile}
-                              />
-                            </>
+                            <VariantNavigator
+                              message={message}
+                              compact
+                              onSelect={(index) =>
+                                void selectVariant(message.id, index).catch(
+                                  reportError,
+                                )
+                              }
+                              onHistory={history}
+                            />
                           )}
-                        </Surface>
-                        {!isMobile ? (
-                          <DesktopMessageActions
-                            message={message}
-                            onBranch={onBranch}
-                            onRemember={onRemember}
-                            onRegenerate={regenerate}
-                            onContinue={continueResponse}
-                            onSelectVariant={selectVariant}
-                            onEditRequest={edit}
-                            onDeleteRequest={remove}
-                            onHistoryRequest={history}
-                            onError={reportError}
-                          />
-                        ) : (
-                          <VariantNavigator
-                            message={message}
-                            compact
-                            onSelect={(index) =>
-                              void selectVariant(message.id, index).catch(
-                                reportError,
-                              )
-                            }
-                            onHistory={history}
-                          />
-                        )}
-                      </div>
-                    </article>
-                  </MessageMenu>
+                        </div>
+                      </article>
+                    </MessageMenu>
+                  </div>
                 </div>
               );
 

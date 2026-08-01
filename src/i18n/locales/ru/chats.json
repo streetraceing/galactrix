@@ -156,7 +156,7 @@
   "messageList.theEditedTextWillBeSavedAsANewResponse": "Изменённый текст сохранится как новый вариант ответа.",
   "messageList.theMessageAndItsEntireVariantHistoryWillBeRemoved": "Сообщение и вся история его вариантов исчезнут из этого чата.",
   "messageList.variantHistory": "История вариантов",
-  "preview.character": "Персонаж",
+  "preview.character": "Ассистент",
   "preview.codeFragment": "Фрагмент кода",
   "priority.critical.description": "Главное правило конфигурации",
   "priority.critical.label": "Критический",
@@ -235,5 +235,6 @@
   "source.universe.description": "Законы и факты мира",
   "source.universe.label": "Вселенная",
   "source.worldbooks.description": "Подключённые записи лора",
-  "source.worldbooks.label": "Ворлдбуки"
+  "source.worldbooks.label": "Ворлдбуки",
+  "messageList.selectMessage": "Выделить"
 }

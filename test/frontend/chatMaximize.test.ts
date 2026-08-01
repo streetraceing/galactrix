@@ -44,7 +44,7 @@ test('desktop chat maximize mode hides both sidebars and widens centered chat co
   assert.match(chats, /!isSinglePane && !chatMaximized/);
   assert.match(header, /conversationHeader\.maximizeChat/);
   assert.match(header, /aria-pressed=\{maximized\}/);
-  assert.match(header, /name=\{maximized \? 'restore' : 'maximize'\}/);
+  assert.match(header, /name=\{maximized \? 'screen-normal' : 'screen-full'\}/);
   assert.match(messages, /wide \? 'max-w-5xl' : 'max-w-3xl'/);
   assert.match(composer, /wide \? 'max-w-5xl' : 'max-w-3xl'/);
 });

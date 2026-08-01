@@ -180,6 +180,20 @@ pub fn build_system_prompt(
     ))
 }
 
+pub fn resolve_assistant_placeholders(
+    prompt: String,
+    context: &ChatPromptContext,
+) -> String {
+    let assistant_name = context
+        .character
+        .as_ref()
+        .map(|item| item.name.trim())
+        .filter(|name| !name.is_empty())
+        .unwrap_or("Assistant");
+
+    prompt.replace("{{char}}", assistant_name)
+}
+
 fn push_section(
     sections: &mut Vec<PromptSection>,
     priority: &str,
@@ -440,5 +454,39 @@ fn push_json_field(lines: &mut Vec<String>, label: &str, data: &Value, key: &str
 fn push_field(lines: &mut Vec<String>, label: &str, value: Option<&str>) {
     if let Some(value) = value.map(str::trim).filter(|value| !value.is_empty()) {
         lines.push(format!("{label}: {value}"));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::{ChatPromptContext, PromptBlock, PromptConfig};
+
+    #[test]
+    fn missing_character_uses_assistant_name_in_the_model_prompt() {
+        let context = ChatPromptContext {
+            persona: None,
+            character: None,
+            universe: None,
+            worldbooks: Vec::new(),
+            character_style: None,
+            prompt_sets: Vec::new(),
+            prompt_config: PromptConfig {
+                custom_blocks: vec![PromptBlock {
+                    id: "identity".into(),
+                    title: "Identity".into(),
+                    content: "Reply as {{char}}.".into(),
+                    priority: "normal".into(),
+                    enabled: true,
+                }],
+                ..PromptConfig::default()
+            },
+        };
+
+        let prompt = build_system_prompt(&context, &[], None).expect("prompt");
+        let prompt = resolve_assistant_placeholders(prompt, &context);
+
+        assert!(prompt.contains("Reply as Assistant."));
+        assert!(!prompt.contains("{{char}}"));
     }
 }

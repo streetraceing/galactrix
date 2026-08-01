@@ -98,6 +98,7 @@ export function DesktopSidebar({
   profileAvatar,
   width,
   collapsed,
+  resizing,
   onNavigate,
   onToggleCollapsed,
 }: {
@@ -107,21 +108,25 @@ export function DesktopSidebar({
   profileAvatar?: string;
   width: number;
   collapsed: boolean;
+  resizing: boolean;
   onNavigate: (tab: TabId) => void;
   onToggleCollapsed: () => void;
 }) {
   const { t } = useTranslation('common');
   const forcedCompact = useMediaQuery('(max-width: 920px)');
   const compact = collapsed || forcedCompact;
+  const animateWidth = !resizing || compact;
   const collapseLabel = collapsed
     ? t('desktopSidebar.expandSidebar')
     : t('desktopSidebar.collapseSidebar');
 
   return (
     <aside
-      className={`desktop-sidebar group/sidebar relative isolate flex h-full shrink-0 transform-gpu flex-col overflow-hidden bg-background transition-[width] duration-320 ease-(--motion-ease) contain-[layout_paint] after:pointer-events-none after:absolute after:inset-y-0 after:right-0 after:w-px after:bg-separator motion-reduce:transition-none ${
-        compact ? 'w-14' : ''
-      }`}
+      className={`desktop-sidebar group/sidebar relative isolate flex h-full shrink-0 transform-gpu flex-col overflow-hidden bg-background contain-[layout_paint] after:pointer-events-none after:absolute after:inset-y-0 after:right-0 after:w-px after:bg-separator motion-reduce:transition-none ${
+        animateWidth
+          ? 'transition-[width] duration-320 ease-(--motion-ease)'
+          : 'transition-none'
+      } ${compact ? 'w-14' : ''}`}
       style={compact ? undefined : ({ width: `${width}px` } as CSSProperties)}
       data-collapsed={compact}
       aria-label={t('desktopSidebar.mainNavigation')}

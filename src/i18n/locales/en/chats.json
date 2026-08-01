@@ -148,7 +148,7 @@
   "messageList.theEditedTextWillBeSavedAsANewResponse": "The edited text will be saved as a new response variant.",
   "messageList.theMessageAndItsEntireVariantHistoryWillBeRemoved": "The message and its entire variant history will be removed from this chat.",
   "messageList.variantHistory": "Variant history",
-  "preview.character": "Character",
+  "preview.character": "Assistant",
   "preview.codeFragment": "Code fragment",
   "priority.critical.description": "Primary configuration rule",
   "priority.critical.label": "Critical",
@@ -225,5 +225,6 @@
   "source.universe.description": "World laws and facts",
   "source.universe.label": "Universe",
   "source.worldbooks.description": "Connected lore entries",
-  "source.worldbooks.label": "Worldbooks"
+  "source.worldbooks.label": "Worldbooks",
+  "messageList.selectMessage": "Select"
 }
