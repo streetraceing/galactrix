@@ -2,6 +2,7 @@ import { Button, Chip, Surface } from '@heroui/react';
 import { MarkdownContent } from '../../../components/ui/MarkdownContent';
 import { UiModal } from '../../../components/ui/UiModal';
 import type { Message } from '../../../types';
+import { formatMessageTime } from '../messageTime';
 import { useTranslation } from 'react-i18next';
 
 export function MessageHistoryModal({
@@ -63,7 +64,7 @@ export function MessageHistoryModal({
                   ) : null}
                 </div>
                 <span className="shrink-0 text-xs text-muted">
-                  {variant.createdAt}
+                  {formatMessageTime(variant.createdAt)}
                 </span>
               </div>
               <div className="selectable max-h-[min(28dvh,12rem)] overflow-y-auto overscroll-contain pr-1 text-sm">

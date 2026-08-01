@@ -344,7 +344,7 @@ function ConversationHeaderComponent({
                   : t('conversationHeader.maximizeChat')
               }
               size="sm"
-              variant={maximized ? 'secondary' : 'ghost'}
+              variant={maximized ? 'tertiary' : 'ghost'}
               className="shrink-0"
               aria-pressed={maximized}
               onPress={onToggleMaximized}

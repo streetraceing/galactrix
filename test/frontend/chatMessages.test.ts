@@ -38,7 +38,7 @@ function message(id: string, chatId: string): Message {
     chatId,
     role: 'user',
     content: id,
-    createdAt: '12:00',
+    createdAt: 43_200,
     remembered: false,
     activeVariantIndex: 0,
     variants: [],

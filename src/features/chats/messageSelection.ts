@@ -49,5 +49,5 @@ export function shouldStartMessageRangeSelection(
   threshold: number,
 ) {
   if (endId !== startId) return true;
-  return deltaY <= -threshold && Math.abs(deltaY) > Math.abs(deltaX);
+  return Math.abs(deltaY) >= threshold && Math.abs(deltaY) > Math.abs(deltaX);
 }

@@ -168,6 +168,11 @@ export async function deleteMessage(messageId: string) {
   return invokeBackend<void>('delete_message', { messageId });
 }
 
+export async function deleteMessages(messageIds: string[]) {
+  requireTauri();
+  return invokeBackend<void>('delete_messages', { messageIds });
+}
+
 export async function setMessageRemembered(
   messageId: string,
   remembered: boolean,

@@ -182,7 +182,7 @@ pub struct MessageVariant {
     pub id: String,
     pub index: i64,
     pub content: String,
-    pub created_at: String,
+    pub created_at: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -192,7 +192,7 @@ pub struct Message {
     pub chat_id: String,
     pub role: String,
     pub content: String,
-    pub created_at: String,
+    pub created_at: i64,
     pub remembered: bool,
     pub active_variant_index: i64,
     pub variants: Vec<MessageVariant>,

@@ -578,7 +578,7 @@ fn variants_from_rows(rows: Vec<MessageVariantRow>) -> HashMap<String, Vec<Messa
             id,
             index,
             content,
-            created_at: clock_time(created_at),
+            created_at,
         });
     }
     result
@@ -683,7 +683,7 @@ fn messages_from_rows(
                     chat_id,
                     role,
                     content,
-                    created_at: clock_time(created_at),
+                    created_at,
                     remembered,
                     active_variant_index,
                     variants: message_variants,
@@ -1640,6 +1640,39 @@ pub fn delete_message(connection: &Connection, message_id: &str) -> CommandResul
     invalidate_chat_ai_context(connection, &chat_id)
 }
 
+pub fn delete_messages(connection: &Connection, message_ids: &[String]) -> CommandResult<()> {
+    if message_ids.is_empty() {
+        return Ok(());
+    }
+
+    let transaction = connection.unchecked_transaction()?;
+    let mut chat_ids = HashSet::new();
+
+    for message_id in message_ids {
+        let chat_id = transaction
+            .query_row(
+                "SELECT chat_id FROM messages WHERE id = ?1",
+                params![message_id],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?
+            .ok_or_else(|| CommandError::new(keys::MESSAGE_NOT_FOUND))?;
+        transaction.execute(
+            "DELETE FROM messages WHERE id = ?1",
+            params![message_id],
+        )?;
+        chat_ids.insert(chat_id);
+    }
+
+    for chat_id in chat_ids {
+        refresh_chat_summary(&transaction, &chat_id)?;
+        invalidate_chat_ai_context(&transaction, &chat_id)?;
+    }
+
+    transaction.commit()?;
+    Ok(())
+}
+
 pub fn set_message_remembered(
     connection: &Connection,
     message_id: &str,
@@ -2444,12 +2477,6 @@ fn now_unix() -> i64 {
         .as_secs() as i64
 }
 
-fn clock_time(timestamp: i64) -> String {
-    let seconds_in_day = timestamp.rem_euclid(86_400);
-    let hours = seconds_in_day / 3_600;
-    let minutes = (seconds_in_day % 3_600) / 60;
-    format!("{hours:02}:{minutes:02}")
-}
 
 #[cfg(test)]
 mod tests;

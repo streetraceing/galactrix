@@ -49,6 +49,7 @@ test('message selection merges ranges and supports explicit selection', () => {
 test('range selection starts only after an intentional drag', () => {
   assert.equal(shouldStartMessageRangeSelection('one', 'one', 1, 1, 6), false);
   assert.equal(shouldStartMessageRangeSelection('one', 'one', 1, -8, 6), true);
+  assert.equal(shouldStartMessageRangeSelection('one', 'one', 1, 8, 6), true);
   assert.equal(shouldStartMessageRangeSelection('one', 'one', 9, -7, 6), false);
   assert.equal(shouldStartMessageRangeSelection('one', 'two', 0, 2, 6), true);
 });
@@ -62,11 +63,24 @@ test('message gestures preserve context menus while supporting click and drag se
   assert.match(source, /shouldStartMessageRangeSelection\(/);
   assert.match(source, /messageSelectionRange\(visibleMessageIds/);
   assert.match(source, /setPointerCapture\(event\.pointerId\)/);
+  assert.match(source, /window\.getSelection\(\)\?\.removeAllRanges\(\)/);
+  assert.match(
+    source,
+    /armed: isSecondaryMouse \|\| selectedMessageIds\.size > 0/,
+  );
+  assert.match(source, /activatedByHold/);
+  assert.match(source, /isTouch && selectedMessageIds\.size === 0/);
   assert.match(source, /onContextMenuCapture=/);
   assert.match(source, /selectionGestureRef\.current\?\.active/);
+  assert.match(source, /event\.key !== 'Escape'/);
+  assert.match(source, /clearMessageSelection\(\)/);
   assert.match(source, /messageList\.selectMessage/);
   assert.match(source, /onSelectMessage=\{selectMessage\}/);
-  assert.match(source, /-inset-x-3 -inset-y-2/);
+  assert.doesNotMatch(source, /ring-2 ring-accent/);
+  assert.match(source, /isSelected \? 'bg-default\/70'/);
+  assert.match(source, /selectedMessageIds\.size > 0 \? 'select-none'/);
+  assert.match(source, /onDeleteMany\(selectedMessages\.map/);
+  assert.match(source, /setDeletingSelection\(true\)/);
   assert.match(source, /<ContextMenu>/);
   assert.match(source, /data-message-id=\{message\.id\}/);
   assert.match(source, /messageList\.selectedMessages/);

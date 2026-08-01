@@ -11,6 +11,7 @@ import {
   deleteChat,
   deleteGalaxyItem,
   deleteMessage,
+  deleteMessages,
   deleteProvider,
   editMessage,
   exportProviderSecrets,
@@ -472,6 +473,21 @@ export function useAppController() {
     [haptic, refreshChat, snapshot.messages],
   );
 
+  const removeMessages = useCallback(
+    async (messageIds: string[]) => {
+      const selectedIds = new Set(messageIds);
+      const chatIds = new Set(
+        snapshot.messages
+          .filter((message) => selectedIds.has(message.id))
+          .map((message) => message.chatId),
+      );
+      await deleteMessages(messageIds);
+      await Promise.all([...chatIds].map((chatId) => refreshChat(chatId)));
+      haptic();
+    },
+    [haptic, refreshChat, snapshot.messages],
+  );
+
   const rememberMessage = useCallback(
     async (messageId: string, remembered: boolean) => {
       const chatId = snapshot.messages.find(
@@ -737,6 +753,7 @@ export function useAppController() {
     branchFromMessage,
     editExistingMessage,
     removeMessage,
+    removeMessages,
     rememberMessage,
     regenerateExistingMessage,
     continueExistingMessage,

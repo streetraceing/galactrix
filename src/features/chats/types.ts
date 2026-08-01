@@ -46,6 +46,7 @@ export type ChatsScreenProps = {
   onBranchMessage: (messageId: string) => Promise<void>;
   onEditMessage: (messageId: string, content: string) => Promise<void>;
   onDeleteMessage: (messageId: string) => Promise<void>;
+  onDeleteMessages: (messageIds: string[]) => Promise<void>;
   onRememberMessage: (messageId: string, remembered: boolean) => Promise<void>;
   onRegenerateMessage: (messageId: string) => Promise<void>;
   onContinueMessage: (messageId: string) => Promise<void>;

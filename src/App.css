@@ -172,6 +172,11 @@
     @apply border-border outline-focus/50;
   }
 
+  .chat-message-virtual-item {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 9rem;
+  }
+
   .app-drag-region {
     -webkit-app-region: drag;
     @apply select-none;

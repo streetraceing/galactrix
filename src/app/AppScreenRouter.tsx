@@ -55,6 +55,7 @@ export function AppScreenRouter({
         onBranchMessage={controller.branchFromMessage}
         onEditMessage={controller.editExistingMessage}
         onDeleteMessage={controller.removeMessage}
+        onDeleteMessages={controller.removeMessages}
         onRememberMessage={controller.rememberMessage}
         onRegenerateMessage={controller.regenerateExistingMessage}
         onContinueMessage={controller.continueExistingMessage}

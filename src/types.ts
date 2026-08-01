@@ -66,7 +66,7 @@ export type MessageVariant = {
   id: string;
   index: number;
   content: string;
-  createdAt: string;
+  createdAt: number;
 };
 
 export type Message = {
@@ -74,7 +74,7 @@ export type Message = {
   chatId: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
-  createdAt: string;
+  createdAt: number;
   remembered: boolean;
   activeVariantIndex: number;
   variants: MessageVariant[];

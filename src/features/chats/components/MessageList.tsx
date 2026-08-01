@@ -38,6 +38,7 @@ import {
   initialMessageWindowStart,
   previousMessageWindowStart,
 } from '../messageWindow';
+import { formatMessageTime } from '../messageTime';
 import {
   isHorizontalSwipeIntent,
   mobileSwipeDragOffset,
@@ -69,6 +70,8 @@ type VariantDirection = 'next' | 'previous';
 const MESSAGE_SELECTION_DRAG_THRESHOLD = 6;
 const TOUCH_SELECTION_MOVE_THRESHOLD = 10;
 const TOUCH_MULTISELECT_HOLD_MS = 320;
+const AUTO_LOAD_EARLIER_THRESHOLD = 280;
+const SCROLL_TO_BOTTOM_RELEASE_MS = 1_400;
 
 type MessageSelectionGesture = {
   pointerId: number;
@@ -80,6 +83,7 @@ type MessageSelectionGesture = {
   startY: number;
   active: boolean;
   armed: boolean;
+  activatedByHold: boolean;
   holdTimer: number | null;
   baseSelection: Set<string>;
 };
@@ -1003,6 +1007,7 @@ function MessageListComponent({
   onBranch,
   onEdit,
   onDelete,
+  onDeleteMany,
   onRemember,
   onRegenerate,
   onContinue,
@@ -1026,6 +1031,7 @@ function MessageListComponent({
   onBranch: (messageId: string) => Promise<void>;
   onEdit: (messageId: string, content: string) => Promise<void>;
   onDelete: (messageId: string) => Promise<void>;
+  onDeleteMany: (messageIds: string[]) => Promise<void>;
   onRemember: (messageId: string, remembered: boolean) => Promise<void>;
   onRegenerate: (messageId: string) => Promise<void>;
   onContinue: (messageId: string) => Promise<void>;
@@ -1035,6 +1041,7 @@ function MessageListComponent({
   const isMobile = isMobilePlatform();
   const [editing, setEditing] = useState<Message | null>(null);
   const [deleting, setDeleting] = useState<Message | null>(null);
+  const [deletingSelection, setDeletingSelection] = useState(false);
   const [historyMessageId, setHistoryMessageId] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
@@ -1049,6 +1056,10 @@ function MessageListComponent({
   const variantSelectionRef = useRef<string | null>(null);
   const selectionGestureRef = useRef<MessageSelectionGesture | null>(null);
   const suppressContextMenuUntilRef = useRef(0);
+  const loadingEarlierRef = useRef(false);
+  const loadEarlierSentinelRef = useRef<HTMLDivElement | null>(null);
+  const scrollingToBottomRef = useRef(false);
+  const scrollToBottomReleaseTimerRef = useRef<number | null>(null);
   const pendingScrollRestoreRef = useRef<{
     scrollHeight: number;
     scrollTop: number;
@@ -1094,15 +1105,56 @@ function MessageListComponent({
     [scrollRef],
   );
 
+  const clearMessageSelection = useCallback(() => {
+    clearSelectionGesture();
+    suppressContextMenuUntilRef.current = 0;
+    setDeletingSelection(false);
+    setSelectedMessageIds((current) =>
+      current.size === 0 ? current : new Set(),
+    );
+  }, [clearSelectionGesture]);
+
   useEffect(
     () => () => {
       const gesture = selectionGestureRef.current;
       if (gesture?.holdTimer != null) {
         window.clearTimeout(gesture.holdTimer);
       }
+      if (scrollToBottomReleaseTimerRef.current != null) {
+        window.clearTimeout(scrollToBottomReleaseTimerRef.current);
+      }
     },
     [],
   );
+
+  useEffect(() => {
+    if (
+      selectedMessageIds.size === 0 ||
+      editing ||
+      deleting ||
+      deletingSelection ||
+      historyMessageId
+    ) {
+      return;
+    }
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      event.stopPropagation();
+      clearMessageSelection();
+    };
+
+    window.addEventListener('keydown', onKeyDown, true);
+    return () => window.removeEventListener('keydown', onKeyDown, true);
+  }, [
+    clearMessageSelection,
+    deleting,
+    deletingSelection,
+    editing,
+    historyMessageId,
+    selectedMessageIds.size,
+  ]);
 
   useEffect(() => {
     const availableIds = new Set(messages.map((message) => message.id));
@@ -1153,6 +1205,7 @@ function MessageListComponent({
       if (!event.currentTarget.hasPointerCapture(event.pointerId)) {
         event.currentTarget.setPointerCapture(event.pointerId);
       }
+      window.getSelection()?.removeAllRanges();
       updateDragSelection(gesture, endId);
     },
     [updateDragSelection],
@@ -1171,6 +1224,10 @@ function MessageListComponent({
         event.pointerType === 'mouse' && event.button === 2;
       if (!isTouch && !isPrimaryMouse && !isSecondaryMouse) return;
 
+      if (isPrimaryMouse && selectedMessageIds.size > 0) {
+        event.preventDefault();
+      }
+
       clearSelectionGesture();
       const gesture: MessageSelectionGesture = {
         pointerId: event.pointerId,
@@ -1181,20 +1238,32 @@ function MessageListComponent({
         startX: event.clientX,
         startY: event.clientY,
         active: false,
-        armed: isSecondaryMouse,
+        armed: isSecondaryMouse || selectedMessageIds.size > 0,
+        activatedByHold: false,
         holdTimer: null,
         baseSelection: new Set(selectedMessageIds),
       };
 
-      if (isTouch) {
+      if (isTouch && selectedMessageIds.size === 0) {
         gesture.holdTimer = window.setTimeout(() => {
-          if (selectionGestureRef.current === gesture) gesture.armed = true;
+          if (selectionGestureRef.current !== gesture) return;
+          gesture.armed = true;
+          gesture.activatedByHold = true;
+          gesture.active = true;
+          gesture.holdTimer = null;
+          suppressContextMenuUntilRef.current = Number.POSITIVE_INFINITY;
+          const scroller = scrollRef.current;
+          if (scroller && !scroller.hasPointerCapture(gesture.pointerId)) {
+            scroller.setPointerCapture(gesture.pointerId);
+          }
+          window.getSelection()?.removeAllRanges();
+          updateDragSelection(gesture, gesture.startId);
         }, TOUCH_MULTISELECT_HOLD_MS);
       }
 
       selectionGestureRef.current = gesture;
     },
-    [clearSelectionGesture, selectedMessageIds],
+    [clearSelectionGesture, scrollRef, selectedMessageIds, updateDragSelection],
   );
 
   const handleSelectionPointerMove = useCallback(
@@ -1206,15 +1275,6 @@ function MessageListComponent({
       const dy = event.clientY - gesture.startY;
       const distance = Math.hypot(dx, dy);
       const isTouch = gesture.pointerType === 'touch';
-      const isPrimaryMouse =
-        gesture.pointerType === 'mouse' && gesture.button === 0;
-
-      if (isPrimaryMouse) {
-        if (distance > MESSAGE_SELECTION_DRAG_THRESHOLD) {
-          clearSelectionGesture(event.pointerId);
-        }
-        return;
-      }
 
       if (isTouch && !gesture.armed) {
         if (distance > TOUCH_SELECTION_MOVE_THRESHOLD) {
@@ -1262,7 +1322,8 @@ function MessageListComponent({
       const dy = event.clientY - gesture.startY;
       const distance = Math.hypot(dx, dy);
       const wasActive = gesture.active;
-      const wasTouchHold = gesture.pointerType === 'touch' && gesture.armed;
+      const wasTouchHold =
+        gesture.pointerType === 'touch' && gesture.activatedByHold;
       const pressThreshold =
         gesture.pointerType === 'touch'
           ? TOUCH_SELECTION_MOVE_THRESHOLD
@@ -1301,36 +1362,67 @@ function MessageListComponent({
     return gesture?.pointerId === pointerId && gesture.armed;
   }, []);
 
+  const finishScrollToBottom = useCallback(() => {
+    scrollingToBottomRef.current = false;
+    if (scrollToBottomReleaseTimerRef.current != null) {
+      window.clearTimeout(scrollToBottomReleaseTimerRef.current);
+      scrollToBottomReleaseTimerRef.current = null;
+    }
+  }, []);
+
   const updateScrollToBottomVisibility = useCallback(() => {
     const scroller = scrollRef.current;
     if (!scroller) return;
-    const distanceFromBottom =
-      scroller.scrollHeight - scroller.clientHeight - scroller.scrollTop;
-    const shouldShow =
-      distanceFromBottom > Math.max(240, scroller.clientHeight * 0.55);
-    setShowScrollToBottom((current) =>
-      current === shouldShow ? current : shouldShow,
+    const distanceFromBottom = Math.max(
+      0,
+      scroller.scrollHeight - scroller.clientHeight - scroller.scrollTop,
     );
-  }, [scrollRef]);
+
+    if (scrollingToBottomRef.current) {
+      setShowScrollToBottom(false);
+      if (distanceFromBottom <= 4) finishScrollToBottom();
+      return;
+    }
+
+    const showThreshold = Math.max(240, scroller.clientHeight * 0.55);
+    const hideThreshold = Math.max(120, scroller.clientHeight * 0.25);
+    setShowScrollToBottom((current) =>
+      current
+        ? distanceFromBottom > hideThreshold
+        : distanceFromBottom > showThreshold,
+    );
+  }, [finishScrollToBottom, scrollRef]);
 
   const scrollToBottom = useCallback(() => {
     const scroller = scrollRef.current;
     if (!scroller) return;
+    const smooth = document.documentElement.dataset.animations !== 'off';
+    finishScrollToBottom();
+    scrollingToBottomRef.current = true;
+    setShowScrollToBottom(false);
     scroller.scrollTo({
       top: scroller.scrollHeight,
-      behavior:
-        document.documentElement.dataset.animations === 'off'
-          ? 'auto'
-          : 'smooth',
+      behavior: smooth ? 'smooth' : 'auto',
     });
-    setShowScrollToBottom(false);
-  }, [scrollRef]);
+    if (!smooth) {
+      window.requestAnimationFrame(() => {
+        finishScrollToBottom();
+        updateScrollToBottomVisibility();
+      });
+      return;
+    }
+    scrollToBottomReleaseTimerRef.current = window.setTimeout(() => {
+      finishScrollToBottom();
+      updateScrollToBottomVisibility();
+    }, SCROLL_TO_BOTTOM_RELEASE_MS);
+  }, [finishScrollToBottom, scrollRef, updateScrollToBottomVisibility]);
 
   useLayoutEffect(() => {
     if (messageWindow.chatId !== chatId) {
       pendingScrollRestoreRef.current = null;
-      clearSelectionGesture();
-      setSelectedMessageIds(new Set());
+      loadingEarlierRef.current = false;
+      finishScrollToBottom();
+      clearMessageSelection();
       setEditing(null);
       setDeleting(null);
       setHistoryMessageId(null);
@@ -1364,11 +1456,18 @@ function MessageListComponent({
           : current,
       );
     }
-  }, [chatId, clearSelectionGesture, messageWindow, messages.length]);
+  }, [
+    chatId,
+    clearMessageSelection,
+    finishScrollToBottom,
+    messageWindow,
+    messages.length,
+  ]);
 
   useLayoutEffect(() => {
     const restore = pendingScrollRestoreRef.current;
     const scroller = scrollRef.current;
+    loadingEarlierRef.current = false;
     if (!restore || !scroller) return;
 
     pendingScrollRestoreRef.current = null;
@@ -1389,7 +1488,8 @@ function MessageListComponent({
   ]);
 
   const loadEarlierMessages = useCallback(() => {
-    if (visibleStart <= 0) return;
+    if (visibleStart <= 0 || loadingEarlierRef.current) return;
+    loadingEarlierRef.current = true;
 
     const scroller = scrollRef.current;
     if (scroller) {
@@ -1407,9 +1507,55 @@ function MessageListComponent({
     }));
   }, [chatId, scrollRef, visibleStart]);
 
+  useEffect(() => {
+    const scroller = scrollRef.current;
+    const sentinel = loadEarlierSentinelRef.current;
+    if (!scroller || !sentinel || visibleStart <= 0) return;
+
+    if (typeof IntersectionObserver === 'undefined') {
+      if (
+        scroller.scrollHeight <=
+        scroller.clientHeight + AUTO_LOAD_EARLIER_THRESHOLD
+      ) {
+        loadEarlierMessages();
+      }
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) loadEarlierMessages();
+      },
+      {
+        root: scroller,
+        rootMargin: `${AUTO_LOAD_EARLIER_THRESHOLD}px 0px 0px`,
+        threshold: 0,
+      },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [loadEarlierMessages, scrollRef, visibleStart]);
+
+  const handleMessageScroll = useCallback(() => {
+    updateScrollToBottomVisibility();
+    const scroller = scrollRef.current;
+    if (
+      !scroller ||
+      scrollingToBottomRef.current ||
+      scroller.scrollTop > AUTO_LOAD_EARLIER_THRESHOLD
+    ) {
+      return;
+    }
+    loadEarlierMessages();
+  }, [loadEarlierMessages, scrollRef, updateScrollToBottomVisibility]);
+
   const historyMessage = useMemo(
     () => messages.find((message) => message.id === historyMessageId) ?? null,
     [historyMessageId, messages],
+  );
+  const selectedMessages = useMemo(
+    () => messages.filter((message) => selectedMessageIds.has(message.id)),
+    [messages, selectedMessageIds],
   );
 
   const requestEdit = (message: Message) => {
@@ -1456,6 +1602,19 @@ function MessageListComponent({
     try {
       await onDelete(deleting.id);
       setDeleting(null);
+    } catch (nextError) {
+      reportError(nextError);
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  const commitDeleteSelection = async () => {
+    if (selectedMessages.length === 0 || working) return;
+    setWorking(true);
+    try {
+      await onDeleteMany(selectedMessages.map((message) => message.id));
+      clearMessageSelection();
     } catch (nextError) {
       reportError(nextError);
     } finally {
@@ -1512,7 +1671,7 @@ function MessageListComponent({
       <div className="relative flex min-h-0 flex-1">
         {selectedMessageIds.size > 0 ? (
           <div className="pointer-events-none absolute inset-x-0 top-2 z-30 flex justify-center px-4">
-            <Surface className="pointer-events-auto flex items-center gap-2 rounded-full border border-accent/25 bg-overlay/95 py-1.5 pl-3 pr-1.5 shadow-overlay backdrop-blur-xl">
+            <Surface className="pointer-events-auto flex items-center gap-2 rounded-full bg-overlay/95 py-1.5 pl-3 pr-1.5 shadow-overlay backdrop-blur-xl">
               <Icon name="check" className="size-4 text-accent" />
               <span
                 className="text-sm font-medium"
@@ -1524,12 +1683,22 @@ function MessageListComponent({
                 })}
               </span>
               <Button
+                size="sm"
+                variant="danger"
+                className="h-7 rounded-full px-2.5"
+                isDisabled={working}
+                onPress={() => setDeletingSelection(true)}
+              >
+                <Icon name="trash" className="size-3.5" />
+                {t('chatDialogs.delete')}
+              </Button>
+              <Button
                 isIconOnly
                 size="sm"
                 variant="ghost"
                 className="size-7 min-w-7 rounded-full"
                 aria-label={t('messageList.clearSelection')}
-                onPress={() => setSelectedMessageIds(new Set())}
+                onPress={clearMessageSelection}
               >
                 <Icon name="close" className="size-3.5" />
               </Button>
@@ -1539,8 +1708,10 @@ function MessageListComponent({
         <div
           ref={scrollRef}
           data-chat-id={chatId}
-          className="chat-message-scroller scrollbar-thin flex min-h-0 w-full flex-1 flex-col overflow-y-scroll px-3 py-5 sm:px-5"
-          onScroll={updateScrollToBottomVisibility}
+          className={`chat-message-scroller scrollbar-thin flex min-h-0 w-full flex-1 flex-col overflow-y-scroll px-3 py-5 sm:px-5 ${
+            selectedMessageIds.size > 0 ? 'select-none' : ''
+          }`}
+          onScroll={handleMessageScroll}
           onPointerDown={handleSelectionPointerDown}
           onPointerMove={handleSelectionPointerMove}
           onPointerUp={handleSelectionPointerUp}
@@ -1562,7 +1733,10 @@ function MessageListComponent({
             }`}
           >
             {visibleStart > 0 ? (
-              <div className="flex justify-center py-1">
+              <div
+                ref={loadEarlierSentinelRef}
+                className="flex justify-center py-1"
+              >
                 <Button
                   size="sm"
                   variant="ghost"
@@ -1601,14 +1775,8 @@ function MessageListComponent({
                 <div
                   data-message-id={message.id}
                   data-selected={isSelected}
-                  className="relative isolate rounded-2xl"
+                  className="chat-message-virtual-item relative isolate rounded-2xl"
                 >
-                  {isSelected ? (
-                    <span
-                      aria-hidden="true"
-                      className="pointer-events-none absolute -inset-x-3 -inset-y-2 z-0 rounded-[1.5rem] bg-accent/5 ring-2 ring-accent/65"
-                    />
-                  ) : null}
                   <div className="relative z-10">
                     <MessageMenu
                       message={message}
@@ -1655,7 +1823,7 @@ function MessageListComponent({
                             </strong>
                             {showTimestamps ? (
                               <span className="shrink-0">
-                                {message.createdAt}
+                                {formatMessageTime(message.createdAt)}
                               </span>
                             ) : null}
                             {message.remembered ? (
@@ -1667,13 +1835,9 @@ function MessageListComponent({
                           </div>
                           <Surface
                             variant={isUser ? 'tertiary' : 'default'}
-                            className={`${isMobile ? 'select-none' : 'selectable'} min-w-0 max-w-full overflow-hidden rounded-2xl border px-4 py-3 shadow-xs ${
+                            className={`${isMobile || selectedMessageIds.size > 0 ? 'select-none' : 'selectable'} min-w-0 max-w-full overflow-hidden rounded-2xl px-4 py-3 shadow-xs transition-colors ${
                               messengerMode ? 'w-fit' : ''
-                            } ${
-                              isUser
-                                ? 'border-accent/10 bg-accent/10'
-                                : 'border-separator'
-                            }`}
+                            } ${isSelected ? 'bg-default/70' : isUser ? 'bg-accent/10' : ''}`}
                           >
                             {isRegenerating ? (
                               <div
@@ -1780,7 +1944,7 @@ function MessageListComponent({
                   </div>
                   <Surface
                     variant="tertiary"
-                    className={`${messengerMode ? 'w-fit' : ''} min-w-0 max-w-full overflow-hidden rounded-2xl border border-accent/10 bg-accent/10 px-4 py-3 shadow-xs`}
+                    className={`${messengerMode ? 'w-fit' : ''} min-w-0 max-w-full overflow-hidden rounded-2xl bg-accent/10 px-4 py-3 shadow-xs`}
                   >
                     <MarkdownContent>{pendingMessage}</MarkdownContent>
                   </Surface>
@@ -1803,7 +1967,7 @@ function MessageListComponent({
                   <span className="mb-1 text-xs font-medium text-muted">
                     {assistantName} {t('messageList.isTyping')}
                   </span>
-                  <Surface className="flex h-11 items-center gap-1 rounded-2xl border border-separator px-4">
+                  <Surface className="flex h-11 items-center gap-1 rounded-2xl px-4">
                     {[0, 1, 2].map((index) => (
                       <span
                         key={index}
@@ -1844,7 +2008,7 @@ function MessageListComponent({
             isIconOnly
             size="lg"
             variant="secondary"
-            className="absolute bottom-3 right-4 z-20 size-11 min-w-11 rounded-full border border-separator bg-overlay/95 shadow-overlay backdrop-blur-xl sm:bottom-4 sm:right-6"
+            className="absolute bottom-3 right-4 z-20 size-11 min-w-11 rounded-full bg-overlay/95 shadow-overlay backdrop-blur-xl sm:bottom-4 sm:right-6"
             aria-label={t('messageList.scrollToBottom')}
             onPress={scrollToBottom}
           >
@@ -1859,6 +2023,49 @@ function MessageListComponent({
         onClose={() => setEditing(null)}
         onEdit={onEdit}
       />
+
+      <UiModal
+        isOpen={deletingSelection}
+        onOpenChange={(open) =>
+          !open && !working && setDeletingSelection(false)
+        }
+        onConfirm={() => void commitDeleteSelection()}
+        isConfirmDisabled={selectedMessages.length === 0 || working}
+        title={t('messageList.deleteSelectedMessages', {
+          count: selectedMessages.length,
+        })}
+        description={t('messageList.selectedMessagesWillBeRemoved')}
+        footer={
+          <>
+            <Button
+              variant="ghost"
+              isDisabled={working}
+              onPress={() => setDeletingSelection(false)}
+            >
+              {t('chatDialogs.cancel')}
+            </Button>
+            <Button
+              variant="danger"
+              autoFocus
+              isPending={working}
+              onPress={() => void commitDeleteSelection()}
+            >
+              {t('chatDialogs.delete')}
+            </Button>
+          </>
+        }
+      >
+        <div className="max-h-48 space-y-2 overflow-y-auto overscroll-contain pr-1">
+          {selectedMessages.map((message) => (
+            <p
+              key={message.id}
+              className="line-clamp-2 rounded-xl bg-default/60 px-3 py-2 text-sm leading-5 text-muted"
+            >
+              {message.content}
+            </p>
+          ))}
+        </div>
+      </UiModal>
 
       <UiModal
         isOpen={Boolean(deleting)}

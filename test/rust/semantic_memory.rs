@@ -6,7 +6,7 @@ fn message(id: &str, role: &str, content: &str, remembered: bool) -> Message {
         chat_id: "chat-1".into(),
         role: role.into(),
         content: content.into(),
-        created_at: "00:00".into(),
+        created_at: 0,
         remembered,
         active_variant_index: 0,
         variants: Vec::new(),

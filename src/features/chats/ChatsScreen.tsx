@@ -47,6 +47,7 @@ export function ChatsScreen({
   onBranchMessage,
   onEditMessage,
   onDeleteMessage,
+  onDeleteMessages,
   onRememberMessage,
   onRegenerateMessage,
   onContinueMessage,
@@ -379,6 +380,7 @@ export function ChatsScreen({
               onBranch={onBranchMessage}
               onEdit={onEditMessage}
               onDelete={onDeleteMessage}
+              onDeleteMany={onDeleteMessages}
               onRemember={onRememberMessage}
               onRegenerate={onRegenerateMessage}
               onContinue={onContinueMessage}

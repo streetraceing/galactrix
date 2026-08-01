@@ -1,5 +1,5 @@
-export const INITIAL_VISIBLE_MESSAGES = 48;
-export const MESSAGE_WINDOW_BATCH = 40;
+export const INITIAL_VISIBLE_MESSAGES = 16;
+export const MESSAGE_WINDOW_BATCH = 20;
 
 export function initialMessageWindowStart(
   messageCount: number,

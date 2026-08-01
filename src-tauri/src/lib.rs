@@ -312,6 +312,13 @@ fn delete_message(message_id: String, state: State<'_, AppState>) -> CommandResu
 }
 
 #[tauri::command]
+fn delete_messages(message_ids: Vec<String>, state: State<'_, AppState>) -> CommandResult<()> {
+    let database = state.database.lock().map_err(CommandError::internal)?;
+    db::delete_messages(&database, &message_ids)?;
+    Ok(())
+}
+
+#[tauri::command]
 fn set_message_remembered(
     message_id: String,
     remembered: bool,
@@ -1595,6 +1602,7 @@ pub fn run() {
             branch_chat,
             edit_message,
             delete_message,
+            delete_messages,
             set_message_remembered,
             select_message_variant,
             preview_prompt,

@@ -64,6 +64,30 @@ fn assistant_message_creates_initial_variant_and_updates_summary() {
 }
 
 #[test]
+fn deleting_multiple_messages_updates_the_chat_once_and_keeps_the_remainder() {
+    let connection = test_database();
+    create_test_chat(&connection, "chat-1");
+    add_user_message(&connection, "chat-1", "user-1", "first")
+        .expect("first message must persist");
+    add_assistant_message(&connection, "chat-1", "assistant-1", "second")
+        .expect("assistant message must persist");
+    add_user_message(&connection, "chat-1", "user-2", "third")
+        .expect("last message must persist");
+
+    delete_messages(
+        &connection,
+        &["user-1".to_string(), "assistant-1".to_string()],
+    )
+    .expect("selected messages must be deleted in one transaction");
+
+    let state = chat_state(&connection, "chat-1").expect("chat state must load");
+    assert_eq!(state.chat.message_count, 1);
+    assert_eq!(state.chat.preview, "third");
+    assert_eq!(state.messages.len(), 1);
+    assert_eq!(state.messages[0].id, "user-2");
+}
+
+#[test]
 fn continuation_is_saved_as_a_separate_assistant_message() {
     let connection = test_database();
     create_test_chat(&connection, "chat-1");
