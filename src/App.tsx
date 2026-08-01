@@ -1,4 +1,5 @@
 import './App.css';
+import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { AppScreenRouter } from './app/AppScreenRouter';
 import { AppError } from './components/layout/AppError';
@@ -7,9 +8,16 @@ import { useAppController } from './hooks/useAppController';
 
 function App() {
   const controller = useAppController();
+  const [chatMaximized, setChatMaximized] = useState(false);
+
+  useEffect(() => {
+    if (controller.activeTab !== 'chats') setChatMaximized(false);
+  }, [controller.activeTab]);
+
   const frame = (children: ReactNode) => (
     <ApplicationFrame
       activeTab={controller.activeTab}
+      chatMaximized={chatMaximized}
       settings={controller.snapshot.settings}
       chats={controller.snapshot.chats}
       loading={controller.loading}
@@ -37,7 +45,13 @@ function App() {
   }
 
   return frame(
-    !controller.loading ? <AppScreenRouter controller={controller} /> : null,
+    !controller.loading ? (
+      <AppScreenRouter
+        controller={controller}
+        chatMaximized={chatMaximized}
+        onChatMaximizedChange={setChatMaximized}
+      />
+    ) : null,
   );
 }
 

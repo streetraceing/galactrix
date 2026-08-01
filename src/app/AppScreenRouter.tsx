@@ -8,7 +8,15 @@ import { useTranslation } from 'react-i18next';
 
 type Controller = ReturnType<typeof useAppController>;
 
-export function AppScreenRouter({ controller }: { controller: Controller }) {
+export function AppScreenRouter({
+  controller,
+  chatMaximized,
+  onChatMaximizedChange,
+}: {
+  controller: Controller;
+  chatMaximized: boolean;
+  onChatMaximizedChange: (maximized: boolean) => void;
+}) {
   const { activeTab, snapshot } = controller;
   const { i18n } = useTranslation();
 
@@ -23,6 +31,7 @@ export function AppScreenRouter({ controller }: { controller: Controller }) {
         profileAvatar={snapshot.settings.profileAvatar}
         activeChatId={controller.activeChatId}
         isChatOpen={controller.isChatOpen}
+        chatMaximized={chatMaximized}
         chatSidebarWidth={snapshot.settings.chatSidebarWidth}
         onChatSidebarWidthPreview={(chatSidebarWidth) =>
           controller.previewSettings({ ...snapshot.settings, chatSidebarWidth })
@@ -35,6 +44,7 @@ export function AppScreenRouter({ controller }: { controller: Controller }) {
         }
         onSelectChat={controller.openChat}
         onCloseChat={controller.closeChat}
+        onChatMaximizedChange={onChatMaximizedChange}
         onNewChat={controller.createNewChat}
         onUpdateChat={controller.updateExistingChat}
         onRenameChat={controller.renameExistingChat}

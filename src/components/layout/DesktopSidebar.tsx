@@ -119,7 +119,7 @@ export function DesktopSidebar({
 
   return (
     <aside
-      className={`group/sidebar relative isolate flex h-full shrink-0 transform-gpu flex-col overflow-hidden bg-background transition-[width] duration-320 ease-(--motion-ease) contain-[layout_paint] after:pointer-events-none after:absolute after:inset-y-0 after:right-0 after:w-px after:bg-separator motion-reduce:transition-none ${
+      className={`desktop-sidebar group/sidebar relative isolate flex h-full shrink-0 transform-gpu flex-col overflow-hidden bg-background transition-[width] duration-320 ease-(--motion-ease) contain-[layout_paint] after:pointer-events-none after:absolute after:inset-y-0 after:right-0 after:w-px after:bg-separator motion-reduce:transition-none ${
         compact ? 'w-14' : ''
       }`}
       style={compact ? undefined : ({ width: `${width}px` } as CSSProperties)}

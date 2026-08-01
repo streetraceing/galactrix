@@ -201,14 +201,18 @@ function ConversationHeaderComponent({
   provider,
   galaxyItems,
   showBack,
+  maximized,
   onBack,
+  onToggleMaximized,
   onAction,
 }: {
   chat: Chat;
   provider?: Provider;
   galaxyItems: GalaxyItem[];
   showBack: boolean;
+  maximized: boolean;
   onBack: () => void;
+  onToggleMaximized: () => void;
   onAction: (action: ChatAction, chat: Chat) => void;
 }) {
   const { t } = useTranslation('chats');
@@ -260,7 +264,11 @@ function ConversationHeaderComponent({
   return (
     <>
       <header className="shrink-0 border-b border-separator bg-background px-3 py-3 sm:px-4">
-        <div className="flex min-w-0 items-center gap-2">
+        <div
+          className={`mx-auto flex min-w-0 items-center gap-2 ${
+            maximized ? 'max-w-5xl' : 'max-w-none'
+          }`}
+        >
           {showBack ? (
             <TooltipIconButton
               label={t('conversationHeader.backToChats')}
@@ -328,6 +336,25 @@ function ConversationHeaderComponent({
           >
             <Icon name="settings" className="size-5" />
           </TooltipIconButton>
+          {!isMobile ? (
+            <TooltipIconButton
+              label={
+                maximized
+                  ? t('conversationHeader.restoreChatLayout')
+                  : t('conversationHeader.maximizeChat')
+              }
+              size="sm"
+              variant={maximized ? 'secondary' : 'ghost'}
+              className="shrink-0"
+              aria-pressed={maximized}
+              onPress={onToggleMaximized}
+            >
+              <Icon
+                name={maximized ? 'restore' : 'maximize'}
+                className="size-5"
+              />
+            </TooltipIconButton>
+          ) : null}
           <ChatActionsButton chat={chat} onAction={onAction} />
         </div>
       </header>

@@ -156,6 +156,10 @@
     cursor: col-resize !important;
   }
 
+  body[data-resizing='true'] .desktop-sidebar[data-collapsed='false'] {
+    transition-duration: 0ms !important;
+  }
+
   html[data-animations='off'] *,
   html[data-animations='off'] *::before,
   html[data-animations='off'] *::after {

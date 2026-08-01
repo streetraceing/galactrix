@@ -15,6 +15,7 @@ import { useTranslation } from 'react-i18next';
 
 export function ApplicationFrame({
   activeTab,
+  chatMaximized,
   settings,
   chats,
   loading,
@@ -28,6 +29,7 @@ export function ApplicationFrame({
   onSettingsCommit,
 }: {
   activeTab: TabId;
+  chatMaximized: boolean;
   settings: AppSettings;
   chats: Chat[];
   loading: boolean;
@@ -42,6 +44,8 @@ export function ApplicationFrame({
 }) {
   const { t } = useTranslation('common');
   const isMobile = isMobilePlatform();
+  const hideDesktopNavigation =
+    !isMobile && activeTab === 'chats' && chatMaximized;
   const displayProfileName = resolveProfileName(
     settings.profileName,
     t('user.defaultName'),
@@ -62,7 +66,7 @@ export function ApplicationFrame({
         }
       />
       <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden bg-background">
-        {!isMobile ? (
+        {!isMobile && !hideDesktopNavigation ? (
           <DesktopSidebar
             activeTab={activeTab}
             chatCount={chats.length}
@@ -79,7 +83,7 @@ export function ApplicationFrame({
             }
           />
         ) : null}
-        {!isMobile ? (
+        {!isMobile && !hideDesktopNavigation ? (
           <ResizeHandle
             value={settings.sidebarWidth}
             min={196}
@@ -104,6 +108,9 @@ export function ApplicationFrame({
               })
             }
             onCollapse={() =>
+              onSettingsPreview({ ...settings, sidebarCollapsed: true })
+            }
+            onCollapseCommit={() =>
               onSettingsCommit({ ...settings, sidebarCollapsed: true })
             }
             shift

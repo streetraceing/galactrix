@@ -30,11 +30,13 @@ export function ChatsScreen({
   profileAvatar,
   activeChatId,
   isChatOpen,
+  chatMaximized,
   chatSidebarWidth,
   onChatSidebarWidthPreview,
   onChatSidebarWidthCommit,
   onSelectChat,
   onCloseChat,
+  onChatMaximizedChange,
   onNewChat,
   onUpdateChat,
   onRenameChat,
@@ -82,6 +84,12 @@ export function ChatsScreen({
   const sendInFlightRef = useRef(false);
 
   const activeChat = activeChatById(chats, activeChatId);
+
+  useEffect(() => {
+    if (chatMaximized && (isMobile || !activeChat)) {
+      onChatMaximizedChange(false);
+    }
+  }, [activeChat, chatMaximized, isMobile, onChatMaximizedChange]);
   const messagesByChat = useMemo(
     () => groupMessagesByChat(messages),
     [messages],
@@ -299,19 +307,21 @@ export function ChatsScreen({
 
   return (
     <div className="flex flex-1 h-full min-w-0 overflow-hidden bg-background">
-      <ChatSidebar
-        chats={chats}
-        galaxyItems={galaxyItems}
-        activeChatId={activeChat?.id ?? ''}
-        width={chatSidebarWidth}
-        isVisibleMobile={!isChatOpen}
-        isSinglePane={isSinglePane}
-        onSelect={onSelectChat}
-        onNewChat={openNewChat}
-        onAction={handleAction}
-      />
+      {!chatMaximized ? (
+        <ChatSidebar
+          chats={chats}
+          galaxyItems={galaxyItems}
+          activeChatId={activeChat?.id ?? ''}
+          width={chatSidebarWidth}
+          isVisibleMobile={!isChatOpen}
+          isSinglePane={isSinglePane}
+          onSelect={onSelectChat}
+          onNewChat={openNewChat}
+          onAction={handleAction}
+        />
+      ) : null}
 
-      {!isSinglePane ? (
+      {!isSinglePane && !chatMaximized ? (
         <ResizeHandle
           value={chatSidebarWidth}
           min={260}
@@ -341,7 +351,9 @@ export function ChatsScreen({
               provider={activeProvider}
               galaxyItems={galaxyItems}
               showBack={isSinglePane}
+              maximized={chatMaximized}
               onBack={onCloseChat}
+              onToggleMaximized={() => onChatMaximizedChange(!chatMaximized)}
               onAction={handleAction}
             />
             <MessageList
@@ -362,6 +374,7 @@ export function ChatsScreen({
               showAvatars={showMessageAvatars}
               showTimestamps={showMessageTimestamps}
               providersAvailable={providers.length > 0}
+              wide={chatMaximized}
               scrollRef={messageScrollRef}
               onBranch={onBranchMessage}
               onEdit={onEditMessage}
@@ -380,6 +393,7 @@ export function ChatsScreen({
               saveDrafts={saveDrafts}
               shouldAutoFocus={shouldAutoFocusComposer}
               focusKey={`${activeChat.id}:${isChatOpen}`}
+              wide={chatMaximized}
               onSend={send}
               onCancel={cancelGeneration}
             />

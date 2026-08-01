@@ -2,6 +2,7 @@ import { Button, Surface, TextArea, Tooltip } from '@heroui/react';
 import {
   memo,
   useCallback,
+  useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -42,6 +43,11 @@ import {
   mobileSwipeDragOffset,
   shouldCommitMobileSwipe,
 } from '../mobileSwipe';
+import {
+  mergeMessageSelection,
+  messageSelectionRange,
+  toggleMessageSelection,
+} from '../messageSelection';
 
 type MessageActionProps = {
   message: Message;
@@ -57,6 +63,40 @@ type MessageActionProps = {
 };
 
 type VariantDirection = 'next' | 'previous';
+
+const MESSAGE_SELECTION_DRAG_THRESHOLD = 6;
+const TOUCH_SELECTION_MOVE_THRESHOLD = 10;
+const TOUCH_MULTISELECT_HOLD_MS = 320;
+
+type MessageSelectionGesture = {
+  pointerId: number;
+  pointerType: string;
+  button: number;
+  startId: string;
+  lastId: string;
+  startX: number;
+  startY: number;
+  active: boolean;
+  armed: boolean;
+  holdTimer: number | null;
+  baseSelection: Set<string>;
+};
+
+function messageIdFromTarget(target: EventTarget | null) {
+  if (!(target instanceof Element)) return null;
+  return (
+    target.closest<HTMLElement>('[data-message-id]')?.dataset.messageId ?? null
+  );
+}
+
+function isMessageSelectionControl(target: EventTarget | null) {
+  if (!(target instanceof Element)) return false;
+  return Boolean(
+    target.closest(
+      'button, a, input, textarea, select, [role="button"], [contenteditable="true"], [data-message-selection-ignore]',
+    ),
+  );
+}
 
 async function copyText(content: string) {
   if (navigator.clipboard?.writeText) {
@@ -538,12 +578,14 @@ function SwipeableMessage({
   onSelectVariant,
   onRegenerate,
   onError,
+  isSelectionGesture,
 }: {
   message: Message;
   children: ReactNode;
   onSelectVariant: (messageId: string, variantIndex: number) => Promise<void>;
   onRegenerate: (messageId: string) => Promise<void>;
   onError: (message: string) => void;
+  isSelectionGesture: (pointerId: number) => boolean;
 }) {
   const { t } = useTranslation('chats');
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -616,6 +658,16 @@ function SwipeableMessage({
   const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
     const start = pointerStart.current;
     if (!start || start.id !== event.pointerId || selectingVariant.current) {
+      return;
+    }
+
+    if (isSelectionGesture(event.pointerId)) {
+      resetPointer();
+      setOffset(0);
+      setMotionPhase('idle');
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
       return;
     }
 
@@ -936,6 +988,7 @@ function MessageListComponent({
   showAvatars,
   showTimestamps,
   providersAvailable,
+  wide,
   scrollRef,
   onBranch,
   onEdit,
@@ -958,6 +1011,7 @@ function MessageListComponent({
   showAvatars: boolean;
   showTimestamps: boolean;
   providersAvailable: boolean;
+  wide: boolean;
   scrollRef: RefObject<HTMLDivElement | null>;
   onBranch: (messageId: string) => Promise<void>;
   onEdit: (messageId: string, content: string) => Promise<void>;
@@ -974,12 +1028,17 @@ function MessageListComponent({
   const [historyMessageId, setHistoryMessageId] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+  const [selectedMessageIds, setSelectedMessageIds] = useState<Set<string>>(
+    () => new Set(),
+  );
   const [messageGeneration, setMessageGeneration] = useState<{
     messageId: string;
     mode: 'regenerate' | 'continue';
   } | null>(null);
   const messageGenerationRef = useRef<string | null>(null);
   const variantSelectionRef = useRef<string | null>(null);
+  const selectionGestureRef = useRef<MessageSelectionGesture | null>(null);
+  const suppressContextMenuUntilRef = useRef(0);
   const pendingScrollRestoreRef = useRef<{
     scrollHeight: number;
     scrollTop: number;
@@ -1001,6 +1060,232 @@ function MessageListComponent({
     () => messages.slice(visibleStart),
     [messages, visibleStart],
   );
+  const visibleMessageIds = useMemo(
+    () => visibleMessages.map((message) => message.id),
+    [visibleMessages],
+  );
+
+  const clearSelectionGesture = useCallback(
+    (pointerId?: number) => {
+      const gesture = selectionGestureRef.current;
+      if (!gesture) return;
+
+      if (gesture.holdTimer != null) {
+        window.clearTimeout(gesture.holdTimer);
+      }
+
+      const scroller = scrollRef.current;
+      const capturedPointerId = pointerId ?? gesture.pointerId;
+      if (scroller?.hasPointerCapture(capturedPointerId)) {
+        scroller.releasePointerCapture(capturedPointerId);
+      }
+      selectionGestureRef.current = null;
+    },
+    [scrollRef],
+  );
+
+  useEffect(
+    () => () => {
+      const gesture = selectionGestureRef.current;
+      if (gesture?.holdTimer != null) {
+        window.clearTimeout(gesture.holdTimer);
+      }
+    },
+    [],
+  );
+
+  useEffect(() => {
+    const availableIds = new Set(messages.map((message) => message.id));
+    setSelectedMessageIds((current) => {
+      const next = new Set(
+        [...current].filter((messageId) => availableIds.has(messageId)),
+      );
+      return next.size === current.size ? current : next;
+    });
+  }, [messages]);
+
+  const messageIdAtPoint = useCallback(
+    (clientX: number, clientY: number) => {
+      const element = document.elementFromPoint(clientX, clientY);
+      const messageElement = element?.closest<HTMLElement>('[data-message-id]');
+      const scroller = scrollRef.current;
+      if (!messageElement || !scroller?.contains(messageElement)) return null;
+      return messageElement.dataset.messageId ?? null;
+    },
+    [scrollRef],
+  );
+
+  const updateDragSelection = useCallback(
+    (gesture: MessageSelectionGesture, endId: string) => {
+      gesture.lastId = endId;
+      setSelectedMessageIds(
+        mergeMessageSelection(
+          gesture.baseSelection,
+          messageSelectionRange(visibleMessageIds, gesture.startId, endId),
+        ),
+      );
+    },
+    [visibleMessageIds],
+  );
+
+  const activateSelectionGesture = useCallback(
+    (
+      event: ReactPointerEvent<HTMLDivElement>,
+      gesture: MessageSelectionGesture,
+      endId: string,
+    ) => {
+      gesture.active = true;
+      if (gesture.holdTimer != null) {
+        window.clearTimeout(gesture.holdTimer);
+        gesture.holdTimer = null;
+      }
+      suppressContextMenuUntilRef.current = Number.POSITIVE_INFINITY;
+      if (!event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.setPointerCapture(event.pointerId);
+      }
+      updateDragSelection(gesture, endId);
+    },
+    [updateDragSelection],
+  );
+
+  const handleSelectionPointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (!event.isPrimary || isMessageSelectionControl(event.target)) return;
+      const messageId = messageIdFromTarget(event.target);
+      if (!messageId) return;
+
+      const isTouch = event.pointerType === 'touch';
+      const isPrimaryMouse =
+        event.pointerType === 'mouse' && event.button === 0;
+      const isSecondaryMouse =
+        event.pointerType === 'mouse' && event.button === 2;
+      if (!isTouch && !isPrimaryMouse && !isSecondaryMouse) return;
+
+      clearSelectionGesture();
+      const gesture: MessageSelectionGesture = {
+        pointerId: event.pointerId,
+        pointerType: event.pointerType,
+        button: event.button,
+        startId: messageId,
+        lastId: messageId,
+        startX: event.clientX,
+        startY: event.clientY,
+        active: false,
+        armed: isSecondaryMouse,
+        holdTimer: null,
+        baseSelection: new Set(selectedMessageIds),
+      };
+
+      if (isTouch) {
+        gesture.holdTimer = window.setTimeout(() => {
+          if (selectionGestureRef.current === gesture) gesture.armed = true;
+        }, TOUCH_MULTISELECT_HOLD_MS);
+      }
+
+      selectionGestureRef.current = gesture;
+    },
+    [clearSelectionGesture, selectedMessageIds],
+  );
+
+  const handleSelectionPointerMove = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      const gesture = selectionGestureRef.current;
+      if (!gesture || gesture.pointerId !== event.pointerId) return;
+
+      const dx = event.clientX - gesture.startX;
+      const dy = event.clientY - gesture.startY;
+      const distance = Math.hypot(dx, dy);
+      const isTouch = gesture.pointerType === 'touch';
+      const isPrimaryMouse =
+        gesture.pointerType === 'mouse' && gesture.button === 0;
+
+      if (isPrimaryMouse) {
+        if (distance > MESSAGE_SELECTION_DRAG_THRESHOLD) {
+          clearSelectionGesture(event.pointerId);
+        }
+        return;
+      }
+
+      if (isTouch && !gesture.armed) {
+        if (distance > TOUCH_SELECTION_MOVE_THRESHOLD) {
+          clearSelectionGesture(event.pointerId);
+        }
+        return;
+      }
+
+      const endId = messageIdAtPoint(event.clientX, event.clientY);
+      if (!endId) return;
+
+      if (!gesture.active) {
+        const movedToAnotherMessage = endId !== gesture.startId;
+        if (
+          !movedToAnotherMessage &&
+          distance <= MESSAGE_SELECTION_DRAG_THRESHOLD
+        ) {
+          return;
+        }
+        activateSelectionGesture(event, gesture, endId);
+      } else if (endId !== gesture.lastId) {
+        updateDragSelection(gesture, endId);
+      }
+
+      event.preventDefault();
+    },
+    [
+      activateSelectionGesture,
+      clearSelectionGesture,
+      messageIdAtPoint,
+      updateDragSelection,
+    ],
+  );
+
+  const handleSelectionPointerUp = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      const gesture = selectionGestureRef.current;
+      if (!gesture || gesture.pointerId !== event.pointerId) return;
+
+      const dx = event.clientX - gesture.startX;
+      const dy = event.clientY - gesture.startY;
+      const distance = Math.hypot(dx, dy);
+      const wasActive = gesture.active;
+      const wasTouchHold = gesture.pointerType === 'touch' && gesture.armed;
+      const pressThreshold =
+        gesture.pointerType === 'touch'
+          ? TOUCH_SELECTION_MOVE_THRESHOLD
+          : MESSAGE_SELECTION_DRAG_THRESHOLD;
+      const isShortSelectionPress =
+        distance <= pressThreshold &&
+        ((gesture.pointerType === 'mouse' && gesture.button === 0) ||
+          (gesture.pointerType === 'touch' && !wasTouchHold));
+
+      if (wasActive) {
+        suppressContextMenuUntilRef.current = Date.now() + 800;
+        event.preventDefault();
+      } else if (isShortSelectionPress) {
+        setSelectedMessageIds((current) =>
+          toggleMessageSelection(current, gesture.startId),
+        );
+      }
+
+      clearSelectionGesture(event.pointerId);
+    },
+    [clearSelectionGesture],
+  );
+
+  const handleSelectionPointerCancel = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (selectionGestureRef.current?.active) {
+        suppressContextMenuUntilRef.current = Date.now() + 800;
+      }
+      clearSelectionGesture(event.pointerId);
+    },
+    [clearSelectionGesture],
+  );
+
+  const isSelectionGesture = useCallback((pointerId: number) => {
+    const gesture = selectionGestureRef.current;
+    return gesture?.pointerId === pointerId && gesture.armed;
+  }, []);
 
   const updateScrollToBottomVisibility = useCallback(() => {
     const scroller = scrollRef.current;
@@ -1030,6 +1315,8 @@ function MessageListComponent({
   useLayoutEffect(() => {
     if (messageWindow.chatId !== chatId) {
       pendingScrollRestoreRef.current = null;
+      clearSelectionGesture();
+      setSelectedMessageIds(new Set());
       setEditing(null);
       setDeleting(null);
       setHistoryMessageId(null);
@@ -1063,7 +1350,7 @@ function MessageListComponent({
           : current,
       );
     }
-  }, [chatId, messageWindow, messages.length]);
+  }, [chatId, clearSelectionGesture, messageWindow, messages.length]);
 
   useLayoutEffect(() => {
     const restore = pendingScrollRestoreRef.current;
@@ -1205,15 +1492,56 @@ function MessageListComponent({
   return (
     <>
       <div className="relative flex min-h-0 flex-1">
+        {selectedMessageIds.size > 0 ? (
+          <div className="pointer-events-none absolute inset-x-0 top-2 z-30 flex justify-center px-4">
+            <Surface className="pointer-events-auto flex items-center gap-2 rounded-full border border-accent/25 bg-overlay/95 py-1.5 pl-3 pr-1.5 shadow-overlay backdrop-blur-xl">
+              <Icon name="check" className="size-4 text-accent" />
+              <span
+                className="text-sm font-medium"
+                role="status"
+                aria-live="polite"
+              >
+                {t('messageList.selectedMessages', {
+                  count: selectedMessageIds.size,
+                })}
+              </span>
+              <Button
+                isIconOnly
+                size="sm"
+                variant="ghost"
+                className="size-7 min-w-7 rounded-full"
+                aria-label={t('messageList.clearSelection')}
+                onPress={() => setSelectedMessageIds(new Set())}
+              >
+                <Icon name="close" className="size-3.5" />
+              </Button>
+            </Surface>
+          </div>
+        ) : null}
         <div
           ref={scrollRef}
           data-chat-id={chatId}
           className="chat-message-scroller scrollbar-thin flex min-h-0 w-full flex-1 flex-col overflow-y-scroll px-3 py-5 sm:px-5"
           onScroll={updateScrollToBottomVisibility}
+          onPointerDown={handleSelectionPointerDown}
+          onPointerMove={handleSelectionPointerMove}
+          onPointerUp={handleSelectionPointerUp}
+          onPointerCancel={handleSelectionPointerCancel}
+          onContextMenuCapture={(event) => {
+            if (
+              selectionGestureRef.current?.active ||
+              Date.now() < suppressContextMenuUntilRef.current
+            ) {
+              event.preventDefault();
+              event.stopPropagation();
+            }
+          }}
         >
           <div
             key={chatId}
-            className="chat-message-canvas mx-auto mt-auto flex w-full max-w-3xl flex-col gap-3 sm:gap-4"
+            className={`chat-message-canvas mx-auto mt-auto flex w-full flex-col gap-3 sm:gap-4 ${
+              wide ? 'max-w-5xl' : 'max-w-3xl'
+            }`}
           >
             {visibleStart > 0 ? (
               <div className="flex justify-center py-1">
@@ -1231,6 +1559,7 @@ function MessageListComponent({
 
             {visibleMessages.map((message) => {
               const isUser = message.role === 'user';
+              const isSelected = selectedMessageIds.has(message.id);
               const displayName = isUser
                 ? userName
                 : message.role === 'assistant'
@@ -1251,122 +1580,134 @@ function MessageListComponent({
                 isGenerating && messageGeneration?.mode === 'regenerate';
 
               const content = (
-                <MessageMenu
-                  message={message}
-                  onBranch={onBranch}
-                  onRemember={onRemember}
-                  onRegenerate={regenerate}
-                  onContinue={continueResponse}
-                  onSelectVariant={selectVariant}
-                  onEditRequest={edit}
-                  onDeleteRequest={remove}
-                  onHistoryRequest={history}
-                  onError={reportError}
+                <div
+                  data-message-id={message.id}
+                  data-selected={isSelected}
+                  className={`relative rounded-2xl transition-[box-shadow,background-color] duration-(--motion-fast) ease-(--motion-ease) ${
+                    isSelected
+                      ? 'bg-accent/5 ring-2 ring-accent/65 ring-offset-2 ring-offset-background'
+                      : ''
+                  }`}
                 >
-                  <article
-                    className={`chat-message-row group flex items-start gap-2.5 sm:gap-3 ${
-                      isUser && !messengerMode ? 'flex-row-reverse' : ''
-                    }`}
+                  <MessageMenu
+                    message={message}
+                    onBranch={onBranch}
+                    onRemember={onRemember}
+                    onRegenerate={regenerate}
+                    onContinue={continueResponse}
+                    onSelectVariant={selectVariant}
+                    onEditRequest={edit}
+                    onDeleteRequest={remove}
+                    onHistoryRequest={history}
+                    onError={reportError}
                   >
-                    {showAvatars ? (
-                      <AppAvatar
-                        src={avatar}
-                        name={displayName}
-                        className="size-8 sm:size-9"
-                        square
-                      />
-                    ) : null}
-                    <div
-                      className={`flex min-w-0 flex-col ${
-                        messengerMode
-                          ? 'items-start w-full'
-                          : isUser
-                            ? 'max-w-[min(91%,44rem)] items-end sm:max-w-[min(88%,44rem)]'
-                            : 'w-full items-start'
+                    <article
+                      className={`chat-message-row group flex items-start gap-2.5 sm:gap-3 ${
+                        isUser && !messengerMode ? 'flex-row-reverse' : ''
                       }`}
                     >
+                      {showAvatars ? (
+                        <AppAvatar
+                          src={avatar}
+                          name={displayName}
+                          className="size-8 sm:size-9"
+                          square
+                        />
+                      ) : null}
                       <div
-                        className={`mb-1 flex min-w-0 items-center gap-2 text-xs text-muted ${
-                          isUser && !messengerMode ? 'flex-row-reverse' : ''
+                        className={`flex min-w-0 flex-col ${
+                          messengerMode
+                            ? 'items-start w-full'
+                            : isUser
+                              ? 'max-w-[min(91%,44rem)] items-end sm:max-w-[min(88%,44rem)]'
+                              : 'w-full items-start'
                         }`}
                       >
-                        <strong className="truncate font-medium text-foreground">
-                          {displayName}
-                        </strong>
-                        {showTimestamps ? (
-                          <span className="shrink-0">{message.createdAt}</span>
-                        ) : null}
-                        {message.remembered ? (
-                          <span className="inline-flex shrink-0 items-center gap-1 text-accent">
-                            <Icon name="memory" className="size-3" />
-                            {t('messageList.remembered')}
-                          </span>
-                        ) : null}
-                      </div>
-                      <Surface
-                        variant={isUser ? 'tertiary' : 'default'}
-                        className={`${isMobile ? 'select-none' : 'selectable'} min-w-0 max-w-full overflow-hidden rounded-2xl border px-4 py-3 shadow-xs ${
-                          messengerMode ? 'w-fit' : ''
-                        } ${
-                          isUser
-                            ? 'border-accent/10 bg-accent/10'
-                            : 'border-separator'
-                        }`}
-                      >
-                        {isRegenerating ? (
-                          <div
-                            className="flex h-5 min-w-12 items-center gap-1"
-                            role="status"
-                            aria-label={t('messageList.isTyping')}
-                          >
-                            {[0, 1, 2].map((index) => (
-                              <span
-                                key={index}
-                                className="typing-dot size-1.5 rounded-full bg-accent"
-                                style={{ animationDelay: `${index * 140}ms` }}
+                        <div
+                          className={`mb-1 flex min-w-0 items-center gap-2 text-xs text-muted ${
+                            isUser && !messengerMode ? 'flex-row-reverse' : ''
+                          }`}
+                        >
+                          <strong className="truncate font-medium text-foreground">
+                            {displayName}
+                          </strong>
+                          {showTimestamps ? (
+                            <span className="shrink-0">
+                              {message.createdAt}
+                            </span>
+                          ) : null}
+                          {message.remembered ? (
+                            <span className="inline-flex shrink-0 items-center gap-1 text-accent">
+                              <Icon name="memory" className="size-3" />
+                              {t('messageList.remembered')}
+                            </span>
+                          ) : null}
+                        </div>
+                        <Surface
+                          variant={isUser ? 'tertiary' : 'default'}
+                          className={`${isMobile ? 'select-none' : 'selectable'} min-w-0 max-w-full overflow-hidden rounded-2xl border px-4 py-3 shadow-xs ${
+                            messengerMode ? 'w-fit' : ''
+                          } ${
+                            isUser
+                              ? 'border-accent/10 bg-accent/10'
+                              : 'border-separator'
+                          }`}
+                        >
+                          {isRegenerating ? (
+                            <div
+                              className="flex h-5 min-w-12 items-center gap-1"
+                              role="status"
+                              aria-label={t('messageList.isTyping')}
+                            >
+                              {[0, 1, 2].map((index) => (
+                                <span
+                                  key={index}
+                                  className="typing-dot size-1.5 rounded-full bg-accent"
+                                  style={{ animationDelay: `${index * 140}ms` }}
+                                />
+                              ))}
+                            </div>
+                          ) : (
+                            <>
+                              <AnimatedVariantContent
+                                message={message}
+                                direction={
+                                  variantDirections[message.id] ?? 'next'
+                                }
+                                enabled={!isMobile}
                               />
-                            ))}
-                          </div>
+                            </>
+                          )}
+                        </Surface>
+                        {!isMobile ? (
+                          <DesktopMessageActions
+                            message={message}
+                            onBranch={onBranch}
+                            onRemember={onRemember}
+                            onRegenerate={regenerate}
+                            onContinue={continueResponse}
+                            onSelectVariant={selectVariant}
+                            onEditRequest={edit}
+                            onDeleteRequest={remove}
+                            onHistoryRequest={history}
+                            onError={reportError}
+                          />
                         ) : (
-                          <>
-                            <AnimatedVariantContent
-                              message={message}
-                              direction={
-                                variantDirections[message.id] ?? 'next'
-                              }
-                              enabled={!isMobile}
-                            />
-                          </>
+                          <VariantNavigator
+                            message={message}
+                            compact
+                            onSelect={(index) =>
+                              void selectVariant(message.id, index).catch(
+                                reportError,
+                              )
+                            }
+                            onHistory={history}
+                          />
                         )}
-                      </Surface>
-                      {!isMobile ? (
-                        <DesktopMessageActions
-                          message={message}
-                          onBranch={onBranch}
-                          onRemember={onRemember}
-                          onRegenerate={regenerate}
-                          onContinue={continueResponse}
-                          onSelectVariant={selectVariant}
-                          onEditRequest={edit}
-                          onDeleteRequest={remove}
-                          onHistoryRequest={history}
-                          onError={reportError}
-                        />
-                      ) : (
-                        <VariantNavigator
-                          message={message}
-                          compact
-                          onSelect={(index) =>
-                            void selectVariant(message.id, index).catch(
-                              reportError,
-                            )
-                          }
-                          onHistory={history}
-                        />
-                      )}
-                    </div>
-                  </article>
-                </MessageMenu>
+                      </div>
+                    </article>
+                  </MessageMenu>
+                </div>
               );
 
               return isMobile ? (
@@ -1376,6 +1717,7 @@ function MessageListComponent({
                   onSelectVariant={selectVariant}
                   onRegenerate={regenerate}
                   onError={reportError}
+                  isSelectionGesture={isSelectionGesture}
                 >
                   {content}
                 </SwipeableMessage>

@@ -25,11 +25,13 @@ export type ChatsScreenProps = {
   profileAvatar?: string;
   activeChatId: string;
   isChatOpen: boolean;
+  chatMaximized: boolean;
   chatSidebarWidth: number;
   onChatSidebarWidthPreview: (width: number) => void;
   onChatSidebarWidthCommit: (width: number) => void;
   onSelectChat: (id: string) => void;
   onCloseChat: () => void;
+  onChatMaximizedChange: (maximized: boolean) => void;
   onNewChat: (input: ChatConfigInput) => Promise<void>;
   onUpdateChat: (chatId: string, input: ChatConfigInput) => Promise<void>;
   onRenameChat: (chatId: string, title: string) => Promise<void>;

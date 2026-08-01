@@ -30,6 +30,7 @@ const resizeHandlePath = new URL(
   '../../src/components/ResizeHandle.tsx',
   import.meta.url,
 );
+const appCssPath = new URL('../../src/App.css', import.meta.url);
 const telescopeTransferPath = new URL(
   '../../src/features/telescope/transfer.ts',
   import.meta.url,
@@ -86,29 +87,54 @@ test('settings separate parameters and animated searchable modules', async () =>
 });
 
 test('desktop sidebar keeps centered compact icons and reversible resize collapse', async () => {
-  const [sidebar, frame, resizeHandle] = await Promise.all([
+  const [sidebar, frame, resizeHandle, appCss] = await Promise.all([
     readFile(sidebarPath, 'utf8'),
     readFile(framePath, 'utf8'),
     readFile(resizeHandlePath, 'utf8'),
+    readFile(appCssPath, 'utf8'),
   ]);
 
   assert.match(sidebar, /compact \? 'w-14' : ''/);
   assert.match(sidebar, /group-data-\[collapsed=true\]\/sidebar:px-2/);
   assert.match(sidebar, /transition-\[width\]/);
   assert.match(sidebar, /after:w-px after:bg-separator/);
-  assert.match(frame, /\{!isMobile \? \([\s\S]*<ResizeHandle/);
+  assert.match(
+    frame,
+    /\{!isMobile && !hideDesktopNavigation \? \([\s\S]*<ResizeHandle/,
+  );
   assert.match(frame, /collapsed=\{settings\.sidebarCollapsed\}/);
   assert.match(frame, /collapsedValue=\{DESKTOP_SIDEBAR_COLLAPSED_WIDTH\}/);
   assert.match(frame, /collapseThreshold=\{48\}/);
   assert.match(frame, /className="max-\[920px\]:hidden"/);
   assert.match(frame, /sidebarCollapsed: false/);
   assert.match(frame, /onCollapse=\{\(\) =>/);
+  assert.match(
+    frame,
+    /onSettingsPreview\(\{ \.\.\.settings, sidebarCollapsed: true \}\)/,
+  );
+  assert.match(frame, /onCollapseCommit=\{\(\) =>/);
   assert.match(frame, /sidebarCollapsed: true/);
   assert.match(resizeHandle, /rawValue < min - collapseThreshold/);
   assert.match(resizeHandle, /collapsedValue \+ pointerOffset/);
   assert.match(resizeHandle, /rawValue < min/);
-  assert.match(resizeHandle, /expandedDuringDrag = true/);
+  assert.match(resizeHandle, /let dragCollapsed = startedCollapsed/);
+  assert.match(
+    resizeHandle,
+    /dragCollapsed = true;[\s\S]*onCollapse\(\);[\s\S]*return;/,
+  );
+  assert.match(
+    resizeHandle,
+    /if \(dragCollapsed\) \{[\s\S]*onCollapseCommit\?\.\(\)/,
+  );
+  assert.doesNotMatch(
+    resizeHandle,
+    /if \([^)]*rawValue < min - collapseThreshold[^)]*\) \{\s*cleanup\(/,
+  );
   assert.match(resizeHandle, /collapsed \? collapsedValue : value/);
+  assert.match(
+    appCss,
+    /body\[data-resizing='true'\] \.desktop-sidebar\[data-collapsed='false'\][\s\S]*transition-duration: 0ms/,
+  );
 });
 
 test('embedding capability survives Telescope export and has a backend probe', async () => {
