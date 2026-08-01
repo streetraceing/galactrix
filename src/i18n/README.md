@@ -5,9 +5,9 @@ translated text lives only in `locales/<language>/<namespace>.json`.
 
 Namespaces follow product features:
 
-- `common` — shared navigation, actions, errors, dates, and counters;
-- `chats`, `galaxies`, `telescope`, `profile`, `settings` — feature UI;
-- `backend` — structured error keys returned by Tauri commands.
+- `common` - shared navigation, actions, errors, dates, and counters;
+- `chats`, `galaxies`, `telescope`, `profile`, `settings` - feature UI;
+- `backend` - structured error keys returned by Tauri commands.
 
 To add a language:
 

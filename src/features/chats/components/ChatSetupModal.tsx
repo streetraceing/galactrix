@@ -166,6 +166,38 @@ export function ChatSetupModal({
           />
         </div>
 
+        <div className="flex min-w-0 flex-col gap-1.5">
+          <Label htmlFor="chat-recent-message-limit">
+            {t('chatSetupModal.recentMessageLimit')}
+          </Label>
+          <Input
+            id="chat-recent-message-limit"
+            fullWidth
+            variant="secondary"
+            type="number"
+            min={0}
+            max={500}
+            step={1}
+            value={String(form.promptConfig.recentMessageLimit ?? 0)}
+            onChange={(event) => {
+              const parsed = Number.parseInt(event.target.value, 10);
+              const recentMessageLimit = Number.isFinite(parsed)
+                ? Math.min(500, Math.max(0, parsed))
+                : 0;
+              setForm((current) => ({
+                ...current,
+                promptConfig: {
+                  ...current.promptConfig,
+                  recentMessageLimit,
+                },
+              }));
+            }}
+          />
+          <p className="text-xs leading-5 text-muted">
+            {t('chatSetupModal.recentMessageLimitDescription')}
+          </p>
+        </div>
+
         <ChatContextPicker
           galaxyItems={galaxyItems}
           value={form}

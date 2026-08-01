@@ -28,3 +28,19 @@ test('english message times keep the english locale convention', () => {
 test('invalid message timestamps do not render misleading clock values', () => {
   assert.equal(formatMessageTime(Number.NaN, 'ru'), '');
 });
+
+test('message rows prefer the last interaction time and mark edited content', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const source = await readFile(
+    new URL(
+      '../../src/features/chats/components/MessageList.tsx',
+      import.meta.url,
+    ),
+    'utf8',
+  );
+
+  assert.match(source, /message\.updatedAt && message\.updatedAt > 0/);
+  assert.match(source, /message\.edited/);
+  assert.match(source, /messageList\.edited/);
+  assert.match(source, /message\.remembered/);
+});

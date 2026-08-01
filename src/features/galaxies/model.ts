@@ -202,6 +202,7 @@ export function normalizeData(
 
 export function defaultPromptSet(): PromptConfig {
   return {
+    recentMessageLimit: 0,
     setIds: [],
     presetIds: [],
     contextPriorities: {
@@ -225,6 +226,10 @@ function normalizePromptSet(value: Record<string, unknown>): PromptConfig {
       ? (value.contextPriorities as Record<string, unknown>)
       : {};
   return {
+    recentMessageLimit: normalizeRecentMessageLimit(
+      value.recentMessageLimit,
+      defaults.recentMessageLimit,
+    ),
     setIds: [],
     presetIds: stringArray(value.presetIds).filter(isPromptPreset),
     contextPriorities: {
@@ -281,6 +286,18 @@ export function pronounsForGender(gender: PersonaData['gender']) {
     return i18next.t('gender.pronouns.female', { ns: 'galaxies' });
   }
   return '';
+}
+
+function normalizeRecentMessageLimit(value: unknown, fallback: number) {
+  const parsed =
+    typeof value === 'number'
+      ? value
+      : typeof value === 'string' && value.trim()
+        ? Number(value)
+        : fallback;
+  return Number.isFinite(parsed)
+    ? Math.min(500, Math.max(0, Math.floor(parsed)))
+    : fallback;
 }
 
 function normalizePriority(

@@ -16,6 +16,7 @@ function chat(id: string): Chat {
     messageCount: 0,
     pinned: false,
     promptConfig: {
+      recentMessageLimit: 0,
       setIds: [],
       presetIds: [],
       contextPriorities: {

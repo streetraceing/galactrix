@@ -1,7 +1,8 @@
-import { Input } from '@heroui/react';
+import { Button, Input } from '@heroui/react';
 import type { ChangeEvent } from 'react';
 import type { ProviderInput } from '../../../types';
 import type { providerCatalog } from '../catalog';
+import { Icon } from '../../../components/Icon';
 import { FormField } from './FormField';
 import { useTranslation } from 'react-i18next';
 
@@ -24,6 +25,16 @@ export function ProviderCredentials({
   onTokenChange: (value: string) => void;
 }) {
   const { t } = useTranslation('telescope');
+  const apiKeys = token.split('\n');
+  const updateApiKey = (index: number, value: string) => {
+    const next = [...apiKeys];
+    next[index] = value;
+    onTokenChange(next.join('\n'));
+  };
+  const removeApiKey = (index: number) => {
+    const next = apiKeys.filter((_, keyIndex) => keyIndex !== index);
+    onTokenChange(next.length > 0 ? next.join('\n') : '');
+  };
   return (
     <div className="flex flex-col gap-4">
       <FormField label={t('providerCredentials.name')}>
@@ -38,24 +49,56 @@ export function ProviderCredentials({
         />
       </FormField>
       {form.kind !== 'ollama' ? (
-        <FormField label={t('providerCredentials.apiKey')}>
-          <Input
-            fullWidth
-            variant="secondary"
-            type="password"
-            value={token}
-            autoComplete="new-password"
-            onChange={(event: ChangeEvent<HTMLInputElement>) =>
-              onTokenChange(event.target.value)
-            }
-            placeholder={
-              form.id
-                ? t('providerCredentials.leaveEmptyToKeepUnchanged')
-                : catalog.requiresApiKey
-                  ? t('providerCredentials.canBeAddedLater')
-                  : t('providerCredentials.optional')
-            }
-          />
+        <FormField label={t('providerCredentials.apiKeys')}>
+          <div className="space-y-2">
+            {apiKeys.map((apiKey, index) => (
+              <div key={index} className="flex items-center gap-2">
+                <Input
+                  fullWidth
+                  variant="secondary"
+                  type="password"
+                  value={apiKey}
+                  autoComplete="new-password"
+                  onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                    updateApiKey(index, event.target.value)
+                  }
+                  placeholder={
+                    index === 0
+                      ? form.id
+                        ? t('providerCredentials.leaveEmptyToKeepUnchanged')
+                        : catalog.requiresApiKey
+                          ? t('providerCredentials.canBeAddedLater')
+                          : t('providerCredentials.optional')
+                      : t('providerCredentials.additionalApiKey')
+                  }
+                />
+                {apiKeys.length > 1 ? (
+                  <Button
+                    isIconOnly
+                    size="sm"
+                    variant="ghost"
+                    className="size-9 min-w-9 shrink-0 rounded-full"
+                    aria-label={t('providerCredentials.removeApiKey')}
+                    onPress={() => removeApiKey(index)}
+                  >
+                    <Icon name="close" className="size-4" />
+                  </Button>
+                ) : null}
+              </div>
+            ))}
+            <Button
+              size="sm"
+              variant="ghost"
+              className="w-fit"
+              onPress={() => onTokenChange(`${token}\n`)}
+            >
+              <Icon name="plus" className="size-4" />
+              {t('providerCredentials.addApiKey')}
+            </Button>
+          </div>
+          <p className="mt-1.5 text-xs leading-5 text-muted">
+            {t('providerCredentials.apiKeysHint')}
+          </p>
         </FormField>
       ) : null}
       {form.kind === 'custom' ||

@@ -1,8 +1,13 @@
 use super::{
-    embedding_endpoint_saved, exponential_delay, is_retryable_status, parse_embedding_response,
+    block_api_key, embedding_endpoint_saved, exponential_delay, first_available_key,
+    is_retryable_status, parse_api_keys, parse_embedding_response, parse_rate_limit_delay,
+    rate_limit_state_from_headers,
     uses_ollama_embedding_api,
 };
+use reqwest::header::{HeaderMap, HeaderValue};
 use serde_json::json;
+use std::collections::HashSet;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 #[test]
 fn exponential_backoff_doubles_and_respects_the_cap() {
@@ -102,4 +107,71 @@ fn openai_embedding_response_keeps_index_order() {
     }))
     .expect("openai response");
     assert_eq!(parsed, vec![vec![0.1, 0.2], vec![0.3, 0.4]]);
+}
+
+
+#[test]
+fn api_key_lists_are_trimmed_and_deduplicated_in_priority_order() {
+    assert_eq!(
+        parse_api_keys(Some(" primary \nsecondary\nprimary\n\n third ")),
+        vec!["primary", "secondary", "third"]
+    );
+}
+
+#[test]
+fn rate_limit_reset_headers_support_provider_duration_formats() {
+    assert_eq!(
+        parse_rate_limit_delay("250ms").expect("milliseconds"),
+        Duration::from_millis(250)
+    );
+    assert_eq!(
+        parse_rate_limit_delay("1m30s").expect("compound duration"),
+        Duration::from_secs(90)
+    );
+    assert!(parse_rate_limit_delay("2099-01-01T00:00:00Z").is_some());
+    let future = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("unix time")
+        .as_secs_f64()
+        + 2.0;
+    let parsed = parse_rate_limit_delay(&future.to_string()).expect("epoch reset");
+    assert!(parsed <= Duration::from_secs(2));
+}
+
+
+#[test]
+fn exhausted_rate_limit_dimensions_use_their_matching_reset_window() {
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        "x-ratelimit-remaining-requests",
+        HeaderValue::from_static("10"),
+    );
+    headers.insert(
+        "x-ratelimit-reset-requests",
+        HeaderValue::from_static("10s"),
+    );
+    headers.insert(
+        "x-ratelimit-remaining-tokens",
+        HeaderValue::from_static("0"),
+    );
+    headers.insert(
+        "x-ratelimit-reset-tokens",
+        HeaderValue::from_static("2m"),
+    );
+
+    let state = rate_limit_state_from_headers(200, &headers);
+    assert!(state.exhausted);
+    assert_eq!(state.reset_after, Some(Duration::from_secs(120)));
+}
+
+#[test]
+fn a_temporarily_limited_primary_key_yields_to_the_next_key() {
+    let pool = format!("test-pool-{}", std::process::id());
+    let keys = vec!["primary".to_owned(), "secondary".to_owned()];
+    let excluded = HashSet::new();
+    assert_eq!(first_available_key(&pool, &keys, &excluded), Some(0));
+    block_api_key(&pool, &keys[0], Duration::from_millis(100));
+    assert_eq!(first_available_key(&pool, &keys, &excluded), Some(1));
+    std::thread::sleep(Duration::from_millis(120));
+    assert_eq!(first_available_key(&pool, &keys, &excluded), Some(0));
 }

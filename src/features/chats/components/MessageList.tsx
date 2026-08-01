@@ -1083,6 +1083,12 @@ function MessageListComponent({
   const measurementCommitTimerRef = useRef<number | null>(null);
   const isUserScrollingRef = useRef(false);
   const pendingMeasurementCommitRef = useRef(false);
+  const pendingMeasurementAnchorRef = useRef<{
+    messageId: string;
+    viewportOffset: number;
+    pinBottom: boolean;
+  } | null>(null);
+  const programmaticScrollRef = useRef(false);
   const nearBottomRef = useRef(true);
   const previousViewStateRef = useRef({
     chatId: '',
@@ -1222,16 +1228,6 @@ function MessageListComponent({
     () => visibleMessages.map((message) => message.id),
     [visibleMessages],
   );
-  const topVirtualSpacerHeight = virtualizationEnabled
-    ? (messageOffsets[visibleStart] ?? 0)
-    : 0;
-  const bottomVirtualSpacerHeight = virtualizationEnabled
-    ? Math.max(
-        0,
-        totalVirtualHeight - (messageOffsets[visibleEnd] ?? totalVirtualHeight),
-      )
-    : 0;
-
   const clearSelectionGesture = useCallback(
     (pointerId?: number) => {
       const gesture = selectionGestureRef.current;
@@ -1657,7 +1653,7 @@ function MessageListComponent({
       0,
       scroller.scrollHeight - scroller.clientHeight - scroller.scrollTop,
     );
-    nearBottomRef.current = distanceFromBottom <= 32;
+    nearBottomRef.current = distanceFromBottom <= 4;
 
     if (scrollingToBottomRef.current) {
       setShowScrollToBottom(false);
@@ -1780,8 +1776,36 @@ function MessageListComponent({
       window.clearTimeout(measurementCommitTimerRef.current);
       measurementCommitTimerRef.current = null;
     }
+
+    const scroller = scrollRef.current;
+    if (scroller) {
+      const scrollerTop = scroller.getBoundingClientRect().top;
+      const anchor = visibleMessageIds
+        .map((messageId) => ({
+          messageId,
+          element: virtualMessageElementsRef.current.get(messageId),
+        }))
+        .find(({ element }) =>
+          Boolean(
+            element && element.getBoundingClientRect().bottom > scrollerTop,
+          ),
+        );
+      pendingMeasurementAnchorRef.current = anchor?.element
+        ? {
+            messageId: anchor.messageId,
+            viewportOffset:
+              anchor.element.getBoundingClientRect().top - scrollerTop,
+            pinBottom:
+              scroller.scrollHeight -
+                scroller.clientHeight -
+                scroller.scrollTop <=
+              2,
+          }
+        : null;
+    }
+
     setMessageMeasurementVersion((current) => current + 1);
-  }, []);
+  }, [scrollRef, visibleMessageIds]);
 
   const scheduleMeasuredMessageCommit = useCallback(
     (delay = 320) => {
@@ -1795,6 +1819,39 @@ function MessageListComponent({
     },
     [commitMeasuredMessageHeights],
   );
+
+  useLayoutEffect(() => {
+    const anchor = pendingMeasurementAnchorRef.current;
+    if (!anchor) return;
+    pendingMeasurementAnchorRef.current = null;
+
+    const scroller = scrollRef.current;
+    if (!scroller) return;
+    programmaticScrollRef.current = true;
+    if (anchor.pinBottom) {
+      scroller.scrollTop = scroller.scrollHeight;
+    } else {
+      const element = virtualMessageElementsRef.current.get(anchor.messageId);
+      if (element) {
+        const currentOffset =
+          element.getBoundingClientRect().top -
+          scroller.getBoundingClientRect().top;
+        const correction = currentOffset - anchor.viewportOffset;
+        if (Math.abs(correction) > 0.5) scroller.scrollTop += correction;
+      }
+    }
+    const frame = window.requestAnimationFrame(() => {
+      programmaticScrollRef.current = false;
+      scheduleVirtualWindowSync();
+      updateScrollToBottomVisibility();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [
+    messageMeasurementVersion,
+    scheduleVirtualWindowSync,
+    scrollRef,
+    updateScrollToBottomVisibility,
+  ]);
 
   useEffect(() => {
     if (!virtualizationEnabled || typeof ResizeObserver === 'undefined') return;
@@ -1980,7 +2037,8 @@ function MessageListComponent({
 
   const handleMessageScroll = useCallback(() => {
     const layoutLocked = performance.now() < bottomLockUntilRef.current;
-    if (!layoutLocked) {
+    const programmatic = programmaticScrollRef.current;
+    if (!layoutLocked && !programmatic) {
       isUserScrollingRef.current = true;
       if (userScrollIdleTimerRef.current != null) {
         window.clearTimeout(userScrollIdleTimerRef.current);
@@ -1993,7 +2051,7 @@ function MessageListComponent({
         userScrollIdleTimerRef.current = null;
         isUserScrollingRef.current = false;
         commitMeasuredMessageHeights();
-      }, 900);
+      }, 3_000);
     }
 
     updateScrollToBottomVisibility();
@@ -2269,214 +2327,230 @@ function MessageListComponent({
               wide ? 'max-w-5xl' : 'max-w-3xl'
             }`}
           >
-            {topVirtualSpacerHeight > 0 ? (
-              <div
-                aria-hidden="true"
-                className="chat-message-virtual-spacer shrink-0"
-                style={{ height: topVirtualSpacerHeight }}
-              />
-            ) : null}
+            <div
+              className={
+                virtualizationEnabled
+                  ? 'chat-message-virtual-stage relative w-full shrink-0'
+                  : 'contents'
+              }
+              style={
+                virtualizationEnabled
+                  ? { height: totalVirtualHeight }
+                  : undefined
+              }
+            >
+              {visibleMessages.map((message, visibleIndex) => {
+                const absoluteIndex = visibleStart + visibleIndex;
+                const isUser = message.role === 'user';
+                const isSelected = selectedMessageIds.has(message.id);
+                const displayName = isUser
+                  ? userName
+                  : message.role === 'assistant'
+                    ? assistantName
+                    : t('messageList.system');
+                const avatar = isUser
+                  ? userAvatar
+                  : message.role === 'assistant'
+                    ? assistantAvatar
+                    : undefined;
+                const edit = () => requestEdit(message);
+                const remove = () => {
+                  setDeleting(message);
+                };
+                const history = () => setHistoryMessageId(message.id);
+                const isGenerating =
+                  messageGeneration?.messageId === message.id;
+                const isRegenerating =
+                  isGenerating && messageGeneration?.mode === 'regenerate';
+                const isPendingAssistant =
+                  message.role === 'assistant' && message.pending === true;
+                const showsTypingBubble = isRegenerating || isPendingAssistant;
 
-            {visibleMessages.map((message) => {
-              const isUser = message.role === 'user';
-              const isSelected = selectedMessageIds.has(message.id);
-              const displayName = isUser
-                ? userName
-                : message.role === 'assistant'
-                  ? assistantName
-                  : t('messageList.system');
-              const avatar = isUser
-                ? userAvatar
-                : message.role === 'assistant'
-                  ? assistantAvatar
-                  : undefined;
-              const edit = () => requestEdit(message);
-              const remove = () => {
-                setDeleting(message);
-              };
-              const history = () => setHistoryMessageId(message.id);
-              const isGenerating = messageGeneration?.messageId === message.id;
-              const isRegenerating =
-                isGenerating && messageGeneration?.mode === 'regenerate';
-              const isPendingAssistant =
-                message.role === 'assistant' && message.pending === true;
-              const showsTypingBubble = isRegenerating || isPendingAssistant;
-
-              const content = (
-                <div
-                  data-message-id={message.id}
-                  data-selected={isSelected}
-                  className="chat-message-virtual-item relative isolate rounded-2xl"
-                >
-                  <div className="relative z-10">
-                    <MessageMenu
-                      message={message}
-                      onBranch={onBranch}
-                      onRemember={onRemember}
-                      onRegenerate={regenerate}
-                      onContinue={continueResponse}
-                      onSelectVariant={selectVariant}
-                      onSelectMessage={selectMessage}
-                      onEditRequest={edit}
-                      onDeleteRequest={remove}
-                      onHistoryRequest={history}
-                      onError={reportError}
-                    >
-                      <article
-                        className={`chat-message-row group flex items-start gap-2.5 sm:gap-3 ${
-                          isUser && !messengerMode ? 'flex-row-reverse' : ''
-                        }`}
+                const content = (
+                  <div
+                    data-message-id={message.id}
+                    data-selected={isSelected}
+                    className="chat-message-virtual-item relative isolate rounded-2xl"
+                  >
+                    <div className="relative z-10">
+                      <MessageMenu
+                        message={message}
+                        onBranch={onBranch}
+                        onRemember={onRemember}
+                        onRegenerate={regenerate}
+                        onContinue={continueResponse}
+                        onSelectVariant={selectVariant}
+                        onSelectMessage={selectMessage}
+                        onEditRequest={edit}
+                        onDeleteRequest={remove}
+                        onHistoryRequest={history}
+                        onError={reportError}
                       >
-                        {showAvatars ? (
-                          <AppAvatar
-                            src={avatar}
-                            name={displayName}
-                            className="size-8 sm:size-9"
-                            square
-                          />
-                        ) : null}
-                        <div
-                          className={`flex min-w-0 flex-col ${
-                            messengerMode
-                              ? 'items-start w-full'
-                              : isUser
-                                ? 'max-w-[min(91%,44rem)] items-end sm:max-w-[min(88%,44rem)]'
-                                : 'w-full items-start'
+                        <article
+                          className={`chat-message-row group flex items-start gap-2.5 sm:gap-3 ${
+                            isUser && !messengerMode ? 'flex-row-reverse' : ''
                           }`}
                         >
-                          <div
-                            className={`mb-1 flex min-w-0 items-center gap-2 text-xs text-muted ${
-                              isUser && !messengerMode ? 'flex-row-reverse' : ''
-                            }`}
-                          >
-                            <strong className="truncate font-medium text-foreground">
-                              {displayName}
-                            </strong>
-                            {showTimestamps ? (
-                              <span className="shrink-0">
-                                {formatMessageTime(
-                                  message.createdAt,
-                                  i18n.resolvedLanguage ?? i18n.language,
-                                )}
-                              </span>
-                            ) : null}
-                            {message.remembered ? (
-                              <span className="inline-flex shrink-0 items-center gap-1 text-accent">
-                                <Icon name="memory" className="size-3" />
-                                {t('messageList.remembered')}
-                              </span>
-                            ) : null}
-                          </div>
-                          <Surface
-                            variant={isUser ? 'tertiary' : 'default'}
-                            style={
-                              showsTypingBubble
-                                ? {
-                                    width: '2.75rem',
-                                    height: '2.75rem',
-                                    minWidth: '2.75rem',
-                                    maxWidth: '2.75rem',
-                                    padding: 0,
-                                  }
-                                : undefined
-                            }
-                            className={`${isMobile || selectedMessageIds.size > 0 ? 'select-none' : 'selectable'} min-w-0 max-w-full overflow-hidden rounded-2xl shadow-xs transition-colors ${
-                              showsTypingBubble
-                                ? 'grid size-11 shrink-0 place-items-center p-0'
-                                : 'px-4 py-3'
-                            } ${messengerMode && !showsTypingBubble ? 'w-fit' : ''} ${isSelected ? (isUser ? 'bg-accent/15' : 'bg-default/85') : isUser ? 'bg-accent/10' : ''}`}
-                          >
-                            {showsTypingBubble ? (
-                              <div
-                                className="flex items-center gap-1"
-                                role="status"
-                                aria-label={t('messageList.isTyping')}
-                              >
-                                {[0, 1, 2].map((index) => (
-                                  <span
-                                    key={index}
-                                    className="typing-dot size-1.5 rounded-full bg-accent"
-                                    style={{
-                                      animationDelay: `${index * 140}ms`,
-                                    }}
-                                  />
-                                ))}
-                              </div>
-                            ) : (
-                              <>
-                                <AnimatedVariantContent
-                                  message={message}
-                                  direction={
-                                    variantDirections[message.id] ?? 'next'
-                                  }
-                                  enabled={!isMobile}
-                                />
-                              </>
-                            )}
-                          </Surface>
-                          {!isPendingAssistant && !isMobile ? (
-                            <DesktopMessageActions
-                              message={message}
-                              onBranch={onBranch}
-                              onRemember={onRemember}
-                              onRegenerate={regenerate}
-                              onContinue={continueResponse}
-                              onSelectVariant={selectVariant}
-                              onEditRequest={edit}
-                              onDeleteRequest={remove}
-                              onHistoryRequest={history}
-                              onError={reportError}
-                            />
-                          ) : !isPendingAssistant ? (
-                            <VariantNavigator
-                              message={message}
-                              compact
-                              onSelect={(index) =>
-                                void selectVariant(message.id, index).catch(
-                                  reportError,
-                                )
-                              }
-                              onHistory={history}
+                          {showAvatars ? (
+                            <AppAvatar
+                              src={avatar}
+                              name={displayName}
+                              className="size-8 sm:size-9"
+                              square
                             />
                           ) : null}
-                        </div>
-                      </article>
-                    </MessageMenu>
+                          <div
+                            className={`flex min-w-0 flex-col ${
+                              messengerMode
+                                ? 'items-start w-full'
+                                : isUser
+                                  ? 'max-w-[min(91%,44rem)] items-end sm:max-w-[min(88%,44rem)]'
+                                  : 'w-full items-start'
+                            }`}
+                          >
+                            <div
+                              className={`mb-1 flex min-w-0 items-center gap-2 text-xs text-muted ${
+                                isUser && !messengerMode
+                                  ? 'flex-row-reverse'
+                                  : ''
+                              }`}
+                            >
+                              <strong className="truncate font-medium text-foreground">
+                                {displayName}
+                              </strong>
+                              {showTimestamps ? (
+                                <span className="shrink-0">
+                                  {formatMessageTime(
+                                    message.updatedAt && message.updatedAt > 0
+                                      ? message.updatedAt
+                                      : message.createdAt,
+                                    i18n.resolvedLanguage ?? i18n.language,
+                                  )}
+                                </span>
+                              ) : null}
+                              {message.remembered ? (
+                                <span className="inline-flex shrink-0 items-center gap-1 text-accent">
+                                  <Icon name="memory" className="size-3" />
+                                  {t('messageList.remembered')}
+                                </span>
+                              ) : null}
+                              {message.edited ? (
+                                <span className="inline-flex shrink-0 items-center gap-1 text-muted">
+                                  <Icon name="edit" className="size-3" />
+                                  {t('messageList.edited')}
+                                </span>
+                              ) : null}
+                            </div>
+                            <Surface
+                              variant={isUser ? 'tertiary' : 'default'}
+                              style={
+                                showsTypingBubble
+                                  ? {
+                                      width: '2.75rem',
+                                      height: '2.75rem',
+                                      minWidth: '2.75rem',
+                                      maxWidth: '2.75rem',
+                                      padding: 0,
+                                    }
+                                  : undefined
+                              }
+                              className={`${isMobile || selectedMessageIds.size > 0 ? 'select-none' : 'selectable'} min-w-0 max-w-full overflow-hidden rounded-2xl shadow-xs transition-colors ${
+                                showsTypingBubble
+                                  ? 'grid size-11 shrink-0 place-items-center p-0'
+                                  : 'px-4 py-3'
+                              } ${messengerMode && !showsTypingBubble ? 'w-fit' : ''} ${isSelected ? (isUser ? 'bg-accent/15' : 'bg-default/85') : isUser ? 'bg-accent/10' : ''}`}
+                            >
+                              {showsTypingBubble ? (
+                                <div
+                                  className="flex items-center gap-1"
+                                  role="status"
+                                  aria-label={t('messageList.isTyping')}
+                                >
+                                  {[0, 1, 2].map((index) => (
+                                    <span
+                                      key={index}
+                                      className="typing-dot size-1.5 rounded-full bg-accent"
+                                      style={{
+                                        animationDelay: `${index * 140}ms`,
+                                      }}
+                                    />
+                                  ))}
+                                </div>
+                              ) : (
+                                <>
+                                  <AnimatedVariantContent
+                                    message={message}
+                                    direction={
+                                      variantDirections[message.id] ?? 'next'
+                                    }
+                                    enabled={!isMobile}
+                                  />
+                                </>
+                              )}
+                            </Surface>
+                            {!isPendingAssistant && !isMobile ? (
+                              <DesktopMessageActions
+                                message={message}
+                                onBranch={onBranch}
+                                onRemember={onRemember}
+                                onRegenerate={regenerate}
+                                onContinue={continueResponse}
+                                onSelectVariant={selectVariant}
+                                onEditRequest={edit}
+                                onDeleteRequest={remove}
+                                onHistoryRequest={history}
+                                onError={reportError}
+                              />
+                            ) : !isPendingAssistant ? (
+                              <VariantNavigator
+                                message={message}
+                                compact
+                                onSelect={(index) =>
+                                  void selectVariant(message.id, index).catch(
+                                    reportError,
+                                  )
+                                }
+                                onHistory={history}
+                              />
+                            ) : null}
+                          </div>
+                        </article>
+                      </MessageMenu>
+                    </div>
                   </div>
-                </div>
-              );
+                );
 
-              return (
-                <div
-                  key={message.id}
-                  ref={virtualMessageRefFor(message.id)}
-                  data-virtual-message-id={message.id}
-                  className="chat-message-virtual-slot shrink-0 pb-3 sm:pb-4"
-                >
-                  {isMobile ? (
-                    <SwipeableMessage
-                      message={message}
-                      onSelectVariant={selectVariant}
-                      onRegenerate={regenerate}
-                      onError={reportError}
-                      isSelectionGesture={isSelectionGesture}
-                    >
-                      {content}
-                    </SwipeableMessage>
-                  ) : (
-                    content
-                  )}
-                </div>
-              );
-            })}
-
-            {bottomVirtualSpacerHeight > 0 ? (
-              <div
-                aria-hidden="true"
-                className="chat-message-virtual-spacer shrink-0"
-                style={{ height: bottomVirtualSpacerHeight }}
-              />
-            ) : null}
+                return (
+                  <div
+                    key={message.id}
+                    ref={virtualMessageRefFor(message.id)}
+                    data-virtual-message-id={message.id}
+                    className={`chat-message-virtual-slot pb-3 sm:pb-4 ${
+                      virtualizationEnabled ? 'absolute inset-x-0' : 'shrink-0'
+                    }`}
+                    style={
+                      virtualizationEnabled
+                        ? { top: messageOffsets[absoluteIndex] ?? 0 }
+                        : undefined
+                    }
+                  >
+                    {isMobile ? (
+                      <SwipeableMessage
+                        message={message}
+                        onSelectVariant={selectVariant}
+                        onRegenerate={regenerate}
+                        onError={reportError}
+                        isSelectionGesture={isSelectionGesture}
+                      >
+                        {content}
+                      </SwipeableMessage>
+                    ) : (
+                      content
+                    )}
+                  </div>
+                );
+              })}
+            </div>
 
             {sending &&
             !hasPendingAssistant &&

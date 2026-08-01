@@ -49,6 +49,8 @@ fn migrate(connection: &Connection) -> CommandResult<()> {
                 role TEXT NOT NULL CHECK(role IN ('system', 'user', 'assistant')),
                 content TEXT NOT NULL,
                 created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL,
+                edited INTEGER NOT NULL DEFAULT 0,
                 remembered INTEGER NOT NULL DEFAULT 0,
                 active_variant_index INTEGER NOT NULL DEFAULT 0,
                 FOREIGN KEY(chat_id) REFERENCES chats(id) ON DELETE CASCADE
@@ -63,6 +65,7 @@ fn migrate(connection: &Connection) -> CommandResult<()> {
                 position INTEGER NOT NULL,
                 content TEXT NOT NULL,
                 created_at INTEGER NOT NULL,
+                edited INTEGER NOT NULL DEFAULT 0,
                 UNIQUE(message_id, position),
                 FOREIGN KEY(message_id) REFERENCES messages(id) ON DELETE CASCADE
             );
@@ -201,6 +204,28 @@ fn migrate(connection: &Connection) -> CommandResult<()> {
         "messages",
         "remembered",
         "INTEGER NOT NULL DEFAULT 0",
+    )?;
+    ensure_column(
+        connection,
+        "messages",
+        "updated_at",
+        "INTEGER NOT NULL DEFAULT 0",
+    )?;
+    ensure_column(
+        connection,
+        "messages",
+        "edited",
+        "INTEGER NOT NULL DEFAULT 0",
+    )?;
+    ensure_column(
+        connection,
+        "message_variants",
+        "edited",
+        "INTEGER NOT NULL DEFAULT 0",
+    )?;
+    connection.execute(
+        "UPDATE messages SET updated_at = created_at WHERE updated_at = 0",
+        [],
     )?;
     ensure_column(
         connection,
@@ -569,16 +594,17 @@ pub fn get_chat(connection: &Connection, chat_id: &str) -> CommandResult<Chat> {
     })
 }
 
-type MessageVariantRow = (String, String, i64, String, i64);
+type MessageVariantRow = (String, String, i64, String, i64, bool);
 
 fn variants_from_rows(rows: Vec<MessageVariantRow>) -> HashMap<String, Vec<MessageVariant>> {
     let mut result: HashMap<String, Vec<MessageVariant>> = HashMap::new();
-    for (message_id, id, index, content, created_at) in rows {
+    for (message_id, id, index, content, created_at, edited) in rows {
         result.entry(message_id).or_default().push(MessageVariant {
             id,
             index,
             content,
             created_at,
+            edited,
         });
     }
     result
@@ -588,12 +614,19 @@ fn all_message_variants(
     connection: &Connection,
 ) -> CommandResult<HashMap<String, Vec<MessageVariant>>> {
     let mut statement = connection.prepare(
-        "SELECT message_id, id, position, content, created_at
+        "SELECT message_id, id, position, content, created_at, edited
          FROM message_variants ORDER BY message_id, position ASC",
     )?;
     let rows = statement
         .query_map([], |row| {
-            Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?))
+            Ok((
+                row.get(0)?,
+                row.get(1)?,
+                row.get(2)?,
+                row.get(3)?,
+                row.get(4)?,
+                row.get::<_, i64>(5)? != 0,
+            ))
         })?
         .collect::<Result<Vec<_>, _>>()?;
     Ok(variants_from_rows(rows))
@@ -604,7 +637,7 @@ fn message_variants_for_chat(
     chat_id: &str,
 ) -> CommandResult<HashMap<String, Vec<MessageVariant>>> {
     let mut statement = connection.prepare(
-        "SELECT variants.message_id, variants.id, variants.position, variants.content, variants.created_at
+        "SELECT variants.message_id, variants.id, variants.position, variants.content, variants.created_at, variants.edited
          FROM message_variants variants
          INNER JOIN messages ON messages.id = variants.message_id
          WHERE messages.chat_id = ?1
@@ -612,7 +645,14 @@ fn message_variants_for_chat(
     )?;
     let rows = statement
         .query_map(params![chat_id], |row| {
-            Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?))
+            Ok((
+                row.get(0)?,
+                row.get(1)?,
+                row.get(2)?,
+                row.get(3)?,
+                row.get(4)?,
+                row.get::<_, i64>(5)? != 0,
+            ))
         })?
         .collect::<Result<Vec<_>, _>>()?;
     Ok(variants_from_rows(rows))
@@ -625,7 +665,7 @@ fn message_variants_before(
     message_rowid: i64,
 ) -> CommandResult<HashMap<String, Vec<MessageVariant>>> {
     let mut statement = connection.prepare(
-        "SELECT variants.message_id, variants.id, variants.position, variants.content, variants.created_at
+        "SELECT variants.message_id, variants.id, variants.position, variants.content, variants.created_at, variants.edited
          FROM message_variants variants
          INNER JOIN messages ON messages.id = variants.message_id
          WHERE messages.chat_id = ?1
@@ -635,7 +675,14 @@ fn message_variants_before(
     )?;
     let rows = statement
         .query_map(params![chat_id, created_at, message_rowid], |row| {
-            Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?))
+            Ok((
+                row.get(0)?,
+                row.get(1)?,
+                row.get(2)?,
+                row.get(3)?,
+                row.get(4)?,
+                row.get::<_, i64>(5)? != 0,
+            ))
         })?
         .collect::<Result<Vec<_>, _>>()?;
     Ok(variants_from_rows(rows))
@@ -648,7 +695,7 @@ fn message_variants_through(
     message_rowid: i64,
 ) -> CommandResult<HashMap<String, Vec<MessageVariant>>> {
     let mut statement = connection.prepare(
-        "SELECT variants.message_id, variants.id, variants.position, variants.content, variants.created_at
+        "SELECT variants.message_id, variants.id, variants.position, variants.content, variants.created_at, variants.edited
          FROM message_variants variants
          INNER JOIN messages ON messages.id = variants.message_id
          WHERE messages.chat_id = ?1
@@ -658,13 +705,20 @@ fn message_variants_through(
     )?;
     let rows = statement
         .query_map(params![chat_id, created_at, message_rowid], |row| {
-            Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?))
+            Ok((
+                row.get(0)?,
+                row.get(1)?,
+                row.get(2)?,
+                row.get(3)?,
+                row.get(4)?,
+                row.get::<_, i64>(5)? != 0,
+            ))
         })?
         .collect::<Result<Vec<_>, _>>()?;
     Ok(variants_from_rows(rows))
 }
 
-type MessageRow = (String, String, String, String, i64, bool, i64);
+type MessageRow = (String, String, String, String, i64, i64, bool, bool, i64);
 
 fn messages_from_rows(
     rows: Vec<MessageRow>,
@@ -672,7 +726,7 @@ fn messages_from_rows(
 ) -> Vec<Message> {
     rows.into_iter()
         .map(
-            |(id, chat_id, role, content, created_at, remembered, active_variant_index)| {
+            |(id, chat_id, role, content, created_at, updated_at, edited, remembered, active_variant_index)| {
                 let message_variants = if role == "assistant" {
                     variants.remove(&id).unwrap_or_default()
                 } else {
@@ -684,6 +738,8 @@ fn messages_from_rows(
                     role,
                     content,
                     created_at,
+                    updated_at,
+                    edited,
                     remembered,
                     active_variant_index,
                     variants: message_variants,
@@ -696,7 +752,7 @@ fn messages_from_rows(
 fn list_messages(connection: &Connection) -> CommandResult<Vec<Message>> {
     let variants = all_message_variants(connection)?;
     let mut statement = connection.prepare(
-        "SELECT id, chat_id, role, content, created_at, remembered, active_variant_index
+        "SELECT id, chat_id, role, content, created_at, updated_at, edited, remembered, active_variant_index
          FROM messages ORDER BY created_at ASC",
     )?;
     let rows = statement
@@ -707,8 +763,10 @@ fn list_messages(connection: &Connection) -> CommandResult<Vec<Message>> {
                 row.get::<_, String>(2)?,
                 row.get::<_, String>(3)?,
                 row.get::<_, i64>(4)?,
-                row.get::<_, i64>(5)? != 0,
-                row.get::<_, i64>(6)?,
+                row.get::<_, i64>(5)?,
+                row.get::<_, i64>(6)? != 0,
+                row.get::<_, i64>(7)? != 0,
+                row.get::<_, i64>(8)?,
             ))
         })?
         .collect::<Result<Vec<_>, _>>()?;
@@ -910,13 +968,15 @@ pub fn create_chat(
     if let Some(greeting) = greeting {
         let message_id = format!("{id}-greeting");
         transaction.execute(
-            "INSERT INTO messages (id, chat_id, role, content, created_at, active_variant_index)
-             VALUES (?1, ?2, 'assistant', ?3, ?4, 0)",
+            "INSERT INTO messages (
+                id, chat_id, role, content, created_at, updated_at, active_variant_index
+             ) VALUES (?1, ?2, 'assistant', ?3, ?4, ?4, 0)",
             params![&message_id, id, greeting, created_at],
         )?;
         transaction.execute(
-            "INSERT INTO message_variants (id, message_id, position, content, created_at)
-             VALUES (?1, ?2, 0, ?3, ?4)",
+            "INSERT INTO message_variants (
+                id, message_id, position, content, created_at, edited
+             ) VALUES (?1, ?2, 0, ?3, ?4, 0)",
             params![
                 format!("{message_id}-variant-0"),
                 &message_id,
@@ -1013,6 +1073,9 @@ fn validate_chat_links(connection: &Connection, input: &ChatConfigInput) -> Comm
 }
 
 fn validate_prompt_config(config: &PromptConfig) -> CommandResult<()> {
+    if config.recent_message_limit > 500 {
+        return Err(CommandError::new(keys::CHAT_RECENT_MESSAGE_LIMIT_RANGE));
+    }
     const PRESETS: [&str; 16] = [
         "human",
         "casual-brief",
@@ -1213,7 +1276,7 @@ pub fn clear_chat(connection: &Connection, chat_id: &str) -> CommandResult<()> {
 pub fn messages_for_chat(connection: &Connection, chat_id: &str) -> CommandResult<Vec<Message>> {
     let variants = message_variants_for_chat(connection, chat_id)?;
     let mut statement = connection.prepare(
-        "SELECT id, chat_id, role, content, created_at, remembered, active_variant_index
+        "SELECT id, chat_id, role, content, created_at, updated_at, edited, remembered, active_variant_index
          FROM messages WHERE chat_id = ?1 ORDER BY created_at ASC",
     )?;
     let rows = statement
@@ -1224,8 +1287,10 @@ pub fn messages_for_chat(connection: &Connection, chat_id: &str) -> CommandResul
                 row.get::<_, String>(2)?,
                 row.get::<_, String>(3)?,
                 row.get::<_, i64>(4)?,
-                row.get::<_, i64>(5)? != 0,
-                row.get::<_, i64>(6)?,
+                row.get::<_, i64>(5)?,
+                row.get::<_, i64>(6)? != 0,
+                row.get::<_, i64>(7)? != 0,
+                row.get::<_, i64>(8)?,
             ))
         })?
         .collect::<Result<Vec<_>, _>>()?;
@@ -1258,7 +1323,7 @@ pub fn messages_before_message(
     let variants =
         message_variants_before(connection, &chat_id, created_at, message_rowid)?;
     let mut statement = connection.prepare(
-        "SELECT id, chat_id, role, content, created_at, remembered, active_variant_index
+        "SELECT id, chat_id, role, content, created_at, updated_at, edited, remembered, active_variant_index
          FROM messages
          WHERE chat_id = ?1
            AND (created_at < ?2 OR (created_at = ?2 AND rowid < ?3))
@@ -1272,8 +1337,10 @@ pub fn messages_before_message(
                 row.get::<_, String>(2)?,
                 row.get::<_, String>(3)?,
                 row.get::<_, i64>(4)?,
-                row.get::<_, i64>(5)? != 0,
-                row.get::<_, i64>(6)?,
+                row.get::<_, i64>(5)?,
+                row.get::<_, i64>(6)? != 0,
+                row.get::<_, i64>(7)? != 0,
+                row.get::<_, i64>(8)?,
             ))
         })?
         .collect::<Result<Vec<_>, _>>()?;
@@ -1307,7 +1374,7 @@ pub fn messages_through_message(
     let variants =
         message_variants_through(connection, &chat_id, created_at, message_rowid)?;
     let mut statement = connection.prepare(
-        "SELECT id, chat_id, role, content, created_at, remembered, active_variant_index
+        "SELECT id, chat_id, role, content, created_at, updated_at, edited, remembered, active_variant_index
          FROM messages
          WHERE chat_id = ?1
            AND (created_at < ?2 OR (created_at = ?2 AND rowid <= ?3))
@@ -1321,8 +1388,10 @@ pub fn messages_through_message(
                 row.get::<_, String>(2)?,
                 row.get::<_, String>(3)?,
                 row.get::<_, i64>(4)?,
-                row.get::<_, i64>(5)? != 0,
-                row.get::<_, i64>(6)?,
+                row.get::<_, i64>(5)?,
+                row.get::<_, i64>(6)? != 0,
+                row.get::<_, i64>(7)? != 0,
+                row.get::<_, i64>(8)?,
             ))
         })?
         .collect::<Result<Vec<_>, _>>()?;
@@ -1348,8 +1417,8 @@ pub fn add_user_message(
     let transaction = connection.unchecked_transaction()?;
     let created_at = next_message_timestamp(&transaction, chat_id)?;
     transaction.execute(
-        "INSERT INTO messages (id, chat_id, role, content, created_at)
-         VALUES (?1, ?2, 'user', ?3, ?4)",
+        "INSERT INTO messages (id, chat_id, role, content, created_at, updated_at)
+         VALUES (?1, ?2, 'user', ?3, ?4, ?4)",
         params![message_id, chat_id, content, created_at],
     )?;
     transaction.execute(
@@ -1370,13 +1439,15 @@ pub fn add_assistant_message(
     let transaction = connection.unchecked_transaction()?;
     let created_at = next_message_timestamp(&transaction, chat_id)?;
     transaction.execute(
-        "INSERT INTO messages (id, chat_id, role, content, created_at, active_variant_index)
-         VALUES (?1, ?2, 'assistant', ?3, ?4, 0)",
+        "INSERT INTO messages (
+            id, chat_id, role, content, created_at, updated_at, active_variant_index
+         ) VALUES (?1, ?2, 'assistant', ?3, ?4, ?4, 0)",
         params![message_id, chat_id, content, created_at],
     )?;
     transaction.execute(
-        "INSERT INTO message_variants (id, message_id, position, content, created_at)
-         VALUES (?1, ?2, 0, ?3, ?4)",
+        "INSERT INTO message_variants (
+            id, message_id, position, content, created_at, edited
+         ) VALUES (?1, ?2, 0, ?3, ?4, 0)",
         params![format!("{message_id}-variant-0"), message_id, content, created_at],
     )?;
     transaction.execute(
@@ -1393,6 +1464,7 @@ pub fn append_message_variant(
     message_id: &str,
     variant_id: &str,
     content: &str,
+    edited: bool,
 ) -> CommandResult<i64> {
     let transaction = connection
         .unchecked_transaction()?;
@@ -1417,14 +1489,24 @@ pub fn append_message_variant(
     let now = now_unix();
     transaction
         .execute(
-            "INSERT INTO message_variants (id, message_id, position, content, created_at)
-             VALUES (?1, ?2, ?3, ?4, ?5)",
-            params![variant_id, message_id, next_position, content.trim(), now],
+            "INSERT INTO message_variants (
+                id, message_id, position, content, created_at, edited
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![
+                variant_id,
+                message_id,
+                next_position,
+                content.trim(),
+                now,
+                edited as i64,
+            ],
         )?;
     transaction
         .execute(
-            "UPDATE messages SET content = ?1, active_variant_index = ?2 WHERE id = ?3",
-            params![content.trim(), next_position, message_id],
+            "UPDATE messages
+             SET content = ?1, active_variant_index = ?2, updated_at = ?3, edited = ?4
+             WHERE id = ?5",
+            params![content.trim(), next_position, now, edited as i64, message_id],
         )?;
     refresh_chat_summary(&transaction, &chat_id)?;
     transaction.execute("DELETE FROM chat_contexts WHERE chat_id = ?1", params![chat_id])?;
@@ -1440,21 +1522,29 @@ pub fn select_message_variant(
 ) -> CommandResult<()> {
     let transaction = connection
         .unchecked_transaction()?;
-    let (chat_id, content) = transaction
+    let (chat_id, content, edited) = transaction
         .query_row(
-            "SELECT messages.chat_id, message_variants.content
+            "SELECT messages.chat_id, message_variants.content, message_variants.edited
              FROM messages
              JOIN message_variants ON message_variants.message_id = messages.id
              WHERE messages.id = ?1 AND message_variants.position = ?2",
             params![message_id, variant_index],
-            |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, i64>(2)? != 0,
+                ))
+            },
         )
         .optional()?
         .ok_or_else(|| CommandError::new(keys::MESSAGE_VARIANT_NOT_FOUND))?;
     transaction
         .execute(
-            "UPDATE messages SET content = ?1, active_variant_index = ?2 WHERE id = ?3",
-            params![content, variant_index, message_id],
+            "UPDATE messages
+             SET content = ?1, active_variant_index = ?2, updated_at = ?3, edited = ?4
+             WHERE id = ?5",
+            params![content, variant_index, now_unix(), edited as i64, message_id],
         )?;
     refresh_chat_summary(&transaction, &chat_id)?;
     transaction.execute("DELETE FROM chat_contexts WHERE chat_id = ?1", params![chat_id])?;
@@ -1554,7 +1644,7 @@ pub fn clone_chat(
 
         let mut statement = transaction
             .prepare(
-                "SELECT id, role, content, created_at, remembered, active_variant_index
+                "SELECT id, role, content, created_at, updated_at, edited, remembered, active_variant_index
                  FROM messages
                  WHERE chat_id = ?1 AND (?2 IS NULL OR created_at <= ?2)
                  ORDER BY created_at ASC",
@@ -1567,27 +1657,43 @@ pub fn clone_chat(
                     row.get::<_, String>(2)?,
                     row.get::<_, i64>(3)?,
                     row.get::<_, i64>(4)?,
-                    row.get::<_, i64>(5)?,
+                    row.get::<_, i64>(5)? != 0,
+                    row.get::<_, i64>(6)? != 0,
+                    row.get::<_, i64>(7)?,
                 ))
             })?
             .collect::<Result<Vec<_>, _>>()?;
         drop(statement);
 
-        for (index, (source_message_id, role, content, created_at, remembered, active_variant_index)) in
-            rows.iter().enumerate()
+        for (
+            index,
+            (
+                source_message_id,
+                role,
+                content,
+                created_at,
+                updated_at,
+                edited,
+                remembered,
+                active_variant_index,
+            ),
+        ) in rows.iter().enumerate()
         {
             let new_message_id = format!("{new_chat_id}-message-{index}");
             transaction
                 .execute(
                     "INSERT INTO messages (
-                        id, chat_id, role, content, created_at, remembered, active_variant_index
-                     ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                        id, chat_id, role, content, created_at, updated_at, edited,
+                        remembered, active_variant_index
+                     ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
                     params![
                         new_message_id,
                         new_chat_id,
                         role,
                         content,
                         created_at,
+                        updated_at,
+                        edited,
                         remembered,
                         active_variant_index,
                     ],
@@ -1596,7 +1702,7 @@ pub fn clone_chat(
             if role == "assistant" {
                 let mut variant_statement = transaction
                     .prepare(
-                        "SELECT position, content, created_at
+                        "SELECT position, content, created_at, edited
                          FROM message_variants WHERE message_id = ?1 ORDER BY position ASC",
                     )?;
                 let variants = variant_statement
@@ -1605,22 +1711,25 @@ pub fn clone_chat(
                             row.get::<_, i64>(0)?,
                             row.get::<_, String>(1)?,
                             row.get::<_, i64>(2)?,
+                            row.get::<_, i64>(3)? != 0,
                         ))
                     })?
                     .collect::<Result<Vec<_>, _>>()?;
                 drop(variant_statement);
 
-                for (position, variant_content, variant_created_at) in variants {
+                for (position, variant_content, variant_created_at, variant_edited) in variants {
                     transaction
                         .execute(
-                            "INSERT INTO message_variants (id, message_id, position, content, created_at)
-                             VALUES (?1, ?2, ?3, ?4, ?5)",
+                            "INSERT INTO message_variants (
+                                id, message_id, position, content, created_at, edited
+                             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
                             params![
                                 format!("{new_message_id}-variant-{position}"),
                                 new_message_id,
                                 position,
                                 variant_content,
                                 variant_created_at,
+                                variant_edited,
                             ],
                         )?;
                 }
@@ -1649,14 +1758,14 @@ pub fn edit_message(
         .ok_or_else(|| CommandError::new(keys::MESSAGE_NOT_FOUND))?;
 
     if role == "assistant" {
-        append_message_variant(connection, message_id, variant_id, content)?;
+        append_message_variant(connection, message_id, variant_id, content, true)?;
         return Ok(());
     }
 
     let changed = connection
         .execute(
-            "UPDATE messages SET content = ?1 WHERE id = ?2",
-            params![content.trim(), message_id],
+            "UPDATE messages SET content = ?1, updated_at = ?2, edited = 1 WHERE id = ?3",
+            params![content.trim(), now_unix(), message_id],
         )?;
     if changed == 0 {
         return Err(CommandError::new(keys::MESSAGE_NOT_FOUND));
@@ -1727,8 +1836,8 @@ pub fn set_message_remembered(
         .optional()?
         .ok_or_else(|| CommandError::new(keys::MESSAGE_NOT_FOUND))?;
     connection.execute(
-        "UPDATE messages SET remembered = ?1 WHERE id = ?2",
-        params![remembered as i64, message_id],
+        "UPDATE messages SET remembered = ?1, updated_at = ?2 WHERE id = ?3",
+        params![remembered as i64, now_unix(), message_id],
     )?;
     invalidate_chat_ai_context(connection, &chat_id)
 }
@@ -1922,6 +2031,18 @@ fn validate_galaxy_data(
     }
 
     Ok(())
+}
+
+pub fn chat_recent_message_limit(connection: &Connection, chat_id: &str) -> CommandResult<usize> {
+    let (raw_prompt_config, legacy_preset): (String, String) = connection
+        .query_row(
+            "SELECT prompt_config_json, response_preset FROM chats WHERE id = ?1",
+            params![chat_id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .optional()?
+        .ok_or_else(|| CommandError::new(keys::CHAT_NOT_FOUND))?;
+    Ok(parse_prompt_config(&raw_prompt_config, &legacy_preset).recent_message_limit)
 }
 
 pub fn get_chat_prompt_context(

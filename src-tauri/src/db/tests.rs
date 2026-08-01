@@ -199,6 +199,7 @@ fn batched_chat_and_variant_loading_preserves_relations() {
         "assistant-1",
         "assistant-1-variant-1",
         "hello again",
+        false,
     )
     .expect("variant must append");
 
@@ -232,6 +233,7 @@ fn messages_through_assistant_uses_the_active_variant_and_excludes_later_message
         "assistant-1",
         "assistant-1-variant-1",
         "selected answer",
+        false,
     )
     .expect("variant must append");
     add_user_message(&connection, "chat-1", "user-2", "later message")
@@ -483,4 +485,66 @@ fn semantic_memory_reindexes_changed_content_and_prunes_stale_sources() {
     )
     .expect("memory query must succeed")
     .is_empty());
+}
+
+#[test]
+fn message_interaction_time_and_edited_marker_follow_the_active_content() {
+    let connection = test_database();
+    create_test_chat(&connection, "chat-1");
+    add_user_message(&connection, "chat-1", "user-1", "draft")
+        .expect("user message must persist");
+    add_assistant_message(&connection, "chat-1", "assistant-1", "original")
+        .expect("assistant message must persist");
+    connection
+        .execute(
+            "UPDATE messages SET created_at = 1, updated_at = 1 WHERE chat_id = 'chat-1'",
+            [],
+        )
+        .expect("timestamps must be arranged");
+
+    edit_message(&connection, "user-1", "unused", "edited user")
+        .expect("user edit must persist");
+    append_message_variant(
+        &connection,
+        "assistant-1",
+        "assistant-1-regenerated",
+        "regenerated",
+        false,
+    )
+    .expect("regeneration must append");
+    edit_message(
+        &connection,
+        "assistant-1",
+        "assistant-1-edited",
+        "edited assistant",
+    )
+    .expect("assistant edit must append");
+
+    let state = chat_state(&connection, "chat-1").expect("chat state must load");
+    let user = state
+        .messages
+        .iter()
+        .find(|message| message.id == "user-1")
+        .expect("user message");
+    let assistant = state
+        .messages
+        .iter()
+        .find(|message| message.id == "assistant-1")
+        .expect("assistant message");
+    assert!(user.edited);
+    assert!(user.updated_at > user.created_at);
+    assert!(assistant.edited);
+    assert_eq!(assistant.content, "edited assistant");
+    assert!(assistant.updated_at > assistant.created_at);
+
+    select_message_variant(&connection, "assistant-1", 1)
+        .expect("regenerated variant must select");
+    let state = chat_state(&connection, "chat-1").expect("chat state must reload");
+    let assistant = state
+        .messages
+        .iter()
+        .find(|message| message.id == "assistant-1")
+        .expect("assistant message");
+    assert!(!assistant.edited);
+    assert_eq!(assistant.content, "regenerated");
 }

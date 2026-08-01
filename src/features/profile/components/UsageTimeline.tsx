@@ -191,7 +191,7 @@ export function UsageTimeline({
                     isSelected ? 'font-semibold text-accent' : 'text-muted'
                   }`}
                 >
-                  {value > 0 ? formattedValue(value, metric) : '—'}
+                  {value > 0 ? formattedValue(value, metric) : '-'}
                 </span>
                 <span className="relative min-h-0 w-7 flex-1 overflow-hidden rounded-lg bg-default/60">
                   {metric === 'tokens' ? (

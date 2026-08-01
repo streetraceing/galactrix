@@ -9,7 +9,7 @@
   "chatActions.rename": "Переименовать",
   "chatActions.unpin": "Открепить",
   "chatComposer.cancelGeneration": "Остановить генерацию",
-  "chatComposer.ctrlEnterSend": "Ctrl/⌘ + Enter — отправить",
+  "chatComposer.ctrlEnterSend": "Ctrl/⌘ + Enter - отправить",
   "chatComposer.enterSend": "Enter - отправить",
   "chatComposer.label": "Сообщение",
   "chatComposer.placeholder": "Сообщение...",
@@ -69,7 +69,7 @@
   "chatsScreen.chatRenamed": "Чат переименован",
   "chatsScreen.chatSettingsSaved": "Настройки чата сохранены",
   "chatsScreen.chatUnpinned": "Чат откреплён",
-  "chatsScreen.copyTitle": "{{value1}} — копия",
+  "chatsScreen.copyTitle": "{{value1}} - копия",
   "chatsScreen.createAChatAndChooseItsRoleplayContextImmediately": "Создайте чат и сразу выберите его ролевой контекст.",
   "chatsScreen.newChatCreated": "Новый чат создан",
   "chatsScreen.noChats": "Нет чатов",
@@ -112,7 +112,7 @@
   "messageList.assistantResponse": "Ответ ассистента",
   "messageList.branchChatFromThisMessage": "Разветвить чат с этого сообщения",
   "messageList.branchFromHere": "Ветка отсюда",
-  "messageList.branchTitle": "{{value1}} — ветка",
+  "messageList.branchTitle": "{{value1}} - ветка",
   "messageList.clearSelection": "Снять выделение сообщений",
   "messageList.continueResponse": "Продолжить ответ",
   "messageList.continueResponseShort": "Продолжить",
@@ -266,5 +266,8 @@
   "promptRule.telegramChat.label": "Как в личной переписке",
   "promptRule.telegramChat.description": "Короткие строчные реплики, разговорные сокращения и редкие естественные опечатки без потери читаемости.",
   "promptRulesSection.roleplaySet": "Набор «Хороший роллплей»",
-  "promptRulesSection.telegramSet": "Набор «Переписка в Telegram»"
+  "promptRulesSection.telegramSet": "Набор «Переписка в Telegram»",
+  "chatSetupModal.recentMessageLimit": "Последние сообщения в контексте",
+  "chatSetupModal.recentMessageLimitDescription": "Максимальное число последних сообщений, отправляемых модели. 0 - без дополнительного ограничения.",
+  "messageList.edited": "Редактировано"
 }

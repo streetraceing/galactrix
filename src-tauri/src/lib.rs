@@ -393,7 +393,14 @@ async fn prepare_generation_context(
     query_text: &str,
     response_language: Option<&str>,
 ) -> CommandResult<PreparedGeneration> {
-    let (settings, mut context, mut system_prompt, analysis_provider, embedding_provider) = {
+    let (
+        settings,
+        mut context,
+        mut system_prompt,
+        analysis_provider,
+        embedding_provider,
+        recent_message_limit,
+    ) = {
         let database = state.database.lock().map_err(CommandError::internal)?;
         let settings = db::get_settings(&database)?;
         let context = db::get_dynamic_context(&database, chat_id)?;
@@ -410,6 +417,7 @@ async fn prepare_generation_context(
             .as_deref()
             .and_then(|id| db::provider_optional(&database, id).ok().flatten())
             .or_else(|| Some(chat_provider.clone()));
+        let recent_message_limit = db::chat_recent_message_limit(&database, chat_id)?;
         let embedding_provider = settings
             .ai_modules
             .semantic_memory
@@ -423,6 +431,7 @@ async fn prepare_generation_context(
             system_prompt,
             analysis_provider,
             embedding_provider,
+            recent_message_limit,
         )
     };
 
@@ -599,6 +608,11 @@ async fn prepare_generation_context(
         )
     } else {
         full_history.to_vec()
+    };
+    let history = if recent_message_limit > 0 && history.len() > recent_message_limit {
+        history[history.len() - recent_message_limit..].to_vec()
+    } else {
+        history
     };
 
     Ok(PreparedGeneration {
@@ -797,6 +811,7 @@ async fn regenerate_message(
         &message_id,
         &Uuid::new_v4().to_string(),
         &response_content,
+        false,
     )?;
     db::record_usage(
         &database,

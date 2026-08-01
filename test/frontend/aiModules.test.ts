@@ -206,3 +206,38 @@ test('a custom embedding URL is treated as the complete endpoint', async () => {
     'http://127.0.0.1:11534/api/embed',
   );
 });
+
+test('providers accept multiple protected API keys with temporary rate-limit rotation', async () => {
+  const [credentials, client, storage, ruTelescopeRaw] = await Promise.all([
+    readFile(
+      new URL(
+        '../../src/features/telescope/components/ProviderCredentials.tsx',
+        import.meta.url,
+      ),
+      'utf8',
+    ),
+    readFile(
+      new URL('../../src-tauri/src/provider_client.rs', import.meta.url),
+      'utf8',
+    ),
+    readFile(
+      new URL('../../src-tauri/src/secure_storage.rs', import.meta.url),
+      'utf8',
+    ),
+    readFile(
+      new URL('../../src/i18n/locales/ru/telescope.json', import.meta.url),
+      'utf8',
+    ),
+  ]);
+  const ruTelescope = JSON.parse(ruTelescopeRaw) as Record<string, string>;
+
+  assert.match(credentials, /type="password"/);
+  assert.match(credentials, /providerCredentials\.addApiKey/);
+  assert.match(client, /parse_api_keys/);
+  assert.match(client, /x-ratelimit-remaining-requests/);
+  assert.match(client, /x-ratelimit-reset-requests/);
+  assert.match(client, /block_api_key/);
+  assert.match(client, /first_available_key/);
+  assert.match(storage, /normalize_provider_secrets/);
+  assert.equal(ruTelescope['providerCredentials.apiKeys'], 'API-ключи');
+});

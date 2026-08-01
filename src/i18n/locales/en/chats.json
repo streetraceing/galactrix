@@ -9,8 +9,8 @@
   "chatActions.rename": "Rename",
   "chatActions.unpin": "Unpin",
   "chatComposer.cancelGeneration": "Cancel generation",
-  "chatComposer.ctrlEnterSend": "Ctrl/⌘ + Enter — send",
-  "chatComposer.enterSend": "Enter — send",
+  "chatComposer.ctrlEnterSend": "Ctrl/⌘ + Enter - send",
+  "chatComposer.enterSend": "Enter - send",
   "chatComposer.label": "Message",
   "chatComposer.placeholder": "Message…",
   "chatComposer.sendMessage": "Send message",
@@ -69,7 +69,7 @@
   "chatsScreen.chatRenamed": "Chat renamed",
   "chatsScreen.chatSettingsSaved": "Chat settings saved",
   "chatsScreen.chatUnpinned": "Chat unpinned",
-  "chatsScreen.copyTitle": "{{value1}} — copy",
+  "chatsScreen.copyTitle": "{{value1}} - copy",
   "chatsScreen.createAChatAndChooseItsRoleplayContextImmediately": "Create a chat and choose its roleplay context immediately.",
   "chatsScreen.newChatCreated": "New chat created",
   "chatsScreen.noChats": "No chats",
@@ -106,7 +106,7 @@
   "messageList.assistantResponse": "Assistant response",
   "messageList.branchChatFromThisMessage": "Branch chat from this message",
   "messageList.branchFromHere": "Branch from here",
-  "messageList.branchTitle": "{{value1}} — branch",
+  "messageList.branchTitle": "{{value1}} - branch",
   "messageList.clearSelection": "Clear message selection",
   "messageList.continueResponse": "Continue response",
   "messageList.continueResponseShort": "Continue",
@@ -254,5 +254,8 @@
   "promptRule.telegramChat.label": "Private messenger chat",
   "promptRule.telegramChat.description": "Short lowercase messages, colloquial abbreviations, and occasional natural typos without sacrificing readability.",
   "promptRulesSection.roleplaySet": "“Strong roleplay” set",
-  "promptRulesSection.telegramSet": "“Telegram chat” set"
+  "promptRulesSection.telegramSet": "“Telegram chat” set",
+  "chatSetupModal.recentMessageLimit": "Recent messages in context",
+  "chatSetupModal.recentMessageLimitDescription": "Maximum number of latest messages sent to the model. Use 0 for no additional limit.",
+  "messageList.edited": "Edited"
 }

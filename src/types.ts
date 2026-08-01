@@ -53,6 +53,7 @@ export type PromptBlock = {
 };
 
 export type PromptConfig = {
+  recentMessageLimit: number;
   setIds: string[];
   presetIds: PromptPresetId[];
   contextPriorities: PromptContextPriorities;
@@ -75,6 +76,7 @@ export type MessageVariant = {
   index: number;
   content: string;
   createdAt: number;
+  edited?: boolean;
 };
 
 export type Message = {
@@ -83,6 +85,8 @@ export type Message = {
   role: 'user' | 'assistant' | 'system';
   content: string;
   createdAt: number;
+  updatedAt?: number;
+  edited?: boolean;
   remembered: boolean;
   activeVariantIndex: number;
   variants: MessageVariant[];

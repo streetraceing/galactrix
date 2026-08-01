@@ -45,12 +45,24 @@ fn ensure_available() -> CommandResult<()> {
     initialize()
 }
 
+
+fn normalize_provider_secrets(secret: &str) -> String {
+    let mut normalized = Vec::new();
+    for key in secret.lines().map(str::trim).filter(|key| !key.is_empty()) {
+        if !normalized.iter().any(|saved| *saved == key) {
+            normalized.push(key);
+        }
+    }
+    normalized.join("\n")
+}
+
 pub fn save_provider_secret(provider_id: &str, secret: &str) -> CommandResult<()> {
     ensure_available()?;
+    let secret = normalize_provider_secrets(secret);
     let entry = keyring::Entry::new(SERVICE_NAME, provider_id)
         .map_err(|error| CommandError::with_detail(keys::SECURE_STORAGE_UNAVAILABLE, error))?;
     entry
-        .set_password(secret)
+        .set_password(&secret)
         .map_err(|error| CommandError::with_detail(keys::SECURE_STORAGE_UNAVAILABLE, error))
 }
 

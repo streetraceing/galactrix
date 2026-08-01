@@ -155,3 +155,30 @@ test('roleplay and Telegram bundles are available as built-in prompt sets', asyn
   assert.equal(ruGalaxies['style.roleplayRich'], 'Глубокий роллплей');
   assert.equal(ruGalaxies['style.telegramHuman'], 'Как человек в Telegram');
 });
+
+test('chat setup exposes a bounded recent-message context limit', async () => {
+  const [setup, config, preview, backend] = await Promise.all([
+    readFile(
+      new URL(
+        '../../src/features/chats/components/ChatSetupModal.tsx',
+        import.meta.url,
+      ),
+      'utf8',
+    ),
+    readFile(promptConfigPath, 'utf8'),
+    readFile(promptPreviewPath, 'utf8'),
+    readFile(new URL('../../src-tauri/src/lib.rs', import.meta.url), 'utf8'),
+  ]);
+
+  assert.match(config, /recentMessageLimit: 0/);
+  assert.match(setup, /chat-recent-message-limit/);
+  assert.match(setup, /max=\{500\}/);
+  assert.match(
+    preview,
+    /conversationMessages\.slice\(-config\.promptConfig\.recentMessageLimit\)/,
+  );
+  assert.match(
+    backend,
+    /history\[history\.len\(\) - recent_message_limit\.\.\]/,
+  );
+});

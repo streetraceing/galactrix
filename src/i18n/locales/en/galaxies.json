@@ -53,7 +53,7 @@
   "galaxyEditorModal.editingValue1": "Editing: {{value1}}",
   "galaxyEditorModal.forACustomStyleSelectASavedPresetFromThe": "For a custom style, select a saved preset from the library.",
   "galaxyEditorModal.name": "Name",
-  "galaxyEditorModal.newObjectValue1": "New object — {{value1}}",
+  "galaxyEditorModal.newObjectValue1": "New object - {{value1}}",
   "galaxyEditorModal.objectName": "Object name",
   "galaxyEditorModal.save": "Save",
   "galaxyEditorModal.shortDescription": "Short description",

@@ -72,7 +72,10 @@ export function promptPreviewFromChat(
     rememberedMessages: conversationMessages.filter(
       (message) => message.remembered,
     ),
-    conversationMessages,
+    conversationMessages:
+      (config.promptConfig.recentMessageLimit ?? 0) > 0
+        ? conversationMessages.slice(-config.promptConfig.recentMessageLimit)
+        : conversationMessages,
     userName:
       persona?.name ||
       profileName ||

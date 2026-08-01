@@ -64,6 +64,8 @@ impl Default for PromptContextPriorities {
 #[serde(rename_all = "camelCase")]
 pub struct PromptConfig {
     #[serde(default)]
+    pub recent_message_limit: usize,
+    #[serde(default)]
     pub set_ids: Vec<String>,
     #[serde(default)]
     pub preset_ids: Vec<String>,
@@ -185,6 +187,8 @@ pub struct MessageVariant {
     pub index: i64,
     pub content: String,
     pub created_at: i64,
+    #[serde(default)]
+    pub edited: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -195,6 +199,10 @@ pub struct Message {
     pub role: String,
     pub content: String,
     pub created_at: i64,
+    #[serde(default)]
+    pub updated_at: i64,
+    #[serde(default)]
+    pub edited: bool,
     pub remembered: bool,
     pub active_variant_index: i64,
     pub variants: Vec<MessageVariant>,

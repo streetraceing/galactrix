@@ -7,6 +7,8 @@ fn message(id: &str, role: &str, content: &str) -> Message {
         role: role.into(),
         content: content.into(),
         created_at: 0,
+        updated_at: 0,
+        edited: false,
         remembered: false,
         active_variant_index: 0,
         variants: Vec::new(),
