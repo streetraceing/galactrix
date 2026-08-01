@@ -104,10 +104,12 @@ function isMessageSelectionControl(target: EventTarget | null) {
   );
 }
 
-async function copyText(content: string) {
+async function copyText(content: string, successMessage?: string) {
   if (navigator.clipboard?.writeText) {
     await navigator.clipboard.writeText(content);
-    toast.success(i18next.t('copy.messageSuccess', { ns: 'chats' }));
+    toast.success(
+      successMessage ?? i18next.t('copy.messageSuccess', { ns: 'chats' }),
+    );
     return;
   }
 
@@ -124,7 +126,9 @@ async function copyText(content: string) {
   if (!copied) {
     throw new Error(i18next.t('errors.clipboardUnavailable', { ns: 'chats' }));
   }
-  toast.success(i18next.t('copy.messageSuccess', { ns: 'chats' }));
+  toast.success(
+    successMessage ?? i18next.t('copy.messageSuccess', { ns: 'chats' }),
+  );
 }
 
 function MessageMenu({
@@ -1662,6 +1666,36 @@ function MessageListComponent({
   const continueResponse = (messageId: string) =>
     runMessageGeneration(messageId, 'continue', onContinue);
 
+  const copySelectedMessages = async () => {
+    if (selectedMessages.length === 0) return;
+    const transcript = selectedMessages
+      .map((message) => {
+        const author =
+          message.role === 'user'
+            ? userName
+            : message.role === 'assistant'
+              ? assistantName
+              : t('messageList.system');
+        return `${author}: ${message.content}`;
+      })
+      .join('\n\n');
+
+    try {
+      await copyText(
+        transcript,
+        t('messageList.selectedMessagesCopied', {
+          count: selectedMessages.length,
+        }),
+      );
+    } catch (nextError) {
+      reportError(nextError);
+    }
+  };
+
+  const selectAllMessages = useCallback(() => {
+    setSelectedMessageIds(new Set(messages.map((message) => message.id)));
+  }, [messages]);
+
   const selectMessage = useCallback((messageId: string) => {
     setSelectedMessageIds((current) => addMessageSelection(current, messageId));
   }, []);
@@ -1670,8 +1704,8 @@ function MessageListComponent({
     <>
       <div className="relative flex min-h-0 flex-1">
         {selectedMessageIds.size > 0 ? (
-          <div className="pointer-events-none absolute inset-x-0 top-2 z-30 flex justify-center px-4">
-            <Surface className="pointer-events-auto flex items-center gap-2 rounded-full bg-overlay/95 py-1.5 pl-3 pr-1.5 shadow-overlay backdrop-blur-xl">
+          <div className="pointer-events-none absolute inset-x-0 top-2 z-30 flex flex-wrap items-center justify-center gap-2 px-4">
+            <Surface className="pointer-events-auto flex h-10 items-center gap-2 rounded-full bg-overlay/95 py-1.5 pl-3 pr-1.5 shadow-overlay backdrop-blur-xl">
               <Icon name="check" className="size-4 text-accent" />
               <span
                 className="text-sm font-medium"
@@ -1683,16 +1717,6 @@ function MessageListComponent({
                 })}
               </span>
               <Button
-                size="sm"
-                variant="danger"
-                className="h-7 rounded-full px-2.5"
-                isDisabled={working}
-                onPress={() => setDeletingSelection(true)}
-              >
-                <Icon name="trash" className="size-3.5" />
-                {t('chatDialogs.delete')}
-              </Button>
-              <Button
                 isIconOnly
                 size="sm"
                 variant="ghost"
@@ -1702,6 +1726,63 @@ function MessageListComponent({
               >
                 <Icon name="close" className="size-3.5" />
               </Button>
+            </Surface>
+
+            <Surface
+              aria-label={t('messageList.selectionActions')}
+              className="pointer-events-auto flex h-10 items-center gap-0.5 rounded-full bg-overlay/95 p-1 shadow-overlay backdrop-blur-xl"
+            >
+              <Tooltip>
+                <Tooltip.Trigger>
+                  <Button
+                    isIconOnly
+                    size="sm"
+                    variant="ghost"
+                    className="size-8 min-w-8 rounded-full"
+                    aria-label={t('messageList.copySelectedMessages')}
+                    onPress={() => void copySelectedMessages()}
+                  >
+                    <Icon name="copy" className="size-4" />
+                  </Button>
+                </Tooltip.Trigger>
+                <Tooltip.Content>
+                  {t('messageList.copySelectedMessages')}
+                </Tooltip.Content>
+              </Tooltip>
+              <Tooltip>
+                <Tooltip.Trigger>
+                  <Button
+                    isIconOnly
+                    size="sm"
+                    variant="ghost"
+                    className="size-8 min-w-8 rounded-full"
+                    aria-label={t('messageList.selectAllMessages')}
+                    isDisabled={selectedMessageIds.size === messages.length}
+                    onPress={selectAllMessages}
+                  >
+                    <Icon name="check" className="size-4" />
+                  </Button>
+                </Tooltip.Trigger>
+                <Tooltip.Content>
+                  {t('messageList.selectAllMessages')}
+                </Tooltip.Content>
+              </Tooltip>
+              <Tooltip>
+                <Tooltip.Trigger>
+                  <Button
+                    isIconOnly
+                    size="sm"
+                    variant="danger"
+                    className="size-8 min-w-8 rounded-full"
+                    aria-label={t('chatDialogs.delete')}
+                    isDisabled={working}
+                    onPress={() => setDeletingSelection(true)}
+                  >
+                    <Icon name="trash" className="size-4" />
+                  </Button>
+                </Tooltip.Trigger>
+                <Tooltip.Content>{t('chatDialogs.delete')}</Tooltip.Content>
+              </Tooltip>
             </Surface>
           </div>
         ) : null}
@@ -1837,7 +1918,7 @@ function MessageListComponent({
                             variant={isUser ? 'tertiary' : 'default'}
                             className={`${isMobile || selectedMessageIds.size > 0 ? 'select-none' : 'selectable'} min-w-0 max-w-full overflow-hidden rounded-2xl px-4 py-3 shadow-xs transition-colors ${
                               messengerMode ? 'w-fit' : ''
-                            } ${isSelected ? 'bg-default/70' : isUser ? 'bg-accent/10' : ''}`}
+                            } ${isSelected ? (isUser ? 'bg-accent/15' : 'bg-default/85') : isUser ? 'bg-accent/10' : ''}`}
                           >
                             {isRegenerating ? (
                               <div

@@ -77,7 +77,11 @@ test('message gestures preserve context menus while supporting click and drag se
   assert.match(source, /messageList\.selectMessage/);
   assert.match(source, /onSelectMessage=\{selectMessage\}/);
   assert.doesNotMatch(source, /ring-2 ring-accent/);
-  assert.match(source, /isSelected \? 'bg-default\/70'/);
+  assert.match(
+    source,
+    /isSelected \? \(isUser \? 'bg-accent\/15' : 'bg-default\/85'\)/,
+  );
+  assert.doesNotMatch(source, /isSelected \? 'bg-default\/70'/);
   assert.match(source, /selectedMessageIds\.size > 0 \? 'select-none'/);
   assert.match(source, /onDeleteMany\(selectedMessages\.map/);
   assert.match(source, /setDeletingSelection\(true\)/);

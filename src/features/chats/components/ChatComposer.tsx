@@ -119,7 +119,7 @@ function ChatComposerComponent({
   return (
     <div className="shrink-0 border-t border-separator bg-background px-3 py-2 sm:px-5 sm:py-4">
       <div className={`mx-auto w-full ${wide ? 'max-w-5xl' : 'max-w-3xl'}`}>
-        <Surface className="rounded-2xl border border-separator p-2 transition-[border-color,box-shadow]">
+        <Surface className="rounded-2xl p-2 transition-shadow">
           <div className="grid grid-cols-[minmax(0,1fr)_3rem] items-end gap-2">
             <TextArea
               autoComplete="off"
