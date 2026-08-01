@@ -22,13 +22,16 @@ test('long chats expose a stable scroll-to-bottom affordance', async () => {
   );
 });
 
-test('older chat messages load in bounded windows near the top', async () => {
+test('long chats keep stable virtual placeholders at every scrollbar position', async () => {
   const source = await readFile(messageListPath, 'utf8');
 
-  assert.match(source, /AUTO_LOAD_EARLIER_THRESHOLD/);
-  assert.match(source, /loadEarlierMessages\(\)/);
-  assert.match(source, /loadingEarlierRef\.current/);
-  assert.match(source, /loadEarlierSentinelRef/);
-  assert.match(source, /IntersectionObserver/);
-  assert.match(source, /chat-message-virtual-item/);
+  assert.match(source, /messageVirtualRange\(/);
+  assert.match(source, /buildMessageOffsets\(/);
+  assert.match(source, /topVirtualSpacerHeight/);
+  assert.match(source, /bottomVirtualSpacerHeight/);
+  assert.match(source, /chat-message-virtual-spacer/);
+  assert.match(source, /data-virtual-message-id/);
+  assert.match(source, /new ResizeObserver/);
+  assert.match(source, /scroller\.scrollTop \+= scrollAdjustment/);
+  assert.doesNotMatch(source, /loadEarlierMessages/);
 });

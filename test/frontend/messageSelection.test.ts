@@ -73,6 +73,13 @@ test('message gestures preserve context menus while supporting click and drag se
   assert.match(source, /onContextMenuCapture=/);
   assert.match(source, /selectionGestureRef\.current\?\.active/);
   assert.match(source, /event\.key !== 'Escape'/);
+  assert.match(source, /document\.addEventListener\('pointerdown'/);
+  assert.match(source, /data-message-selection-toolbar/);
+  assert.match(source, /target\.closest\('\[data-message-id\]'\)/);
+  assert.match(
+    source,
+    /messageElement && !isMessageSelectionControl\(target\)/,
+  );
   assert.match(source, /clearMessageSelection\(\)/);
   assert.match(source, /messageList\.selectMessage/);
   assert.match(source, /onSelectMessage=\{selectMessage\}/);

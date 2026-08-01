@@ -177,6 +177,15 @@
     contain-intrinsic-size: auto 9rem;
   }
 
+  .chat-message-virtual-slot {
+    contain: layout style;
+  }
+
+  .chat-message-virtual-spacer {
+    contain: strict;
+    pointer-events: none;
+  }
+
   .app-drag-region {
     -webkit-app-region: drag;
     @apply select-none;
