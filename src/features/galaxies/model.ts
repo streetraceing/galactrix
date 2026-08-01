@@ -38,6 +38,12 @@ export const stylePresets = [
     },
   },
   {
+    id: 'casual-lowercase',
+    get label() {
+      return i18next.t('style.casualLowercase', { ns: 'galaxies' });
+    },
+  },
+  {
     id: 'roleplay',
     get label() {
       return i18next.t('style.roleplay', { ns: 'galaxies' });

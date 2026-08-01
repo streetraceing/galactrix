@@ -1,7 +1,7 @@
 import type { Message } from '../../types';
 
-export const MESSAGE_VIRTUAL_OVERSCAN_PX = 720;
-export const MESSAGE_VIRTUAL_MIN_ITEMS = 10;
+export const MESSAGE_VIRTUAL_OVERSCAN_PX = 420;
+export const MESSAGE_VIRTUAL_MIN_ITEMS = 6;
 
 const DESKTOP_ASSISTANT_CHARS_PER_LINE = 76;
 const DESKTOP_USER_CHARS_PER_LINE = 58;
@@ -9,18 +9,27 @@ const MOBILE_CHARS_PER_LINE = 38;
 const MESSAGE_VERTICAL_GAP = 16;
 
 export function estimateMessageHeight(message: Message, mobile: boolean) {
-  const normalized = message.content.replace(/\r\n/g, '\n').trim();
-  const explicitLines = Math.max(1, normalized.split('\n').length);
+  const content = message.content;
+  const scanLimit = Math.min(content.length, 16_384);
+  let explicitLines = 1;
+  for (let index = 0; index < scanLimit; index += 1) {
+    if (content.charCodeAt(index) === 10) explicitLines += 1;
+  }
+  if (scanLimit < content.length) {
+    explicitLines += Math.ceil((content.length - scanLimit) / 120);
+  }
   const charsPerLine = mobile
     ? MOBILE_CHARS_PER_LINE
     : message.role === 'user'
       ? DESKTOP_USER_CHARS_PER_LINE
       : DESKTOP_ASSISTANT_CHARS_PER_LINE;
-  const wrappedLines = Math.max(1, Math.ceil(normalized.length / charsPerLine));
+  const wrappedLines = Math.max(1, Math.ceil(content.length / charsPerLine));
   const visualLines = Math.max(explicitLines, wrappedLines);
   const primaryLines = Math.min(visualLines, 24);
   const overflowLines = Math.max(0, visualLines - primaryLines);
-  const codeBlockAllowance = /```|^ {4}\S/m.test(normalized) ? 44 : 0;
+  const preview = content.slice(0, scanLimit);
+  const codeBlockAllowance =
+    preview.includes('```') || /(?:^|\n) {4}\S/.test(preview) ? 44 : 0;
   const baseHeight = mobile ? 74 : 82;
   const estimated =
     baseHeight +

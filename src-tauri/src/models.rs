@@ -166,6 +166,8 @@ fn default_critical_priority() -> String {
 #[serde(rename_all = "camelCase")]
 pub struct ChatConfigInput {
     pub title: String,
+    #[serde(default)]
+    pub greeting_message: Option<String>,
     pub provider_id: Option<String>,
     pub persona_id: Option<String>,
     pub character_id: Option<String>,

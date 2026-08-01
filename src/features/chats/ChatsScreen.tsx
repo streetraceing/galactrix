@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  startTransition,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { ResizeHandle } from '../../components/ResizeHandle';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
@@ -67,8 +74,9 @@ export function ChatsScreen({
   const usesNativeImeInsets = isAndroidPlatform();
   const isNarrowDesktop = useMediaQuery('(max-width: 820px)');
   const isSinglePane = isMobile || isNarrowDesktop;
-  const { bottomInset: keyboardInset, viewportHeight } =
-    useVisualViewportMetrics(isMobile && isSinglePane && isChatOpen);
+  const { bottomInset: keyboardInset } = useVisualViewportMetrics(
+    isMobile && isSinglePane && isChatOpen,
+  );
   const [pendingMessage, setPendingMessage] = useState<{
     chatId: string;
     content: string;
@@ -85,6 +93,16 @@ export function ChatsScreen({
   const sendInFlightRef = useRef(false);
 
   const activeChat = activeChatById(chats, activeChatId);
+  const [canvasChatId, setCanvasChatId] = useState(activeChatId);
+
+  useEffect(() => {
+    const targetChatId = activeChat?.id ?? '';
+    if (targetChatId === canvasChatId) return;
+    const frame = window.requestAnimationFrame(() => {
+      startTransition(() => setCanvasChatId(targetChatId));
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [activeChat?.id, canvasChatId]);
 
   useEffect(() => {
     if (chatMaximized && (isMobile || !activeChat)) {
@@ -95,9 +113,11 @@ export function ChatsScreen({
     () => groupMessagesByChat(messages),
     [messages],
   );
-  const activeMessages = activeChat
-    ? (messagesByChat.get(activeChat.id) ?? EMPTY_MESSAGES)
+  const canvasChat = activeChatById(chats, canvasChatId);
+  const canvasMessages = canvasChat
+    ? (messagesByChat.get(canvasChat.id) ?? EMPTY_MESSAGES)
     : EMPTY_MESSAGES;
+  const isCanvasSwitching = (activeChat?.id ?? '') !== (canvasChat?.id ?? '');
   const configChatId =
     configTarget && configTarget !== 'new' ? configTarget.id : undefined;
   const configRememberedMessages = configChatId
@@ -108,19 +128,22 @@ export function ChatsScreen({
   const activeProvider = providers.find(
     (provider) => provider.id === activeChat?.providerId,
   );
-  const activeCharacter = galaxyItems.find(
-    (item) => item.kind === 'character' && item.id === activeChat?.characterId,
+  const canvasProvider = providers.find(
+    (provider) => provider.id === canvasChat?.providerId,
   );
-  const activePersona = galaxyItems.find(
-    (item) => item.kind === 'persona' && item.id === activeChat?.personaId,
+  const canvasCharacter = galaxyItems.find(
+    (item) => item.kind === 'character' && item.id === canvasChat?.characterId,
   );
-  const activeCharacterName =
-    activeCharacter?.name ?? t('chatsScreen.assistant');
+  const canvasPersona = galaxyItems.find(
+    (item) => item.kind === 'persona' && item.id === canvasChat?.personaId,
+  );
   const displayProfileName = resolveProfileName(
     profileName,
     t('user.defaultName', { ns: 'common' }),
   );
-  const activeUserName = activePersona?.name || displayProfileName;
+  const canvasAssistantName =
+    canvasCharacter?.name ?? t('chatsScreen.assistant');
+  const canvasUserName = canvasPersona?.name || displayProfileName;
   const shouldAutoFocusComposer =
     !isMobile &&
     (!isSinglePane || isChatOpen) &&
@@ -143,42 +166,6 @@ export function ChatsScreen({
     window.addEventListener('galactrix:new-chat', openNewChat);
     return () => window.removeEventListener('galactrix:new-chat', openNewChat);
   }, []);
-
-  useEffect(() => {
-    if (!activeChat?.id) return;
-    if (isSinglePane && !isChatOpen) return;
-
-    let secondFrame = 0;
-    const firstFrame = window.requestAnimationFrame(() => {
-      const scrollToBottom = () => {
-        const scroller = messageScrollRef.current;
-        if (scroller) scroller.scrollTop = scroller.scrollHeight;
-      };
-      scrollToBottom();
-      secondFrame = window.requestAnimationFrame(scrollToBottom);
-    });
-
-    return () => {
-      window.cancelAnimationFrame(firstFrame);
-      if (secondFrame) window.cancelAnimationFrame(secondFrame);
-    };
-  }, [
-    activeMessages.length,
-    activeChat?.id,
-    isChatOpen,
-    isSinglePane,
-    pendingMessage,
-    sending,
-  ]);
-
-  useEffect(() => {
-    if (!viewportHeight) return;
-    const frame = window.requestAnimationFrame(() => {
-      const scroller = messageScrollRef.current;
-      if (scroller) scroller.scrollTop = scroller.scrollHeight;
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, [keyboardInset, viewportHeight]);
 
   const send = useCallback(
     async (value: string) => {
@@ -357,48 +344,80 @@ export function ChatsScreen({
               onToggleMaximized={() => onChatMaximizedChange(!chatMaximized)}
               onAction={handleAction}
             />
-            <MessageList
-              chatId={activeChat.id}
-              messages={activeMessages}
-              provider={activeProvider}
-              assistantName={activeCharacterName}
-              assistantAvatar={galaxyItemAvatar(activeCharacter)}
-              userName={activeUserName}
-              userAvatar={galaxyItemAvatar(activePersona) ?? profileAvatar}
-              pendingMessage={
-                pendingMessage?.chatId === activeChat.id
-                  ? pendingMessage.content
-                  : ''
-              }
-              sending={sending}
-              viewMode={chatViewMode}
-              showAvatars={showMessageAvatars}
-              showTimestamps={showMessageTimestamps}
-              providersAvailable={providers.length > 0}
-              wide={chatMaximized}
-              scrollRef={messageScrollRef}
-              onBranch={onBranchMessage}
-              onEdit={onEditMessage}
-              onDelete={onDeleteMessage}
-              onDeleteMany={onDeleteMessages}
-              onRemember={onRememberMessage}
-              onRegenerate={onRegenerateMessage}
-              onContinue={onContinueMessage}
-              onSelectVariant={onSelectMessageVariant}
-            />
-            <ChatComposer
-              key={activeChat.id}
-              chatId={activeChat.id}
-              provider={activeProvider}
-              sending={sending}
-              sendOnEnter={sendOnEnter}
-              saveDrafts={saveDrafts}
-              shouldAutoFocus={shouldAutoFocusComposer}
-              focusKey={`${activeChat.id}:${isChatOpen}`}
-              wide={chatMaximized}
-              onSend={send}
-              onCancel={cancelGeneration}
-            />
+            <div
+              className="relative flex min-h-0 flex-1"
+              aria-busy={isCanvasSwitching}
+            >
+              {canvasChat ? (
+                <div
+                  className={`flex min-h-0 flex-1 ${
+                    isCanvasSwitching ? 'pointer-events-none invisible' : ''
+                  }`}
+                >
+                  <MessageList
+                    chatId={canvasChat.id}
+                    messages={canvasMessages}
+                    provider={canvasProvider}
+                    assistantName={canvasAssistantName}
+                    assistantAvatar={galaxyItemAvatar(canvasCharacter)}
+                    userName={canvasUserName}
+                    userAvatar={
+                      galaxyItemAvatar(canvasPersona) ?? profileAvatar
+                    }
+                    pendingMessage={
+                      pendingMessage?.chatId === canvasChat.id
+                        ? pendingMessage.content
+                        : ''
+                    }
+                    sending={sending && canvasChat.id === activeChat.id}
+                    viewMode={chatViewMode}
+                    showAvatars={showMessageAvatars}
+                    showTimestamps={showMessageTimestamps}
+                    providersAvailable={providers.length > 0}
+                    wide={chatMaximized}
+                    scrollRef={messageScrollRef}
+                    onBranch={onBranchMessage}
+                    onEdit={onEditMessage}
+                    onDelete={onDeleteMessage}
+                    onDeleteMany={onDeleteMessages}
+                    onRemember={onRememberMessage}
+                    onRegenerate={onRegenerateMessage}
+                    onContinue={onContinueMessage}
+                    onSelectVariant={onSelectMessageVariant}
+                  />
+                </div>
+              ) : null}
+              {isCanvasSwitching ? (
+                <div className="pointer-events-none absolute inset-0 flex flex-col justify-end gap-3 px-5 py-6 sm:px-8">
+                  <div className="ml-auto h-16 w-[min(72%,34rem)] animate-pulse rounded-2xl bg-accent/8" />
+                  <div className="h-24 w-[min(86%,44rem)] animate-pulse rounded-2xl bg-default/45" />
+                  <div className="h-14 w-[min(64%,30rem)] animate-pulse rounded-2xl bg-default/35" />
+                </div>
+              ) : null}
+            </div>
+            {canvasChat ? (
+              <div
+                className={`shrink-0 ${
+                  isCanvasSwitching ? 'pointer-events-none invisible' : ''
+                }`}
+              >
+                <ChatComposer
+                  key={canvasChat.id}
+                  chatId={canvasChat.id}
+                  provider={canvasProvider}
+                  sending={sending && canvasChat.id === activeChat.id}
+                  sendOnEnter={sendOnEnter}
+                  saveDrafts={saveDrafts}
+                  shouldAutoFocus={
+                    shouldAutoFocusComposer && !isCanvasSwitching
+                  }
+                  focusKey={`${canvasChat.id}:${isChatOpen}`}
+                  wide={chatMaximized}
+                  onSend={send}
+                  onCancel={cancelGeneration}
+                />
+              </div>
+            ) : null}
           </>
         ) : (
           <div className="grid h-full place-items-center p-4 sm:p-6">

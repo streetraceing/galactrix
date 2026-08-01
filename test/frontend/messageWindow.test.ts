@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Message } from '../../src/types';
 import {
+  MESSAGE_VIRTUAL_MIN_ITEMS,
+  MESSAGE_VIRTUAL_OVERSCAN_PX,
   buildMessageOffsets,
   estimateMessageHeight,
   messageVirtualRange,
@@ -22,6 +24,11 @@ function message(
     variants: [],
   };
 }
+
+test('virtual chat defaults keep the mounted message set small', () => {
+  assert.equal(MESSAGE_VIRTUAL_OVERSCAN_PX, 420);
+  assert.equal(MESSAGE_VIRTUAL_MIN_ITEMS, 6);
+});
 
 test('message height estimates account for content and viewport density', () => {
   const brief = estimateMessageHeight(message('Hello'), false);

@@ -2,6 +2,7 @@
   "backend.chat.notFound": "Chat not found",
   "backend.chat.titleRequired": "Enter a chat name",
   "backend.chat.titleTooLong": "The chat name is too long",
+  "backend.chat.greetingTooLong": "Greeting message is too long",
   "backend.common.fieldRequired": "Enter or select {{field}}",
   "backend.common.nameRequired": "Enter a name",
   "backend.common.nameTooLong": "The name is too long",

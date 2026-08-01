@@ -5,9 +5,10 @@ import {
   addMessageSelection,
   mergeMessageSelection,
   messageSelectionRange,
+  shouldCollapseMessageRangeSelection,
   shouldStartMessageRangeSelection,
   toggleMessageSelection,
-} from '../../src/features/chats/messageSelection';
+} from '../../src/features/chats/messageSelection.ts';
 
 const messageListPath = new URL(
   '../../src/features/chats/components/MessageList.tsx',
@@ -54,6 +55,25 @@ test('range selection starts only after an intentional drag', () => {
   assert.equal(shouldStartMessageRangeSelection('one', 'two', 0, 2, 6), true);
 });
 
+test('range selection can collapse at its origin and expand again', () => {
+  assert.equal(
+    shouldCollapseMessageRangeSelection(0, 'one', 'one', 8, true, 20),
+    true,
+  );
+  assert.equal(
+    shouldCollapseMessageRangeSelection(0, 'one', 'two', 8, true, 20),
+    false,
+  );
+  assert.equal(
+    shouldCollapseMessageRangeSelection(1, 'one', 'one', 8, true, 20),
+    false,
+  );
+  assert.equal(
+    shouldCollapseMessageRangeSelection(0, 'one', 'one', 30, true, 20),
+    false,
+  );
+});
+
 test('message gestures preserve context menus while supporting click and drag selection', async () => {
   const source = await readFile(messageListPath, 'utf8');
 
@@ -61,6 +81,8 @@ test('message gestures preserve context menus while supporting click and drag se
   assert.match(source, /event\.pointerType === 'mouse' && event\.button === 2/);
   assert.match(source, /toggleMessageSelection\(current, gesture\.startId\)/);
   assert.match(source, /shouldStartMessageRangeSelection\(/);
+  assert.match(source, /shouldCollapseMessageRangeSelection\(/);
+  assert.match(source, /expandedBeyondOrigin/);
   assert.match(source, /messageSelectionRange\(visibleMessageIds/);
   assert.match(source, /setPointerCapture\(event\.pointerId\)/);
   assert.match(source, /window\.getSelection\(\)\?\.removeAllRanges\(\)/);

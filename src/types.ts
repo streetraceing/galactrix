@@ -54,6 +54,7 @@ export type PromptConfig = {
 
 export type ChatConfigInput = {
   title: string;
+  greetingMessage?: string;
   providerId?: string;
   personaId?: string;
   characterId?: string;
@@ -118,7 +119,13 @@ export type CharacterData = {
   avatar?: string;
   definitionSections: DefinitionSection[];
   stylePreset:
-    'neutral' | 'warm' | 'concise' | 'roleplay' | 'literary' | 'custom';
+    | 'neutral'
+    | 'warm'
+    | 'concise'
+    | 'casual-lowercase'
+    | 'roleplay'
+    | 'literary'
+    | 'custom';
   styleItemId?: string;
   promptSetIds: string[];
 };

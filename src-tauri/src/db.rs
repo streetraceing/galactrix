@@ -880,26 +880,52 @@ pub fn create_chat(
 ) -> CommandResult<()> {
     validate_chat_links(connection, input)?;
     let prompt_config = prompt_config_json(&input.prompt_config)?;
-    let transaction = connection
-        .unchecked_transaction()?;
-    transaction
-        .execute(
-            "INSERT INTO chats (
-                id, title, preview, updated_at, message_count, pinned, provider_id,
-                persona_id, character_id, universe_id, prompt_config_json
-             ) VALUES (?1, ?2, '', ?3, 0, 0, ?4, ?5, ?6, ?7, ?8)",
+    let greeting = input
+        .greeting_message
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
+    let created_at = now_unix();
+    let transaction = connection.unchecked_transaction()?;
+    transaction.execute(
+        "INSERT INTO chats (
+            id, title, preview, updated_at, message_count, pinned, provider_id,
+            persona_id, character_id, universe_id, prompt_config_json
+         ) VALUES (?1, ?2, ?3, ?4, ?5, 0, ?6, ?7, ?8, ?9, ?10)",
+        params![
+            id,
+            input.title.trim(),
+            greeting.unwrap_or(""),
+            created_at,
+            if greeting.is_some() { 1_i64 } else { 0_i64 },
+            input.provider_id,
+            input.persona_id,
+            input.character_id,
+            input.universe_id,
+            prompt_config,
+        ],
+    )?;
+    replace_chat_worldbooks(&transaction, id, &input.worldbook_ids)?;
+
+    if let Some(greeting) = greeting {
+        let message_id = format!("{id}-greeting");
+        transaction.execute(
+            "INSERT INTO messages (id, chat_id, role, content, created_at, active_variant_index)
+             VALUES (?1, ?2, 'assistant', ?3, ?4, 0)",
+            params![&message_id, id, greeting, created_at],
+        )?;
+        transaction.execute(
+            "INSERT INTO message_variants (id, message_id, position, content, created_at)
+             VALUES (?1, ?2, 0, ?3, ?4)",
             params![
-                id,
-                input.title.trim(),
-                now_unix(),
-                input.provider_id,
-                input.persona_id,
-                input.character_id,
-                input.universe_id,
-                prompt_config,
+                format!("{message_id}-variant-0"),
+                &message_id,
+                greeting,
+                created_at
             ],
         )?;
-    replace_chat_worldbooks(&transaction, id, &input.worldbook_ids)?;
+    }
+
     transaction.commit().map_err(CommandError::internal)
 }
 
@@ -964,6 +990,13 @@ fn validate_chat_links(connection: &Connection, input: &ChatConfigInput) -> Comm
     }
     if input.title.chars().count() > 120 {
         return Err(CommandError::new(keys::CHAT_TITLE_TOO_LONG));
+    }
+    if input
+        .greeting_message
+        .as_deref()
+        .is_some_and(|value| value.chars().count() > 12_000)
+    {
+        return Err(CommandError::new(keys::CHAT_GREETING_TOO_LONG));
     }
     validate_optional_provider(connection, input.provider_id.as_deref())?;
     validate_optional_galaxy(connection, input.persona_id.as_deref(), "persona")?;
@@ -1845,7 +1878,13 @@ fn validate_galaxy_data(
             .unwrap_or("neutral");
         if !matches!(
             preset,
-            "neutral" | "warm" | "concise" | "roleplay" | "literary" | "custom"
+            "neutral"
+                | "warm"
+                | "concise"
+                | "casual-lowercase"
+                | "roleplay"
+                | "literary"
+                | "custom"
         ) {
             return Err(CommandError::new(keys::GALAXY_STYLE_PRESET_UNKNOWN));
         }

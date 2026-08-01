@@ -48,3 +48,24 @@ test('a chat without a character is represented as an assistant', async () => {
   assert.match(builder, /unwrap_or\("Assistant"\)/);
   assert.match(builder, /prompt\.replace\("\{\{char\}\}", assistant_name\)/);
 });
+
+test('relaxed lowercase is a built-in character response style', async () => {
+  const [model, builder, ruGalaxiesRaw] = await Promise.all([
+    readFile(
+      new URL('../../src/features/galaxies/model.ts', import.meta.url),
+      'utf8',
+    ),
+    readFile(promptBuilderPath, 'utf8'),
+    readFile(
+      new URL('../../src/i18n/locales/ru/galaxies.json', import.meta.url),
+      'utf8',
+    ),
+  ]);
+  const ruGalaxies = JSON.parse(ruGalaxiesRaw) as Record<string, string>;
+
+  assert.match(model, /id: 'casual-lowercase'/);
+  assert.match(builder, /"casual-lowercase"/);
+  assert.match(builder, /personal names/);
+  assert.match(builder, /proper nouns/);
+  assert.equal(ruGalaxies['style.casualLowercase'], 'Разговорный строчными');
+});

@@ -15,6 +15,7 @@ fn create_test_chat(connection: &Connection, id: &str) {
         id,
         &ChatConfigInput {
             title: "Test chat".into(),
+            greeting_message: None,
             provider_id: None,
             persona_id: None,
             character_id: None,
@@ -24,6 +25,35 @@ fn create_test_chat(connection: &Connection, id: &str) {
         },
     )
     .expect("chat must be created");
+}
+
+#[test]
+fn greeting_message_creates_the_initial_assistant_variant() {
+    let connection = test_database();
+    create_chat(
+        &connection,
+        "chat-greeting",
+        &ChatConfigInput {
+            title: "Greeting chat".into(),
+            greeting_message: Some("  hello, glad you're here  ".into()),
+            provider_id: None,
+            persona_id: None,
+            character_id: None,
+            universe_id: None,
+            worldbook_ids: Vec::new(),
+            prompt_config: PromptConfig::default(),
+        },
+    )
+    .expect("chat with greeting must be created");
+
+    let state = chat_state(&connection, "chat-greeting").expect("chat state must load");
+    assert_eq!(state.chat.message_count, 1);
+    assert_eq!(state.chat.preview, "hello, glad you're here");
+    assert_eq!(state.messages.len(), 1);
+    assert_eq!(state.messages[0].role, "assistant");
+    assert_eq!(state.messages[0].content, "hello, glad you're here");
+    assert_eq!(state.messages[0].variants.len(), 1);
+    assert_eq!(state.messages[0].variants[0].content, "hello, glad you're here");
 }
 
 #[test]

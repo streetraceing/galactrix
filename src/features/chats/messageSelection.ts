@@ -51,3 +51,19 @@ export function shouldStartMessageRangeSelection(
   if (endId !== startId) return true;
   return Math.abs(deltaY) >= threshold && Math.abs(deltaY) > Math.abs(deltaX);
 }
+
+export function shouldCollapseMessageRangeSelection(
+  baseSelectionSize: number,
+  startId: string,
+  endId: string,
+  deltaY: number,
+  expandedBeyondOrigin: boolean,
+  returnThreshold: number,
+) {
+  return (
+    baseSelectionSize === 0 &&
+    expandedBeyondOrigin &&
+    endId === startId &&
+    Math.abs(deltaY) <= Math.max(0, returnThreshold)
+  );
+}

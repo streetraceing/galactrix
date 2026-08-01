@@ -50,6 +50,11 @@ import {
   i18next,
   setLanguagePreference,
 } from '../i18n';
+import {
+  forgetChatViewState,
+  readChatNavigationState,
+  saveChatNavigationState,
+} from '../features/chats/chatViewState';
 
 const defaultSettings: AppSettings = {
   profileName: '',
@@ -132,10 +137,15 @@ function createGenerationId() {
 
 export function useAppController() {
   const { setTheme } = useTheme();
+  const initialChatViewRef = useRef(readChatNavigationState());
   const [activeTab, setActiveTab] = useState<TabId>('chats');
   const [snapshot, setSnapshot] = useState<AppSnapshot>(emptySnapshot);
-  const [activeChatId, setActiveChatId] = useState('');
-  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [activeChatId, setActiveChatId] = useState(
+    initialChatViewRef.current.activeChatId,
+  );
+  const [isChatOpen, setIsChatOpen] = useState(
+    initialChatViewRef.current.isChatOpen,
+  );
   const [loading, setLoading] = useState(true);
   const [fatalError, setFatalError] = useState('');
   const [notice, setNotice] = useState('');
@@ -151,6 +161,7 @@ export function useAppController() {
         ? current
         : (data.chats[0]?.id ?? ''),
     );
+    if (data.chats.length === 0) setIsChatOpen(false);
     return data;
   }, []);
 
@@ -215,6 +226,11 @@ export function useAppController() {
   }, [snapshot.settings.language]);
 
   useEffect(() => {
+    if (loading) return;
+    saveChatNavigationState(activeChatId, isChatOpen);
+  }, [activeChatId, isChatOpen, loading]);
+
+  useEffect(() => {
     const scale = Math.min(
       1.5,
       Math.max(0.8, snapshot.settings.interfaceScale),
@@ -249,10 +265,9 @@ export function useAppController() {
   const navigate = useCallback(
     (tab: TabId) => {
       haptic();
-      closeChat();
       setActiveTab(tab);
     },
-    [closeChat, haptic],
+    [haptic],
   );
 
   const openChat = useCallback(
@@ -322,6 +337,7 @@ export function useAppController() {
         snapshot.chats.find((chat) => chat.id !== chatId)?.id ?? '';
       if (chatId === activeChatId) closeChat();
       await deleteChat(chatId);
+      forgetChatViewState(chatId);
       setSnapshot((current) => ({
         ...current,
         chats: current.chats.filter((chat) => chat.id !== chatId),
@@ -347,6 +363,7 @@ export function useAppController() {
   const clearExistingChat = useCallback(
     async (chatId: string) => {
       await clearChat(chatId);
+      forgetChatViewState(chatId);
       await refreshChat(chatId);
       haptic();
     },

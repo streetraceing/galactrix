@@ -2,6 +2,7 @@
   "backend.chat.notFound": "Чат не найден",
   "backend.chat.titleRequired": "Укажите название чата",
   "backend.chat.titleTooLong": "Название чата слишком длинное",
+  "backend.chat.greetingTooLong": "Приветственное сообщение слишком длинное",
   "backend.common.fieldRequired": "Укажите {{field}}",
   "backend.common.nameRequired": "Укажите название",
   "backend.common.nameTooLong": "Название слишком длинное",

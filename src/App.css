@@ -177,8 +177,13 @@
     contain-intrinsic-size: auto 9rem;
   }
 
+  .chat-message-scroller {
+    overflow-y: scroll;
+    overflow-anchor: none;
+  }
+
   .chat-message-virtual-slot {
-    contain: layout style;
+    contain: layout paint style;
   }
 
   .chat-message-virtual-spacer {

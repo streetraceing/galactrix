@@ -148,7 +148,7 @@ function ChatComposerComponent({
               placeholder={t('chatComposer.placeholder')}
               aria-label={t('chatComposer.label')}
               disabled={!provider || sending}
-              className="min-w-0 max-h-48 min-h-12 w-full resize-none overflow-y-auto transition-none ring-0"
+              className="min-w-0 max-h-48 min-h-12 w-full resize-none  overflow-y-auto transition-none ring-0"
             />
             <div className="flex size-12 self-end items-center justify-center">
               {sending ? (

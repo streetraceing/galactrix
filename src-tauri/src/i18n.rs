@@ -7,6 +7,7 @@ pub mod keys {
 
     pub const CHAT_TITLE_REQUIRED: &str = "backend.chat.titleRequired";
     pub const CHAT_TITLE_TOO_LONG: &str = "backend.chat.titleTooLong";
+    pub const CHAT_GREETING_TOO_LONG: &str = "backend.chat.greetingTooLong";
     pub const CHAT_NOT_FOUND: &str = "backend.chat.notFound";
 
     pub const MESSAGE_NOT_FOUND: &str = "backend.message.notFound";

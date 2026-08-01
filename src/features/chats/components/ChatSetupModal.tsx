@@ -1,4 +1,4 @@
-import { Button, Input, Label } from '@heroui/react';
+import { Button, Input, Label, TextArea } from '@heroui/react';
 import { useEffect, useState } from 'react';
 import { UiModal } from '../../../components/ui/UiModal';
 import { PromptPreviewCard } from '../../../components/ui/PromptPreviewCard';
@@ -22,6 +22,7 @@ import { i18next } from '../../../i18n';
 function newChatConfig(): ChatConfigInput {
   return {
     title: i18next.t('setup.defaultTitle', { ns: 'chats' }),
+    greetingMessage: '',
     worldbookIds: [],
     promptConfig: clonePromptConfig(defaultPromptConfig),
   };
@@ -84,7 +85,12 @@ export function ChatSetupModal({
   const canSubmit = Boolean(form.title.trim()) && promptIsValid && !saving;
   const submit = () => {
     if (!canSubmit) return;
-    onSubmit({ ...form, title: form.title.trim() });
+    const greetingMessage = form.greetingMessage?.trim();
+    onSubmit({
+      ...form,
+      title: form.title.trim(),
+      greetingMessage: chat ? undefined : greetingMessage || undefined,
+    });
   };
   const activePromptSources: Array<keyof PromptContextPriorities> = [
     ...(form.personaId ? (['persona'] as const) : []),
@@ -163,6 +169,34 @@ export function ChatSetupModal({
           value={form}
           onChange={setForm}
         />
+
+        {!chat ? (
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <Label htmlFor="chat-greeting">
+              {t('chatSetupModal.greetingMessage')}
+            </Label>
+            <TextArea
+              id="chat-greeting"
+              fullWidth
+              variant="secondary"
+              value={form.greetingMessage ?? ''}
+              maxLength={12_000}
+              rows={4}
+              autoComplete="off"
+              placeholder={t('chatSetupModal.greetingMessagePlaceholder')}
+              aria-label={t('chatSetupModal.greetingMessage')}
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  greetingMessage: event.target.value,
+                }))
+              }
+            />
+            <p className="text-xs leading-5 text-muted">
+              {t('chatSetupModal.greetingMessageDescription')}
+            </p>
+          </div>
+        ) : null}
 
         <PromptBuilder
           value={form.promptConfig}

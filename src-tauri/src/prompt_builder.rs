@@ -430,6 +430,9 @@ fn built_in_style(preset: &str) -> &'static str {
         "concise" => {
             "Write concise, direct replies. Avoid repetition, filler, and unnecessary exposition."
         }
+        "casual-lowercase" => {
+            "Write in a relaxed, natural chat style: start most ordinary sentences and fragments with lowercase letters, use fewer full stops, and often connect short thoughts with commas or brief line breaks. Keep personal names, place names, brands, acronyms, sentence-internal proper nouns, quoted text, code, URLs, and identifiers conventionally capitalized. Do not intentionally misspell words or reduce clarity."
+        }
         "roleplay" => {
             "Stay fully in character, preserve scene continuity, and balance dialogue with actions and sensory detail."
         }
@@ -488,5 +491,14 @@ mod tests {
 
         assert!(prompt.contains("Reply as Assistant."));
         assert!(!prompt.contains("{{char}}"));
+    }
+
+    #[test]
+    fn casual_lowercase_style_preserves_proper_nouns() {
+        let instruction = built_in_style("casual-lowercase");
+        assert!(instruction.contains("lowercase"));
+        assert!(instruction.contains("personal names"));
+        assert!(instruction.contains("proper nouns"));
+        assert!(instruction.contains("Do not intentionally misspell"));
     }
 }
