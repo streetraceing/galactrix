@@ -9,10 +9,16 @@ export const MESSAGE_VIRTUALIZATION_THRESHOLD = 24;
 
 const DESKTOP_ASSISTANT_CHARS_PER_LINE = 76;
 const DESKTOP_USER_CHARS_PER_LINE = 58;
+const WIDE_DESKTOP_ASSISTANT_CHARS_PER_LINE = 104;
+const WIDE_DESKTOP_USER_CHARS_PER_LINE = 78;
 const MOBILE_CHARS_PER_LINE = 38;
 const MESSAGE_VERTICAL_GAP = 16;
 
-export function estimateMessageHeight(message: Message, mobile: boolean) {
+export function estimateMessageHeight(
+  message: Message,
+  mobile: boolean,
+  wide = false,
+) {
   const content = message.content;
   const scanLimit = Math.min(content.length, 256);
   let explicitLines = 1;
@@ -25,8 +31,12 @@ export function estimateMessageHeight(message: Message, mobile: boolean) {
   const charsPerLine = mobile
     ? MOBILE_CHARS_PER_LINE
     : message.role === 'user'
-      ? DESKTOP_USER_CHARS_PER_LINE
-      : DESKTOP_ASSISTANT_CHARS_PER_LINE;
+      ? wide
+        ? WIDE_DESKTOP_USER_CHARS_PER_LINE
+        : DESKTOP_USER_CHARS_PER_LINE
+      : wide
+        ? WIDE_DESKTOP_ASSISTANT_CHARS_PER_LINE
+        : DESKTOP_ASSISTANT_CHARS_PER_LINE;
   const wrappedLines = Math.max(1, Math.ceil(content.length / charsPerLine));
   const visualLines = Math.max(explicitLines, wrappedLines);
   const primaryLines = Math.min(visualLines, 24);

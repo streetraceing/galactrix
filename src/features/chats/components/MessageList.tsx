@@ -80,6 +80,7 @@ const MESSAGE_SELECTION_RETURN_THRESHOLD = 28;
 const TOUCH_SELECTION_MOVE_THRESHOLD = 10;
 const TOUCH_MULTISELECT_HOLD_MS = 320;
 const SCROLL_TO_BOTTOM_RELEASE_MS = 1_400;
+const CHAT_LAYOUT_BOTTOM_LOCK_MS = 420;
 
 type MessageSelectionGesture = {
   pointerId: number;
@@ -1017,6 +1018,7 @@ function MessageListComponent({
   providersAvailable,
   wide,
   scrollRef,
+  scrollToBottomRequest,
   onBranch,
   onEdit,
   onDelete,
@@ -1041,6 +1043,7 @@ function MessageListComponent({
   providersAvailable: boolean;
   wide: boolean;
   scrollRef: RefObject<HTMLDivElement | null>;
+  scrollToBottomRequest: number;
   onBranch: (messageId: string) => Promise<void>;
   onEdit: (messageId: string, content: string) => Promise<void>;
   onDelete: (messageId: string) => Promise<void>;
@@ -1072,12 +1075,20 @@ function MessageListComponent({
   const scrollingToBottomRef = useRef(false);
   const scrollToBottomReleaseTimerRef = useRef<number | null>(null);
   const virtualScrollFrameRef = useRef<number | null>(null);
+  const bottomLockFrameRef = useRef<number | null>(null);
+  const bottomLockUntilRef = useRef(0);
+  const previousScrollToBottomRequestRef = useRef(scrollToBottomRequest);
+  const messageCanvasRef = useRef<HTMLDivElement | null>(null);
   const userScrollIdleTimerRef = useRef<number | null>(null);
   const measurementCommitTimerRef = useRef<number | null>(null);
   const isUserScrollingRef = useRef(false);
   const pendingMeasurementCommitRef = useRef(false);
   const nearBottomRef = useRef(true);
-  const previousViewStateRef = useRef({ chatId: '', active: false });
+  const previousViewStateRef = useRef({
+    chatId: '',
+    active: false,
+    wide,
+  });
   const previousGenerationStateRef = useRef({
     sending,
     generationKey: '',
@@ -1094,6 +1105,7 @@ function MessageListComponent({
       string,
       {
         mobile: boolean;
+        wide: boolean;
         role: Message['role'];
         activeVariantIndex: number;
         contentLength: number;
@@ -1101,9 +1113,12 @@ function MessageListComponent({
     >(),
   );
   const [messageMeasurementVersion, setMessageMeasurementVersion] = useState(0);
-  const [virtualBufferReady, setVirtualBufferReady] = useState(false);
+  const [virtualBufferReadyChatId, setVirtualBufferReady] = useState<
+    string | null
+  >(null);
+  const virtualLayoutKey = `${chatId}:${wide ? 'wide' : 'normal'}`;
   const [virtualWindow, setVirtualWindow] = useState(() => ({
-    chatId,
+    layoutKey: virtualLayoutKey,
     start: Math.max(0, messages.length - 12),
     end: messages.length,
   }));
@@ -1113,6 +1128,7 @@ function MessageListComponent({
   const messengerMode = viewMode === 'messenger';
   const virtualizationEnabled =
     messages.length > MESSAGE_VIRTUALIZATION_THRESHOLD;
+  const virtualBufferReady = virtualBufferReadyChatId === virtualLayoutKey;
   const virtualOverscan = virtualBufferReady
     ? MESSAGE_VIRTUAL_OVERSCAN_PX
     : MESSAGE_VIRTUAL_INITIAL_OVERSCAN_PX;
@@ -1132,14 +1148,16 @@ function MessageListComponent({
       if (
         estimated == null ||
         previousSignature?.mobile !== isMobile ||
+        previousSignature?.wide !== wide ||
         previousSignature?.role !== message.role ||
         previousSignature?.activeVariantIndex !== message.activeVariantIndex ||
         previousSignature?.contentLength !== message.content.length
       ) {
-        estimated = estimateMessageHeight(message, isMobile);
+        estimated = estimateMessageHeight(message, isMobile, wide);
         estimatedMessageHeightsRef.current.set(message.id, estimated);
         messageMeasurementSignaturesRef.current.set(message.id, {
           mobile: isMobile,
+          wide,
           role: message.role,
           activeVariantIndex: message.activeVariantIndex,
           contentLength: message.content.length,
@@ -1148,7 +1166,13 @@ function MessageListComponent({
       }
       return measuredMessageHeightsRef.current.get(message.id) ?? estimated;
     });
-  }, [isMobile, messageMeasurementVersion, messages, virtualizationEnabled]);
+  }, [
+    isMobile,
+    messageMeasurementVersion,
+    messages,
+    virtualizationEnabled,
+    wide,
+  ]);
   const messageOffsets = useMemo(
     () =>
       virtualizationEnabled
@@ -1177,7 +1201,7 @@ function MessageListComponent({
     virtualizationEnabled,
   ]);
   const virtualRange =
-    virtualizationEnabled && virtualWindow.chatId === chatId
+    virtualizationEnabled && virtualWindow.layoutKey === virtualLayoutKey
       ? virtualWindow
       : fallbackVirtualRange;
   const keepVirtualTailMounted =
@@ -1247,6 +1271,9 @@ function MessageListComponent({
       }
       if (virtualScrollFrameRef.current != null) {
         window.cancelAnimationFrame(virtualScrollFrameRef.current);
+      }
+      if (bottomLockFrameRef.current != null) {
+        window.cancelAnimationFrame(bottomLockFrameRef.current);
       }
       if (userScrollIdleTimerRef.current != null) {
         window.clearTimeout(userScrollIdleTimerRef.current);
@@ -1562,7 +1589,7 @@ function MessageListComponent({
   }, []);
 
   useEffect(() => {
-    setVirtualBufferReady(false);
+    setVirtualBufferReady(null);
     if (!virtualizationEnabled) return;
 
     let cancelled = false;
@@ -1570,7 +1597,7 @@ function MessageListComponent({
     const frame = window.requestAnimationFrame(() => {
       idleTimer = window.setTimeout(() => {
         if (cancelled) return;
-        startTransition(() => setVirtualBufferReady(true));
+        startTransition(() => setVirtualBufferReady(virtualLayoutKey));
       }, 140);
     });
 
@@ -1579,7 +1606,7 @@ function MessageListComponent({
       window.cancelAnimationFrame(frame);
       if (idleTimer != null) window.clearTimeout(idleTimer);
     };
-  }, [chatId, virtualizationEnabled]);
+  }, [virtualLayoutKey, virtualizationEnabled]);
 
   const finishScrollToBottom = useCallback(() => {
     scrollingToBottomRef.current = false;
@@ -1588,6 +1615,40 @@ function MessageListComponent({
       scrollToBottomReleaseTimerRef.current = null;
     }
   }, []);
+
+  const stopBottomLayoutLock = useCallback(() => {
+    bottomLockUntilRef.current = 0;
+    if (bottomLockFrameRef.current != null) {
+      window.cancelAnimationFrame(bottomLockFrameRef.current);
+      bottomLockFrameRef.current = null;
+    }
+  }, []);
+
+  const pinScrollerToBottom = useCallback(() => {
+    const scroller = scrollRef.current;
+    if (!scroller) return;
+    scroller.scrollTop = scroller.scrollHeight;
+    nearBottomRef.current = true;
+  }, [scrollRef]);
+
+  const lockScrollerToBottomDuringLayout = useCallback(
+    (duration = CHAT_LAYOUT_BOTTOM_LOCK_MS) => {
+      stopBottomLayoutLock();
+      bottomLockUntilRef.current = performance.now() + duration;
+
+      const pin = () => {
+        bottomLockFrameRef.current = null;
+        if (!viewActive) return;
+        pinScrollerToBottom();
+        if (performance.now() < bottomLockUntilRef.current) {
+          bottomLockFrameRef.current = window.requestAnimationFrame(pin);
+        }
+      };
+
+      pin();
+    },
+    [pinScrollerToBottom, stopBottomLayoutLock, viewActive],
+  );
 
   const updateScrollToBottomVisibility = useCallback(() => {
     const scroller = scrollRef.current;
@@ -1637,6 +1698,14 @@ function MessageListComponent({
     }, SCROLL_TO_BOTTOM_RELEASE_MS);
   }, [finishScrollToBottom, scrollRef, updateScrollToBottomVisibility]);
 
+  useLayoutEffect(() => {
+    if (previousScrollToBottomRequestRef.current === scrollToBottomRequest) {
+      return;
+    }
+    previousScrollToBottomRequestRef.current = scrollToBottomRequest;
+    if (viewActive) scrollToBottom();
+  }, [scrollToBottom, scrollToBottomRequest, viewActive]);
+
   const syncVirtualWindow = useCallback(() => {
     if (!virtualizationEnabled) return;
     const scroller = scrollRef.current;
@@ -1651,17 +1720,17 @@ function MessageListComponent({
     );
     setVirtualWindow((current) => {
       if (
-        current.chatId === chatId &&
+        current.layoutKey === virtualLayoutKey &&
         current.start === next.start &&
         current.end === next.end
       ) {
         return current;
       }
-      return { chatId, ...next };
+      return { layoutKey: virtualLayoutKey, ...next };
     });
   }, [
-    chatId,
     messageOffsets,
+    virtualLayoutKey,
     scrollRef,
     virtualMinimumItems,
     virtualOverscan,
@@ -1776,27 +1845,40 @@ function MessageListComponent({
   useEffect(() => {
     const scroller = scrollRef.current;
     if (!scroller || typeof ResizeObserver === 'undefined') return;
-    const observer = new ResizeObserver(scheduleVirtualWindowSync);
+
+    const observer = new ResizeObserver(() => {
+      if (
+        nearBottomRef.current ||
+        performance.now() < bottomLockUntilRef.current
+      ) {
+        pinScrollerToBottom();
+      }
+      scheduleVirtualWindowSync();
+    });
     observer.observe(scroller);
+    if (messageCanvasRef.current) observer.observe(messageCanvasRef.current);
     return () => observer.disconnect();
-  }, [scheduleVirtualWindowSync, scrollRef]);
+  }, [chatId, pinScrollerToBottom, scheduleVirtualWindowSync, scrollRef, wide]);
 
   useLayoutEffect(() => {
     const previous = previousViewStateRef.current;
-    const shouldReset =
-      viewActive && (previous.chatId !== chatId || !previous.active);
-    previousViewStateRef.current = { chatId, active: viewActive };
-    if (!shouldReset) return;
+    const chatChanged = previous.chatId !== chatId || !previous.active;
+    const layoutChanged = previous.wide !== wide;
+    const shouldResetPosition = viewActive && (chatChanged || layoutChanged);
+    previousViewStateRef.current = { chatId, active: viewActive, wide };
+    if (!shouldResetPosition) return;
 
     finishScrollToBottom();
-    clearMessageSelection();
-    setEditing(null);
-    setDeleting(null);
-    setHistoryMessageId(null);
-    setMessageGeneration(null);
-    messageGenerationRef.current = null;
-    variantSelectionRef.current = null;
-    setVariantDirections({});
+    if (chatChanged) {
+      clearMessageSelection();
+      setEditing(null);
+      setDeleting(null);
+      setHistoryMessageId(null);
+      setMessageGeneration(null);
+      messageGenerationRef.current = null;
+      variantSelectionRef.current = null;
+      setVariantDirections({});
+    }
     setShowScrollToBottom(false);
     pendingMeasurementCommitRef.current = false;
     nearBottomRef.current = true;
@@ -1816,12 +1898,12 @@ function MessageListComponent({
           virtualMinimumItems,
         )
       : { start: 0, end: messages.length };
-    setVirtualWindow({ chatId, ...bottomRange });
+    setVirtualWindow({ layoutKey: virtualLayoutKey, ...bottomRange });
 
     if (!scroller) return;
-    scroller.scrollTop = scroller.scrollHeight;
+    lockScrollerToBottomDuringLayout();
     const frame = window.requestAnimationFrame(() => {
-      scroller.scrollTop = scroller.scrollHeight;
+      pinScrollerToBottom();
       syncVirtualWindow();
       updateScrollToBottomVisibility();
     });
@@ -1830,15 +1912,19 @@ function MessageListComponent({
     chatId,
     clearMessageSelection,
     finishScrollToBottom,
+    lockScrollerToBottomDuringLayout,
     messageOffsets,
     messages.length,
+    pinScrollerToBottom,
     scrollRef,
     syncVirtualWindow,
     updateScrollToBottomVisibility,
     viewActive,
+    virtualLayoutKey,
     virtualMinimumItems,
     virtualOverscan,
     virtualizationEnabled,
+    wide,
   ]);
 
   useLayoutEffect(() => {
@@ -1893,19 +1979,22 @@ function MessageListComponent({
   ]);
 
   const handleMessageScroll = useCallback(() => {
-    isUserScrollingRef.current = true;
-    if (userScrollIdleTimerRef.current != null) {
-      window.clearTimeout(userScrollIdleTimerRef.current);
+    const layoutLocked = performance.now() < bottomLockUntilRef.current;
+    if (!layoutLocked) {
+      isUserScrollingRef.current = true;
+      if (userScrollIdleTimerRef.current != null) {
+        window.clearTimeout(userScrollIdleTimerRef.current);
+      }
+      if (measurementCommitTimerRef.current != null) {
+        window.clearTimeout(measurementCommitTimerRef.current);
+        measurementCommitTimerRef.current = null;
+      }
+      userScrollIdleTimerRef.current = window.setTimeout(() => {
+        userScrollIdleTimerRef.current = null;
+        isUserScrollingRef.current = false;
+        commitMeasuredMessageHeights();
+      }, 900);
     }
-    if (measurementCommitTimerRef.current != null) {
-      window.clearTimeout(measurementCommitTimerRef.current);
-      measurementCommitTimerRef.current = null;
-    }
-    userScrollIdleTimerRef.current = window.setTimeout(() => {
-      userScrollIdleTimerRef.current = null;
-      isUserScrollingRef.current = false;
-      commitMeasuredMessageHeights();
-    }, 900);
 
     updateScrollToBottomVisibility();
     if (virtualizationEnabled) scheduleVirtualWindowSync();
@@ -2175,6 +2264,7 @@ function MessageListComponent({
         >
           <div
             key={chatId}
+            ref={messageCanvasRef}
             className={`chat-message-canvas mx-auto mt-auto flex w-full flex-col ${
               wide ? 'max-w-5xl' : 'max-w-3xl'
             }`}

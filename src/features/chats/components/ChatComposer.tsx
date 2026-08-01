@@ -98,6 +98,66 @@ function ChatComposerComponent({
     return () => window.cancelAnimationFrame(frame);
   }, [focusKey, providerId, sending, shouldAutoFocus]);
 
+  useEffect(() => {
+    if (!shouldAutoFocus || !providerId || sending) return;
+
+    const focusComposerForTyping = (event: globalThis.KeyboardEvent) => {
+      if (
+        event.defaultPrevented ||
+        event.isComposing ||
+        event.key.length !== 1
+      ) {
+        return;
+      }
+
+      const usesAltGraph = event.getModifierState('AltGraph');
+      if (event.metaKey || (!usesAltGraph && (event.ctrlKey || event.altKey))) {
+        return;
+      }
+
+      if (document.querySelector('[aria-modal="true"], [role="dialog"]')) {
+        return;
+      }
+
+      const target = event.target;
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        (target instanceof HTMLElement && target.isContentEditable)
+      ) {
+        return;
+      }
+      if (
+        event.key === ' ' &&
+        target instanceof Element &&
+        target.closest('button, a, [role="button"]')
+      ) {
+        return;
+      }
+
+      const textArea = textAreaRef.current;
+      if (!textArea || textArea.disabled) return;
+
+      event.preventDefault();
+      const nextDraft = `${draftRef.current}${event.key}`;
+      draftRef.current = nextDraft;
+      setDraft(nextDraft);
+      textArea.focus({ preventScroll: true });
+      window.requestAnimationFrame(() => {
+        const currentTextArea = textAreaRef.current;
+        if (!currentTextArea) return;
+        currentTextArea.setSelectionRange(
+          currentTextArea.value.length,
+          currentTextArea.value.length,
+        );
+      });
+    };
+
+    window.addEventListener('keydown', focusComposerForTyping, true);
+    return () =>
+      window.removeEventListener('keydown', focusComposerForTyping, true);
+  }, [providerId, sending, shouldAutoFocus]);
+
   const submit = async () => {
     const value = draft.trim();
     if (!value || !provider || sending || submittingRef.current) return;

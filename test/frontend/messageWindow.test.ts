@@ -46,9 +46,15 @@ test('message height estimates account for content and viewport density', () => 
     message('Long text '.repeat(20)),
     false,
   );
+  const wideDesktop = estimateMessageHeight(
+    message('Long text '.repeat(20)),
+    false,
+    true,
+  );
 
   assert.ok(long > brief);
   assert.ok(mobile > desktop);
+  assert.ok(wideDesktop < desktop);
   assert.ok(brief >= 104);
 });
 

@@ -10,6 +10,10 @@ const messageListPath = new URL(
   '../../src/features/chats/components/MessageList.tsx',
   import.meta.url,
 );
+const composerPath = new URL(
+  '../../src/features/chats/components/ChatComposer.tsx',
+  import.meta.url,
+);
 const controllerPath = new URL(
   '../../src/hooks/useAppController.ts',
   import.meta.url,
@@ -59,13 +63,62 @@ test('chat navigation survives restart while every opened chat resets to bottom'
     /saveChatNavigationState\(activeChatId, isChatOpen\)/,
   );
   assert.match(screen, /viewActive=\{!isSinglePane \|\| isChatOpen\}/);
-  assert.match(list, /shouldReset[\s\S]*previous\.chatId !== chatId/);
+  assert.match(list, /const chatChanged = previous\.chatId !== chatId/);
+  assert.match(list, /const layoutChanged = previous\.wide !== wide/);
+  assert.match(list, /lockScrollerToBottomDuringLayout/);
   assert.match(list, /scroller\.scrollTop = scroller\.scrollHeight/);
   assert.match(list, /Number\.POSITIVE_INFINITY/);
   assert.doesNotMatch(list, /saveChatScrollPosition/);
   assert.doesNotMatch(list, /readChatScrollPosition/);
   assert.doesNotMatch(list, /visibilitychange/);
   assert.doesNotMatch(list, /pagehide/);
+});
+
+test('clicking the active chat requests a smooth scroll to the bottom', async () => {
+  const [screen, list] = await Promise.all([
+    readFile(chatsScreenPath, 'utf8'),
+    readFile(messageListPath, 'utf8'),
+  ]);
+
+  assert.match(screen, /chatId === activeChat\?\.id && isChatOpen/);
+  assert.match(
+    screen,
+    /setScrollToBottomRequest\(\(current\) => current \+ 1\)/,
+  );
+  assert.match(screen, /onSelect=\{selectChat\}/);
+  assert.match(list, /previousScrollToBottomRequestRef/);
+  assert.match(list, /if \(viewActive\) scrollToBottom\(\)/);
+});
+
+test('printable keys focus the open chat composer without stealing shortcuts', async () => {
+  const source = await readFile(composerPath, 'utf8');
+
+  assert.match(source, /focusComposerForTyping/);
+  assert.match(source, /event\.key\.length !== 1/);
+  assert.match(source, /event\.getModifierState\('AltGraph'\)/);
+  assert.match(source, /event\.metaKey/);
+  assert.match(source, /event\.ctrlKey \|\| event\.altKey/);
+  assert.match(
+    source,
+    /document\.querySelector\('\[aria-modal=\"true\"\], \[role=\"dialog\"\]'\)/,
+  );
+  assert.match(source, /target instanceof HTMLInputElement/);
+  assert.match(source, /target instanceof HTMLTextAreaElement/);
+  assert.match(source, /event\.preventDefault\(\)/);
+  assert.match(
+    source,
+    /const nextDraft = `\$\{draftRef\.current\}\$\{event\.key\}`/,
+  );
+  assert.match(source, /setDraft\(nextDraft\)/);
+  assert.match(source, /textArea\.focus\(\{ preventScroll: true \}\)/);
+  assert.match(
+    source,
+    /currentTextArea\.setSelectionRange\([\s\S]*currentTextArea\.value\.length/,
+  );
+  assert.match(
+    source,
+    /window\.addEventListener\('keydown', focusComposerForTyping, true\)/,
+  );
 });
 
 test('new chats can start with an assistant greeting', async () => {

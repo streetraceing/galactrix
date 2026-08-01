@@ -71,6 +71,7 @@ export function ChatsScreen({
     isMobile && isSinglePane && isChatOpen,
   );
   const [working, setWorking] = useState(false);
+  const [scrollToBottomRequest, setScrollToBottomRequest] = useState(0);
   const [renameTarget, setRenameTarget] = useState<Chat | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const [configTarget, setConfigTarget] = useState<Chat | 'new' | null>(null);
@@ -211,6 +212,21 @@ export function ChatsScreen({
     },
     [onCloneChat, onSetPinned, showChatError, t],
   );
+  const selectChat = useCallback(
+    (chatId: string) => {
+      if (chatId === activeChat?.id && isChatOpen) {
+        setScrollToBottomRequest((current) => current + 1);
+        return;
+      }
+      onSelectChat(chatId);
+    },
+    [activeChat?.id, isChatOpen, onSelectChat],
+  );
+
+  const toggleChatMaximized = useCallback(() => {
+    onChatMaximizedChange(!chatMaximized);
+  }, [chatMaximized, onChatMaximizedChange]);
+
   const openNewChat = useCallback(() => setConfigTarget('new'), []);
 
   const saveConfig = async (input: ChatConfigInput) => {
@@ -277,7 +293,7 @@ export function ChatsScreen({
           width={chatSidebarWidth}
           isVisibleMobile={!isChatOpen}
           isSinglePane={isSinglePane}
-          onSelect={onSelectChat}
+          onSelect={selectChat}
           onNewChat={openNewChat}
           onAction={handleAction}
         />
@@ -315,7 +331,7 @@ export function ChatsScreen({
               showBack={isSinglePane}
               maximized={chatMaximized}
               onBack={onCloseChat}
-              onToggleMaximized={() => onChatMaximizedChange(!chatMaximized)}
+              onToggleMaximized={toggleChatMaximized}
               onAction={handleAction}
             />
             <div className="relative flex min-h-0 flex-1">
@@ -339,6 +355,7 @@ export function ChatsScreen({
                     providersAvailable={providers.length > 0}
                     wide={chatMaximized}
                     scrollRef={messageScrollRef}
+                    scrollToBottomRequest={scrollToBottomRequest}
                     onBranch={onBranchMessage}
                     onEdit={onEditMessage}
                     onDelete={onDeleteMessage}
