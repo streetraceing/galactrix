@@ -258,8 +258,17 @@ pub async fn embed(
     let client = http_client()?;
     let started = Instant::now();
     let embedding_url = embedding_endpoint_saved(provider)?;
-    let response = if matches!(provider.kind.as_str(), "ollama" | "ollama-cloud") {
-        let body = json!({ "model": model, "input": inputs });
+    let uses_ollama_api = uses_ollama_embedding_api(provider, &embedding_url);
+    let response = if uses_ollama_api {
+        let legacy_endpoint = embedding_url
+            .trim_end_matches('/')
+            .to_ascii_lowercase()
+            .ends_with("/api/embeddings");
+        let body = if legacy_endpoint && inputs.len() == 1 {
+            json!({ "model": model, "prompt": inputs[0].as_str() })
+        } else {
+            json!({ "model": model, "input": inputs })
+        };
         send_with_retry(
             || authenticated(client.post(&embedding_url), api_key).json(&body),
             retry,
@@ -277,32 +286,7 @@ pub async fn embed(
     };
 
     let value = response_json(response).await?;
-    let embeddings = if matches!(provider.kind.as_str(), "ollama" | "ollama-cloud") {
-        value
-            .get("embeddings")
-            .and_then(Value::as_array)
-            .into_iter()
-            .flatten()
-            .map(parse_embedding)
-            .collect::<CommandResult<Vec<_>>>()?
-    } else {
-        let mut indexed = value
-            .get("data")
-            .and_then(Value::as_array)
-            .into_iter()
-            .flatten()
-            .map(|item| {
-                let index = item.get("index").and_then(Value::as_u64).unwrap_or(0) as usize;
-                let vector = parse_embedding(
-                    item.get("embedding")
-                        .ok_or_else(|| CommandError::new(keys::PROVIDER_EMPTY_RESPONSE))?,
-                )?;
-                Ok((index, vector))
-            })
-            .collect::<CommandResult<Vec<_>>>()?;
-        indexed.sort_by_key(|(index, _)| *index);
-        indexed.into_iter().map(|(_, vector)| vector).collect()
-    };
+    let embeddings = parse_embedding_response(&value)?;
 
     if embeddings.len() != inputs.len() || embeddings.iter().any(Vec::is_empty) {
         return Err(CommandError::new(keys::PROVIDER_EMPTY_RESPONSE));
@@ -382,6 +366,55 @@ fn is_retryable_status(status: u16) -> bool {
 
 fn is_retryable_request_error(error: &reqwest::Error) -> bool {
     error.is_timeout() || error.is_connect() || error.is_request() || error.is_body()
+}
+
+fn uses_ollama_embedding_api(provider: &Provider, endpoint: &str) -> bool {
+    if matches!(provider.kind.as_str(), "ollama" | "ollama-cloud") {
+        return true;
+    }
+
+    let path = endpoint
+        .split(|character| character == '?' || character == '#')
+        .next()
+        .unwrap_or(endpoint);
+    let normalized = path.trim_end_matches('/').to_ascii_lowercase();
+    normalized.ends_with("/api/embed") || normalized.ends_with("/api/embeddings")
+}
+
+fn parse_embedding_response(value: &Value) -> CommandResult<Vec<Vec<f32>>> {
+    if let Some(raw_embeddings) = value.get("embeddings") {
+        let values = raw_embeddings
+            .as_array()
+            .ok_or_else(|| CommandError::new(keys::PROVIDER_EMPTY_RESPONSE))?;
+        if values.first().is_some_and(|item| item.is_array()) {
+            return values.iter().map(parse_embedding).collect();
+        }
+        return Ok(vec![parse_embedding(raw_embeddings)?]);
+    }
+
+    if let Some(raw_embedding) = value.get("embedding") {
+        return Ok(vec![parse_embedding(raw_embedding)?]);
+    }
+
+    let mut indexed = value
+        .get("data")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .map(|item| {
+            let index = item.get("index").and_then(Value::as_u64).unwrap_or(0) as usize;
+            let vector = parse_embedding(
+                item.get("embedding")
+                    .ok_or_else(|| CommandError::new(keys::PROVIDER_EMPTY_RESPONSE))?,
+            )?;
+            Ok((index, vector))
+        })
+        .collect::<CommandResult<Vec<_>>>()?;
+    indexed.sort_by_key(|(index, _)| *index);
+    if indexed.is_empty() {
+        return Err(CommandError::new(keys::PROVIDER_EMPTY_RESPONSE));
+    }
+    Ok(indexed.into_iter().map(|(_, vector)| vector).collect())
 }
 
 fn parse_embedding(value: &Value) -> CommandResult<Vec<f32>> {

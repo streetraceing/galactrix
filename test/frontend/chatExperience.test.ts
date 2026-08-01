@@ -37,10 +37,11 @@ test('chat switching keeps one full-width canvas without a temporary skeleton', 
   assert.doesNotMatch(list, /setRichContentChatId/);
 });
 
-test('open chat and per-chat scroll positions survive navigation and restart', async () => {
-  const [controller, list] = await Promise.all([
+test('chat navigation survives restart while every opened chat resets to bottom', async () => {
+  const [controller, list, screen] = await Promise.all([
     readFile(controllerPath, 'utf8'),
     readFile(messageListPath, 'utf8'),
+    readFile(chatsScreenPath, 'utf8'),
   ]);
   const navigate = controller.match(
     /const navigate = useCallback\([\s\S]*?\n  \);/,
@@ -57,12 +58,14 @@ test('open chat and per-chat scroll positions survive navigation and restart', a
     controller,
     /saveChatNavigationState\(activeChatId, isChatOpen\)/,
   );
-  assert.match(list, /readSessionChatScrollPosition\(chatId\)/);
-  assert.match(list, /readChatScrollPosition\(chatId\)/);
-  assert.match(list, /saveChatScrollPosition\(chatId/);
-  assert.match(list, /anchorMessageId/);
-  assert.match(list, /visibilitychange/);
-  assert.match(list, /pagehide/);
+  assert.match(screen, /viewActive=\{!isSinglePane \|\| isChatOpen\}/);
+  assert.match(list, /shouldReset[\s\S]*previous\.chatId !== chatId/);
+  assert.match(list, /scroller\.scrollTop = scroller\.scrollHeight/);
+  assert.match(list, /Number\.POSITIVE_INFINITY/);
+  assert.doesNotMatch(list, /saveChatScrollPosition/);
+  assert.doesNotMatch(list, /readChatScrollPosition/);
+  assert.doesNotMatch(list, /visibilitychange/);
+  assert.doesNotMatch(list, /pagehide/);
 });
 
 test('new chats can start with an assistant greeting', async () => {

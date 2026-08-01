@@ -1,4 +1,8 @@
-use super::{embedding_endpoint_saved, exponential_delay, is_retryable_status};
+use super::{
+    embedding_endpoint_saved, exponential_delay, is_retryable_status, parse_embedding_response,
+    uses_ollama_embedding_api,
+};
+use serde_json::json;
 
 #[test]
 fn exponential_backoff_doubles_and_respects_the_cap() {
@@ -60,4 +64,42 @@ fn embedding_endpoint_uses_provider_defaults_only_when_empty() {
         embedding_endpoint_saved(&provider("custom", None)).expect("openai endpoint"),
         "http://127.0.0.1:1234/v1/embeddings"
     );
+}
+
+
+#[test]
+fn ollama_embed_response_is_parsed_for_custom_endpoints() {
+    let saved = provider("custom", Some("http://127.0.0.1:11534/api/embed"));
+    assert!(uses_ollama_embedding_api(
+        &saved,
+        "http://127.0.0.1:11534/api/embed"
+    ));
+
+    let parsed = parse_embedding_response(&json!({
+        "model": "nomic-embed-text",
+        "embeddings": [[0.1, 0.2, 0.3]]
+    }))
+    .expect("ollama embed response");
+    assert_eq!(parsed, vec![vec![0.1, 0.2, 0.3]]);
+}
+
+#[test]
+fn legacy_ollama_embedding_response_is_also_supported() {
+    let parsed = parse_embedding_response(&json!({
+        "embedding": [0.25, 0.5, 0.75]
+    }))
+    .expect("legacy ollama response");
+    assert_eq!(parsed, vec![vec![0.25, 0.5, 0.75]]);
+}
+
+#[test]
+fn openai_embedding_response_keeps_index_order() {
+    let parsed = parse_embedding_response(&json!({
+        "data": [
+            { "index": 1, "embedding": [0.3, 0.4] },
+            { "index": 0, "embedding": [0.1, 0.2] }
+        ]
+    }))
+    .expect("openai response");
+    assert_eq!(parsed, vec![vec![0.1, 0.2], vec![0.3, 0.4]]);
 }

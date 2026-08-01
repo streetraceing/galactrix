@@ -332,6 +332,7 @@ export function ChatsScreen({
                       galaxyItemAvatar(canvasPersona) ?? profileAvatar
                     }
                     sending={sending && canvasChat.id === activeChat.id}
+                    viewActive={!isSinglePane || isChatOpen}
                     viewMode={chatViewMode}
                     showAvatars={showMessageAvatars}
                     showTimestamps={showMessageTimestamps}

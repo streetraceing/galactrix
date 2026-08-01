@@ -150,7 +150,7 @@ test('desktop sidebar keeps centered compact icons and continuous resize collaps
   assert.match(resizeHandle, /collapsed \? collapsedValue : value/);
   assert.match(
     appCss,
-    /body\[data-resizing='true'\] \.desktop-sidebar\[data-collapsed='false'\][\s\S]*transition-duration: 0ms/,
+    /body\[data-resizing='true'\] \.desktop-sidebar\[data-collapsed='false'\][\s\S]*@apply duration-0!/,
   );
 });
 
@@ -195,6 +195,11 @@ test('a custom embedding URL is treated as the complete endpoint', async () => {
   assert.match(providerClient, /return Ok\(endpoint\.to_owned\(\)\)/);
   assert.match(providerClient, /client\.post\(&embedding_url\)/);
   assert.match(providerClient, /client\.post\(&url\)/);
+  assert.match(providerClient, /uses_ollama_embedding_api/);
+  assert.match(providerClient, /normalized\.ends_with\("\/api\/embed"\)/);
+  assert.match(providerClient, /parse_embedding_response/);
+  assert.match(providerClient, /value\.get\("embeddings"\)/);
+  assert.match(providerClient, /value\.get\("embedding"\)/);
   assert.match(embeddingSection, /providerEmbeddingSection\.baseUrlHint/);
   assert.equal(
     ruTelescope['providerEmbeddingSection.baseUrlPlaceholder'],

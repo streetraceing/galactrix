@@ -38,7 +38,9 @@ test('virtual scrolling updates only bounded message windows', async () => {
   assert.match(source, /setVirtualBufferReady\(true\)/);
   assert.match(source, /MESSAGE_VIRTUAL_INITIAL_OVERSCAN_PX/);
   assert.match(source, /commitMeasuredMessageHeights/);
-  assert.match(source, /readSessionChatScrollPosition/);
+  assert.match(source, /shouldForceBottom/);
+  assert.match(source, /previous\.sending !== sending/);
+  assert.match(source, /previous\.generationKey !== generationKey/);
   assert.match(source, /keepVirtualTailMounted/);
   assert.match(source, /current\.start === next\.start/);
   assert.match(source, /current\.end === next\.end/);

@@ -47,9 +47,9 @@ test('chat scroller always reserves the native scrollbar width', async () => {
     componentSource,
     /chat-message-scroller[^"']*overflow-y-auto/,
   );
-  assert.match(scrollerRule, /overflow-y:\s*scroll;/);
+  assert.match(scrollerRule, /@apply[^;]*overflow-y-scroll/);
   assert.match(
     cssSource,
-    /\.chat-message-scroller::-webkit-scrollbar\s*\{[\s\S]*?width:\s*8px;/,
+    /\.chat-message-scroller::-webkit-scrollbar\s*\{[\s\S]*?@apply[^;]*w-2/,
   );
 });

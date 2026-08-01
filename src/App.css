@@ -106,8 +106,7 @@
   html,
   body,
   #root {
-    @apply h-full w-full overflow-hidden bg-background text-foreground;
-    margin: 0;
+    @apply m-0 h-full w-full overflow-hidden bg-background text-foreground;
   }
 
   html {
@@ -123,14 +122,13 @@
   *,
   *::before,
   *::after {
-    box-sizing: border-box;
+    @apply box-border;
     -webkit-tap-highlight-color: transparent;
   }
 
   #root,
   #root * {
-    user-select: none;
-    -webkit-user-select: none;
+    @apply select-none;
   }
 
   input,
@@ -138,32 +136,31 @@
   [contenteditable='true'],
   .selectable,
   .selectable * {
-    user-select: text !important;
-    -webkit-user-select: text !important;
+    @apply select-text!;
   }
 
   button,
   [role='button'] {
-    touch-action: manipulation;
+    @apply touch-manipulation;
   }
 
   :where(button, [role='button'], a, input, textarea) {
-    transition-timing-function: var(--motion-ease);
+    @apply ease-(--motion-ease);
   }
 
   body[data-resizing='true'],
   body[data-resizing='true'] * {
-    cursor: col-resize !important;
+    @apply cursor-col-resize!;
   }
 
   body[data-resizing='true'] .desktop-sidebar[data-collapsed='false'] {
-    transition-duration: 0ms !important;
+    @apply duration-0!;
   }
 
   html[data-animations='off'] *,
   html[data-animations='off'] *::before,
   html[data-animations='off'] *::after {
-    scroll-behavior: auto !important;
+    @apply scroll-auto!;
     transition-duration: 0.001ms !important;
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
@@ -177,14 +174,13 @@
   }
 
   .chat-message-scroller {
-    overflow-y: scroll;
+    @apply overflow-y-scroll overscroll-contain;
     overflow-anchor: none;
-    overscroll-behavior: contain;
     scrollbar-gutter: stable;
   }
 
   .chat-message-canvas {
-    inline-size: 100%;
+    @apply w-full;
   }
 
   .chat-message-virtual-slot {
@@ -192,9 +188,9 @@
   }
 
   .chat-message-virtual-spacer {
+    @apply pointer-events-none;
     contain: strict;
     overflow-anchor: none;
-    pointer-events: none;
   }
 
   .app-drag-region {
@@ -894,7 +890,7 @@
   }
 
   .page-container {
-    @apply flex min-w-0 max-w-full flex-1 w-full max-w-7xl flex-col gap-5 overflow-x-clip px-4 py-5 sm:gap-6 sm:px-6 sm:py-6 lg:px-8;
+    @apply flex min-w-0 flex-1 w-full max-w-7xl flex-col gap-5 overflow-x-clip px-4 py-5 sm:gap-6 sm:px-6 sm:py-6 lg:px-8;
   }
 
   .page-title {
@@ -936,33 +932,27 @@
   }
 
   .chat-message-scroller {
-    isolation: isolate;
+    @apply isolate overflow-y-scroll bg-background;
     contain: paint;
-    background: var(--background);
-    overflow-y: scroll;
     overflow-anchor: none;
   }
 
   .chat-message-scroller::-webkit-scrollbar {
-    width: 8px;
+    @apply w-2;
   }
 
   .chat-message-scroller::-webkit-scrollbar-track {
-    background: transparent;
+    @apply bg-transparent;
   }
 
   .chat-message-scroller::-webkit-scrollbar-thumb {
-    border: 2px solid transparent;
-    border-radius: 999px;
+    @apply rounded-full border-2 border-transparent;
     background: color-mix(in oklab, var(--scrollbar) 55%, transparent);
-    background-clip: padding-box;
+    @apply bg-clip-padding;
   }
 
   .chat-message-canvas {
-    position: relative;
-    z-index: 0;
-    min-height: min-content;
-    background: var(--background);
+    @apply relative z-0 min-h-min bg-background;
   }
 }
 
@@ -1088,7 +1078,7 @@
   .mobile-card-enter,
   .settings-card-enter,
   .collection-item-enter {
-    backface-visibility: hidden;
+    @apply backface-hidden;
     animation: galactrix-card-enter var(--motion-standard) var(--motion-ease)
       both;
   }
@@ -1103,35 +1093,34 @@
   }
 
   .usage-bar {
-    transform-origin: bottom;
+    @apply origin-bottom;
     animation: galactrix-bar-enter var(--motion-slow) var(--motion-ease) both;
   }
 
   .tabs__panel[data-entering] {
-    backface-visibility: hidden;
+    @apply backface-hidden;
     animation: galactrix-tab-enter var(--motion-standard) var(--motion-ease)
       both;
   }
 
   .tabs__panel[data-exiting] {
-    display: none;
-    animation: none;
+    @apply hidden animate-none;
   }
 
   .popover[data-entering] {
-    transform-origin: var(--trigger-anchor-point);
+    @apply origin-(--trigger-anchor-point);
     animation: galactrix-overlay-enter var(--motion-fast) var(--motion-ease)
       both;
   }
 
   .popover[data-exiting] {
-    transform-origin: var(--trigger-anchor-point);
+    @apply origin-(--trigger-anchor-point);
     animation: galactrix-overlay-enter var(--motion-fast)
       var(--motion-ease-exit) reverse both;
   }
 
   .usage-timeline {
-    overscroll-behavior-x: contain;
+    @apply overscroll-x-contain;
   }
 
   .typing-dot {
@@ -1139,26 +1128,18 @@
   }
 
   .interactive-card {
-    @apply shadow-surface ring-1 ring-inset ring-foreground/5;
-    backface-visibility: hidden;
-    transition-property: border-color, background-color, box-shadow, transform;
-    transition-duration: var(--motion-standard);
-    transition-timing-function: var(--motion-ease);
+    @apply backface-hidden shadow-surface ring-1 ring-inset ring-foreground/5 transition-[border-color,background-color,box-shadow,transform] duration-(--motion-standard) ease-(--motion-ease);
   }
 
   .button,
   .toggle-button,
   .select__trigger {
-    backface-visibility: hidden;
-    transition-property:
-      color, background-color, border-color, box-shadow, opacity, transform;
-    transition-duration: var(--motion-fast);
-    transition-timing-function: var(--motion-ease);
+    @apply backface-hidden transition-[color,background-color,border-color,box-shadow,opacity,transform] duration-(--motion-fast) ease-(--motion-ease);
   }
 
   .button[data-pressed='true'],
   .toggle-button[data-pressed='true'] {
-    transform: translate3d(0, 0.0625rem, 0) scale(0.975);
+    @apply translate-y-px scale-[0.975];
   }
 
   .toast[data-entering] {
@@ -1175,8 +1156,7 @@
   .accordion__panel,
   .accordion__indicator,
   .modal__dialog {
-    transition-duration: var(--motion-standard);
-    transition-timing-function: var(--motion-ease);
+    @apply duration-(--motion-standard) ease-(--motion-ease);
   }
 
   .modal__dialog[data-entering] {
@@ -1192,50 +1172,33 @@
 
 @media (hover: hover) and (pointer: fine) {
   .interactive-card:hover {
-    transform: translate3d(0, -0.125rem, 0);
+    @apply -translate-y-0.5;
   }
 }
 
 @media (max-width: 820px) {
   .page-header {
-    position: static !important;
-    inset: auto !important;
+    @apply static! inset-auto!;
   }
 
   .page-scroll {
-    width: 100%;
-    max-width: 100%;
-    justify-content: flex-start;
+    @apply w-full max-w-full justify-start;
   }
 
   .page-container {
-    flex: 0 0 100%;
-    width: 100%;
-    max-width: 100%;
-    overflow-x: hidden;
+    @apply w-full max-w-full grow-0 shrink-0 basis-full overflow-x-hidden;
   }
 
   .page-header-copy {
-    height: 5.5rem;
-    min-height: 5.5rem;
-    max-height: 5.5rem;
+    @apply h-22 min-h-22 max-h-22;
   }
 
   .page-title {
-    font-size: 1.25rem;
-    line-height: 1.75rem;
-    text-align: center;
+    @apply text-center text-xl leading-7;
   }
 
   .page-description {
-    display: -webkit-box;
-    max-width: 32rem;
-    margin-right: auto;
-    margin-left: auto;
-    overflow: hidden;
-    text-align: center;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
+    @apply mx-auto max-w-lg overflow-hidden text-center line-clamp-2;
   }
 
   .mobile-screen-enter {
@@ -1266,11 +1229,10 @@
   .toast[data-exiting],
   .mobile-screen-enter,
   .mobile-chat-enter {
-    animation: none;
+    @apply animate-none;
   }
 
   .typing-dot {
-    animation: none;
-    opacity: 0.7;
+    @apply animate-none opacity-70;
   }
 }

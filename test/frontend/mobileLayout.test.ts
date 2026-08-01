@@ -29,8 +29,14 @@ test('mobile page headers share one compact centered title area', async () => {
   assert.doesNotMatch(componentSource, /h-52/);
   assert.match(componentSource, /page-header-copy/);
   assert.match(componentSource, /text-center md:text-left/);
-  assert.match(cssSource, /\.page-header-copy\s*\{[\s\S]*?height: 5\.5rem/);
-  assert.match(cssSource, /\.page-description\s*\{[\s\S]*?text-align: center/);
+  assert.match(
+    cssSource,
+    /\.page-header-copy\s*\{[\s\S]*?@apply h-22 min-h-22 max-h-22/,
+  );
+  assert.match(
+    cssSource,
+    /\.page-description\s*\{[\s\S]*?@apply[^;]*text-center/,
+  );
 });
 
 test('mobile settings constrain intrinsic widths', async () => {
@@ -64,6 +70,6 @@ test('mobile page headers are explicitly non-sticky', async () => {
 
   assert.match(
     cssSource,
-    /@media \(max-width: 820px\)[\s\S]*?\.page-header\s*\{[\s\S]*?position:\s*static/,
+    /@media \(max-width: 820px\)[\s\S]*?\.page-header\s*\{[\s\S]*?@apply static! inset-auto!/,
   );
 });

@@ -1,56 +1,21 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import test from 'node:test';
-import {
-  readSessionChatScrollPosition,
-  resetChatViewStateForTests,
-  resolveStoredScrollTop,
-  saveChatScrollPosition,
-} from '../../src/features/chats/chatViewState.ts';
 
-test('chat scroll restoration prefers a stable message anchor', () => {
-  assert.equal(
-    resolveStoredScrollTop(
-      ['a', 'b', 'c'],
-      [0, 100, 260, 420],
-      {
-        scrollTop: 999,
-        anchorMessageId: 'b',
-        anchorOffset: -20,
-        atBottom: false,
-        updatedAt: 1,
-      },
-      120,
-    ),
-    120,
-  );
-});
+const statePath = new URL(
+  '../../src/features/chats/chatViewState.ts',
+  import.meta.url,
+);
 
-test('chat scroll restoration keeps bottom-pinned conversations at the end', () => {
-  assert.equal(
-    resolveStoredScrollTop(
-      ['a', 'b', 'c'],
-      [0, 100, 260, 420],
-      {
-        scrollTop: 40,
-        anchorMessageId: 'a',
-        anchorOffset: 0,
-        atBottom: true,
-        updatedAt: 1,
-      },
-      120,
-    ),
-    300,
-  );
-});
+test('chat view persistence stores navigation only and drops legacy scroll data', async () => {
+  const source = await readFile(statePath, 'utf8');
 
-test('same-session chat switches restore the exact native scroll coordinate', () => {
-  resetChatViewStateForTests();
-  saveChatScrollPosition('chat-a', {
-    scrollTop: 412.75,
-    anchorMessageId: 'message-4',
-    anchorOffset: -18.5,
-    atBottom: false,
-  });
-
-  assert.equal(readSessionChatScrollPosition('chat-a')?.scrollTop, 412.75);
+  assert.match(source, /galactrix-chat-navigation-v1/);
+  assert.match(source, /galactrix-chat-view-state-v1/);
+  assert.match(source, /removeItem\(LEGACY_CHAT_VIEW_STORAGE_KEY\)/);
+  assert.match(source, /activeChatId/);
+  assert.match(source, /isChatOpen/);
+  assert.doesNotMatch(source, /scrollTop/);
+  assert.doesNotMatch(source, /anchorMessageId/);
+  assert.doesNotMatch(source, /scrollByChat/);
 });
