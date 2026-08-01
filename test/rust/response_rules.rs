@@ -38,3 +38,16 @@ fn casual_brief_rule_sets_short_human_defaults() {
     assert!(value.contains("long compound sentences"));
     assert!(value.contains("expand only"));
 }
+
+
+#[test]
+fn lowercase_rules_include_relaxed_and_strict_modes() {
+    let relaxed = instruction("casual-lowercase").expect("relaxed lowercase rule must exist");
+    assert!(relaxed.contains("lowercase letters"));
+    assert!(relaxed.contains("personal names"));
+
+    let strict = instruction("strict-lowercase").expect("strict lowercase rule must exist");
+    assert!(strict.contains("strict output constraint"));
+    assert!(strict.contains("прост проверял связь, что делаешь?"));
+    assert!(strict.contains("Never ignore this rule"));
+}

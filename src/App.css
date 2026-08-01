@@ -180,6 +180,11 @@
   .chat-message-scroller {
     overflow-y: scroll;
     overflow-anchor: none;
+    scrollbar-gutter: stable;
+  }
+
+  .chat-message-canvas {
+    inline-size: 100%;
   }
 
   .chat-message-virtual-slot {

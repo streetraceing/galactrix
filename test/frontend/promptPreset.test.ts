@@ -69,3 +69,25 @@ test('relaxed lowercase is a built-in character response style', async () => {
   assert.match(builder, /proper nouns/);
   assert.equal(ruGalaxies['style.casualLowercase'], 'Разговорный строчными');
 });
+
+test('lowercase chat rules are available in the prompt constructor', async () => {
+  const [config, ruChatsRaw, responseRules] = await Promise.all([
+    readFile(promptConfigPath, 'utf8'),
+    readFile(ruChatsPath, 'utf8'),
+    readFile(
+      new URL('../../src-tauri/src/response_rules.rs', import.meta.url),
+      'utf8',
+    ),
+  ]);
+  const ruChats = JSON.parse(ruChatsRaw) as Record<string, string>;
+
+  assert.match(config, /id: 'casual-lowercase'/);
+  assert.match(config, /id: 'strict-lowercase'/);
+  assert.equal(
+    ruChats['promptRule.casualLowercase.label'],
+    'Разговорный строчными',
+  );
+  assert.equal(ruChats['promptRule.strictLowercase.label'], 'Строго строчными');
+  assert.match(responseRules, /прост проверял связь, что делаешь\?/);
+  assert.match(responseRules, /Never ignore this rule/);
+});

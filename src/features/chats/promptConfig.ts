@@ -27,6 +27,28 @@ export const promptPresets: Array<{
     },
   },
   {
+    id: 'casual-lowercase',
+    get label() {
+      return i18next.t('promptRule.casualLowercase.label', { ns: 'chats' });
+    },
+    get description() {
+      return i18next.t('promptRule.casualLowercase.description', {
+        ns: 'chats',
+      });
+    },
+  },
+  {
+    id: 'strict-lowercase',
+    get label() {
+      return i18next.t('promptRule.strictLowercase.label', { ns: 'chats' });
+    },
+    get description() {
+      return i18next.t('promptRule.strictLowercase.description', {
+        ns: 'chats',
+      });
+    },
+  },
+  {
     id: 'dialogue-only',
     get label() {
       return i18next.t('promptRule.dialogueOnly.label', { ns: 'chats' });

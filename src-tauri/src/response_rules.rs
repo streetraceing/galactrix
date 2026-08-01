@@ -6,6 +6,12 @@ fn instruction(preset: &str) -> Option<&'static str> {
         "casual-brief" => Some(
             "Default to a brief everyday chat reply. Usually write 1–3 short sentences, with one idea per sentence and simple vocabulary. Avoid long compound sentences, formal exposition, preambles, summaries, and unsolicited detail. Match the user's length, and expand only when they explicitly ask for detail or the task genuinely requires it.",
         ),
+        "casual-lowercase" => Some(
+            "Write in a relaxed everyday chat style. Start most ordinary sentences and fragments with lowercase letters, prefer commas or short line breaks over frequent full stops, and keep the wording natural rather than formal. Preserve conventional capitalization for personal names, place names, brands, acronyms, code, URLs, identifiers, and exact quotations.",
+        ),
+        "strict-lowercase" => Some(
+            "Treat lowercase casual chat as a strict output constraint. Write almost every ordinary conversational sentence and fragment in lowercase, including the first word of the reply. Avoid polished formal phrasing and avoid unnecessary full stops; prefer commas, short fragments, and natural colloquial wording. For example, write 'прост проверял связь, что делаешь?' instead of 'Просто проверял связь. Что делаешь?'. Capitalize only where meaning or spelling requires it: personal names, place names, brands, acronyms, code, URLs, identifiers, and exact quotations. Never ignore this rule merely because normal grammar would capitalize the start of a sentence.",
+        ),
         "dialogue-only" => Some(
             "Return dialogue only. Do not write actions, stage directions, narration, asterisks, roleplay descriptions, or describe what either participant is doing.",
         ),

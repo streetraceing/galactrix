@@ -238,5 +238,9 @@
   "source.universe.label": "Universe",
   "source.worldbooks.description": "Connected lore entries",
   "source.worldbooks.label": "Worldbooks",
-  "messageList.selectMessage": "Select"
+  "messageList.selectMessage": "Select",
+  "promptRule.casualLowercase.label": "Relaxed lowercase",
+  "promptRule.casualLowercase.description": "Mostly lowercase, fewer full stops, and a more natural chat tone while preserving capitalization for names and proper nouns.",
+  "promptRule.strictLowercase.label": "Strict lowercase chat",
+  "promptRule.strictLowercase.description": "Forces almost every ordinary reply into lowercase, casual phrasing with minimal full stops; names, brands, and acronyms keep their case."
 }

@@ -1013,9 +1013,11 @@ fn validate_chat_links(connection: &Connection, input: &ChatConfigInput) -> Comm
 }
 
 fn validate_prompt_config(config: &PromptConfig) -> CommandResult<()> {
-    const PRESETS: [&str; 9] = [
+    const PRESETS: [&str; 11] = [
         "human",
         "casual-brief",
+        "casual-lowercase",
+        "strict-lowercase",
         "dialogue-only",
         "no-emoji",
         "first-person",

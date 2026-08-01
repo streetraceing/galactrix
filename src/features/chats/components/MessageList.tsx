@@ -1,7 +1,6 @@
 import { Button, Surface, TextArea, Tooltip } from '@heroui/react';
 import {
   memo,
-  startTransition,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -38,6 +37,7 @@ import { useTranslation } from 'react-i18next';
 import {
   buildMessageOffsets,
   estimateMessageHeight,
+  MESSAGE_VIRTUALIZATION_THRESHOLD,
   messageVirtualRange,
 } from '../messageWindow';
 import {
@@ -292,12 +292,10 @@ function AnimatedVariantContent({
   message,
   direction,
   enabled = true,
-  rich = true,
 }: {
   message: Message;
   direction: VariantDirection;
   enabled?: boolean;
-  rich?: boolean;
 }) {
   const contentRef = useRef<HTMLDivElement | null>(null);
   const animationRef = useRef<Animation | null>(null);
@@ -362,11 +360,7 @@ function AnimatedVariantContent({
 
   return (
     <div ref={contentRef}>
-      {rich ? (
-        <MarkdownContent>{message.content}</MarkdownContent>
-      ) : (
-        <div className="whitespace-pre-wrap break-words">{message.content}</div>
-      )}
+      <MarkdownContent>{message.content}</MarkdownContent>
     </div>
   );
 }
@@ -1079,6 +1073,9 @@ function MessageListComponent({
   const scrollToBottomReleaseTimerRef = useRef<number | null>(null);
   const virtualScrollFrameRef = useRef<number | null>(null);
   const scrollPersistenceTimerRef = useRef<number | null>(null);
+  const userScrollIdleTimerRef = useRef<number | null>(null);
+  const isUserScrollingRef = useRef(false);
+  const pendingMeasurementCommitRef = useRef(false);
   const nearBottomRef = useRef(true);
   const restoredChatIdRef = useRef('');
   const virtualMessageElementsRef = useRef(new Map<string, HTMLDivElement>());
@@ -1100,7 +1097,6 @@ function MessageListComponent({
     >(),
   );
   const [messageMeasurementVersion, setMessageMeasurementVersion] = useState(0);
-  const [richContentChatId, setRichContentChatId] = useState('');
   const [virtualViewport, setVirtualViewport] = useState(() => {
     const storedPosition = readChatScrollPosition(chatId);
     return {
@@ -1116,42 +1112,45 @@ function MessageListComponent({
     Record<string, VariantDirection>
   >({});
   const messengerMode = viewMode === 'messenger';
+  const virtualizationEnabled =
+    messages.length > MESSAGE_VIRTUALIZATION_THRESHOLD;
   const messageIds = useMemo(
     () => messages.map((message) => message.id),
     [messages],
   );
-  const estimatedMessageHeights = useMemo(
-    () =>
-      messages.map((message) => {
-        const previousSignature = messageMeasurementSignaturesRef.current.get(
-          message.id,
-        );
-        let estimated = estimatedMessageHeightsRef.current.get(message.id);
-        if (
-          estimated == null ||
-          previousSignature?.mobile !== isMobile ||
-          previousSignature?.role !== message.role ||
-          previousSignature?.activeVariantIndex !==
-            message.activeVariantIndex ||
-          previousSignature?.content !== message.content
-        ) {
-          estimated = estimateMessageHeight(message, isMobile);
-          estimatedMessageHeightsRef.current.set(message.id, estimated);
-          messageMeasurementSignaturesRef.current.set(message.id, {
-            mobile: isMobile,
-            role: message.role,
-            activeVariantIndex: message.activeVariantIndex,
-            content: message.content,
-          });
-          measuredMessageHeightsRef.current.delete(message.id);
-        }
-        return measuredMessageHeightsRef.current.get(message.id) ?? estimated;
-      }),
-    [isMobile, messageMeasurementVersion, messages],
-  );
+  const estimatedMessageHeights = useMemo(() => {
+    if (!virtualizationEnabled) return [];
+    return messages.map((message) => {
+      const previousSignature = messageMeasurementSignaturesRef.current.get(
+        message.id,
+      );
+      let estimated = estimatedMessageHeightsRef.current.get(message.id);
+      if (
+        estimated == null ||
+        previousSignature?.mobile !== isMobile ||
+        previousSignature?.role !== message.role ||
+        previousSignature?.activeVariantIndex !== message.activeVariantIndex ||
+        previousSignature?.content !== message.content
+      ) {
+        estimated = estimateMessageHeight(message, isMobile);
+        estimatedMessageHeightsRef.current.set(message.id, estimated);
+        messageMeasurementSignaturesRef.current.set(message.id, {
+          mobile: isMobile,
+          role: message.role,
+          activeVariantIndex: message.activeVariantIndex,
+          content: message.content,
+        });
+        measuredMessageHeightsRef.current.delete(message.id);
+      }
+      return measuredMessageHeightsRef.current.get(message.id) ?? estimated;
+    });
+  }, [isMobile, messageMeasurementVersion, messages, virtualizationEnabled]);
   const messageOffsets = useMemo(
-    () => buildMessageOffsets(estimatedMessageHeights),
-    [estimatedMessageHeights],
+    () =>
+      virtualizationEnabled
+        ? buildMessageOffsets(estimatedMessageHeights)
+        : [0],
+    [estimatedMessageHeights, virtualizationEnabled],
   );
   const totalVirtualHeight = messageOffsets[messageOffsets.length - 1] ?? 0;
   const resolvedVirtualViewport =
@@ -1159,28 +1158,35 @@ function MessageListComponent({
       ? virtualViewport
       : (() => {
           const height = scrollRef.current?.clientHeight ?? 0;
+          const storedPosition = readChatScrollPosition(chatId);
           return {
             chatId,
-            scrollTop: resolveStoredScrollTop(
-              messageIds,
-              messageOffsets,
-              readChatScrollPosition(chatId),
-              height,
-            ),
+            scrollTop: virtualizationEnabled
+              ? resolveStoredScrollTop(
+                  messageIds,
+                  messageOffsets,
+                  storedPosition,
+                  height,
+                )
+              : (storedPosition?.scrollTop ?? Number.POSITIVE_INFINITY),
             height,
           };
         })();
   const virtualRange = useMemo(
     () =>
-      messageVirtualRange(
-        messageOffsets,
-        resolvedVirtualViewport.scrollTop,
-        resolvedVirtualViewport.height,
-      ),
+      virtualizationEnabled
+        ? messageVirtualRange(
+            messageOffsets,
+            resolvedVirtualViewport.scrollTop,
+            resolvedVirtualViewport.height,
+          )
+        : { start: 0, end: messages.length },
     [
       messageOffsets,
+      messages.length,
       resolvedVirtualViewport.height,
       resolvedVirtualViewport.scrollTop,
+      virtualizationEnabled,
     ],
   );
   const visibleStart = virtualRange.start;
@@ -1193,18 +1199,15 @@ function MessageListComponent({
     () => visibleMessages.map((message) => message.id),
     [visibleMessages],
   );
-  const topVirtualSpacerHeight = messageOffsets[visibleStart] ?? 0;
-  const bottomVirtualSpacerHeight = Math.max(
-    0,
-    totalVirtualHeight - (messageOffsets[visibleEnd] ?? totalVirtualHeight),
-  );
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      startTransition(() => setRichContentChatId(chatId));
-    }, 48);
-    return () => window.clearTimeout(timer);
-  }, [chatId]);
+  const topVirtualSpacerHeight = virtualizationEnabled
+    ? (messageOffsets[visibleStart] ?? 0)
+    : 0;
+  const bottomVirtualSpacerHeight = virtualizationEnabled
+    ? Math.max(
+        0,
+        totalVirtualHeight - (messageOffsets[visibleEnd] ?? totalVirtualHeight),
+      )
+    : 0;
 
   const clearSelectionGesture = useCallback(
     (pointerId?: number) => {
@@ -1248,6 +1251,9 @@ function MessageListComponent({
       }
       if (scrollPersistenceTimerRef.current != null) {
         window.clearTimeout(scrollPersistenceTimerRef.current);
+      }
+      if (userScrollIdleTimerRef.current != null) {
+        window.clearTimeout(userScrollIdleTimerRef.current);
       }
     },
     [],
@@ -1733,14 +1739,10 @@ function MessageListComponent({
   );
 
   useEffect(() => {
-    if (typeof ResizeObserver === 'undefined') return;
+    if (!virtualizationEnabled || typeof ResizeObserver === 'undefined') return;
 
     const observer = new ResizeObserver((entries) => {
-      const scroller = scrollRef.current;
-      const scrollerTop = scroller?.getBoundingClientRect().top ?? 0;
       let changed = false;
-      let scrollAdjustment = 0;
-      let totalMeasuredDelta = 0;
 
       for (const entry of entries) {
         const element = entry.target as HTMLElement;
@@ -1762,29 +1764,14 @@ function MessageListComponent({
 
         measuredMessageHeightsRef.current.set(messageId, measuredHeight);
         changed = true;
-        totalMeasuredDelta += measuredHeight - previousHeight;
-        if (
-          scroller &&
-          element.getBoundingClientRect().bottom <= scrollerTop + 1
-        ) {
-          scrollAdjustment += measuredHeight - previousHeight;
-        }
       }
 
-      if (scroller) {
-        const distanceFromBottom = Math.max(
-          0,
-          scroller.scrollHeight - scroller.clientHeight - scroller.scrollTop,
-        );
-        if (distanceFromBottom <= Math.abs(totalMeasuredDelta) + 8) {
-          scroller.scrollTop = scroller.scrollHeight;
-        } else if (scrollAdjustment) {
-          scroller.scrollTop += scrollAdjustment;
-        }
+      if (!changed) return;
+      if (isUserScrollingRef.current) {
+        pendingMeasurementCommitRef.current = true;
+        return;
       }
-      if (changed) {
-        setMessageMeasurementVersion((current) => current + 1);
-      }
+      setMessageMeasurementVersion((current) => current + 1);
     });
 
     virtualResizeObserverRef.current = observer;
@@ -1798,7 +1785,7 @@ function MessageListComponent({
         virtualResizeObserverRef.current = null;
       }
     };
-  }, [scrollRef]);
+  }, [virtualizationEnabled]);
 
   useEffect(() => {
     const scroller = scrollRef.current;
@@ -1825,14 +1812,32 @@ function MessageListComponent({
     const scroller = scrollRef.current;
     const storedPosition = readChatScrollPosition(chatId);
     const viewportHeight = scroller?.clientHeight ?? 0;
-    const targetScrollTop = resolveStoredScrollTop(
-      messageIds,
-      messageOffsets,
-      storedPosition,
-      viewportHeight,
-    );
+    const targetScrollTop = virtualizationEnabled
+      ? resolveStoredScrollTop(
+          messageIds,
+          messageOffsets,
+          storedPosition,
+          viewportHeight,
+        )
+      : (storedPosition?.scrollTop ?? Number.POSITIVE_INFINITY);
     nearBottomRef.current = !storedPosition || storedPosition.atBottom;
-    if (scroller) scroller.scrollTop = targetScrollTop;
+    if (scroller) {
+      scroller.scrollTop = Number.isFinite(targetScrollTop)
+        ? targetScrollTop
+        : scroller.scrollHeight;
+
+      if (!virtualizationEnabled && storedPosition?.anchorMessageId) {
+        const anchor = virtualMessageElementsRef.current.get(
+          storedPosition.anchorMessageId,
+        );
+        if (anchor) {
+          const scrollerTop = scroller.getBoundingClientRect().top;
+          const anchorTop = anchor.getBoundingClientRect().top;
+          scroller.scrollTop +=
+            anchorTop - scrollerTop - storedPosition.anchorOffset;
+        }
+      }
+    }
     setVirtualViewport({
       chatId,
       scrollTop: scroller?.scrollTop ?? targetScrollTop,
@@ -1845,6 +1850,7 @@ function MessageListComponent({
     messageIds,
     messageOffsets,
     scrollRef,
+    virtualizationEnabled,
   ]);
 
   useLayoutEffect(() => {
@@ -1871,13 +1877,27 @@ function MessageListComponent({
   ]);
 
   const handleMessageScroll = useCallback(() => {
+    isUserScrollingRef.current = true;
+    if (userScrollIdleTimerRef.current != null) {
+      window.clearTimeout(userScrollIdleTimerRef.current);
+    }
+    userScrollIdleTimerRef.current = window.setTimeout(() => {
+      userScrollIdleTimerRef.current = null;
+      isUserScrollingRef.current = false;
+      if (pendingMeasurementCommitRef.current) {
+        pendingMeasurementCommitRef.current = false;
+        setMessageMeasurementVersion((current) => current + 1);
+      }
+    }, 180);
+
     updateScrollToBottomVisibility();
-    scheduleVirtualViewportSync();
+    if (virtualizationEnabled) scheduleVirtualViewportSync();
     scheduleChatScrollPersistence();
   }, [
     scheduleChatScrollPersistence,
     scheduleVirtualViewportSync,
     updateScrollToBottomVisibility,
+    virtualizationEnabled,
   ]);
 
   const historyMessage = useMemo(
@@ -2265,7 +2285,6 @@ function MessageListComponent({
                                     variantDirections[message.id] ?? 'next'
                                   }
                                   enabled={!isMobile}
-                                  rich={richContentChatId === chatId}
                                 />
                               </>
                             )}
@@ -2386,14 +2405,16 @@ function MessageListComponent({
                   <span className="mb-1 text-xs font-medium text-muted">
                     {assistantName} {t('messageList.isTyping')}
                   </span>
-                  <Surface className="flex h-11 items-center gap-1 rounded-2xl px-4">
-                    {[0, 1, 2].map((index) => (
-                      <span
-                        key={index}
-                        className="typing-dot size-1.5 rounded-full bg-accent"
-                        style={{ animationDelay: `${index * 140}ms` }}
-                      />
-                    ))}
+                  <Surface className="grid size-11 shrink-0 place-items-center rounded-2xl p-0">
+                    <span className="flex items-center gap-1">
+                      {[0, 1, 2].map((index) => (
+                        <span
+                          key={index}
+                          className="typing-dot size-1.5 rounded-full bg-accent"
+                          style={{ animationDelay: `${index * 140}ms` }}
+                        />
+                      ))}
+                    </span>
                   </Surface>
                 </div>
               </article>

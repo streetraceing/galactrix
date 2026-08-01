@@ -32,6 +32,8 @@ test('long chats keep stable virtual placeholders at every scrollbar position', 
   assert.match(source, /chat-message-virtual-spacer/);
   assert.match(source, /data-virtual-message-id/);
   assert.match(source, /new ResizeObserver/);
-  assert.match(source, /scroller\.scrollTop \+= scrollAdjustment/);
+  assert.match(source, /MESSAGE_VIRTUALIZATION_THRESHOLD/);
+  assert.match(source, /pendingMeasurementCommitRef/);
+  assert.doesNotMatch(source, /scrollTop \+= scrollAdjustment/);
   assert.doesNotMatch(source, /loadEarlierMessages/);
 });

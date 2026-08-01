@@ -20,25 +20,21 @@ const setupModalPath = new URL(
 );
 const databasePath = new URL('../../src-tauri/src/db.rs', import.meta.url);
 
-test('large chat switching yields before mounting the next rich message canvas', async () => {
+test('chat switching keeps one full-width canvas without a temporary skeleton', async () => {
   const [screen, list] = await Promise.all([
     readFile(chatsScreenPath, 'utf8'),
     readFile(messageListPath, 'utf8'),
   ]);
 
-  assert.match(
-    screen,
-    /requestAnimationFrame\(\(\) => \{[\s\S]*startTransition/,
-  );
-  assert.match(screen, /canvasChatId/);
-  assert.match(screen, /aria-busy=\{isCanvasSwitching\}/);
-  assert.doesNotMatch(
-    screen,
-    /activeMessages\.length[\s\S]*scrollTop = scroller\.scrollHeight/,
-  );
-  assert.match(list, /setTimeout\(\(\) => \{[\s\S]*setRichContentChatId/);
-  assert.match(list, /rich=\{richContentChatId === chatId\}/);
-  assert.match(list, /whitespace-pre-wrap break-words/);
+  assert.match(screen, /const canvasChat = activeChat/);
+  assert.match(screen, /const canvasMessages = activeChat/);
+  assert.doesNotMatch(screen, /canvasChatId/);
+  assert.doesNotMatch(screen, /isCanvasSwitching/);
+  assert.doesNotMatch(screen, /animate-pulse/);
+  assert.doesNotMatch(screen, /aria-busy/);
+  assert.match(list, /MESSAGE_VIRTUALIZATION_THRESHOLD/);
+  assert.doesNotMatch(list, /richContentChatId/);
+  assert.doesNotMatch(list, /setRichContentChatId/);
 });
 
 test('open chat and per-chat scroll positions survive navigation and restart', async () => {

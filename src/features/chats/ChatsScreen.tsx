@@ -1,11 +1,4 @@
-import {
-  startTransition,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ResizeHandle } from '../../components/ResizeHandle';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
@@ -93,16 +86,6 @@ export function ChatsScreen({
   const sendInFlightRef = useRef(false);
 
   const activeChat = activeChatById(chats, activeChatId);
-  const [canvasChatId, setCanvasChatId] = useState(activeChatId);
-
-  useEffect(() => {
-    const targetChatId = activeChat?.id ?? '';
-    if (targetChatId === canvasChatId) return;
-    const frame = window.requestAnimationFrame(() => {
-      startTransition(() => setCanvasChatId(targetChatId));
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, [activeChat?.id, canvasChatId]);
 
   useEffect(() => {
     if (chatMaximized && (isMobile || !activeChat)) {
@@ -113,11 +96,10 @@ export function ChatsScreen({
     () => groupMessagesByChat(messages),
     [messages],
   );
-  const canvasChat = activeChatById(chats, canvasChatId);
-  const canvasMessages = canvasChat
-    ? (messagesByChat.get(canvasChat.id) ?? EMPTY_MESSAGES)
+  const canvasChat = activeChat;
+  const canvasMessages = activeChat
+    ? (messagesByChat.get(activeChat.id) ?? EMPTY_MESSAGES)
     : EMPTY_MESSAGES;
-  const isCanvasSwitching = (activeChat?.id ?? '') !== (canvasChat?.id ?? '');
   const configChatId =
     configTarget && configTarget !== 'new' ? configTarget.id : undefined;
   const configRememberedMessages = configChatId
@@ -344,16 +326,9 @@ export function ChatsScreen({
               onToggleMaximized={() => onChatMaximizedChange(!chatMaximized)}
               onAction={handleAction}
             />
-            <div
-              className="relative flex min-h-0 flex-1"
-              aria-busy={isCanvasSwitching}
-            >
+            <div className="relative flex min-h-0 flex-1">
               {canvasChat ? (
-                <div
-                  className={`flex min-h-0 flex-1 ${
-                    isCanvasSwitching ? 'pointer-events-none invisible' : ''
-                  }`}
-                >
+                <div className="flex min-h-0 flex-1">
                   <MessageList
                     chatId={canvasChat.id}
                     messages={canvasMessages}
@@ -387,20 +362,9 @@ export function ChatsScreen({
                   />
                 </div>
               ) : null}
-              {isCanvasSwitching ? (
-                <div className="pointer-events-none absolute inset-0 flex flex-col justify-end gap-3 px-5 py-6 sm:px-8">
-                  <div className="ml-auto h-16 w-[min(72%,34rem)] animate-pulse rounded-2xl bg-accent/8" />
-                  <div className="h-24 w-[min(86%,44rem)] animate-pulse rounded-2xl bg-default/45" />
-                  <div className="h-14 w-[min(64%,30rem)] animate-pulse rounded-2xl bg-default/35" />
-                </div>
-              ) : null}
             </div>
             {canvasChat ? (
-              <div
-                className={`shrink-0 ${
-                  isCanvasSwitching ? 'pointer-events-none invisible' : ''
-                }`}
-              >
+              <div className="shrink-0">
                 <ChatComposer
                   key={canvasChat.id}
                   chatId={canvasChat.id}
@@ -408,9 +372,7 @@ export function ChatsScreen({
                   sending={sending && canvasChat.id === activeChat.id}
                   sendOnEnter={sendOnEnter}
                   saveDrafts={saveDrafts}
-                  shouldAutoFocus={
-                    shouldAutoFocusComposer && !isCanvasSwitching
-                  }
+                  shouldAutoFocus={shouldAutoFocusComposer}
                   focusKey={`${canvasChat.id}:${isChatOpen}`}
                   wide={chatMaximized}
                   onSend={send}

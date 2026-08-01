@@ -18,6 +18,8 @@ export type Chat = {
 export type PromptPresetId =
   | 'human'
   | 'casual-brief'
+  | 'casual-lowercase'
+  | 'strict-lowercase'
   | 'dialogue-only'
   | 'no-emoji'
   | 'first-person'

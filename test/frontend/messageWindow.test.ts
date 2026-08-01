@@ -4,6 +4,7 @@ import type { Message } from '../../src/types';
 import {
   MESSAGE_VIRTUAL_MIN_ITEMS,
   MESSAGE_VIRTUAL_OVERSCAN_PX,
+  MESSAGE_VIRTUALIZATION_THRESHOLD,
   buildMessageOffsets,
   estimateMessageHeight,
   messageVirtualRange,
@@ -28,6 +29,7 @@ function message(
 test('virtual chat defaults keep the mounted message set small', () => {
   assert.equal(MESSAGE_VIRTUAL_OVERSCAN_PX, 420);
   assert.equal(MESSAGE_VIRTUAL_MIN_ITEMS, 6);
+  assert.equal(MESSAGE_VIRTUALIZATION_THRESHOLD, 64);
 });
 
 test('message height estimates account for content and viewport density', () => {

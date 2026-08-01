@@ -250,5 +250,9 @@
   "source.universe.label": "Вселенная",
   "source.worldbooks.description": "Подключённые записи лора",
   "source.worldbooks.label": "Ворлдбуки",
-  "messageList.selectMessage": "Выделить"
+  "messageList.selectMessage": "Выделить",
+  "promptRule.casualLowercase.label": "Разговорный строчными",
+  "promptRule.casualLowercase.description": "Преимущественно строчные буквы, меньше точек и более естественная манера переписки с сохранением заглавных у имён и названий.",
+  "promptRule.strictLowercase.label": "Строго строчными",
+  "promptRule.strictLowercase.description": "Обязывает почти все обычные реплики писать со строчной буквы, разговорно и с минимумом точек; имена, бренды и аббревиатуры сохраняют регистр."
 }

@@ -2,6 +2,7 @@ import type { Message } from '../../types';
 
 export const MESSAGE_VIRTUAL_OVERSCAN_PX = 420;
 export const MESSAGE_VIRTUAL_MIN_ITEMS = 6;
+export const MESSAGE_VIRTUALIZATION_THRESHOLD = 64;
 
 const DESKTOP_ASSISTANT_CHARS_PER_LINE = 76;
 const DESKTOP_USER_CHARS_PER_LINE = 58;
@@ -10,7 +11,7 @@ const MESSAGE_VERTICAL_GAP = 16;
 
 export function estimateMessageHeight(message: Message, mobile: boolean) {
   const content = message.content;
-  const scanLimit = Math.min(content.length, 16_384);
+  const scanLimit = Math.min(content.length, 2_048);
   let explicitLines = 1;
   for (let index = 0; index < scanLimit; index += 1) {
     if (content.charCodeAt(index) === 10) explicitLines += 1;
