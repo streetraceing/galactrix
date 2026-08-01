@@ -87,6 +87,27 @@ export const livingDialogueBundle: PromptPresetId[] = [
   'continuity',
 ];
 
+export const roleplayBundle: PromptPresetId[] = [
+  'human',
+  'first-person',
+  'roleplay-actions',
+  'no-user-control',
+  'character-consistency',
+  'immersive',
+  'initiative',
+  'scene-pacing',
+  'continuity',
+];
+
+export const telegramChatBundle: PromptPresetId[] = [
+  'human',
+  'casual-brief',
+  'strict-lowercase',
+  'telegram-chat',
+  'dialogue-only',
+  'continuity',
+];
+
 export function createPromptBlock(): PromptBlock {
   return {
     id:

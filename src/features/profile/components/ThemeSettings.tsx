@@ -13,6 +13,14 @@ const variants = [
   { id: 'lavender', label: 'Lavender' },
   { id: 'discord', label: 'Discord' },
   { id: 'spotify', label: 'Spotify' },
+  { id: 'catppuccin', labelKey: 'theme.variant.catppuccin' },
+  { id: 'tokyo-night', labelKey: 'theme.variant.tokyoNight' },
+  { id: 'nord', labelKey: 'theme.variant.nord' },
+  { id: 'dracula', labelKey: 'theme.variant.dracula' },
+  { id: 'rose-pine', labelKey: 'theme.variant.rosePine' },
+  { id: 'gruvbox', labelKey: 'theme.variant.gruvbox' },
+  { id: 'solarized', labelKey: 'theme.variant.solarized' },
+  { id: 'monochrome', labelKey: 'theme.variant.monochrome' },
 ] as const;
 
 export function ThemeSettings({
@@ -88,16 +96,20 @@ export function ThemeSettings({
             </Select.Trigger>
             <Select.Popover>
               <ListBox>
-                {variants.map((entry) => (
-                  <ListBox.Item
-                    key={entry.id}
-                    id={entry.id}
-                    textValue={entry.label}
-                  >
-                    {entry.label}
-                    <ListBox.ItemIndicator />
-                  </ListBox.Item>
-                ))}
+                {variants.map((entry) => {
+                  const label =
+                    'labelKey' in entry ? t(entry.labelKey) : entry.label;
+                  return (
+                    <ListBox.Item
+                      key={entry.id}
+                      id={entry.id}
+                      textValue={label}
+                    >
+                      {label}
+                      <ListBox.ItemIndicator />
+                    </ListBox.Item>
+                  );
+                })}
               </ListBox>
             </Select.Popover>
           </Select>

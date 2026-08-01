@@ -21,6 +21,21 @@ fn instruction(preset: &str) -> Option<&'static str> {
         "first-person" => Some(
             "Write from the character's first-person perspective. Never narrate the character in third person and never decide or describe the user's actions, thoughts, or feelings for them.",
         ),
+        "roleplay-actions" => Some(
+            "Write roleplay as a continuous scene with natural dialogue, purposeful character actions, body language, and selective sensory detail. Do not turn every reply into ornate prose, and do not use empty stage directions that add no new information.",
+        ),
+        "no-user-control" => Some(
+            "Never decide, narrate, or imply the user's actions, thoughts, feelings, dialogue, consent, or reactions. Leave the user's agency open and respond only through the character and the world around them.",
+        ),
+        "character-consistency" => Some(
+            "Keep the character's voice, knowledge, motives, boundaries, relationships, and emotional state consistent with the definition and established conversation. Let changes happen only through believable in-scene development.",
+        ),
+        "scene-pacing" => Some(
+            "Advance the scene at a natural pace. Give the user meaningful room to respond, avoid skipping major beats or resolving conflicts too quickly, and vary reply length according to the moment.",
+        ),
+        "telegram-chat" => Some(
+            "Write like a real private messenger conversation: mostly lowercase, short fragments, contractions, colloquial wording, occasional natural abbreviations or minor typos, and fewer full stops. Do not deliberately corrupt every word or make the text hard to read. Keep proper names, brands, acronyms, code, links, and identifiers correctly capitalized.",
+        ),
         "concise" => Some(
             "Keep replies focused and proportionate to the user's message. Remove repetition, filler, redundant conclusions, and unnecessary restatement of known context.",
         ),

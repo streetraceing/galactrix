@@ -129,5 +129,13 @@
   "profilePreferences.appLanguage": "Язык приложения",
   "profilePreferences.appLanguageHint": "Отвечать на выбранном языке интерфейса",
   "profilePreferences.autoResponseLanguage": "Определять автоматически",
-  "profilePreferences.autoResponseLanguageHint": "Модель следует языку переписки"
+  "profilePreferences.autoResponseLanguageHint": "Модель следует языку переписки",
+  "theme.variant.catppuccin": "Catppuccin",
+  "theme.variant.tokyoNight": "Tokyo Night",
+  "theme.variant.nord": "Nord",
+  "theme.variant.dracula": "Dracula",
+  "theme.variant.rosePine": "Rosé Pine",
+  "theme.variant.gruvbox": "Gruvbox",
+  "theme.variant.solarized": "Solarized",
+  "theme.variant.monochrome": "Монохромная"
 }

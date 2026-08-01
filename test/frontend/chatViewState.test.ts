@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { resolveStoredScrollTop } from '../../src/features/chats/chatViewState.ts';
+import {
+  readSessionChatScrollPosition,
+  resetChatViewStateForTests,
+  resolveStoredScrollTop,
+  saveChatScrollPosition,
+} from '../../src/features/chats/chatViewState.ts';
 
 test('chat scroll restoration prefers a stable message anchor', () => {
   assert.equal(
@@ -36,4 +41,16 @@ test('chat scroll restoration keeps bottom-pinned conversations at the end', () 
     ),
     300,
   );
+});
+
+test('same-session chat switches restore the exact native scroll coordinate', () => {
+  resetChatViewStateForTests();
+  saveChatScrollPosition('chat-a', {
+    scrollTop: 412.75,
+    anchorMessageId: 'message-4',
+    anchorOffset: -18.5,
+    atBottom: false,
+  });
+
+  assert.equal(readSessionChatScrollPosition('chat-a')?.scrollTop, 412.75);
 });

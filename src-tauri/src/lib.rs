@@ -907,6 +907,8 @@ async fn send_chat_message(
     chat_id: String,
     content: String,
     generation_id: String,
+    user_message_id: Option<String>,
+    assistant_message_id: Option<String>,
     response_language: Option<String>,
     state: State<'_, AppState>,
 ) -> CommandResult<()> {
@@ -919,7 +921,17 @@ async fn send_chat_message(
         error.with_variable("messagePersisted", "true")
     }
 
-    let user_message_id = Uuid::new_v4().to_string();
+    let user_message_id = user_message_id
+        .map(|value| value.trim().to_owned())
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| Uuid::new_v4().to_string());
+    let mut assistant_message_id = assistant_message_id
+        .map(|value| value.trim().to_owned())
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| Uuid::new_v4().to_string());
+    if assistant_message_id == user_message_id {
+        assistant_message_id = Uuid::new_v4().to_string();
+    }
     let (provider, full_history) = {
         let database = state.database.lock().map_err(CommandError::internal)?;
         db::add_user_message(&database, &chat_id, &user_message_id, &content)?;
@@ -982,7 +994,7 @@ async fn send_chat_message(
     db::add_assistant_message(
         &database,
         &chat_id,
-        &Uuid::new_v4().to_string(),
+        &assistant_message_id,
         &response_content,
     )
     .map_err(persisted)?;
@@ -1372,7 +1384,18 @@ fn update_app_settings(
     }
     if !matches!(
         settings.theme_variant.as_str(),
-        "default" | "lavender" | "discord" | "spotify"
+        "default"
+            | "lavender"
+            | "discord"
+            | "spotify"
+            | "catppuccin"
+            | "tokyo-night"
+            | "nord"
+            | "dracula"
+            | "rose-pine"
+            | "gruvbox"
+            | "solarized"
+            | "monochrome"
     ) {
         settings.theme_variant = "default".into();
     }

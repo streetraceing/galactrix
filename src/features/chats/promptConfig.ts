@@ -76,6 +76,59 @@ export const promptPresets: Array<{
     },
   },
   {
+    id: 'roleplay-actions',
+    get label() {
+      return i18next.t('promptRule.roleplayActions.label', { ns: 'chats' });
+    },
+    get description() {
+      return i18next.t('promptRule.roleplayActions.description', {
+        ns: 'chats',
+      });
+    },
+  },
+  {
+    id: 'no-user-control',
+    get label() {
+      return i18next.t('promptRule.noUserControl.label', { ns: 'chats' });
+    },
+    get description() {
+      return i18next.t('promptRule.noUserControl.description', {
+        ns: 'chats',
+      });
+    },
+  },
+  {
+    id: 'character-consistency',
+    get label() {
+      return i18next.t('promptRule.characterConsistency.label', {
+        ns: 'chats',
+      });
+    },
+    get description() {
+      return i18next.t('promptRule.characterConsistency.description', {
+        ns: 'chats',
+      });
+    },
+  },
+  {
+    id: 'scene-pacing',
+    get label() {
+      return i18next.t('promptRule.scenePacing.label', { ns: 'chats' });
+    },
+    get description() {
+      return i18next.t('promptRule.scenePacing.description', { ns: 'chats' });
+    },
+  },
+  {
+    id: 'telegram-chat',
+    get label() {
+      return i18next.t('promptRule.telegramChat.label', { ns: 'chats' });
+    },
+    get description() {
+      return i18next.t('promptRule.telegramChat.description', { ns: 'chats' });
+    },
+  },
+  {
     id: 'concise',
     get label() {
       return i18next.t('promptRule.concise.label', { ns: 'chats' });

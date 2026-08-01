@@ -257,29 +257,19 @@ pub async fn embed(
 
     let client = http_client()?;
     let started = Instant::now();
+    let embedding_url = embedding_endpoint_saved(provider)?;
     let response = if matches!(provider.kind.as_str(), "ollama" | "ollama-cloud") {
-        let base = provider
-            .embedding_base_url
-            .as_deref()
-            .map(normalize_ollama_base)
-            .unwrap_or_else(|| ollama_base_saved(provider));
-        let url = format!("{base}/embed");
         let body = json!({ "model": model, "input": inputs });
         send_with_retry(
-            || authenticated(client.post(&url), api_key).json(&body),
+            || authenticated(client.post(&embedding_url), api_key).json(&body),
             retry,
             keys::PROVIDER_REQUEST_FAILED,
         )
         .await?
     } else {
-        let base = match provider.embedding_base_url.as_deref() {
-            Some(value) => value.trim_end_matches('/').to_owned(),
-            None => openai_base_saved(provider)?,
-        };
-        let url = format!("{base}/embeddings");
         let body = json!({ "model": model, "input": inputs, "encoding_format": "float" });
         send_with_retry(
-            || authenticated(client.post(&url), api_key).json(&body),
+            || authenticated(client.post(&embedding_url), api_key).json(&body),
             retry,
             keys::PROVIDER_REQUEST_FAILED,
         )
@@ -553,6 +543,23 @@ fn openai_base(provider: &ProviderInput) -> CommandResult<String> {
         _ => return Err(CommandError::new(keys::PROVIDER_NOT_OPENAI_COMPATIBLE)),
     };
     Ok(base.trim_end_matches('/').to_owned())
+}
+
+fn embedding_endpoint_saved(provider: &Provider) -> CommandResult<String> {
+    if let Some(endpoint) = provider
+        .embedding_base_url
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        return Ok(endpoint.to_owned());
+    }
+
+    if matches!(provider.kind.as_str(), "ollama" | "ollama-cloud") {
+        Ok(format!("{}/embed", ollama_base_saved(provider)))
+    } else {
+        Ok(format!("{}/embeddings", openai_base_saved(provider)?))
+    }
 }
 
 fn openai_base_saved(provider: &Provider) -> CommandResult<String> {

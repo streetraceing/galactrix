@@ -47,6 +47,7 @@ import {
 } from '../messageWindow';
 import {
   readChatScrollPosition,
+  readSessionChatScrollPosition,
   resolveStoredScrollTop,
   saveChatScrollPosition,
 } from '../chatViewState';
@@ -1014,7 +1015,6 @@ function MessageListComponent({
   assistantAvatar,
   userName,
   userAvatar,
-  pendingMessage,
   sending,
   viewMode,
   showAvatars,
@@ -1038,7 +1038,6 @@ function MessageListComponent({
   assistantAvatar?: string;
   userName: string;
   userAvatar?: string;
-  pendingMessage: string;
   sending: boolean;
   viewMode: 'conversation' | 'messenger';
   showAvatars: boolean;
@@ -1082,11 +1081,14 @@ function MessageListComponent({
   const measurementCommitTimerRef = useRef<number | null>(null);
   const isUserScrollingRef = useRef(false);
   const pendingMeasurementCommitRef = useRef(false);
-  const measurementAnchorRef = useRef<{
+  const pendingScrollRestoreRef = useRef<{
     chatId: string;
-    messageId: string;
-    offset: number;
+    scrollTop: number;
+    anchorMessageId?: string;
+    anchorOffset: number;
+    atBottom: boolean;
   } | null>(null);
+  const restoringScrollRef = useRef(false);
   const nearBottomRef = useRef(true);
   const restoredChatIdRef = useRef('');
   const virtualMessageElementsRef = useRef(new Map<string, HTMLDivElement>());
@@ -1130,6 +1132,9 @@ function MessageListComponent({
     () => messages.map((message) => message.id),
     [messages],
   );
+  const lastMessage = messages[messages.length - 1];
+  const hasPendingAssistant =
+    lastMessage?.role === 'assistant' && lastMessage.pending === true;
   const estimatedMessageHeights = useMemo(() => {
     if (!virtualizationEnabled) return [];
     return messages.map((message) => {
@@ -1168,7 +1173,8 @@ function MessageListComponent({
   const fallbackVirtualRange = useMemo(() => {
     if (!virtualizationEnabled) return { start: 0, end: messages.length };
     const scroller = scrollRef.current;
-    const storedPosition = readChatScrollPosition(chatId);
+    const storedPosition =
+      readSessionChatScrollPosition(chatId) ?? readChatScrollPosition(chatId);
     const viewportHeight = scroller?.clientHeight ?? 1;
     const initialScrollTop = storedPosition?.atBottom
       ? Number.POSITIVE_INFINITY
@@ -1193,8 +1199,16 @@ function MessageListComponent({
     virtualizationEnabled && virtualWindow.chatId === chatId
       ? virtualWindow
       : fallbackVirtualRange;
+  const keepVirtualTailMounted =
+    virtualizationEnabled &&
+    nearBottomRef.current &&
+    (sending || hasPendingAssistant || virtualRange.end >= messages.length - 2);
   const visibleStart = virtualizationEnabled ? virtualRange.start : 0;
-  const visibleEnd = virtualizationEnabled ? virtualRange.end : messages.length;
+  const visibleEnd = virtualizationEnabled
+    ? keepVirtualTailMounted
+      ? messages.length
+      : virtualRange.end
+    : messages.length;
   const visibleMessages = useMemo(
     () => messages.slice(visibleStart, visibleEnd),
     [messages, visibleEnd, visibleStart],
@@ -1686,7 +1700,7 @@ function MessageListComponent({
 
   const captureChatScrollPosition = useCallback(() => {
     const scroller = scrollRef.current;
-    if (!scroller || !chatId) return;
+    if (!scroller || !chatId || restoringScrollRef.current) return;
 
     const scrollerRect = scroller.getBoundingClientRect();
     let anchorMessageId: string | undefined;
@@ -1784,29 +1798,8 @@ function MessageListComponent({
       window.clearTimeout(measurementCommitTimerRef.current);
       measurementCommitTimerRef.current = null;
     }
-
-    const scroller = scrollRef.current;
-    if (scroller) {
-      const scrollerRect = scroller.getBoundingClientRect();
-      let anchorMessageId = '';
-      let anchorOffset = 0;
-      let closestTop = Number.POSITIVE_INFINITY;
-      for (const element of virtualMessageElementsRef.current.values()) {
-        const rect = element.getBoundingClientRect();
-        if (rect.bottom <= scrollerRect.top + 1 || rect.top >= closestTop) {
-          continue;
-        }
-        anchorMessageId = element.dataset.virtualMessageId ?? '';
-        anchorOffset = rect.top - scrollerRect.top;
-        closestTop = rect.top;
-      }
-      measurementAnchorRef.current = anchorMessageId
-        ? { chatId, messageId: anchorMessageId, offset: anchorOffset }
-        : null;
-    }
-
     setMessageMeasurementVersion((current) => current + 1);
-  }, [chatId, scrollRef]);
+  }, []);
 
   const scheduleMeasuredMessageCommit = useCallback(
     (delay = 320) => {
@@ -1867,23 +1860,6 @@ function MessageListComponent({
     };
   }, [scheduleMeasuredMessageCommit, virtualizationEnabled]);
 
-  useLayoutEffect(() => {
-    const anchor = measurementAnchorRef.current;
-    if (!anchor || anchor.chatId !== chatId) return;
-    measurementAnchorRef.current = null;
-
-    const scroller = scrollRef.current;
-    const element = virtualMessageElementsRef.current.get(anchor.messageId);
-    if (!scroller || !element || !scroller.contains(element)) return;
-
-    const nextOffset =
-      element.getBoundingClientRect().top -
-      scroller.getBoundingClientRect().top;
-    const adjustment = nextOffset - anchor.offset;
-    if (Math.abs(adjustment) > 0.5) scroller.scrollTop += adjustment;
-    scheduleVirtualWindowSync();
-  }, [chatId, messageMeasurementVersion, scheduleVirtualWindowSync, scrollRef]);
-
   useEffect(() => {
     const scroller = scrollRef.current;
     if (!scroller || typeof ResizeObserver === 'undefined') return;
@@ -1906,40 +1882,41 @@ function MessageListComponent({
     setVariantDirections({});
     setShowScrollToBottom(false);
     pendingMeasurementCommitRef.current = false;
-    measurementAnchorRef.current = null;
+    pendingScrollRestoreRef.current = null;
+    restoringScrollRef.current = true;
     if (measurementCommitTimerRef.current != null) {
       window.clearTimeout(measurementCommitTimerRef.current);
       measurementCommitTimerRef.current = null;
     }
 
     const scroller = scrollRef.current;
-    const storedPosition = readChatScrollPosition(chatId);
+    const sessionPosition = readSessionChatScrollPosition(chatId);
+    const storedPosition = sessionPosition ?? readChatScrollPosition(chatId);
+    pendingScrollRestoreRef.current = storedPosition
+      ? {
+          chatId,
+          ...storedPosition,
+          anchorMessageId: sessionPosition
+            ? undefined
+            : storedPosition.anchorMessageId,
+        }
+      : null;
     const viewportHeight = scroller?.clientHeight ?? 0;
-    const targetScrollTop = virtualizationEnabled
-      ? resolveStoredScrollTop(
-          messageIds,
-          messageOffsets,
-          storedPosition,
-          viewportHeight,
-        )
-      : (storedPosition?.scrollTop ?? Number.POSITIVE_INFINITY);
+    const targetScrollTop = sessionPosition
+      ? sessionPosition.scrollTop
+      : virtualizationEnabled
+        ? resolveStoredScrollTop(
+            messageIds,
+            messageOffsets,
+            storedPosition,
+            viewportHeight,
+          )
+        : (storedPosition?.scrollTop ?? Number.POSITIVE_INFINITY);
     nearBottomRef.current = !storedPosition || storedPosition.atBottom;
     if (scroller) {
       scroller.scrollTop = Number.isFinite(targetScrollTop)
         ? targetScrollTop
         : scroller.scrollHeight;
-
-      if (!virtualizationEnabled && storedPosition?.anchorMessageId) {
-        const anchor = virtualMessageElementsRef.current.get(
-          storedPosition.anchorMessageId,
-        );
-        if (anchor) {
-          const scrollerTop = scroller.getBoundingClientRect().top;
-          const anchorTop = anchor.getBoundingClientRect().top;
-          scroller.scrollTop +=
-            anchorTop - scrollerTop - storedPosition.anchorOffset;
-        }
-      }
     }
     const restoredRange = virtualizationEnabled
       ? messageVirtualRange(
@@ -1965,6 +1942,50 @@ function MessageListComponent({
   ]);
 
   useLayoutEffect(() => {
+    const scroller = scrollRef.current;
+    if (!scroller || restoredChatIdRef.current !== chatId) return;
+
+    const pending = pendingScrollRestoreRef.current;
+    if (pending?.chatId === chatId) {
+      if (pending.atBottom) {
+        scroller.scrollTop = scroller.scrollHeight;
+        pendingScrollRestoreRef.current = null;
+      } else if (pending.anchorMessageId) {
+        const anchor = virtualMessageElementsRef.current.get(
+          pending.anchorMessageId,
+        );
+        if (!anchor || !scroller.contains(anchor)) return;
+        const actualOffset =
+          anchor.getBoundingClientRect().top -
+          scroller.getBoundingClientRect().top;
+        scroller.scrollTop += actualOffset - pending.anchorOffset;
+        pendingScrollRestoreRef.current = null;
+      } else {
+        scroller.scrollTop = pending.scrollTop;
+        pendingScrollRestoreRef.current = null;
+      }
+    }
+
+    if (pendingScrollRestoreRef.current) return;
+    const frame = window.requestAnimationFrame(() => {
+      restoringScrollRef.current = false;
+      syncVirtualWindow();
+      updateScrollToBottomVisibility();
+      captureChatScrollPosition();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [
+    captureChatScrollPosition,
+    chatId,
+    messageMeasurementVersion,
+    scrollRef,
+    syncVirtualWindow,
+    updateScrollToBottomVisibility,
+    visibleEnd,
+    visibleStart,
+  ]);
+
+  useLayoutEffect(() => {
     const frame = window.requestAnimationFrame(() => {
       const scroller = scrollRef.current;
       if (scroller && nearBottomRef.current) {
@@ -1972,13 +1993,12 @@ function MessageListComponent({
       }
       syncVirtualWindow();
       updateScrollToBottomVisibility();
-      scheduleChatScrollPersistence();
+      if (!restoringScrollRef.current) scheduleChatScrollPersistence();
     });
     return () => window.cancelAnimationFrame(frame);
   }, [
     chatId,
     messages.length,
-    pendingMessage,
     sending,
     scheduleChatScrollPersistence,
     scrollRef,
@@ -2305,6 +2325,9 @@ function MessageListComponent({
               const isGenerating = messageGeneration?.messageId === message.id;
               const isRegenerating =
                 isGenerating && messageGeneration?.mode === 'regenerate';
+              const isPendingAssistant =
+                message.role === 'assistant' && message.pending === true;
+              const showsTypingBubble = isRegenerating || isPendingAssistant;
 
               const content = (
                 <div
@@ -2374,7 +2397,7 @@ function MessageListComponent({
                           <Surface
                             variant={isUser ? 'tertiary' : 'default'}
                             style={
-                              isRegenerating
+                              showsTypingBubble
                                 ? {
                                     width: '2.75rem',
                                     height: '2.75rem',
@@ -2385,12 +2408,12 @@ function MessageListComponent({
                                 : undefined
                             }
                             className={`${isMobile || selectedMessageIds.size > 0 ? 'select-none' : 'selectable'} min-w-0 max-w-full overflow-hidden rounded-2xl shadow-xs transition-colors ${
-                              isRegenerating
+                              showsTypingBubble
                                 ? 'grid size-11 shrink-0 place-items-center p-0'
                                 : 'px-4 py-3'
-                            } ${messengerMode && !isRegenerating ? 'w-fit' : ''} ${isSelected ? (isUser ? 'bg-accent/15' : 'bg-default/85') : isUser ? 'bg-accent/10' : ''}`}
+                            } ${messengerMode && !showsTypingBubble ? 'w-fit' : ''} ${isSelected ? (isUser ? 'bg-accent/15' : 'bg-default/85') : isUser ? 'bg-accent/10' : ''}`}
                           >
-                            {isRegenerating ? (
+                            {showsTypingBubble ? (
                               <div
                                 className="flex items-center gap-1"
                                 role="status"
@@ -2418,7 +2441,7 @@ function MessageListComponent({
                               </>
                             )}
                           </Surface>
-                          {!isMobile ? (
+                          {!isPendingAssistant && !isMobile ? (
                             <DesktopMessageActions
                               message={message}
                               onBranch={onBranch}
@@ -2431,7 +2454,7 @@ function MessageListComponent({
                               onHistoryRequest={history}
                               onError={reportError}
                             />
-                          ) : (
+                          ) : !isPendingAssistant ? (
                             <VariantNavigator
                               message={message}
                               compact
@@ -2442,7 +2465,7 @@ function MessageListComponent({
                               }
                               onHistory={history}
                             />
-                          )}
+                          ) : null}
                         </div>
                       </article>
                     </MessageMenu>
@@ -2482,44 +2505,8 @@ function MessageListComponent({
               />
             ) : null}
 
-            {pendingMessage ? (
-              <article
-                className={`message-enter mb-3 flex items-start gap-2.5 opacity-75 sm:mb-4 sm:gap-3 ${
-                  messengerMode ? '' : 'flex-row-reverse'
-                }`}
-              >
-                {showAvatars ? (
-                  <AppAvatar
-                    src={userAvatar}
-                    name={userName}
-                    className="size-8 sm:size-9"
-                    square
-                  />
-                ) : null}
-                <div
-                  className={`flex min-w-0 flex-col ${
-                    messengerMode
-                      ? 'max-w-[min(90%,42rem)] items-start'
-                      : 'w-full items-end'
-                  }`}
-                >
-                  <div className="mb-1 flex items-center gap-2 text-xs text-muted">
-                    <span>{t('messageList.sending')}</span>
-                    <strong className="font-medium text-foreground">
-                      {userName}
-                    </strong>
-                  </div>
-                  <Surface
-                    variant="tertiary"
-                    className={`${messengerMode ? 'w-fit' : ''} min-w-0 max-w-full overflow-hidden rounded-2xl bg-accent/10 px-4 py-3 shadow-xs`}
-                  >
-                    <MarkdownContent>{pendingMessage}</MarkdownContent>
-                  </Surface>
-                </div>
-              </article>
-            ) : null}
-
             {sending &&
+            !hasPendingAssistant &&
             (!messageGeneration || messageGeneration.mode === 'continue') ? (
               <article className="message-enter mb-3 flex items-start gap-2.5 sm:mb-4 sm:gap-3">
                 {showAvatars ? (
@@ -2549,7 +2536,7 @@ function MessageListComponent({
               </article>
             ) : null}
 
-            {messages.length === 0 && !pendingMessage && !sending ? (
+            {messages.length === 0 && !sending ? (
               <div className="grid min-h-[50vh] place-items-center text-center">
                 <div className="max-w-md">
                   <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-accent/10 text-accent">

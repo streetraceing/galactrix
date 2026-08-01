@@ -26,7 +26,12 @@ export type PromptPresetId =
   | 'concise'
   | 'immersive'
   | 'initiative'
-  | 'continuity';
+  | 'continuity'
+  | 'roleplay-actions'
+  | 'no-user-control'
+  | 'character-consistency'
+  | 'scene-pacing'
+  | 'telegram-chat';
 
 export type PromptPriority = 'low' | 'normal' | 'high' | 'critical';
 
@@ -81,6 +86,7 @@ export type Message = {
   remembered: boolean;
   activeVariantIndex: number;
   variants: MessageVariant[];
+  pending?: boolean;
 };
 
 export type GalaxyKind =
@@ -125,6 +131,8 @@ export type CharacterData = {
     | 'warm'
     | 'concise'
     | 'casual-lowercase'
+    | 'roleplay-rich'
+    | 'telegram-human'
     | 'roleplay'
     | 'literary'
     | 'custom';
@@ -302,7 +310,19 @@ export type AppSettings = {
   chatSidebarWidth: number;
   sidebarCollapsed: boolean;
   themeMode: 'light' | 'dark' | 'system';
-  themeVariant: 'default' | 'lavender' | 'discord' | 'spotify';
+  themeVariant:
+    | 'default'
+    | 'lavender'
+    | 'discord'
+    | 'spotify'
+    | 'catppuccin'
+    | 'tokyo-night'
+    | 'nord'
+    | 'dracula'
+    | 'rose-pine'
+    | 'gruvbox'
+    | 'solarized'
+    | 'monochrome';
   language: 'system' | 'ru' | 'en';
   aiModules: AiModuleSettings;
 };

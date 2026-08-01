@@ -57,6 +57,7 @@ test('open chat and per-chat scroll positions survive navigation and restart', a
     controller,
     /saveChatNavigationState\(activeChatId, isChatOpen\)/,
   );
+  assert.match(list, /readSessionChatScrollPosition\(chatId\)/);
   assert.match(list, /readChatScrollPosition\(chatId\)/);
   assert.match(list, /saveChatScrollPosition\(chatId/);
   assert.match(list, /anchorMessageId/);
@@ -104,4 +105,22 @@ test('full prompt preview includes the current conversation history', async () =
   assert.match(backend, /input\.conversation_messages/);
   assert.match(backend, /prompt\.push_str\("\[SYSTEM\]\\n"\)/);
   assert.match(backend, /"assistant" => "ASSISTANT"/);
+});
+
+test('optimistic messages keep stable ids through the backend commit', async () => {
+  const [controller, frontendBackend, rustBackend, list] = await Promise.all([
+    readFile(controllerPath, 'utf8'),
+    readFile(new URL('../../src/lib/backend.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../../src-tauri/src/lib.rs', import.meta.url), 'utf8'),
+    readFile(messageListPath, 'utf8'),
+  ]);
+
+  assert.match(controller, /const userMessageId = createGenerationId\(\)/);
+  assert.match(controller, /const assistantMessageId = createGenerationId\(\)/);
+  assert.match(controller, /reconcileChatMessages\(/);
+  assert.match(frontendBackend, /userMessageId/);
+  assert.match(frontendBackend, /assistantMessageId/);
+  assert.match(rustBackend, /user_message_id: Option<String>/);
+  assert.match(rustBackend, /assistant_message_id: Option<String>/);
+  assert.match(list, /keepVirtualTailMounted/);
 });

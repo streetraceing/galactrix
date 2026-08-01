@@ -89,6 +89,9 @@ export function ProviderEmbeddingSection({
               }
               placeholder={t('providerEmbeddingSection.baseUrlPlaceholder')}
             />
+            <p className="mt-1.5 text-xs leading-5 text-muted">
+              {t('providerEmbeddingSection.baseUrlHint')}
+            </p>
           </FormField>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <Button

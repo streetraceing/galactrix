@@ -24,6 +24,7 @@ const emptyState = (): PersistedChatViewState => ({
 });
 
 let cachedState: PersistedChatViewState | null = null;
+const sessionScrollByChat = new Map<string, ChatScrollPosition>();
 
 function finiteNumber(value: unknown, fallback = 0) {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
@@ -115,6 +116,10 @@ export function readChatScrollPosition(chatId: string) {
   return loadState().scrollByChat[chatId];
 }
 
+export function readSessionChatScrollPosition(chatId: string) {
+  return sessionScrollByChat.get(chatId);
+}
+
 export function saveChatScrollPosition(
   chatId: string,
   position: Omit<ChatScrollPosition, 'updatedAt'>,
@@ -127,6 +132,7 @@ export function saveChatScrollPosition(
     anchorOffset: finiteNumber(position.anchorOffset),
     updatedAt: Date.now(),
   };
+  sessionScrollByChat.set(chatId, nextPosition);
   const scrollByChat = {
     ...current.scrollByChat,
     [chatId]: nextPosition,
@@ -146,6 +152,7 @@ export function forgetChatViewState(chatId: string) {
   if (!current.scrollByChat[chatId] && current.activeChatId !== chatId) return;
   const scrollByChat = { ...current.scrollByChat };
   delete scrollByChat[chatId];
+  sessionScrollByChat.delete(chatId);
   saveState({
     ...current,
     activeChatId: current.activeChatId === chatId ? '' : current.activeChatId,
@@ -179,4 +186,5 @@ export function resolveStoredScrollTop(
 
 export function resetChatViewStateForTests() {
   cachedState = null;
+  sessionScrollByChat.clear();
 }

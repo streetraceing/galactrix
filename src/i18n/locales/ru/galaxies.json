@@ -178,5 +178,7 @@
   "count.libraryObject_few": "{{count}} объекта в библиотеке",
   "count.libraryObject_many": "{{count}} объектов в библиотеке",
   "count.libraryObject_other": "{{count}} объекта в библиотеке",
-  "personaEditor.attributeValuePlaceholder": "Подробно опишите этот факт"
+  "personaEditor.attributeValuePlaceholder": "Подробно опишите этот факт",
+  "style.roleplayRich": "Глубокий роллплей",
+  "style.telegramHuman": "Как человек в Telegram"
 }

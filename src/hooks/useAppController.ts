@@ -45,6 +45,7 @@ import type {
   ChatConfigInput,
   GalaxyItemInput,
   EmbeddingProbeResult,
+  Message,
   ProviderInput,
   ProviderImportInput,
   TabId,
@@ -141,6 +142,60 @@ function createGenerationId() {
   return `generation-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
+function sameMessageVariants(
+  left: Message['variants'],
+  right: Message['variants'],
+) {
+  if (left.length !== right.length) return false;
+  return left.every((variant, index) => {
+    const candidate = right[index];
+    return (
+      candidate != null &&
+      variant.id === candidate.id &&
+      variant.index === candidate.index &&
+      variant.content === candidate.content &&
+      variant.createdAt === candidate.createdAt
+    );
+  });
+}
+
+function reconcileChatMessages(
+  currentMessages: Message[],
+  chatId: string,
+  incomingMessages: Message[],
+) {
+  const currentById = new Map(
+    currentMessages
+      .filter((message) => message.chatId === chatId)
+      .map((message) => [message.id, message] as const),
+  );
+  const reconciled = incomingMessages.map((message) => {
+    const current = currentById.get(message.id);
+    if (!current) return message;
+
+    const unchanged =
+      current.role === message.role &&
+      current.content === message.content &&
+      current.remembered === message.remembered &&
+      current.activeVariantIndex === message.activeVariantIndex &&
+      sameMessageVariants(current.variants, message.variants);
+    if (unchanged) return current;
+
+    return {
+      ...message,
+      // Optimistic messages use the same ids as the database rows. Keeping the
+      // already displayed timestamp prevents a visible header jump at commit.
+      createdAt: current.pending ? current.createdAt : message.createdAt,
+      pending: undefined,
+    };
+  });
+
+  return [
+    ...currentMessages.filter((message) => message.chatId !== chatId),
+    ...reconciled,
+  ];
+}
+
 export function useAppController() {
   const { setTheme } = useTheme();
   const initialChatViewRef = useRef(readChatNavigationState());
@@ -187,10 +242,7 @@ export function useAppController() {
         ...current.chats.filter((chat) => chat.id !== chatId),
         state.chat,
       ]),
-      messages: [
-        ...current.messages.filter((message) => message.chatId !== chatId),
-        ...chatMessages,
-      ],
+      messages: reconcileChatMessages(current.messages, chatId, chatMessages),
     }));
     return { ...state, messages: chatMessages };
   }, []);
@@ -383,14 +435,58 @@ export function useAppController() {
       if (!activeChatId || activeGenerationRef.current) return;
       const chatId = activeChatId;
       const generationId = createGenerationId();
+      const userMessageId = createGenerationId();
+      const assistantMessageId = createGenerationId();
+      const createdAt = Math.floor(Date.now() / 1_000);
       activeGenerationRef.current = generationId;
       cancelRequestedRef.current = false;
+      setSnapshot((current) => ({
+        ...current,
+        chats: sortChats(
+          current.chats.map((chat) =>
+            chat.id === chatId
+              ? {
+                  ...chat,
+                  preview: content,
+                  updatedAt: createdAt,
+                  messageCount: chat.messageCount + 2,
+                }
+              : chat,
+          ),
+        ),
+        messages: [
+          ...current.messages,
+          {
+            id: userMessageId,
+            chatId,
+            role: 'user',
+            content,
+            createdAt,
+            remembered: false,
+            activeVariantIndex: 0,
+            variants: [],
+          },
+          {
+            id: assistantMessageId,
+            chatId,
+            role: 'assistant',
+            content: '',
+            createdAt,
+            remembered: false,
+            activeVariantIndex: 0,
+            variants: [],
+            pending: true,
+          },
+        ],
+      }));
       setSending(true);
       try {
         await sendChatMessage(
           chatId,
           content,
           generationId,
+          userMessageId,
+          assistantMessageId,
           snapshot.settings.responseLanguage === 'app'
             ? getLocale()
             : undefined,

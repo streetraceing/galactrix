@@ -1013,7 +1013,7 @@ fn validate_chat_links(connection: &Connection, input: &ChatConfigInput) -> Comm
 }
 
 fn validate_prompt_config(config: &PromptConfig) -> CommandResult<()> {
-    const PRESETS: [&str; 11] = [
+    const PRESETS: [&str; 16] = [
         "human",
         "casual-brief",
         "casual-lowercase",
@@ -1025,6 +1025,11 @@ fn validate_prompt_config(config: &PromptConfig) -> CommandResult<()> {
         "immersive",
         "initiative",
         "continuity",
+        "roleplay-actions",
+        "no-user-control",
+        "character-consistency",
+        "scene-pacing",
+        "telegram-chat",
     ];
     const PRIORITIES: [&str; 4] = ["low", "normal", "high", "critical"];
 
@@ -1884,6 +1889,8 @@ fn validate_galaxy_data(
                 | "warm"
                 | "concise"
                 | "casual-lowercase"
+                | "roleplay-rich"
+                | "telegram-human"
                 | "roleplay"
                 | "literary"
                 | "custom"

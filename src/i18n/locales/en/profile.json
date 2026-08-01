@@ -121,5 +121,13 @@
   "profilePreferences.appLanguage": "Use app language",
   "profilePreferences.appLanguageHint": "Reply in the currently selected interface language",
   "profilePreferences.autoResponseLanguage": "Detect automatically",
-  "profilePreferences.autoResponseLanguageHint": "Let the model follow the conversation language"
+  "profilePreferences.autoResponseLanguageHint": "Let the model follow the conversation language",
+  "theme.variant.catppuccin": "Catppuccin",
+  "theme.variant.tokyoNight": "Tokyo Night",
+  "theme.variant.nord": "Nord",
+  "theme.variant.dracula": "Dracula",
+  "theme.variant.rosePine": "Rosé Pine",
+  "theme.variant.gruvbox": "Gruvbox",
+  "theme.variant.solarized": "Solarized",
+  "theme.variant.monochrome": "Monochrome"
 }

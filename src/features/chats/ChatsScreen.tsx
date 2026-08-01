@@ -70,10 +70,6 @@ export function ChatsScreen({
   const { bottomInset: keyboardInset } = useVisualViewportMetrics(
     isMobile && isSinglePane && isChatOpen,
   );
-  const [pendingMessage, setPendingMessage] = useState<{
-    chatId: string;
-    content: string;
-  } | null>(null);
   const [working, setWorking] = useState(false);
   const [renameTarget, setRenameTarget] = useState<Chat | null>(null);
   const [renameValue, setRenameValue] = useState('');
@@ -158,7 +154,6 @@ export function ChatsScreen({
         return;
       }
       sendInFlightRef.current = true;
-      setPendingMessage({ chatId: activeChat.id, content: value });
       try {
         await onSend(value);
       } catch (error) {
@@ -166,7 +161,6 @@ export function ChatsScreen({
         throw error;
       } finally {
         sendInFlightRef.current = false;
-        setPendingMessage(null);
       }
     },
     [activeChat, activeProvider, onSend, sending, showChatError],
@@ -336,11 +330,6 @@ export function ChatsScreen({
                     userName={canvasUserName}
                     userAvatar={
                       galaxyItemAvatar(canvasPersona) ?? profileAvatar
-                    }
-                    pendingMessage={
-                      pendingMessage?.chatId === canvasChat.id
-                        ? pendingMessage.content
-                        : ''
                     }
                     sending={sending && canvasChat.id === activeChat.id}
                     viewMode={chatViewMode}

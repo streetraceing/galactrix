@@ -124,6 +124,8 @@ export async function sendChatMessage(
   chatId: string,
   content: string,
   generationId: string,
+  userMessageId: string,
+  assistantMessageId: string,
   responseLanguage?: 'en' | 'ru',
 ) {
   requireTauri();
@@ -131,6 +133,8 @@ export async function sendChatMessage(
     chatId,
     content,
     generationId,
+    userMessageId,
+    assistantMessageId,
     responseLanguage: responseLanguage ?? null,
   });
 }

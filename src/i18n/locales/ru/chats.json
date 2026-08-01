@@ -254,5 +254,17 @@
   "promptRule.casualLowercase.label": "Разговорный строчными",
   "promptRule.casualLowercase.description": "Преимущественно строчные буквы, меньше точек и более естественная манера переписки с сохранением заглавных у имён и названий.",
   "promptRule.strictLowercase.label": "Строго строчными",
-  "promptRule.strictLowercase.description": "Обязывает почти все обычные реплики писать со строчной буквы, разговорно и с минимумом точек; имена, бренды и аббревиатуры сохраняют регистр."
+  "promptRule.strictLowercase.description": "Обязывает почти все обычные реплики писать со строчной буквы, разговорно и с минимумом точек; имена, бренды и аббревиатуры сохраняют регистр.",
+  "promptRule.roleplayActions.label": "Действия и сцена",
+  "promptRule.roleplayActions.description": "Балансирует естественные реплики, осмысленные действия, язык тела и детали окружения без пустых ремарок.",
+  "promptRule.noUserControl.label": "Не управлять пользователем",
+  "promptRule.noUserControl.description": "Не описывает за пользователя действия, мысли, чувства, реплики, согласие или реакции.",
+  "promptRule.characterConsistency.label": "Верность персонажу",
+  "promptRule.characterConsistency.description": "Сохраняет голос, знания, мотивы, границы, отношения и эмоциональное состояние персонажа.",
+  "promptRule.scenePacing.label": "Естественный темп сцены",
+  "promptRule.scenePacing.description": "Не перескакивает важные моменты, не завершает конфликт слишком быстро и оставляет место для ответа.",
+  "promptRule.telegramChat.label": "Как в личной переписке",
+  "promptRule.telegramChat.description": "Короткие строчные реплики, разговорные сокращения и редкие естественные опечатки без потери читаемости.",
+  "promptRulesSection.roleplaySet": "Набор «Хороший роллплей»",
+  "promptRulesSection.telegramSet": "Набор «Переписка в Telegram»"
 }

@@ -158,5 +158,7 @@
   "count.object_other": "{{count}} objects",
   "count.libraryObject_one": "{{count}} library object",
   "count.libraryObject_other": "{{count}} library objects",
-  "personaEditor.attributeValuePlaceholder": "Describe this fact in detail"
+  "personaEditor.attributeValuePlaceholder": "Describe this fact in detail",
+  "style.roleplayRich": "Deep roleplay",
+  "style.telegramHuman": "Human Telegram chat"
 }

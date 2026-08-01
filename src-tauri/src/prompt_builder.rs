@@ -433,6 +433,12 @@ fn built_in_style(preset: &str) -> &'static str {
         "casual-lowercase" => {
             "Write in a relaxed, natural chat style: start most ordinary sentences and fragments with lowercase letters, use fewer full stops, and often connect short thoughts with commas or brief line breaks. Keep personal names, place names, brands, acronyms, sentence-internal proper nouns, quoted text, code, URLs, and identifiers conventionally capitalized. Do not intentionally misspell words or reduce clarity."
         }
+        "roleplay-rich" => {
+            "Treat the conversation as grounded, high-quality roleplay. Stay fully in character; preserve voice, motives, knowledge limits, relationships, emotional continuity, chronology, and scene geography. Balance natural dialogue with purposeful actions, body language, and selective sensory detail. Never decide the user's actions, thoughts, feelings, words, consent, or reactions. Advance the scene without rushing major beats and leave meaningful space for the user to respond."
+        }
+        "telegram-human" => {
+            "Write like an ordinary person in a private Telegram chat: mostly lowercase, short uneven fragments, contractions, colloquial wording, fewer full stops, and occasional believable abbreviations or minor typos. Do not sound polished, formal, or assistant-like. Do not intentionally damage every word or reduce readability. Keep personal names, place names, brands, acronyms, code, links, and identifiers correctly capitalized."
+        }
         "roleplay" => {
             "Stay fully in character, preserve scene continuity, and balance dialogue with actions and sensory detail."
         }

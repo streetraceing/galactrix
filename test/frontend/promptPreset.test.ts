@@ -91,3 +91,67 @@ test('lowercase chat rules are available in the prompt constructor', async () =>
   assert.match(responseRules, /прост проверял связь, что делаешь\?/);
   assert.match(responseRules, /Never ignore this rule/);
 });
+
+test('roleplay and Telegram bundles are available as built-in prompt sets', async () => {
+  const [
+    config,
+    model,
+    section,
+    builder,
+    responseRules,
+    ruChatsRaw,
+    ruGalaxiesRaw,
+  ] = await Promise.all([
+    readFile(promptConfigPath, 'utf8'),
+    readFile(promptModelPath, 'utf8'),
+    readFile(
+      new URL(
+        '../../src/features/chats/components/prompt-builder/PromptRulesSection.tsx',
+        import.meta.url,
+      ),
+      'utf8',
+    ),
+    readFile(promptBuilderPath, 'utf8'),
+    readFile(
+      new URL('../../src-tauri/src/response_rules.rs', import.meta.url),
+      'utf8',
+    ),
+    readFile(ruChatsPath, 'utf8'),
+    readFile(
+      new URL('../../src/i18n/locales/ru/galaxies.json', import.meta.url),
+      'utf8',
+    ),
+  ]);
+  const ruChats = JSON.parse(ruChatsRaw) as Record<string, string>;
+  const ruGalaxies = JSON.parse(ruGalaxiesRaw) as Record<string, string>;
+
+  for (const id of [
+    'roleplay-actions',
+    'no-user-control',
+    'character-consistency',
+    'scene-pacing',
+    'telegram-chat',
+  ]) {
+    assert.match(config, new RegExp(`id: '${id}'`));
+  }
+  assert.match(model, /roleplayBundle[\s\S]*'no-user-control'/);
+  assert.match(model, /telegramChatBundle[\s\S]*'telegram-chat'/);
+  assert.match(section, /promptRulesSection\.roleplaySet/);
+  assert.match(section, /promptRulesSection\.telegramSet/);
+  assert.match(
+    responseRules,
+    /Never decide, narrate, or imply the user's actions/,
+  );
+  assert.match(builder, /"roleplay-rich"/);
+  assert.match(builder, /"telegram-human"/);
+  assert.equal(
+    ruChats['promptRulesSection.roleplaySet'],
+    'Набор «Хороший роллплей»',
+  );
+  assert.equal(
+    ruChats['promptRulesSection.telegramSet'],
+    'Набор «Переписка в Telegram»',
+  );
+  assert.equal(ruGalaxies['style.roleplayRich'], 'Глубокий роллплей');
+  assert.equal(ruGalaxies['style.telegramHuman'], 'Как человек в Telegram');
+});

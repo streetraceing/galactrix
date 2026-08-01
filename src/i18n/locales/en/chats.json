@@ -242,5 +242,17 @@
   "promptRule.casualLowercase.label": "Relaxed lowercase",
   "promptRule.casualLowercase.description": "Mostly lowercase, fewer full stops, and a more natural chat tone while preserving capitalization for names and proper nouns.",
   "promptRule.strictLowercase.label": "Strict lowercase chat",
-  "promptRule.strictLowercase.description": "Forces almost every ordinary reply into lowercase, casual phrasing with minimal full stops; names, brands, and acronyms keep their case."
+  "promptRule.strictLowercase.description": "Forces almost every ordinary reply into lowercase, casual phrasing with minimal full stops; names, brands, and acronyms keep their case.",
+  "promptRule.roleplayActions.label": "Actions and scene",
+  "promptRule.roleplayActions.description": "Balances natural dialogue, purposeful actions, body language, and environmental detail without empty stage directions.",
+  "promptRule.noUserControl.label": "Preserve user agency",
+  "promptRule.noUserControl.description": "Never writes the user's actions, thoughts, feelings, dialogue, consent, or reactions for them.",
+  "promptRule.characterConsistency.label": "Character consistency",
+  "promptRule.characterConsistency.description": "Preserves the character voice, knowledge, motives, boundaries, relationships, and emotional state.",
+  "promptRule.scenePacing.label": "Natural scene pacing",
+  "promptRule.scenePacing.description": "Does not skip important beats or resolve conflict too quickly and leaves room for the user to respond.",
+  "promptRule.telegramChat.label": "Private messenger chat",
+  "promptRule.telegramChat.description": "Short lowercase messages, colloquial abbreviations, and occasional natural typos without sacrificing readability.",
+  "promptRulesSection.roleplaySet": "“Strong roleplay” set",
+  "promptRulesSection.telegramSet": "“Telegram chat” set"
 }

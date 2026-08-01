@@ -44,6 +44,18 @@ export const stylePresets = [
     },
   },
   {
+    id: 'roleplay-rich',
+    get label() {
+      return i18next.t('style.roleplayRich', { ns: 'galaxies' });
+    },
+  },
+  {
+    id: 'telegram-human',
+    get label() {
+      return i18next.t('style.telegramHuman', { ns: 'galaxies' });
+    },
+  },
+  {
     id: 'roleplay',
     get label() {
       return i18next.t('style.roleplay', { ns: 'galaxies' });
@@ -284,6 +296,9 @@ function normalizePriority(
 function isPromptPreset(value: string): value is PromptPresetId {
   return [
     'human',
+    'casual-brief',
+    'casual-lowercase',
+    'strict-lowercase',
     'dialogue-only',
     'no-emoji',
     'first-person',
@@ -291,6 +306,11 @@ function isPromptPreset(value: string): value is PromptPresetId {
     'immersive',
     'initiative',
     'continuity',
+    'roleplay-actions',
+    'no-user-control',
+    'character-consistency',
+    'scene-pacing',
+    'telegram-chat',
   ].includes(value);
 }
 

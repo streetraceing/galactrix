@@ -2,7 +2,11 @@ import { Accordion, Button, Checkbox, CheckboxGroup } from '@heroui/react';
 import { Icon } from '../../../../components/Icon';
 import type { PromptConfig, PromptPresetId } from '../../../../types';
 import { promptPresets } from '../../promptConfig';
-import { livingDialogueBundle } from './promptBuilderModel';
+import {
+  livingDialogueBundle,
+  roleplayBundle,
+  telegramChatBundle,
+} from './promptBuilderModel';
 import { useTranslation } from 'react-i18next';
 
 export function PromptRulesSection({
@@ -43,6 +47,32 @@ export function PromptRulesSection({
             >
               <Icon name="sparkles" className="size-4" />
               {t('promptRulesSection.naturalDialogueSet')}
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              onPress={() =>
+                onChange({
+                  ...value,
+                  presetIds: [...roleplayBundle],
+                })
+              }
+            >
+              <Icon name="sparkles" className="size-4" />
+              {t('promptRulesSection.roleplaySet')}
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              onPress={() =>
+                onChange({
+                  ...value,
+                  presetIds: [...telegramChatBundle],
+                })
+              }
+            >
+              <Icon name="message_box" className="size-4" />
+              {t('promptRulesSection.telegramSet')}
             </Button>
             {value.presetIds.length > 0 ? (
               <Button

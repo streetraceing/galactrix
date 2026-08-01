@@ -71,7 +71,7 @@ test('settings separate parameters and animated searchable modules', async () =>
   assert.match(moduleCard, /useState\(enabled\)/);
   assert.match(moduleCard, /const detailsVisible = enabled && isExpanded/);
   assert.match(moduleCard, /setIsExpanded\(nextEnabled\)/);
-  assert.match(moduleCard, /showDescription=\{detailsVisible\}/);
+  assert.match(moduleCard, /aria-hidden=\{!detailsVisible\}/);
   assert.match(moduleCard, /grid-rows-\[1fr\]/);
   assert.match(moduleCard, /grid-rows-\[0fr\]/);
   assert.match(moduleCard, /inert=\{!detailsVisible\}/);
@@ -169,4 +169,35 @@ test('embedding capability survives Telescope export and has a backend probe', a
     /embeddingBaseUrl: optionalString\(provider\.embeddingBaseUrl\)/,
   );
   assert.match(backend, /test_provider_embeddings/);
+});
+
+test('a custom embedding URL is treated as the complete endpoint', async () => {
+  const [providerClient, embeddingSection, ruTelescopeRaw] = await Promise.all([
+    readFile(
+      new URL('../../src-tauri/src/provider_client.rs', import.meta.url),
+      'utf8',
+    ),
+    readFile(
+      new URL(
+        '../../src/features/telescope/components/ProviderEmbeddingSection.tsx',
+        import.meta.url,
+      ),
+      'utf8',
+    ),
+    readFile(
+      new URL('../../src/i18n/locales/ru/telescope.json', import.meta.url),
+      'utf8',
+    ),
+  ]);
+  const ruTelescope = JSON.parse(ruTelescopeRaw) as Record<string, string>;
+
+  assert.match(providerClient, /fn embedding_endpoint_saved/);
+  assert.match(providerClient, /return Ok\(endpoint\.to_owned\(\)\)/);
+  assert.match(providerClient, /client\.post\(&embedding_url\)/);
+  assert.match(providerClient, /client\.post\(&url\)/);
+  assert.match(embeddingSection, /providerEmbeddingSection\.baseUrlHint/);
+  assert.equal(
+    ruTelescope['providerEmbeddingSection.baseUrlPlaceholder'],
+    'http://127.0.0.1:11534/api/embed',
+  );
 });
