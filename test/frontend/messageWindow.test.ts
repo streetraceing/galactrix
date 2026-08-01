@@ -2,6 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Message } from '../../src/types';
 import {
+  MESSAGE_VIRTUAL_CHUNK_ITEMS,
+  MESSAGE_VIRTUAL_INITIAL_MIN_ITEMS,
+  MESSAGE_VIRTUAL_INITIAL_OVERSCAN_PX,
   MESSAGE_VIRTUAL_MIN_ITEMS,
   MESSAGE_VIRTUAL_OVERSCAN_PX,
   MESSAGE_VIRTUALIZATION_THRESHOLD,
@@ -26,10 +29,13 @@ function message(
   };
 }
 
-test('virtual chat defaults keep the mounted message set small', () => {
-  assert.equal(MESSAGE_VIRTUAL_OVERSCAN_PX, 420);
-  assert.equal(MESSAGE_VIRTUAL_MIN_ITEMS, 6);
-  assert.equal(MESSAGE_VIRTUALIZATION_THRESHOLD, 64);
+test('virtual chat defaults trade a wider buffer for fewer scroll renders', () => {
+  assert.equal(MESSAGE_VIRTUAL_INITIAL_OVERSCAN_PX, 240);
+  assert.equal(MESSAGE_VIRTUAL_OVERSCAN_PX, 1_800);
+  assert.equal(MESSAGE_VIRTUAL_INITIAL_MIN_ITEMS, 8);
+  assert.equal(MESSAGE_VIRTUAL_MIN_ITEMS, 16);
+  assert.equal(MESSAGE_VIRTUAL_CHUNK_ITEMS, 8);
+  assert.equal(MESSAGE_VIRTUALIZATION_THRESHOLD, 24);
 });
 
 test('message height estimates account for content and viewport density', () => {
@@ -50,7 +56,7 @@ test('message offsets preserve the complete virtual scroll height', () => {
   assert.deepEqual(buildMessageOffsets([100, 120, 80]), [0, 100, 220, 300]);
 });
 
-test('virtual ranges render bounded messages around any scrollbar position', () => {
+test('virtual ranges stay bounded and align to stable chunks', () => {
   const offsets = buildMessageOffsets(Array.from({ length: 100 }, () => 100));
 
   const top = messageVirtualRange(offsets, 0, 500, 200, 6);
@@ -65,6 +71,7 @@ test('virtual ranges render bounded messages around any scrollbar position', () 
 
   assert.equal(top.start, 0);
   assert.ok(top.end < 100);
+  assert.equal(middle.start % MESSAGE_VIRTUAL_CHUNK_ITEMS, 0);
   assert.ok(middle.start > 0 && middle.end < 100);
   assert.equal(bottom.end, 100);
   assert.ok(bottom.start > 0);

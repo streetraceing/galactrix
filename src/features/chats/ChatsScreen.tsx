@@ -102,10 +102,8 @@ export function ChatsScreen({
     : EMPTY_MESSAGES;
   const configChatId =
     configTarget && configTarget !== 'new' ? configTarget.id : undefined;
-  const configRememberedMessages = configChatId
-    ? (messagesByChat.get(configChatId) ?? EMPTY_MESSAGES).filter(
-        (message) => message.remembered,
-      )
+  const configMessages = configChatId
+    ? (messagesByChat.get(configChatId) ?? EMPTY_MESSAGES)
     : EMPTY_MESSAGES;
   const activeProvider = providers.find(
     (provider) => provider.id === activeChat?.providerId,
@@ -401,7 +399,7 @@ export function ChatsScreen({
         providers={providers}
         profileName={displayProfileName}
         responseLanguage={responseLanguage}
-        rememberedMessages={configRememberedMessages}
+        messages={configMessages}
         saving={working}
         onOpenChange={(open) => !open && setConfigTarget(null)}
         onSubmit={(input) => void saveConfig(input)}

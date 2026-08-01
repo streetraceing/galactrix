@@ -47,7 +47,7 @@ export function promptPreviewFromChat(
   config: ChatConfigInput,
   items: GalaxyItem[],
   profileName?: string,
-  rememberedMessages: Message[] = [],
+  conversationMessages: Message[] = [],
   responseLanguage?: 'en' | 'ru',
 ): PromptPreviewInput {
   const persona = findInput(items, config.personaId, 'persona');
@@ -69,7 +69,10 @@ export function promptPreviewFromChat(
       character,
     ),
     promptConfig: config.promptConfig,
-    rememberedMessages,
+    rememberedMessages: conversationMessages.filter(
+      (message) => message.remembered,
+    ),
+    conversationMessages,
     userName:
       persona?.name ||
       profileName ||
@@ -89,6 +92,7 @@ export function promptPreviewFromDraft(
     promptSets: [],
     promptConfig: clonePromptConfig(defaultPromptConfig),
     rememberedMessages: [],
+    conversationMessages: [],
     userName: i18next.t('user.defaultName', { ns: 'common' }),
     responseLanguage: getLocale(),
   };

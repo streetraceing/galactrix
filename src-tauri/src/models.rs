@@ -514,6 +514,8 @@ pub struct PromptPreviewInput {
     pub prompt_config: PromptConfig,
     #[serde(default)]
     pub remembered_messages: Vec<Message>,
+    #[serde(default)]
+    pub conversation_messages: Vec<Message>,
     pub user_name: Option<String>,
     pub character_name: Option<String>,
     pub response_language: Option<String>,

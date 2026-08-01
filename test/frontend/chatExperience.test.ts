@@ -51,6 +51,10 @@ test('open chat and per-chat scroll positions survive navigation and restart', a
   assert.match(controller, /readChatNavigationState\(\)/);
   assert.match(
     controller,
+    /startTransition\(\(\) => \{[\s\S]*setActiveChatId\(chatId\)/,
+  );
+  assert.match(
+    controller,
     /saveChatNavigationState\(activeChatId, isChatOpen\)/,
   );
   assert.match(list, /readChatScrollPosition\(chatId\)/);
@@ -72,4 +76,32 @@ test('new chats can start with an assistant greeting', async () => {
   assert.match(database, /input[\s\S]*greeting_message/);
   assert.match(database, /'assistant'/);
   assert.match(database, /message_variants/);
+});
+
+test('full prompt preview includes the current conversation history', async () => {
+  const [types, previewBuilder, modal, screen, backend] = await Promise.all([
+    readFile(new URL('../../src/types.ts', import.meta.url), 'utf8'),
+    readFile(
+      new URL('../../src/features/chats/promptPreview.ts', import.meta.url),
+      'utf8',
+    ),
+    readFile(
+      new URL(
+        '../../src/features/chats/components/ChatSetupModal.tsx',
+        import.meta.url,
+      ),
+      'utf8',
+    ),
+    readFile(chatsScreenPath, 'utf8'),
+    readFile(new URL('../../src-tauri/src/lib.rs', import.meta.url), 'utf8'),
+  ]);
+
+  assert.match(types, /conversationMessages: Message\[\]/);
+  assert.match(previewBuilder, /conversationMessages/);
+  assert.match(previewBuilder, /message\.remembered/);
+  assert.match(modal, /messages\s*=\s*\[\]/);
+  assert.match(screen, /messages=\{configMessages\}/);
+  assert.match(backend, /input\.conversation_messages/);
+  assert.match(backend, /prompt\.push_str\("\[SYSTEM\]\\n"\)/);
+  assert.match(backend, /"assistant" => "ASSISTANT"/);
 });

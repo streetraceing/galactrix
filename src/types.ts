@@ -184,6 +184,7 @@ export type PromptPreviewInput = {
   promptSets: GalaxyItemInput[];
   promptConfig: PromptConfig;
   rememberedMessages: Message[];
+  conversationMessages: Message[];
   userName?: string;
   characterName?: string;
   responseLanguage?: 'en' | 'ru';

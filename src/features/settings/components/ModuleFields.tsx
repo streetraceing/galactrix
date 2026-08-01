@@ -170,7 +170,7 @@ export function ModuleSettingsCard({
         </span>
         <Icon
           name="chevron"
-          className={`size-4 shrink-0 text-muted transition-transform duration-[var(--motion-standard)] ease-[var(--motion-ease)] ${detailsVisible ? 'rotate-90' : ''}`}
+          className={`size-4 shrink-0 text-muted transition-transform duration-(--motion-standard) ease-(--motion-ease) ${detailsVisible ? 'rotate-90' : ''}`}
         />
       </button>
 
@@ -179,14 +179,13 @@ export function ModuleSettingsCard({
           label={enabledLabel}
           description={enabledDescription}
           value={enabled}
-          showDescription={detailsVisible}
           onChange={(nextEnabled) => {
             setIsExpanded(nextEnabled);
             onEnabledChange(nextEnabled);
           }}
         />
         <div
-          className={`grid transition-[grid-template-rows,margin-top,opacity] duration-[var(--motion-standard)] ease-[var(--motion-ease)] motion-reduce:transition-none ${
+          className={`grid transition-[grid-template-rows,margin-top,opacity] duration-(--motion-standard) ease-(--motion-ease) motion-reduce:transition-none ${
             detailsVisible
               ? 'mt-3 grid-rows-[1fr] opacity-100'
               : 'mt-0 grid-rows-[0fr] opacity-0'

@@ -16,7 +16,7 @@ export function MessageHistoryModal({
   onSelect: (variantIndex: number) => void;
   onClose: () => void;
 }) {
-  const { t } = useTranslation('chats');
+  const { t, i18n } = useTranslation('chats');
   return (
     <UiModal
       isOpen={message != null}
@@ -64,7 +64,10 @@ export function MessageHistoryModal({
                   ) : null}
                 </div>
                 <span className="shrink-0 text-xs text-muted">
-                  {formatMessageTime(variant.createdAt)}
+                  {formatMessageTime(
+                    variant.createdAt,
+                    i18n.resolvedLanguage ?? i18n.language,
+                  )}
                 </span>
               </div>
               <div className="selectable max-h-[min(28dvh,12rem)] overflow-y-auto overscroll-contain pr-1 text-sm">

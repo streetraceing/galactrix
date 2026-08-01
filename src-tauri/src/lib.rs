@@ -683,7 +683,7 @@ fn preview_prompt(input: PromptPreviewInput) -> PromptPreviewResult {
             .collect(),
         prompt_config: input.prompt_config,
     };
-    let prompt = prompt_builder::build_system_prompt(
+    let system_prompt = prompt_builder::build_system_prompt(
         &context,
         &input.remembered_messages,
         input.response_language.as_deref(),
@@ -691,6 +691,27 @@ fn preview_prompt(input: PromptPreviewInput) -> PromptPreviewResult {
     .unwrap_or_default()
     .replace("{{user}}", &user_name)
     .replace("{{char}}", &character_name);
+    let mut prompt = String::new();
+    if !system_prompt.trim().is_empty() {
+        prompt.push_str("[SYSTEM]\n");
+        prompt.push_str(system_prompt.trim());
+    }
+    for message in input.conversation_messages.iter().filter(|message| {
+        matches!(message.role.as_str(), "system" | "user" | "assistant")
+    }) {
+        if !prompt.is_empty() {
+            prompt.push_str("\n\n");
+        }
+        let role = match message.role.as_str() {
+            "user" => "USER",
+            "assistant" => "ASSISTANT",
+            _ => "SYSTEM",
+        };
+        prompt.push('[');
+        prompt.push_str(role);
+        prompt.push_str("]\n");
+        prompt.push_str(message.content.trim());
+    }
 
     PromptPreviewResult {
         approximate_tokens: approximate_token_count(&prompt),

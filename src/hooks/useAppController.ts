@@ -1,5 +1,11 @@
 import { useTheme } from 'next-themes';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  startTransition,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import {
   branchChat,
   cancelGeneration,
@@ -272,9 +278,11 @@ export function useAppController() {
 
   const openChat = useCallback(
     (chatId: string) => {
-      setActiveChatId(chatId);
-      setIsChatOpen(true);
-      setActiveTab('chats');
+      startTransition(() => {
+        setActiveChatId(chatId);
+        setIsChatOpen(true);
+        setActiveTab('chats');
+      });
       haptic();
     },
     [haptic],

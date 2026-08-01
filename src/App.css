@@ -173,13 +173,13 @@
   }
 
   .chat-message-virtual-item {
-    content-visibility: auto;
-    contain-intrinsic-size: auto 9rem;
+    contain: layout style;
   }
 
   .chat-message-scroller {
     overflow-y: scroll;
     overflow-anchor: none;
+    overscroll-behavior: contain;
     scrollbar-gutter: stable;
   }
 
@@ -193,6 +193,7 @@
 
   .chat-message-virtual-spacer {
     contain: strict;
+    overflow-anchor: none;
     pointer-events: none;
   }
 

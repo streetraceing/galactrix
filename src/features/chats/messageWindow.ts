@@ -1,8 +1,11 @@
 import type { Message } from '../../types';
 
-export const MESSAGE_VIRTUAL_OVERSCAN_PX = 420;
-export const MESSAGE_VIRTUAL_MIN_ITEMS = 6;
-export const MESSAGE_VIRTUALIZATION_THRESHOLD = 64;
+export const MESSAGE_VIRTUAL_INITIAL_OVERSCAN_PX = 240;
+export const MESSAGE_VIRTUAL_OVERSCAN_PX = 1_800;
+export const MESSAGE_VIRTUAL_INITIAL_MIN_ITEMS = 8;
+export const MESSAGE_VIRTUAL_MIN_ITEMS = 16;
+export const MESSAGE_VIRTUAL_CHUNK_ITEMS = 8;
+export const MESSAGE_VIRTUALIZATION_THRESHOLD = 24;
 
 const DESKTOP_ASSISTANT_CHARS_PER_LINE = 76;
 const DESKTOP_USER_CHARS_PER_LINE = 58;
@@ -11,7 +14,7 @@ const MESSAGE_VERTICAL_GAP = 16;
 
 export function estimateMessageHeight(message: Message, mobile: boolean) {
   const content = message.content;
-  const scanLimit = Math.min(content.length, 2_048);
+  const scanLimit = Math.min(content.length, 256);
   let explicitLines = 1;
   for (let index = 0; index < scanLimit; index += 1) {
     if (content.charCodeAt(index) === 10) explicitLines += 1;
@@ -107,6 +110,10 @@ export function messageVirtualRange(
       start = Math.max(0, end - requestedMinimum);
     }
   }
+
+  const chunk = Math.max(1, MESSAGE_VIRTUAL_CHUNK_ITEMS);
+  start = Math.max(0, Math.floor(start / chunk) * chunk);
+  end = Math.min(messageCount, Math.ceil(end / chunk) * chunk);
 
   return { start, end };
 }

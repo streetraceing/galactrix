@@ -47,7 +47,7 @@ export function ChatSetupModal({
   providers,
   profileName,
   responseLanguage,
-  rememberedMessages = [],
+  messages = [],
   saving,
   onOpenChange,
   onSubmit,
@@ -58,7 +58,7 @@ export function ChatSetupModal({
   providers: Provider[];
   profileName?: string;
   responseLanguage?: 'en' | 'ru';
-  rememberedMessages?: Message[];
+  messages?: Message[];
   saving: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (input: ChatConfigInput) => void;
@@ -97,7 +97,9 @@ export function ChatSetupModal({
     ...(form.characterId ? (['character'] as const) : []),
     ...(form.universeId ? (['universe'] as const) : []),
     ...(form.worldbookIds.length ? (['worldbooks'] as const) : []),
-    ...(rememberedMessages.length ? (['remembered'] as const) : []),
+    ...(messages.some((message) => message.remembered)
+      ? (['remembered'] as const)
+      : []),
     ...(form.promptConfig.presetIds.length ? (['presets'] as const) : []),
   ];
 
@@ -217,7 +219,7 @@ export function ChatSetupModal({
             form,
             galaxyItems,
             profileName,
-            rememberedMessages,
+            messages,
             responseLanguage,
           )}
           title={t('chatSetupModal.chatPromptEstimate')}

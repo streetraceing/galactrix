@@ -22,7 +22,7 @@ test('long chats expose a stable scroll-to-bottom affordance', async () => {
   );
 });
 
-test('long chats keep stable virtual placeholders at every scrollbar position', async () => {
+test('virtual scrolling updates only bounded message windows', async () => {
   const source = await readFile(messageListPath, 'utf8');
 
   assert.match(source, /messageVirtualRange\(/);
@@ -33,7 +33,28 @@ test('long chats keep stable virtual placeholders at every scrollbar position', 
   assert.match(source, /data-virtual-message-id/);
   assert.match(source, /new ResizeObserver/);
   assert.match(source, /MESSAGE_VIRTUALIZATION_THRESHOLD/);
-  assert.match(source, /pendingMeasurementCommitRef/);
+  assert.match(source, /const \[virtualWindow, setVirtualWindow\]/);
+  assert.match(source, /startTransition\(syncVirtualWindow\)/);
+  assert.match(source, /setVirtualBufferReady\(true\)/);
+  assert.match(source, /MESSAGE_VIRTUAL_INITIAL_OVERSCAN_PX/);
+  assert.match(source, /commitMeasuredMessageHeights/);
+  assert.match(source, /measurementAnchorRef/);
+  assert.match(source, /current\.start === next\.start/);
+  assert.match(source, /current\.end === next\.end/);
+  assert.doesNotMatch(source, /setVirtualViewport/);
   assert.doesNotMatch(source, /scrollTop \+= scrollAdjustment/);
   assert.doesNotMatch(source, /loadEarlierMessages/);
+});
+
+test('regeneration uses the same symmetric typing bubble as a new response', async () => {
+  const source = await readFile(messageListPath, 'utf8');
+
+  assert.match(
+    source,
+    /isRegenerating[\s\S]*width: '2\.75rem'[\s\S]*maxWidth: '2\.75rem'/,
+  );
+  assert.doesNotMatch(
+    source,
+    /className="flex h-5 min-w-12 items-center gap-1"/,
+  );
 });
