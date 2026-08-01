@@ -1666,7 +1666,7 @@ pub fn delete_messages(connection: &Connection, message_ids: &[String]) -> Comma
 
     for chat_id in chat_ids {
         refresh_chat_summary(&transaction, &chat_id)?;
-        invalidate_chat_ai_context(&transaction, &chat_id)?;
+        clear_chat_ai_context(&transaction, &chat_id)?;
     }
 
     transaction.commit()?;
@@ -2303,10 +2303,21 @@ pub fn save_dynamic_context(
     transaction.commit().map_err(CommandError::internal)
 }
 
+fn clear_chat_ai_context(connection: &Connection, chat_id: &str) -> CommandResult<()> {
+    connection.execute(
+        "DELETE FROM chat_contexts WHERE chat_id = ?1",
+        params![chat_id],
+    )?;
+    connection.execute(
+        "DELETE FROM semantic_memories WHERE chat_id = ?1",
+        params![chat_id],
+    )?;
+    Ok(())
+}
+
 pub fn invalidate_chat_ai_context(connection: &Connection, chat_id: &str) -> CommandResult<()> {
     let transaction = connection.unchecked_transaction()?;
-    transaction.execute("DELETE FROM chat_contexts WHERE chat_id = ?1", params![chat_id])?;
-    transaction.execute("DELETE FROM semantic_memories WHERE chat_id = ?1", params![chat_id])?;
+    clear_chat_ai_context(&transaction, chat_id)?;
     transaction.commit().map_err(CommandError::internal)
 }
 
