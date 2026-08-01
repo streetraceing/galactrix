@@ -5,7 +5,10 @@ import { resolveProfileName } from '../../lib/profile';
 import type { AppSettings, Chat, TabId } from '../../types';
 import { ResizeHandle } from '../ResizeHandle';
 import { AppNotice } from './AppNotice';
-import { DesktopSidebar } from './DesktopSidebar';
+import {
+  DESKTOP_SIDEBAR_COLLAPSED_WIDTH,
+  DesktopSidebar,
+} from './DesktopSidebar';
 import { DesktopTitlebar } from './DesktopTitlebar';
 import { MobileBottomNavigation } from './MobileBottomNavigation';
 import { useTranslation } from 'react-i18next';
@@ -76,18 +79,29 @@ export function ApplicationFrame({
             }
           />
         ) : null}
-        {!isMobile && !settings.sidebarCollapsed ? (
+        {!isMobile ? (
           <ResizeHandle
             value={settings.sidebarWidth}
             min={196}
             max={420}
-            className="max-[1300px]:hidden"
+            collapsed={settings.sidebarCollapsed}
+            collapsedValue={DESKTOP_SIDEBAR_COLLAPSED_WIDTH}
+            collapseThreshold={48}
+            className="max-[920px]:hidden"
             label={t('applicationFrame.changeMainSidebarWidth')}
             onChange={(sidebarWidth) =>
-              onSettingsPreview({ ...settings, sidebarWidth })
+              onSettingsPreview({
+                ...settings,
+                sidebarWidth,
+                sidebarCollapsed: false,
+              })
             }
             onCommit={(sidebarWidth) =>
-              onSettingsCommit({ ...settings, sidebarWidth })
+              onSettingsCommit({
+                ...settings,
+                sidebarWidth,
+                sidebarCollapsed: false,
+              })
             }
             onCollapse={() =>
               onSettingsCommit({ ...settings, sidebarCollapsed: true })

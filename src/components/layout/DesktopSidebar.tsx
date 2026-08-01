@@ -12,6 +12,8 @@ import { Icon } from '../Icon';
 import { AppAvatar } from '../ui/AppAvatar';
 import { AppTooltip } from '../ui/AppTooltip';
 
+export const DESKTOP_SIDEBAR_COLLAPSED_WIDTH = 56;
+
 type SidebarButtonProps = {
   item: NavigationItem;
   active: boolean;
@@ -23,7 +25,7 @@ type SidebarButtonProps = {
 };
 
 const sidebarButtonClass =
-  'h-10 w-full min-w-0 shrink-0 justify-start gap-3 overflow-hidden px-3 transition-[gap,padding,background-color,color] duration-[280ms] ease-[var(--motion-ease)] motion-reduce:transition-none group-data-[collapsed=true]/sidebar:gap-0 group-data-[collapsed=true]/sidebar:px-0 ring-0! ring-transparent!';
+  'h-10 w-full min-w-0 shrink-0 justify-start gap-3 overflow-hidden px-3 transition-[gap,padding,background-color,color] duration-[280ms] ease-[var(--motion-ease)] motion-reduce:transition-none group-data-[collapsed=true]/sidebar:gap-0 group-data-[collapsed=true]/sidebar:px-2 ring-0! ring-transparent!';
 
 function SidebarText({ children }: { children: ReactNode }) {
   return (
@@ -67,7 +69,7 @@ function SidebarButton({
         <Chip
           size="sm"
           variant="soft"
-          className="max-w-14 shrink-0 overflow-hidden bg-transparent opacity-100 transition-[max-width,opacity,transform] duration-220 ease-(--motion-ease) group-data-[collapsed=true]/sidebar:max-w-0 group-data-[collapsed=true]/sidebar:translate-x-1 group-data-[collapsed=true]/sidebar:opacity-0 group-data-[collapsed=false]/sidebar:delay-75"
+          className="max-w-14 ml-auto shrink-0 overflow-hidden bg-transparent opacity-100 transition-[max-width,opacity,transform] duration-220 ease-(--motion-ease) group-data-[collapsed=true]/sidebar:max-w-0 group-data-[collapsed=true]/sidebar:translate-x-1 group-data-[collapsed=true]/sidebar:opacity-0 group-data-[collapsed=false]/sidebar:delay-75"
         >
           {count}
         </Chip>

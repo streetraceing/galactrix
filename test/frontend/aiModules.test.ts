@@ -85,22 +85,30 @@ test('settings separate parameters and animated searchable modules', async () =>
   assert.doesNotMatch(moduleCard, /Accordion|DisclosureGroup/);
 });
 
-test('desktop sidebar collapses through resize and keeps centered compact icons', async () => {
+test('desktop sidebar keeps centered compact icons and reversible resize collapse', async () => {
   const [sidebar, frame, resizeHandle] = await Promise.all([
     readFile(sidebarPath, 'utf8'),
     readFile(framePath, 'utf8'),
     readFile(resizeHandlePath, 'utf8'),
   ]);
 
-  assert.match(sidebar, /compact \? 'w-10' : ''/);
-  assert.match(sidebar, /group-data-\[collapsed=true\]\/sidebar:px-0/);
+  assert.match(sidebar, /compact \? 'w-14' : ''/);
+  assert.match(sidebar, /group-data-\[collapsed=true\]\/sidebar:px-2/);
   assert.match(sidebar, /transition-\[width\]/);
   assert.match(sidebar, /after:w-px after:bg-separator/);
+  assert.match(frame, /\{!isMobile \? \([\s\S]*<ResizeHandle/);
+  assert.match(frame, /collapsed=\{settings\.sidebarCollapsed\}/);
+  assert.match(frame, /collapsedValue=\{DESKTOP_SIDEBAR_COLLAPSED_WIDTH\}/);
+  assert.match(frame, /collapseThreshold=\{48\}/);
+  assert.match(frame, /className="max-\[920px\]:hidden"/);
+  assert.match(frame, /sidebarCollapsed: false/);
   assert.match(frame, /onCollapse=\{\(\) =>/);
   assert.match(frame, /sidebarCollapsed: true/);
-  assert.match(resizeHandle, /cleanup\(moveEvent\.pointerId\)/);
+  assert.match(resizeHandle, /rawValue < min - collapseThreshold/);
+  assert.match(resizeHandle, /collapsedValue \+ pointerOffset/);
   assert.match(resizeHandle, /rawValue < min/);
-  assert.match(resizeHandle, /value <= min && onCollapse/);
+  assert.match(resizeHandle, /expandedDuringDrag = true/);
+  assert.match(resizeHandle, /collapsed \? collapsedValue : value/);
 });
 
 test('embedding capability survives Telescope export and has a backend probe', async () => {

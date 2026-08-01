@@ -9,6 +9,9 @@ type ResizeHandleProps = {
   onChange: (value: number) => void;
   onCommit: (value: number) => void;
   onCollapse?: () => void;
+  collapsed?: boolean;
+  collapsedValue?: number;
+  collapseThreshold?: number;
   label: string;
   className?: string;
   shift?: boolean;
@@ -21,6 +24,9 @@ export function ResizeHandle({
   onChange,
   onCommit,
   onCollapse,
+  collapsed = false,
+  collapsedValue = 0,
+  collapseThreshold = 48,
   label,
   className = '',
   shift = false,
@@ -38,15 +44,18 @@ export function ResizeHandle({
       role="separator"
       aria-label={label}
       aria-orientation="vertical"
-      aria-valuemin={min}
+      aria-valuemin={collapsed ? collapsedValue : min}
       aria-valuemax={max}
-      aria-valuenow={Math.round(value)}
+      aria-valuenow={Math.round(collapsed ? collapsedValue : value)}
       tabIndex={0}
       className={`group relative block w-1 shrink-0 cursor-col-resize touch-none bg-transparent ${className}`}
       onPointerDown={(event: ReactPointerEvent<HTMLDivElement>) => {
         const startX = event.clientX;
         const startValue = value;
+        const startedCollapsed = collapsed;
         const target = event.currentTarget;
+        let expandedDuringDrag = !startedCollapsed;
+        let changedDuringDrag = false;
         let finished = false;
         target.setPointerCapture(event.pointerId);
         document.body.dataset.resizing = 'true';
@@ -63,20 +72,30 @@ export function ResizeHandle({
           window.removeEventListener('pointercancel', end);
         };
         const move = (moveEvent: PointerEvent) => {
-          const rawValue = startValue + moveEvent.clientX - startX;
-          if (rawValue < min && onCollapse) {
+          const pointerOffset = moveEvent.clientX - startX;
+          const rawValue = startedCollapsed
+            ? collapsedValue + pointerOffset
+            : startValue + pointerOffset;
+
+          if (startedCollapsed && !expandedDuringDrag && rawValue < min) {
+            return;
+          }
+
+          if (rawValue < min - collapseThreshold && onCollapse) {
             cleanup(moveEvent.pointerId);
             onCollapse();
             return;
           }
 
+          expandedDuringDrag = true;
           const next = clamp(rawValue);
           latestValue.current = next;
+          changedDuringDrag = true;
           onChange(next);
         };
         const end = (upEvent: PointerEvent) => {
           cleanup(upEvent.pointerId);
-          onCommit(latestValue.current);
+          if (changedDuringDrag) onCommit(latestValue.current);
         };
 
         window.addEventListener('pointermove', move);
@@ -86,6 +105,15 @@ export function ResizeHandle({
       onKeyDown={(event: KeyboardEvent<HTMLDivElement>) => {
         if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
         event.preventDefault();
+
+        if (collapsed) {
+          if (event.key === 'ArrowRight') {
+            onChange(min);
+            onCommit(min);
+          }
+          return;
+        }
+
         if (event.key === 'ArrowLeft' && value <= min && onCollapse) {
           onCollapse();
           return;
