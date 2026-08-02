@@ -202,7 +202,7 @@ export function normalizeData(
 
 export function defaultPromptSet(): PromptConfig {
   return {
-    recentMessageLimit: 0,
+    recentMessageLimit: 50,
     setIds: [],
     presetIds: [],
     contextPriorities: {

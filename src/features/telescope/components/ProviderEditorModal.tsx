@@ -26,6 +26,7 @@ export function ProviderEditorModal({
   testingEmbeddings,
   embeddingProbe,
   saving,
+  loadingCredentials,
   error,
   catalog,
   onClose,
@@ -47,6 +48,7 @@ export function ProviderEditorModal({
   testingEmbeddings: boolean;
   embeddingProbe: EmbeddingProbeResult | null;
   saving: boolean;
+  loadingCredentials: boolean;
   error: string;
   catalog: CatalogEntry;
   onClose: () => void;
@@ -67,7 +69,8 @@ export function ProviderEditorModal({
     Boolean(form.name.trim()) &&
     Boolean(form.model.trim()) &&
     form.kind !== 'character-ai' &&
-    !saving;
+    !saving &&
+    !loadingCredentials;
 
   return (
     <UiModal
@@ -103,7 +106,7 @@ export function ProviderEditorModal({
             ) : null}
             <Button
               variant="primary"
-              isPending={saving}
+              isPending={saving || loadingCredentials}
               isDisabled={!canSave}
               onPress={onSave}
             >

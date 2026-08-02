@@ -240,6 +240,17 @@ fn migrate(connection: &Connection) -> CommandResult<()> {
         "active_variant_index",
         "INTEGER NOT NULL DEFAULT 0",
     )?;
+    connection.execute(
+        "UPDATE messages
+         SET edited = COALESCE((
+             SELECT variants.edited
+             FROM message_variants variants
+             WHERE variants.message_id = messages.id
+               AND variants.position = messages.active_variant_index
+         ), 0)
+         WHERE role = 'assistant'",
+        [],
+    )?;
     ensure_column(connection, "galaxy_items", "data_json", "TEXT NOT NULL DEFAULT '{}'")?;
     ensure_column(
         connection,

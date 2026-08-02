@@ -170,7 +170,7 @@ test('chat setup exposes a bounded recent-message context limit', async () => {
     readFile(new URL('../../src-tauri/src/lib.rs', import.meta.url), 'utf8'),
   ]);
 
-  assert.match(config, /recentMessageLimit: 0/);
+  assert.match(config, /recentMessageLimit: 50/);
   assert.match(setup, /chat-recent-message-limit/);
   assert.match(setup, /max=\{500\}/);
   assert.match(

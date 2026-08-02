@@ -178,7 +178,7 @@ export function ChatSetupModal({
             min={0}
             max={500}
             step={1}
-            value={String(form.promptConfig.recentMessageLimit ?? 0)}
+            value={String(form.promptConfig.recentMessageLimit ?? 50)}
             onChange={(event) => {
               const parsed = Number.parseInt(event.target.value, 10);
               const recentMessageLimit = Number.isFinite(parsed)

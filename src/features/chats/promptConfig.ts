@@ -212,7 +212,7 @@ export const promptPriorities: Array<{
 ];
 
 export const defaultPromptConfig: PromptConfig = {
-  recentMessageLimit: 0,
+  recentMessageLimit: 50,
   setIds: [],
   presetIds: [],
   contextPriorities: {
@@ -228,7 +228,10 @@ export const defaultPromptConfig: PromptConfig = {
 
 export function clonePromptConfig(config: PromptConfig): PromptConfig {
   return {
-    recentMessageLimit: Math.max(0, Math.floor(config.recentMessageLimit ?? 0)),
+    recentMessageLimit: Math.max(
+      0,
+      Math.floor(config.recentMessageLimit ?? 50),
+    ),
     setIds: [...(config.setIds ?? [])],
     presetIds: [...config.presetIds],
     contextPriorities: { ...config.contextPriorities },

@@ -23,7 +23,7 @@
   "providerCredentials.additionalApiKey": "Additional API key",
   "providerCredentials.apiKey": "API key",
   "providerCredentials.apiKeys": "API keys",
-  "providerCredentials.apiKeysHint": "Each field is a separate key. When a key reaches a short-term limit, Galactrix temporarily uses the next available key and returns to the earlier key after its reset time. Entering keys while editing replaces the stored set.",
+  "providerCredentials.apiKeysHint": "Stored keys are loaded into separate password fields. When a key reaches a short-term limit, Galactrix temporarily uses the next available key and returns to the earlier key after its reset time.",
   "providerCredentials.canBeAddedLater": "Can be added later",
   "providerCredentials.leaveEmptyToKeepUnchanged": "Leave empty to keep unchanged",
   "providerCredentials.name": "Name",

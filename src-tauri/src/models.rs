@@ -60,10 +60,14 @@ impl Default for PromptContextPriorities {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+fn default_recent_message_limit() -> usize {
+    50
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PromptConfig {
-    #[serde(default)]
+    #[serde(default = "default_recent_message_limit")]
     pub recent_message_limit: usize,
     #[serde(default)]
     pub set_ids: Vec<String>,
@@ -73,6 +77,19 @@ pub struct PromptConfig {
     pub context_priorities: PromptContextPriorities,
     #[serde(default)]
     pub custom_blocks: Vec<PromptBlock>,
+}
+
+
+impl Default for PromptConfig {
+    fn default() -> Self {
+        Self {
+            recent_message_limit: default_recent_message_limit(),
+            set_ids: Vec::new(),
+            preset_ids: Vec::new(),
+            context_priorities: PromptContextPriorities::default(),
+            custom_blocks: Vec::new(),
+        }
+    }
 }
 
 impl PromptConfig {

@@ -73,6 +73,8 @@ export function TelescopeScreen({
     onFetchModels,
     onTestEmbeddings,
     onSave,
+    onReadSecrets: async (providerId) =>
+      (await onExportSecrets([providerId]))[providerId] ?? '',
   });
   const connectedCount = providers.filter(
     (provider) => provider.status === 'connected',
@@ -345,7 +347,7 @@ export function TelescopeScreen({
                   provider={provider}
                   checking={checkingId === provider.id}
                   onCheck={() => void checkOne(provider.id)}
-                  onEdit={() => editor.openEdit(provider)}
+                  onEdit={() => void editor.openEdit(provider)}
                   onDelete={() => setDeleteTarget(provider)}
                 />
               ))}
@@ -374,6 +376,7 @@ export function TelescopeScreen({
         testingEmbeddings={editor.testingEmbeddings}
         embeddingProbe={editor.embeddingProbe}
         saving={editor.saving}
+        loadingCredentials={editor.loadingCredentials}
         error={editor.error}
         catalog={editor.catalog}
         onClose={editor.close}

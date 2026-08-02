@@ -29,8 +29,10 @@ test('virtual scrolling updates only bounded message windows', async () => {
   assert.match(source, /buildMessageOffsets\(/);
   assert.match(source, /chat-message-virtual-stage/);
   assert.match(source, /height: totalVirtualHeight/);
-  assert.match(source, /messageOffsets\[absoluteIndex\]/);
-  assert.match(source, /absolute inset-x-0/);
+  assert.match(source, /chat-message-virtual-window/);
+  assert.match(source, /messageOffsets\[visibleStart\]/);
+  assert.match(source, /visibleEnd === messages\.length[\s\S]*bottom: 0/);
+  assert.match(source, /absolute inset-x-0 flex flex-col/);
   assert.match(source, /data-virtual-message-id/);
   assert.match(source, /new ResizeObserver/);
   assert.match(source, /MESSAGE_VIRTUALIZATION_THRESHOLD/);
@@ -54,6 +56,7 @@ test('virtual scrolling updates only bounded message windows', async () => {
   assert.match(source, /messageCanvasRef/);
   assert.match(source, /current\.start === next\.start/);
   assert.match(source, /current\.end === next\.end/);
+  assert.doesNotMatch(source, /messageOffsets\[absoluteIndex\]/);
   assert.doesNotMatch(source, /setVirtualViewport/);
   assert.doesNotMatch(source, /chat-message-virtual-spacer/);
   assert.doesNotMatch(source, /loadEarlierMessages/);

@@ -154,7 +154,8 @@ function sameMessageVariants(
       variant.id === candidate.id &&
       variant.index === candidate.index &&
       variant.content === candidate.content &&
-      variant.createdAt === candidate.createdAt
+      variant.createdAt === candidate.createdAt &&
+      Boolean(variant.edited) === Boolean(candidate.edited)
     );
   });
 }
@@ -176,6 +177,8 @@ function reconcileChatMessages(
     const unchanged =
       current.role === message.role &&
       current.content === message.content &&
+      current.updatedAt === message.updatedAt &&
+      Boolean(current.edited) === Boolean(message.edited) &&
       current.remembered === message.remembered &&
       current.activeVariantIndex === message.activeVariantIndex &&
       sameMessageVariants(current.variants, message.variants);
@@ -732,6 +735,8 @@ export function useAppController() {
               ? {
                   ...item,
                   content: selected.content,
+                  updatedAt: Math.floor(Date.now() / 1_000),
+                  edited: Boolean(selected.edited),
                   activeVariantIndex: selected.index,
                 }
               : item,

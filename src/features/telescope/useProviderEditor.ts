@@ -15,6 +15,7 @@ export function useProviderEditor({
   onFetchModels,
   onTestEmbeddings,
   onSave,
+  onReadSecrets,
 }: {
   onFetchModels: (
     provider: ProviderInput,
@@ -25,6 +26,7 @@ export function useProviderEditor({
     apiKey?: string,
   ) => Promise<EmbeddingProbeResult>;
   onSave: (provider: ProviderInput, apiKey?: string) => Promise<Provider>;
+  onReadSecrets: (providerId: string) => Promise<string>;
 }) {
   const { t } = useTranslation('telescope');
   const [isOpen, setIsOpen] = useState(false);
@@ -36,6 +38,7 @@ export function useProviderEditor({
   const [models, setModels] = useState<string[]>([]);
   const [loadingModels, setLoadingModels] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [loadingCredentials, setLoadingCredentials] = useState(false);
   const [testingEmbeddings, setTestingEmbeddings] = useState(false);
   const [embeddingProbe, setEmbeddingProbe] =
     useState<EmbeddingProbeResult | null>(null);
@@ -53,6 +56,7 @@ export function useProviderEditor({
     setLatency(null);
     setEmbeddingProbe(null);
     setError('');
+    setLoadingCredentials(false);
   };
 
   const openCreate = () => {
@@ -62,7 +66,7 @@ export function useProviderEditor({
     setIsOpen(true);
   };
 
-  const openEdit = (provider: Provider) => {
+  const openEdit = async (provider: Provider) => {
     setForm(providerToInput(provider));
     setStep(2);
     setToken('');
@@ -70,11 +74,20 @@ export function useProviderEditor({
     setLatency(provider.latencyMs ?? null);
     setEmbeddingProbe(null);
     setError('');
-    setIsOpen(true);
+    setLoadingCredentials(true);
+    try {
+      setToken(await onReadSecrets(provider.id));
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : String(caught));
+    } finally {
+      setLoadingCredentials(false);
+      setIsOpen(true);
+    }
   };
 
   const close = () => {
-    if (saving || loadingModels || testingEmbeddings) return;
+    if (saving || loadingModels || testingEmbeddings || loadingCredentials)
+      return;
     setIsOpen(false);
   };
 
@@ -126,7 +139,8 @@ export function useProviderEditor({
   };
 
   const save = async () => {
-    if (!form.name.trim() || !form.model.trim() || saving) return;
+    if (!form.name.trim() || !form.model.trim() || saving || loadingCredentials)
+      return;
     setSaving(true);
     setError('');
     try {
@@ -164,6 +178,7 @@ export function useProviderEditor({
     models,
     loadingModels,
     saving,
+    loadingCredentials,
     testingEmbeddings,
     embeddingProbe,
     error,

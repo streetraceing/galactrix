@@ -1085,5 +1085,5 @@ fn extract_text(value: &Value) -> Option<String> {
 }
 
 #[cfg(test)]
-#[path = "../../test/rust/provider_client.rs"]
+#[path = "provider_client_tests.rs"]
 mod tests;
