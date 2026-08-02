@@ -268,6 +268,6 @@
   "promptRulesSection.roleplaySet": "Набор «Хороший роллплей»",
   "promptRulesSection.telegramSet": "Набор «Переписка в Telegram»",
   "chatSetupModal.recentMessageLimit": "Последние сообщения в контексте",
-  "chatSetupModal.recentMessageLimitDescription": "Максимальное число последних сообщений, отправляемых модели. По умолчанию 50; 0 — без дополнительного ограничения.",
+  "chatSetupModal.recentMessageLimitDescription": "Максимальное число последних сообщений, отправляемых модели. По умолчанию 50; 0 - без дополнительного ограничения.",
   "messageList.edited": "Редактировано"
 }

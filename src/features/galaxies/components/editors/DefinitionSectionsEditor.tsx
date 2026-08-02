@@ -53,10 +53,7 @@ export function DefinitionSectionsEditor({
       ) : (
         <div className="space-y-3">
           {sections.map((section, index) => (
-            <div
-              key={section.id}
-              className="collection-item-enter rounded-xl border border-separator bg-surface-secondary p-3"
-            >
+            <div key={section.id} className="collection-item-enter">
               <div className="flex items-center gap-2">
                 <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-default text-xs font-semibold text-muted">
                   {index + 1}

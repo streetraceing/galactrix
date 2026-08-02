@@ -137,7 +137,7 @@ export function ChatPreferences({
                 textValue={t('profilePreferences.appLanguage')}
               >
                 <div>
-                  <strong className="block text-sm">
+                  <strong className="block text-sm mb-1">
                     {t('profilePreferences.appLanguage')}
                   </strong>
                   <span className="text-xs text-muted">

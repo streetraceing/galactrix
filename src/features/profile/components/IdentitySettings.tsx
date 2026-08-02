@@ -120,7 +120,7 @@ export function IdentitySettings({
             {t('identitySettings.thisNameAndImageAreUsedForYourMessagesWhen')}
           </p>
         </div>
-        <div className="flex gap-5 md:flex-col md:items-start">
+        <div className="flex flex-col gap-5 md:items-start">
           <div className="min-w-0">
             <label
               htmlFor="profile-display-name"
