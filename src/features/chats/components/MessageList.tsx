@@ -1,4 +1,4 @@
-import { Button, Surface, TextArea, Tooltip } from '@heroui/react';
+import { Button, Surface, Tooltip } from '@heroui/react';
 import {
   memo,
   startTransition,
@@ -17,7 +17,6 @@ import type {
 import { Icon } from '../../../components/Icon';
 import { AppAvatar } from '../../../components/ui/AppAvatar';
 import { toast } from '../../../i18n/toast';
-import { i18next } from '../../../i18n';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -31,9 +30,11 @@ import {
 } from '../../../components/ui/context-menu';
 import { MarkdownContent } from '../../../components/ui/MarkdownContent';
 import { UiModal } from '../../../components/ui/UiModal';
+import { errorMessage } from '../../../lib/errors';
 import { isMobilePlatform } from '../../../lib/platform';
 import type { Message, Provider } from '../../../types';
 import { MessageHistoryModal } from './MessageHistoryModal';
+import { MessageEditModal } from './MessageEditModal';
 import { useTranslation } from 'react-i18next';
 import {
   buildMessageOffsets,
@@ -59,6 +60,7 @@ import {
   shouldStartMessageRangeSelection,
   toggleMessageSelection,
 } from '../messageSelection';
+import { copyChatText } from '../chatClipboard';
 
 type MessageActionProps = {
   message: Message;
@@ -114,33 +116,6 @@ function isMessageSelectionControl(target: EventTarget | null) {
   );
 }
 
-async function copyText(content: string, successMessage?: string) {
-  if (navigator.clipboard?.writeText) {
-    await navigator.clipboard.writeText(content);
-    toast.success(
-      successMessage ?? i18next.t('copy.messageSuccess', { ns: 'chats' }),
-    );
-    return;
-  }
-
-  const textarea = document.createElement('textarea');
-  textarea.value = content;
-  textarea.setAttribute('readonly', '');
-  textarea.style.position = 'fixed';
-  textarea.style.opacity = '0';
-  document.body.appendChild(textarea);
-  textarea.select();
-  const copied = document.execCommand('copy');
-  textarea.remove();
-
-  if (!copied) {
-    throw new Error(i18next.t('errors.clipboardUnavailable', { ns: 'chats' }));
-  }
-  toast.success(
-    successMessage ?? i18next.t('copy.messageSuccess', { ns: 'chats' }),
-  );
-}
-
 function MessageMenu({
   message,
   children,
@@ -161,7 +136,7 @@ function MessageMenu({
   const { t } = useTranslation('chats');
   const isMobile = isMobilePlatform();
   const run = (action: () => Promise<void>) => {
-    void action().catch((error) => onError(String(error)));
+    void action().catch((error) => onError(errorMessage(error)));
   };
   const isAssistant = message.role === 'assistant';
 
@@ -249,7 +224,9 @@ function MessageMenu({
           <Icon name="branch" className="size-4" />
           {t('messageList.branchFromHere')}
         </ContextMenuItem>
-        <ContextMenuItem onClick={() => run(() => copyText(message.content))}>
+        <ContextMenuItem
+          onClick={() => run(() => copyChatText(message.content))}
+        >
           <Icon name="copy" className="size-4" />
           {t('messageList.copy')}
         </ContextMenuItem>
@@ -493,7 +470,7 @@ function DesktopMessageActions({
 }: MessageActionProps) {
   const { t } = useTranslation('chats');
   const run = (action: () => Promise<void>) => {
-    void action().catch((error) => onError(String(error)));
+    void action().catch((error) => onError(errorMessage(error)));
   };
   const actions = [
     ...(message.role === 'assistant'
@@ -523,7 +500,7 @@ function DesktopMessageActions({
     {
       label: t('messageList.copyMessage'),
       icon: 'copy' as const,
-      onPress: () => run(() => copyText(message.content)),
+      onPress: () => run(() => copyChatText(message.content)),
     },
     {
       label: t('messageList.editMessage'),
@@ -923,84 +900,6 @@ function SwipeableMessage({
 }
 
 const VARIANT_SELECTION_LOCK_MS = 180;
-
-function MessageEditModal({
-  message,
-  onClose,
-  onEdit,
-}: {
-  message: Message | null;
-  onClose: () => void;
-  onEdit: (messageId: string, content: string) => Promise<void>;
-}) {
-  const { t } = useTranslation('chats');
-  const isMobile = isMobilePlatform();
-  const [value, setValue] = useState(message?.content ?? '');
-  const [saving, setSaving] = useState(false);
-
-  const commit = async () => {
-    const content = value.trim();
-    if (!message || !content || saving) return;
-
-    setSaving(true);
-    try {
-      await onEdit(message.id, content);
-      onClose();
-    } catch (error) {
-      const description =
-        error instanceof Error ? error.message : String(error);
-      if (description) {
-        toast.danger(t('errors.chatActionFailed'), {
-          description,
-          timeout: 3_500,
-        });
-      }
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <UiModal
-      isOpen={Boolean(message)}
-      onOpenChange={(open) => !open && !saving && onClose()}
-      onConfirm={() => void commit()}
-      isConfirmDisabled={!message || !value.trim() || saving}
-      title={t('messageList.editMessage')}
-      description={
-        message?.role === 'assistant'
-          ? t('messageList.theEditedTextWillBeSavedAsANewResponse')
-          : t('messageList.theChangeAppliesToTheCurrentConversationHistory')
-      }
-      size={isMobile ? 'full' : 'cover'}
-      footer={
-        <>
-          <Button variant="ghost" isDisabled={saving} onPress={onClose}>
-            {t('chatDialogs.cancel')}
-          </Button>
-          <Button
-            variant="primary"
-            isPending={saving}
-            isDisabled={!value.trim()}
-            onPress={() => void commit()}
-          >
-            {t('chatDialogs.save')}
-          </Button>
-        </>
-      }
-    >
-      <TextArea
-        autoComplete="off"
-        fullWidth
-        variant="secondary"
-        value={value}
-        className="[&_textarea]:min-h-72 h-full"
-        aria-label={t('messageList.messageText')}
-        onChange={(event) => setValue(event.target.value)}
-      />
-    </UiModal>
-  );
-}
 
 function MessageListComponent({
   chatId,
@@ -2081,7 +1980,7 @@ function MessageListComponent({
   };
 
   const reportError = (error: unknown) => {
-    const description = error instanceof Error ? error.message : String(error);
+    const description = errorMessage(error);
     if (!description) return;
     toast.danger(t('errors.chatActionFailed'), {
       description,
@@ -2195,7 +2094,7 @@ function MessageListComponent({
       .join('\n\n');
 
     try {
-      await copyText(
+      await copyChatText(
         transcript,
         t('messageList.selectedMessagesCopied', {
           count: selectedMessages.length,

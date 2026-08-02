@@ -59,7 +59,9 @@ export function DesktopTitlebar({
       },
       ...navigationItems.map((item, index) => ({
         id: item.id,
-        label: t('desktopTitlebar.openSection', { value1: item.label }),
+        label: t('desktopTitlebar.openSection', {
+          value1: t(item.labelKey),
+        }),
         hint:
           item.id === activeTab
             ? t('desktopTitlebar.currentTab')

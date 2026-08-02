@@ -4,17 +4,22 @@ import type { ChangeEvent, KeyboardEvent } from 'react';
 import { Icon } from '../../../components/Icon';
 import { TooltipIconButton } from '../../../components/ui/TooltipIconButton';
 import { backendErrorHasVariable } from '../../../lib/backend';
+import {
+  readStorageItem,
+  removeStorageItem,
+  writeStorageItem,
+} from '../../../lib/storage';
 import type { Provider } from '../../../types';
 import { useTranslation } from 'react-i18next';
 import { draftKey } from '../utils';
 
 function readDraft(chatId: string, saveDrafts: boolean) {
-  return saveDrafts ? (localStorage.getItem(draftKey(chatId)) ?? '') : '';
+  return saveDrafts ? (readStorageItem(draftKey(chatId)) ?? '') : '';
 }
 
 function persistDraft(chatId: string, value: string) {
-  if (value) localStorage.setItem(draftKey(chatId), value);
-  else localStorage.removeItem(draftKey(chatId));
+  if (value) writeStorageItem(draftKey(chatId), value);
+  else removeStorageItem(draftKey(chatId));
 }
 
 function ChatComposerComponent({
@@ -60,7 +65,7 @@ function ChatComposerComponent({
 
   useEffect(() => {
     if (!saveDrafts) {
-      localStorage.removeItem(draftKey(chatId));
+      removeStorageItem(draftKey(chatId));
       return;
     }
 
@@ -183,7 +188,7 @@ function ChatComposerComponent({
     setDraft('');
     try {
       await onSend(value);
-      localStorage.removeItem(draftKey(chatId));
+      removeStorageItem(draftKey(chatId));
     } catch (error) {
       if (!backendErrorHasVariable(error, 'messagePersisted', 'true')) {
         setDraft((current) => current || value);

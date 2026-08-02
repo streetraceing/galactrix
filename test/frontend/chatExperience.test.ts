@@ -15,7 +15,7 @@ const composerPath = new URL(
   import.meta.url,
 );
 const controllerPath = new URL(
-  '../../src/hooks/useAppController.ts',
+  '../../src/app/useAppController.ts',
   import.meta.url,
 );
 const setupModalPath = new URL(
@@ -171,8 +171,8 @@ test('optimistic messages keep stable ids through the backend commit', async () 
     readFile(messageListPath, 'utf8'),
   ]);
 
-  assert.match(controller, /const userMessageId = createGenerationId\(\)/);
-  assert.match(controller, /const assistantMessageId = createGenerationId\(\)/);
+  assert.match(controller, /const userMessageId = createRuntimeId\(\)/);
+  assert.match(controller, /const assistantMessageId = createRuntimeId\(\)/);
   assert.match(controller, /reconcileChatMessages\(/);
   assert.match(frontendBackend, /userMessageId/);
   assert.match(frontendBackend, /assistantMessageId/);

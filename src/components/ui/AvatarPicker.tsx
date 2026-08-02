@@ -1,5 +1,6 @@
 import { Button } from '@heroui/react';
 import { useRef, useState } from 'react';
+import { errorMessage } from '../../lib/errors';
 import { prepareAvatar } from '../../lib/image';
 import { Icon } from '../Icon';
 import { AppAvatar } from './AppAvatar';
@@ -36,7 +37,7 @@ export function AvatarPicker({
       const avatar = await prepareAvatar(file);
       await onChange(avatar);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
+      setError(errorMessage(caught));
     } finally {
       setProcessing(false);
       if (inputRef.current) inputRef.current.value = '';
@@ -50,7 +51,7 @@ export function AvatarPicker({
     try {
       await onChange(undefined);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
+      setError(errorMessage(caught));
     } finally {
       setProcessing(false);
     }

@@ -2,6 +2,7 @@ import { Button, Chip, Surface } from '@heroui/react';
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { toast } from '../../i18n/toast';
 import { previewPrompt } from '../../lib/backend';
+import { errorMessage } from '../../lib/errors';
 import type { PromptPreviewInput, PromptPreviewResult } from '../../types';
 import { Icon } from '../Icon';
 import { UiModal } from './UiModal';
@@ -38,7 +39,7 @@ export function PromptPreviewCard({
         .catch((caught) => {
           if (!active) return;
           setResult(null);
-          setError(caught instanceof Error ? caught.message : String(caught));
+          setError(errorMessage(caught));
         })
         .finally(() => {
           if (active) setLoading(false);
@@ -61,7 +62,7 @@ export function PromptPreviewCard({
       toast.success(t('promptPreviewCard.promptCopied'));
     } catch (caught) {
       toast.danger(t('promptPreviewCard.couldNotCopyPrompt'), {
-        description: caught instanceof Error ? caught.message : String(caught),
+        description: errorMessage(caught),
       });
     }
   };

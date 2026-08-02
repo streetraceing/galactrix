@@ -10,6 +10,11 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Icon, type IconName } from '../../../components/Icon';
+import {
+  readStorageItem,
+  removeStorageItem,
+  writeStorageItem,
+} from '../../../lib/storage';
 import type { Provider } from '../../../types';
 import { SettingSwitchRow } from '../../profile/components/SettingSwitchRow';
 
@@ -126,21 +131,13 @@ function moduleCollapseStorageKey(moduleId: string) {
 
 function readModuleExpanded(moduleId: string, enabled: boolean) {
   if (!enabled) return false;
-  try {
-    return localStorage.getItem(moduleCollapseStorageKey(moduleId)) !== 'true';
-  } catch {
-    return true;
-  }
+  return readStorageItem(moduleCollapseStorageKey(moduleId)) !== 'true';
 }
 
 function persistModuleCollapsed(moduleId: string, collapsed: boolean) {
-  try {
-    const key = moduleCollapseStorageKey(moduleId);
-    if (collapsed) localStorage.setItem(key, 'true');
-    else localStorage.removeItem(key);
-  } catch {
-    // Settings still work when persistent browser storage is unavailable.
-  }
+  const key = moduleCollapseStorageKey(moduleId);
+  if (collapsed) writeStorageItem(key, 'true');
+  else removeStorageItem(key);
 }
 
 export function ModuleSettingsCard({

@@ -74,11 +74,11 @@ export function PromptOrderSection({
                     variant="soft"
                     className="self-start sm:shrink-0"
                   >
-                    {
+                    {t(
                       promptPriorities.find(
                         (priority) => priority.id === entry.priority,
-                      )?.label
-                    }
+                      )?.labelKey ?? 'priority.normal.label',
+                    )}
                   </Chip>
                 </li>
               ))}

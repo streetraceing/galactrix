@@ -109,9 +109,11 @@ export function PromptRulesSection({
                     <Checkbox.Indicator />
                   </Checkbox.Control>
                   <span className="min-w-0">
-                    <strong className="block text-sm">{preset.label}</strong>
+                    <strong className="block text-sm">
+                      {t(preset.labelKey)}
+                    </strong>
                     <span className="mt-0.5 block text-xs leading-5 text-muted">
-                      {preset.description}
+                      {t(preset.descriptionKey)}
                     </span>
                   </span>
                 </Checkbox.Content>

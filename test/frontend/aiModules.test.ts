@@ -2,10 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
-const controllerPath = new URL(
-  '../../src/hooks/useAppController.ts',
-  import.meta.url,
-);
+const appStatePath = new URL('../../src/app/appState.ts', import.meta.url);
 const settingsPath = new URL(
   '../../src/features/settings/SettingsScreen.tsx',
   import.meta.url,
@@ -38,17 +35,17 @@ const telescopeTransferPath = new URL(
 const backendPath = new URL('../../src/lib/backend.ts', import.meta.url);
 
 test('new AI modules are backward-compatible and independently configurable', async () => {
-  const [controller, settings] = await Promise.all([
-    readFile(controllerPath, 'utf8'),
+  const [appState, settings] = await Promise.all([
+    readFile(appStatePath, 'utf8'),
     readFile(settingsPath, 'utf8'),
   ]);
 
   assert.match(
-    controller,
+    appState,
     /retry:\s*\{[\s\S]*enabled: true[\s\S]*maxAttempts: 3/,
   );
-  assert.match(controller, /dynamicContext:\s*\{[\s\S]*enabled: false/);
-  assert.match(controller, /semanticMemory:\s*\{[\s\S]*enabled: false/);
+  assert.match(appState, /dynamicContext:\s*\{[\s\S]*enabled: false/);
+  assert.match(appState, /semanticMemory:\s*\{[\s\S]*enabled: false/);
   assert.match(settings, /<AiModulesSettings/);
   assert.match(settings, /providers=\{providers\}/);
 });
@@ -70,7 +67,7 @@ test('settings separate parameters and animated searchable modules', async () =>
   assert.match(settings, /<Tabs\.Panel id="modules"[\s\S]*<AiModulesSettings/);
   assert.match(moduleCard, /readModuleExpanded\(moduleId, enabled\)/);
   assert.match(moduleCard, /galactrix\.aiModuleCollapsed\./);
-  assert.match(moduleCard, /localStorage\.setItem\(key, 'true'\)/);
+  assert.match(moduleCard, /writeStorageItem\(key, 'true'\)/);
   assert.match(moduleCard, /persistModuleCollapsed\(moduleId, false\)/);
   assert.match(moduleCard, /const detailsVisible = enabled && isExpanded/);
   assert.match(moduleCard, /setIsExpanded\(nextEnabled\)/);

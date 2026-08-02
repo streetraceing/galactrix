@@ -15,7 +15,7 @@ const emptyState = (): PersistedChatNavigationState => ({
 
 let cachedState: PersistedChatNavigationState | null = null;
 
-function normalizedState(value: unknown): PersistedChatNavigationState {
+function normalizeState(value: unknown): PersistedChatNavigationState {
   if (!value || typeof value !== 'object') return emptyState();
   const input = value as Partial<PersistedChatNavigationState>;
   return {
@@ -34,19 +34,19 @@ function loadState() {
   }
 
   try {
-    const currentRaw = window.localStorage.getItem(CHAT_NAVIGATION_STORAGE_KEY);
-    const legacyRaw = window.localStorage.getItem(LEGACY_CHAT_VIEW_STORAGE_KEY);
-    cachedState = normalizedState(
+    const currentRaw = readStorageItem(CHAT_NAVIGATION_STORAGE_KEY);
+    const legacyRaw = readStorageItem(LEGACY_CHAT_VIEW_STORAGE_KEY);
+    cachedState = normalizeState(
       JSON.parse(currentRaw ?? legacyRaw ?? JSON.stringify(emptyState())),
     );
 
     if (!currentRaw && legacyRaw) {
-      window.localStorage.setItem(
+      writeStorageItem(
         CHAT_NAVIGATION_STORAGE_KEY,
         JSON.stringify(cachedState),
       );
     }
-    window.localStorage.removeItem(LEGACY_CHAT_VIEW_STORAGE_KEY);
+    removeStorageItem(LEGACY_CHAT_VIEW_STORAGE_KEY);
   } catch {
     cachedState = emptyState();
   }
@@ -55,16 +55,8 @@ function loadState() {
 
 function saveState(state: PersistedChatNavigationState) {
   cachedState = state;
-  if (typeof window === 'undefined') return;
-  try {
-    window.localStorage.setItem(
-      CHAT_NAVIGATION_STORAGE_KEY,
-      JSON.stringify(state),
-    );
-    window.localStorage.removeItem(LEGACY_CHAT_VIEW_STORAGE_KEY);
-  } catch {
-    // Navigation persistence is best-effort (private mode and full storage can fail).
-  }
+  writeStorageItem(CHAT_NAVIGATION_STORAGE_KEY, JSON.stringify(state));
+  removeStorageItem(LEGACY_CHAT_VIEW_STORAGE_KEY);
 }
 
 export function readChatNavigationState() {
@@ -85,12 +77,17 @@ export function saveChatNavigationState(
   saveState({ version: 1, activeChatId, isChatOpen });
 }
 
-export function forgetChatViewState(chatId: string) {
+export function forgetChatNavigationState(chatId: string) {
   const current = loadState();
   if (current.activeChatId !== chatId) return;
   saveState({ version: 1, activeChatId: '', isChatOpen: false });
 }
 
-export function resetChatViewStateForTests() {
+export function resetChatNavigationStateForTests() {
   cachedState = null;
 }
+import {
+  readStorageItem,
+  removeStorageItem,
+  writeStorageItem,
+} from '../lib/storage';

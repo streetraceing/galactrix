@@ -44,13 +44,13 @@ test('message rows prefer the last interaction time and mark edited content', as
   assert.match(source, /messageList\.edited/);
   assert.match(source, /message\.remembered/);
 
-  const controller = await readFile(
-    new URL('../../src/hooks/useAppController.ts', import.meta.url),
+  const chatState = await readFile(
+    new URL('../../src/features/chats/chatState.ts', import.meta.url),
     'utf8',
   );
   assert.match(
-    controller,
+    chatState,
     /Boolean\(variant\.edited\) === Boolean\(candidate\.edited\)/,
   );
-  assert.match(controller, /edited: Boolean\(selected\.edited\)/);
+  assert.match(chatState, /edited: Boolean\(selected\.edited\)/);
 });

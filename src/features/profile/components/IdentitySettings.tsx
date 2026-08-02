@@ -7,7 +7,7 @@ import { toast } from '../../../i18n/toast';
 import { galaxyItemAvatar, withAvatar } from '../../../lib/avatar';
 import { resolveProfileName } from '../../../lib/profile';
 import type { AppSettings, GalaxyItem, GalaxyItemInput } from '../../../types';
-import { galaxyKindLabels } from '../../galaxies/catalog';
+import { galaxyKindLabelKeys } from '../../galaxies/catalog';
 import { draftFromItem } from '../../galaxies/model';
 import { useTranslation } from 'react-i18next';
 
@@ -204,7 +204,7 @@ export function IdentitySettings({
                       {item.name}
                     </strong>
                     <span className="mt-0.5 block text-xs text-muted">
-                      {galaxyKindLabels[item.kind]}
+                      {t(galaxyKindLabelKeys[item.kind], { ns: 'common' })}
                     </span>
                     <div className="mt-2">
                       <AvatarPicker

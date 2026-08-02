@@ -1,5 +1,6 @@
 import { ListBox, Select } from '@heroui/react';
 import type { Key } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { PromptPriority } from '../../../../types';
 import { promptPriorities } from '../../promptConfig';
 
@@ -12,6 +13,7 @@ export function PromptPrioritySelect({
   label: string;
   onChange: (value: PromptPriority) => void;
 }) {
+  const { t } = useTranslation('chats');
   return (
     <Select
       value={value}
@@ -31,12 +33,14 @@ export function PromptPrioritySelect({
             <ListBox.Item
               key={priority.id}
               id={priority.id}
-              textValue={priority.label}
+              textValue={t(priority.labelKey)}
             >
               <span className="min-w-0 w-fit">
-                <strong className="block text-sm">{priority.label}</strong>
+                <strong className="block text-sm">
+                  {t(priority.labelKey)}
+                </strong>
                 <span className="block text-xs text-muted">
-                  {priority.description}
+                  {t(priority.descriptionKey)}
                 </span>
               </span>
               <ListBox.ItemIndicator />

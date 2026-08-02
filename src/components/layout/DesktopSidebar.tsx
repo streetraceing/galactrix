@@ -44,13 +44,15 @@ function SidebarButton({
   profileAvatar,
   onPress,
 }: SidebarButtonProps) {
+  const { t } = useTranslation('common');
+  const label = t(item.labelKey);
   const button = (
     <Button
       size="lg"
       fullWidth
       variant={active ? 'secondary' : 'ghost'}
       className={`${sidebarButtonClass}`}
-      aria-label={item.label}
+      aria-label={label}
       onPress={onPress}
     >
       <span className="grid size-6 shrink-0 place-items-center">
@@ -64,7 +66,7 @@ function SidebarButton({
           <Icon name={item.icon} className="size-5 shrink-0" />
         )}
       </span>
-      <SidebarText>{item.label}</SidebarText>
+      <SidebarText>{label}</SidebarText>
       {!compact && count && count > 0 ? (
         <Chip
           size="sm"
@@ -80,7 +82,7 @@ function SidebarButton({
   return (
     <div className="h-10 w-full overflow-hidden">
       <AppTooltip
-        content={item.label}
+        content={label}
         placement="right"
         disabled={!compact}
         triggerClassName="block size-full overflow-hidden"

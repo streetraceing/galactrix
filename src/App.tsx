@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import { AppScreenRouter } from './app/AppScreenRouter';
 import { AppError } from './components/layout/AppError';
 import { ApplicationFrame } from './components/layout/ApplicationFrame';
-import { useAppController } from './hooks/useAppController';
+import { useAppController } from './app/useAppController';
 
 function App() {
   const controller = useAppController();

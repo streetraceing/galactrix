@@ -5,8 +5,10 @@ import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { useVisualViewportMetrics } from '../../hooks/useVisualViewportMetrics';
 import { toast } from '../../i18n/toast';
 import { galaxyItemAvatar } from '../../lib/avatar';
+import { errorMessage } from '../../lib/errors';
 import { isAndroidPlatform, isMobilePlatform } from '../../lib/platform';
 import { resolveProfileName } from '../../lib/profile';
+import { removeStorageItem } from '../../lib/storage';
 import type { Chat, ChatConfigInput, Message } from '../../types';
 import { activeChatById, groupMessagesByChat } from './chatMessages';
 import { ChatComposer } from './components/ChatComposer';
@@ -130,7 +132,7 @@ export function ChatsScreen({
   const showChatError = useCallback(
     (error: unknown) =>
       toast.danger(t('errors.chatActionFailed'), {
-        description: error instanceof Error ? error.message : String(error),
+        description: errorMessage(error),
         timeout: 3_500,
       }),
     [t],
@@ -283,7 +285,7 @@ export function ChatsScreen({
     setWorking(true);
     try {
       if (confirmTarget.type === 'delete') {
-        localStorage.removeItem(draftKey(confirmTarget.chat.id));
+        removeStorageItem(draftKey(confirmTarget.chat.id));
         await onDeleteChat(confirmTarget.chat.id);
         toast.success(t('chatsScreen.chatDeleted'));
       } else {

@@ -16,6 +16,7 @@ function readNamespace(locale, fileName) {
 }
 
 function variables(message) {
+  if (typeof message !== 'string') return [];
   return [...message.matchAll(/\{\{\s*-?\s*(\w+)\s*\}\}/gu)]
     .map((match) => match[1])
     .sort();
@@ -36,6 +37,30 @@ function groupKeys(keys) {
   return groups;
 }
 
+function resourceHasKey(namespace, key) {
+  const resource = referenceResources[namespace];
+  if (!resource) return false;
+  const canonical = canonicalKey(key);
+  return Object.keys(resource).some(
+    (candidate) => canonicalKey(candidate) === canonical,
+  );
+}
+
+function translationNamespaces(source) {
+  const match = source.match(/useTranslation\(\s*([^)]*)\)/u);
+  if (!match) return [];
+  const argument = match[1].trim();
+  if (!argument) return ['common'];
+  return [...argument.matchAll(/['"]([^'"]+)['"]/gu)].map(
+    (candidate) => candidate[1],
+  );
+}
+
+function callNamespace(options, fallbackNamespaces) {
+  const explicit = options.match(/\bns\s*:\s*['"]([^'"]+)['"]/u)?.[1];
+  return explicit ? [explicit] : fallbackNamespaces;
+}
+
 const referenceFiles = fs
   .readdirSync(path.join(localeRoot, referenceLocale))
   .filter((fileName) => fileName.endsWith('.json'))
@@ -49,6 +74,13 @@ const referenceResources = Object.fromEntries(
 for (const [namespace, resource] of Object.entries(referenceResources)) {
   if (Object.keys(resource).length === 0) {
     errors.push(`${referenceLocale}/${namespace}: namespace is empty`);
+  }
+  for (const [key, message] of Object.entries(resource)) {
+    if (typeof message !== 'string') {
+      errors.push(`${referenceLocale}/${namespace}:${key}: must be a string`);
+    } else if (!message.trim()) {
+      errors.push(`${referenceLocale}/${namespace}:${key}: is empty`);
+    }
   }
 }
 
@@ -77,6 +109,14 @@ for (const locale of locales) {
     const resourceKeys = Object.keys(resource).sort();
     const referenceGroups = groupKeys(referenceKeys);
     const resourceGroups = groupKeys(resourceKeys);
+
+    for (const [key, message] of Object.entries(resource)) {
+      if (typeof message !== 'string') {
+        errors.push(`${locale}/${fileName}:${key}: must be a string`);
+      } else if (!message.trim()) {
+        errors.push(`${locale}/${fileName}:${key}: is empty`);
+      }
+    }
 
     for (const key of [...referenceGroups.keys()].filter(
       (candidate) => !resourceGroups.has(candidate),
@@ -123,6 +163,7 @@ for (const locale of locales) {
 for (const fileName of referenceFiles) {
   const resource = readNamespace(referenceLocale, fileName);
   for (const [key, message] of Object.entries(resource)) {
+    if (typeof message !== 'string') continue;
     if (/[А-Яа-яЁё]/u.test(message)) {
       errors.push(`${referenceLocale}/${fileName}:${key}: contains Cyrillic`);
     }
@@ -136,11 +177,6 @@ function walk(directory) {
   });
 }
 
-const allReferenceKeys = new Set(
-  Object.values(referenceResources).flatMap((resource) =>
-    Object.keys(resource).map(canonicalKey),
-  ),
-);
 const sourceFiles = walk(path.join(process.cwd(), 'src')).filter((filePath) =>
   /\.tsx?$/u.test(filePath),
 );
@@ -152,13 +188,29 @@ for (const filePath of sourceFiles) {
       `${path.relative(process.cwd(), filePath)}: contains untranslated Cyrillic UI text`,
     );
   }
+  const defaultNamespaces = translationNamespaces(source);
   for (const match of source.matchAll(
-    /(?:\bt|i18next\.t)\(\s*['"]([^'"]+)['"]/gu,
+    /i18next\.t\(\s*['"]([^'"]+)['"]([\s\S]*?)\)/gu,
   )) {
-    const key = canonicalKey(match[1]);
-    if (!allReferenceKeys.has(key)) {
+    const [, key, options] = match;
+    const namespaces = callNamespace(options, ['common']);
+    if (!namespaces.some((namespace) => resourceHasKey(namespace, key))) {
       errors.push(
-        `${path.relative(process.cwd(), filePath)}: unknown translation key ${match[1]}`,
+        `${path.relative(process.cwd(), filePath)}: unknown ${namespaces.join('|')} key ${key}`,
+      );
+    }
+  }
+  for (const match of source.matchAll(
+    /(?<![\w.])t\(\s*['"]([^'"]+)['"]([\s\S]*?)\)/gu,
+  )) {
+    const [, key, options] = match;
+    const namespaces = callNamespace(
+      options,
+      defaultNamespaces.length ? defaultNamespaces : ['common'],
+    );
+    if (!namespaces.some((namespace) => resourceHasKey(namespace, key))) {
+      errors.push(
+        `${path.relative(process.cwd(), filePath)}: unknown ${namespaces.join('|')} key ${key}`,
       );
     }
   }

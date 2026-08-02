@@ -34,6 +34,10 @@ export function getLocale(): AppLocale {
   return language?.toLowerCase().startsWith('ru') ? 'ru' : 'en';
 }
 
+export function getResponseLocale(preference: 'app' | 'auto') {
+  return preference === 'app' ? getLocale() : undefined;
+}
+
 export function setLanguagePreference(value: LanguagePreference) {
   storeLanguagePreference(value);
   void i18next.changeLanguage(resolveLocale(value));

@@ -13,7 +13,7 @@ import {
 import { useRelativeTime } from '../../../i18n/useRelativeTime';
 import { galaxyItemAvatar } from '../../../lib/avatar';
 import type { GalaxyItem } from '../../../types';
-import { galaxyKindIcons, galaxyKindLabels } from '../catalog';
+import { galaxyKindIcons, galaxyKindLabelKeys } from '../catalog';
 import { galaxyItemDetails } from '../summary';
 
 export function GalaxyCard({
@@ -27,7 +27,7 @@ export function GalaxyCard({
   onDuplicate: () => void;
   onDelete: () => void;
 }) {
-  const { t } = useTranslation('galaxies');
+  const { t } = useTranslation(['galaxies', 'common']);
   const relativeUpdatedAt = useRelativeTime(item.updatedAt);
   const details = galaxyItemDetails(item);
   const avatar = galaxyItemAvatar(item);
@@ -61,7 +61,7 @@ export function GalaxyCard({
                   {item.name}
                 </strong>
                 <Chip size="sm" variant="soft" className="bg-transparent">
-                  {galaxyKindLabels[item.kind]}
+                  {t(galaxyKindLabelKeys[item.kind], { ns: 'common' })}
                 </Chip>
               </span>
               <span className="mt-1.5 line-clamp-3 text-sm leading-6 text-muted">

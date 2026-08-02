@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from '../../i18n/toast';
+import { errorMessage } from '../../lib/errors';
 import type {
   EmbeddingProbeResult,
   Provider,
@@ -78,7 +79,7 @@ export function useProviderEditor({
     try {
       setToken(await onReadSecrets(provider.id));
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
+      setError(errorMessage(caught));
     } finally {
       setLoadingCredentials(false);
       setIsOpen(true);
@@ -117,7 +118,7 @@ export function useProviderEditor({
     } catch (caught) {
       setModels([]);
       setLatency(null);
-      setError(caught instanceof Error ? caught.message : String(caught));
+      setError(errorMessage(caught));
     } finally {
       setLoadingModels(false);
     }
@@ -132,7 +133,7 @@ export function useProviderEditor({
       const result = await onTestEmbeddings(form, token.trim() || undefined);
       setEmbeddingProbe(result);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
+      setError(errorMessage(caught));
     } finally {
       setTestingEmbeddings(false);
     }
@@ -164,7 +165,7 @@ export function useProviderEditor({
       });
       setIsOpen(false);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
+      setError(errorMessage(caught));
     } finally {
       setSaving(false);
     }

@@ -10,38 +10,23 @@ import type {
   CharacterData,
   GalaxyItem,
   GalaxyItemInput,
-  GalaxyKind,
   PersonaData,
   PromptSetData,
   StyleData,
   UniverseData,
   WorldbookData,
 } from '../../../types';
-import { galaxyKindDescriptions, galaxyKindLabels } from '../catalog';
+import {
+  galaxyEditorDescriptionKeys,
+  galaxyKindDescriptionKeys,
+  galaxyKindLabelKeys,
+} from '../catalog';
 import { CharacterEditor } from './editors/CharacterEditor';
 import { PersonaEditor } from './editors/PersonaEditor';
 import { StyleEditor } from './editors/StyleEditor';
 import { UniverseEditor } from './editors/UniverseEditor';
 import { WorldbookEditor } from './editors/WorldbookEditor';
 import { useTranslation } from 'react-i18next';
-import { i18next } from '../../../i18n';
-
-function descriptionPlaceholder(kind: GalaxyKind) {
-  switch (kind) {
-    case 'persona':
-      return i18next.t('editor.description.persona', { ns: 'galaxies' });
-    case 'character':
-      return i18next.t('editor.description.character', { ns: 'galaxies' });
-    case 'universe':
-      return i18next.t('editor.description.universe', { ns: 'galaxies' });
-    case 'worldbook':
-      return i18next.t('editor.description.worldbook', { ns: 'galaxies' });
-    case 'style':
-      return i18next.t('editor.description.style', { ns: 'galaxies' });
-    case 'prompt-set':
-      return i18next.t('editor.description.promptSet', { ns: 'galaxies' });
-  }
-}
 
 export function GalaxyEditorModal({
   isOpen,
@@ -64,7 +49,7 @@ export function GalaxyEditorModal({
   onOpenChange: (open: boolean) => void;
   onSave: (draft: GalaxyItemInput) => void;
 }) {
-  const { t } = useTranslation('galaxies');
+  const { t } = useTranslation(['galaxies', 'common']);
   const [draft, setDraft] = useState(initialDraft);
 
   useEffect(() => {
@@ -77,6 +62,7 @@ export function GalaxyEditorModal({
     characterData?.stylePreset === 'custom' && !characterData.styleItemId,
   );
   const canSave = Boolean(draft.name.trim()) && !customStyleMissing;
+  const draftKindLabel = t(galaxyKindLabelKeys[draft.kind], { ns: 'common' });
 
   return (
     <UiModal
@@ -88,10 +74,10 @@ export function GalaxyEditorModal({
         editing
           ? t('galaxyEditorModal.editingValue1', { value1: editing.name })
           : t('galaxyEditorModal.newObjectValue1', {
-              value1: galaxyKindLabels[draft.kind],
+              value1: draftKindLabel,
             })
       }
-      description={galaxyKindDescriptions[draft.kind]}
+      description={t(galaxyKindDescriptionKeys[draft.kind])}
       size="lg"
       footer={
         <>
@@ -118,7 +104,7 @@ export function GalaxyEditorModal({
           <Surface className="rounded-2xl border border-separator p-4 sm:p-5">
             <AvatarPicker
               value={galaxyInputAvatar(draft.data)}
-              name={draft.name || galaxyKindLabels[draft.kind]}
+              name={draft.name || draftKindLabel}
               description={t(
                 'galaxyEditorModal.thePhotoAppearsInTheLibraryChatHeaderAndNext',
               )}
@@ -166,7 +152,7 @@ export function GalaxyEditorModal({
               variant="secondary"
               rows={3}
               value={draft.description}
-              placeholder={descriptionPlaceholder(draft.kind)}
+              placeholder={t(galaxyEditorDescriptionKeys[draft.kind])}
               autoComplete="off"
               onChange={(event) =>
                 setDraft({ ...draft, description: event.target.value })

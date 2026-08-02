@@ -24,6 +24,7 @@ export function MobileBottomNavigation({
       <div className="grid h-16 w-full grid-cols-5">
         {navigationItems.map((item) => {
           const isActive = activeTab === item.id;
+          const label = t(item.labelKey);
 
           return (
             <button
@@ -32,7 +33,7 @@ export function MobileBottomNavigation({
               className={`group relative flex h-full min-w-0 flex-col items-center justify-center gap-1 border-0 bg-transparent px-1 outline-none transition-colors duration-[var(--motion-standard)] ease-[var(--motion-ease)] active:bg-default/70 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus ${
                 isActive ? 'text-accent' : 'text-muted'
               }`}
-              aria-label={item.label}
+              aria-label={label}
               aria-current={isActive ? 'page' : undefined}
               onClick={() => onNavigate(item.id)}
             >
@@ -58,7 +59,7 @@ export function MobileBottomNavigation({
                 />
               )}
               <span className="block w-full truncate text-center text-[0.68rem] font-medium leading-none">
-                {item.label}
+                {label}
               </span>
             </button>
           );

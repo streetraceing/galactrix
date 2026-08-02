@@ -2,6 +2,7 @@ import { Button, Checkbox, Surface } from '@heroui/react';
 import { useEffect, useState } from 'react';
 import { Icon } from '../../components/Icon';
 import { toast } from '../../i18n/toast';
+import { errorMessage } from '../../lib/errors';
 import { EmptyState } from '../../components/ui/EmptyState';
 import {
   ExportDestinationPicker,
@@ -129,7 +130,7 @@ export function TelescopeScreen({
       toast.danger(
         t('telescopeScreen.checkProviderFailed', { value1: providerName }),
         {
-          description: error instanceof Error ? error.message : String(error),
+          description: errorMessage(error),
         },
       );
     } finally {
@@ -194,7 +195,7 @@ export function TelescopeScreen({
         description: removedName,
       });
     } catch (error) {
-      setDeleteError(error instanceof Error ? error.message : String(error));
+      setDeleteError(errorMessage(error));
     } finally {
       setDeleting(false);
     }
@@ -232,7 +233,7 @@ export function TelescopeScreen({
       });
     } catch (error) {
       toast.danger(t('telescopeScreen.couldNotExportConnections'), {
-        description: error instanceof Error ? error.message : String(error),
+        description: errorMessage(error),
       });
     } finally {
       setTransferring(false);
@@ -254,7 +255,7 @@ export function TelescopeScreen({
       });
     } catch (error) {
       toast.danger(t('telescopeScreen.couldNotImportConnections'), {
-        description: error instanceof Error ? error.message : String(error),
+        description: errorMessage(error),
       });
     } finally {
       setTransferring(false);

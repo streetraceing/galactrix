@@ -3,8 +3,8 @@ import { GalaxiesScreen } from '../features/galaxies/GalaxiesScreen';
 import { ProfileScreen } from '../features/profile/ProfileScreen';
 import { SettingsScreen } from '../features/settings/SettingsScreen';
 import { TelescopeScreen } from '../features/telescope/TelescopeScreen';
-import type { useAppController } from '../hooks/useAppController';
-import { useTranslation } from 'react-i18next';
+import type { useAppController } from './useAppController';
+import { getResponseLocale } from '../i18n';
 
 type Controller = ReturnType<typeof useAppController>;
 
@@ -18,7 +18,6 @@ export function AppScreenRouter({
   onChatMaximizedChange: (maximized: boolean) => void;
 }) {
   const { activeTab, snapshot } = controller;
-  const { i18n } = useTranslation();
 
   if (activeTab === 'chats') {
     return (
@@ -67,13 +66,7 @@ export function AppScreenRouter({
         chatViewMode={snapshot.settings.chatViewMode}
         showMessageAvatars={snapshot.settings.showMessageAvatars}
         showMessageTimestamps={snapshot.settings.showMessageTimestamps}
-        responseLanguage={
-          snapshot.settings.responseLanguage === 'app'
-            ? i18n.resolvedLanguage?.toLowerCase().startsWith('ru')
-              ? 'ru'
-              : 'en'
-            : undefined
-        }
+        responseLanguage={getResponseLocale(snapshot.settings.responseLanguage)}
         sending={controller.sending}
       />
     );

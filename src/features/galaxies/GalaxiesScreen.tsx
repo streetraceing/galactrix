@@ -4,6 +4,7 @@ import { Icon } from '../../components/Icon';
 import { TooltipIconButton } from '../../components/ui/TooltipIconButton';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { toast } from '../../i18n/toast';
+import { errorMessage } from '../../lib/errors';
 import {
   ExportDestinationPicker,
   ExportSelectionList,
@@ -26,9 +27,9 @@ import type {
 import { GalaxyCard } from './components/GalaxyCard';
 import { GalaxyEditorModal } from './components/GalaxyEditorModal';
 import {
-  galaxyKindCreateLabels,
-  galaxyKindDescriptions,
-  galaxyKindLabels,
+  galaxyKindCreateLabelKeys,
+  galaxyKindDescriptionKeys,
+  galaxyKindLabelKeys,
   galaxySections,
 } from './catalog';
 import { createGalaxyDraft, draftFromItem } from './model';
@@ -46,7 +47,7 @@ export function GalaxiesScreen({
   onImport: (items: GalaxyItemInput[]) => Promise<number>;
   onDelete: (id: string) => Promise<void>;
 }) {
-  const { t } = useTranslation('galaxies');
+  const { t } = useTranslation(['galaxies', 'common']);
   const [section, setSection] = useState<GalaxyKind>('persona');
   const [editing, setEditing] = useState<GalaxyItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<GalaxyItem | null>(null);
@@ -108,7 +109,7 @@ export function GalaxiesScreen({
       });
     } catch (caught) {
       toast.danger(t('galaxiesScreen.couldNotExportGalaxies'), {
-        description: caught instanceof Error ? caught.message : String(caught),
+        description: errorMessage(caught),
       });
     } finally {
       setExporting(false);
@@ -130,7 +131,7 @@ export function GalaxiesScreen({
       });
     } catch (caught) {
       toast.danger(t('galaxiesScreen.couldNotImportGalaxies'), {
-        description: caught instanceof Error ? caught.message : String(caught),
+        description: errorMessage(caught),
       });
     } finally {
       setImporting(false);
@@ -193,7 +194,7 @@ export function GalaxiesScreen({
         },
       );
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
+      setError(errorMessage(caught));
     } finally {
       setSaving(false);
     }
@@ -212,7 +213,7 @@ export function GalaxiesScreen({
         description: removedName,
       });
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
+      setError(errorMessage(caught));
     } finally {
       setSaving(false);
     }
@@ -251,7 +252,7 @@ export function GalaxiesScreen({
                 {t('galaxiesScreen.import')}
               </Button>
               <TooltipIconButton
-                label={`${t('galaxiesScreen.create')} ${galaxyKindCreateLabels[section]}`}
+                label={`${t('galaxiesScreen.create')} ${t(galaxyKindCreateLabelKeys[section])}`}
                 variant="primary"
                 className="flex lg:hidden"
                 onPress={() => openCreate(section)}
@@ -265,7 +266,8 @@ export function GalaxiesScreen({
               >
                 <Icon name="plus" className="size-4" />{' '}
                 <span>
-                  {t('galaxiesScreen.create')} {galaxyKindCreateLabels[section]}
+                  {t('galaxiesScreen.create')}{' '}
+                  {t(galaxyKindCreateLabelKeys[section])}
                 </span>
               </Button>
             </div>
@@ -284,7 +286,7 @@ export function GalaxiesScreen({
             >
               {galaxySections.map((entry) => (
                 <Tabs.Tab key={entry.id} id={entry.id}>
-                  {entry.label}
+                  {t(entry.labelKey)}
                   <Chip size="sm" variant="soft" className="bg-transparent">
                     {byKind[entry.id].length}
                   </Chip>
@@ -300,9 +302,9 @@ export function GalaxiesScreen({
               <Tabs.Panel key={entry.id} id={entry.id} className="pt-5 sm:pt-6">
                 <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
                   <div>
-                    <h2 className="section-title">{entry.label}</h2>
+                    <h2 className="section-title">{t(entry.labelKey)}</h2>
                     <p className="section-description max-w-3xl">
-                      {galaxyKindDescriptions[entry.id]}
+                      {t(galaxyKindDescriptionKeys[entry.id])}
                     </p>
                   </div>
                   <span className="text-xs text-muted">
@@ -333,9 +335,9 @@ export function GalaxiesScreen({
                   <EmptyState
                     icon="galaxies"
                     title={t('galaxiesScreen.theValue1SectionIsEmpty', {
-                      value1: entry.label,
+                      value1: t(entry.labelKey),
                     })}
-                    description={galaxyKindDescriptions[entry.id]}
+                    description={t(galaxyKindDescriptionKeys[entry.id])}
                     compact
                   />
                 )}
@@ -393,7 +395,9 @@ export function GalaxiesScreen({
             items={items.map((item) => ({
               id: item.id,
               title: item.name,
-              description: galaxyKindLabels[item.kind],
+              description: t(galaxyKindLabelKeys[item.kind], {
+                ns: 'common',
+              }),
             }))}
             selectedIds={exportIds}
             onChange={(ids) => setExportIds(includeExportDependencies(ids))}

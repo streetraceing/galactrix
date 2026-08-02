@@ -1,4 +1,5 @@
 import type { AppLocale } from './resources';
+import { readStorageItem, writeStorageItem } from '../lib/storage';
 
 export const supportedLocales = [
   'en',
@@ -8,23 +9,15 @@ export type LanguagePreference = 'system' | AppLocale;
 
 const STORAGE_KEY = 'galactrix-language';
 
-function hasStorage() {
-  return (
-    typeof localStorage !== 'undefined' &&
-    typeof localStorage.getItem === 'function'
-  );
-}
-
 export function getLanguagePreference(): LanguagePreference {
-  if (!hasStorage()) return 'system';
-  const value = localStorage.getItem(STORAGE_KEY);
+  const value = readStorageItem(STORAGE_KEY);
   return value === 'en' || value === 'ru' || value === 'system'
     ? value
     : 'system';
 }
 
 export function storeLanguagePreference(value: LanguagePreference) {
-  if (hasStorage()) localStorage.setItem(STORAGE_KEY, value);
+  writeStorageItem(STORAGE_KEY, value);
 }
 
 export function getSystemLocale(): AppLocale {

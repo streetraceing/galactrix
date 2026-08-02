@@ -1,215 +1,123 @@
+import type { TranslationKey } from '../../i18n';
 import type { PromptConfig, PromptPresetId, PromptPriority } from '../../types';
-import { i18next } from '../../i18n';
 
-export const promptPresets: Array<{
+type PromptPresetOption = {
   id: PromptPresetId;
-  label: string;
-  description: string;
-}> = [
+  labelKey: TranslationKey<'chats'>;
+  descriptionKey: TranslationKey<'chats'>;
+};
+
+type PromptPriorityOption = {
+  id: PromptPriority;
+  labelKey: TranslationKey<'chats'>;
+  descriptionKey: TranslationKey<'chats'>;
+};
+
+export const promptPresets = [
   {
     id: 'human',
-    get label() {
-      return i18next.t('promptRule.livingLanguage.label', { ns: 'chats' });
-    },
-    get description() {
-      return i18next.t('promptRule.livingLanguage.description', {
-        ns: 'chats',
-      });
-    },
+    labelKey: 'promptRule.livingLanguage.label',
+    descriptionKey: 'promptRule.livingLanguage.description',
   },
   {
     id: 'casual-brief',
-    get label() {
-      return i18next.t('promptRule.casualBrief.label', { ns: 'chats' });
-    },
-    get description() {
-      return i18next.t('promptRule.casualBrief.description', { ns: 'chats' });
-    },
+    labelKey: 'promptRule.casualBrief.label',
+    descriptionKey: 'promptRule.casualBrief.description',
   },
   {
     id: 'casual-lowercase',
-    get label() {
-      return i18next.t('promptRule.casualLowercase.label', { ns: 'chats' });
-    },
-    get description() {
-      return i18next.t('promptRule.casualLowercase.description', {
-        ns: 'chats',
-      });
-    },
+    labelKey: 'promptRule.casualLowercase.label',
+    descriptionKey: 'promptRule.casualLowercase.description',
   },
   {
     id: 'strict-lowercase',
-    get label() {
-      return i18next.t('promptRule.strictLowercase.label', { ns: 'chats' });
-    },
-    get description() {
-      return i18next.t('promptRule.strictLowercase.description', {
-        ns: 'chats',
-      });
-    },
+    labelKey: 'promptRule.strictLowercase.label',
+    descriptionKey: 'promptRule.strictLowercase.description',
   },
   {
     id: 'dialogue-only',
-    get label() {
-      return i18next.t('promptRule.dialogueOnly.label', { ns: 'chats' });
-    },
-    get description() {
-      return i18next.t('promptRule.dialogueOnly.description', { ns: 'chats' });
-    },
+    labelKey: 'promptRule.dialogueOnly.label',
+    descriptionKey: 'promptRule.dialogueOnly.description',
   },
   {
     id: 'no-emoji',
-    get label() {
-      return i18next.t('promptRule.noEmoji.label', { ns: 'chats' });
-    },
-    get description() {
-      return i18next.t('promptRule.noEmoji.description', { ns: 'chats' });
-    },
+    labelKey: 'promptRule.noEmoji.label',
+    descriptionKey: 'promptRule.noEmoji.description',
   },
   {
     id: 'first-person',
-    get label() {
-      return i18next.t('promptRule.firstPerson.label', { ns: 'chats' });
-    },
-    get description() {
-      return i18next.t('promptRule.firstPerson.description', { ns: 'chats' });
-    },
+    labelKey: 'promptRule.firstPerson.label',
+    descriptionKey: 'promptRule.firstPerson.description',
   },
   {
     id: 'roleplay-actions',
-    get label() {
-      return i18next.t('promptRule.roleplayActions.label', { ns: 'chats' });
-    },
-    get description() {
-      return i18next.t('promptRule.roleplayActions.description', {
-        ns: 'chats',
-      });
-    },
+    labelKey: 'promptRule.roleplayActions.label',
+    descriptionKey: 'promptRule.roleplayActions.description',
   },
   {
     id: 'no-user-control',
-    get label() {
-      return i18next.t('promptRule.noUserControl.label', { ns: 'chats' });
-    },
-    get description() {
-      return i18next.t('promptRule.noUserControl.description', {
-        ns: 'chats',
-      });
-    },
+    labelKey: 'promptRule.noUserControl.label',
+    descriptionKey: 'promptRule.noUserControl.description',
   },
   {
     id: 'character-consistency',
-    get label() {
-      return i18next.t('promptRule.characterConsistency.label', {
-        ns: 'chats',
-      });
-    },
-    get description() {
-      return i18next.t('promptRule.characterConsistency.description', {
-        ns: 'chats',
-      });
-    },
+    labelKey: 'promptRule.characterConsistency.label',
+    descriptionKey: 'promptRule.characterConsistency.description',
   },
   {
     id: 'scene-pacing',
-    get label() {
-      return i18next.t('promptRule.scenePacing.label', { ns: 'chats' });
-    },
-    get description() {
-      return i18next.t('promptRule.scenePacing.description', { ns: 'chats' });
-    },
+    labelKey: 'promptRule.scenePacing.label',
+    descriptionKey: 'promptRule.scenePacing.description',
   },
   {
     id: 'telegram-chat',
-    get label() {
-      return i18next.t('promptRule.telegramChat.label', { ns: 'chats' });
-    },
-    get description() {
-      return i18next.t('promptRule.telegramChat.description', { ns: 'chats' });
-    },
+    labelKey: 'promptRule.telegramChat.label',
+    descriptionKey: 'promptRule.telegramChat.description',
   },
   {
     id: 'concise',
-    get label() {
-      return i18next.t('promptRule.concise.label', { ns: 'chats' });
-    },
-    get description() {
-      return i18next.t('promptRule.concise.description', { ns: 'chats' });
-    },
+    labelKey: 'promptRule.concise.label',
+    descriptionKey: 'promptRule.concise.description',
   },
   {
     id: 'immersive',
-    get label() {
-      return i18next.t('promptRule.immersive.label', { ns: 'chats' });
-    },
-    get description() {
-      return i18next.t('promptRule.immersive.description', { ns: 'chats' });
-    },
+    labelKey: 'promptRule.immersive.label',
+    descriptionKey: 'promptRule.immersive.description',
   },
   {
     id: 'initiative',
-    get label() {
-      return i18next.t('promptRule.proactive.label', { ns: 'chats' });
-    },
-    get description() {
-      return i18next.t('promptRule.proactive.description', { ns: 'chats' });
-    },
+    labelKey: 'promptRule.proactive.label',
+    descriptionKey: 'promptRule.proactive.description',
   },
   {
     id: 'continuity',
-    get label() {
-      return i18next.t('promptRule.strictContinuity.label', { ns: 'chats' });
-    },
-    get description() {
-      return i18next.t('promptRule.strictContinuity.description', {
-        ns: 'chats',
-      });
-    },
+    labelKey: 'promptRule.strictContinuity.label',
+    descriptionKey: 'promptRule.strictContinuity.description',
   },
-];
+] as const satisfies readonly PromptPresetOption[];
 
-export const promptPriorities: Array<{
-  id: PromptPriority;
-  label: string;
-  description: string;
-}> = [
+export const promptPriorities = [
   {
     id: 'low',
-    get label() {
-      return i18next.t('priority.low.label', { ns: 'chats' });
-    },
-    get description() {
-      return i18next.t('priority.low.description', { ns: 'chats' });
-    },
+    labelKey: 'priority.low.label',
+    descriptionKey: 'priority.low.description',
   },
   {
     id: 'normal',
-    get label() {
-      return i18next.t('priority.normal.label', { ns: 'chats' });
-    },
-    get description() {
-      return i18next.t('priority.normal.description', { ns: 'chats' });
-    },
+    labelKey: 'priority.normal.label',
+    descriptionKey: 'priority.normal.description',
   },
   {
     id: 'high',
-    get label() {
-      return i18next.t('priority.high.label', { ns: 'chats' });
-    },
-    get description() {
-      return i18next.t('priority.high.description', { ns: 'chats' });
-    },
+    labelKey: 'priority.high.label',
+    descriptionKey: 'priority.high.description',
   },
   {
     id: 'critical',
-    get label() {
-      return i18next.t('priority.critical.label', { ns: 'chats' });
-    },
-    get description() {
-      return i18next.t('priority.critical.description', { ns: 'chats' });
-    },
+    labelKey: 'priority.critical.label',
+    descriptionKey: 'priority.critical.description',
   },
-];
+] as const satisfies readonly PromptPriorityOption[];
 
 export const defaultPromptConfig: PromptConfig = {
   recentMessageLimit: 50,
