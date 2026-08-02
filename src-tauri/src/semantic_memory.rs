@@ -31,7 +31,11 @@ pub fn build_candidates(
             .iter()
             .filter(|message| matches!(message.role.as_str(), "user" | "assistant"))
         {
-            let role = if message.role == "user" { "User" } else { "Assistant" };
+            let role = if message.role == "user" {
+                "User"
+            } else {
+                "Assistant"
+            };
             push_candidate(
                 &mut candidates,
                 "archived-message",
@@ -43,7 +47,12 @@ pub fn build_candidates(
 
     if settings.include_dynamic_context {
         if let Some(context) = context {
-            push_candidate(&mut candidates, "context-summary", "summary", &context.summary);
+            push_candidate(
+                &mut candidates,
+                "context-summary",
+                "summary",
+                &context.summary,
+            );
             for (kind, values) in [
                 ("context-fact", &context.facts),
                 ("context-event", &context.events),

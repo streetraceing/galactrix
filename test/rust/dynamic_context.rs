@@ -18,7 +18,13 @@ fn message(id: &str, role: &str, content: &str) -> Message {
 #[test]
 fn pending_batch_keeps_the_recent_direct_window_out_of_the_summary() {
     let history = (0..12)
-        .map(|index| message(&format!("m-{index}"), if index % 2 == 0 { "user" } else { "assistant" }, "text"))
+        .map(|index| {
+            message(
+                &format!("m-{index}"),
+                if index % 2 == 0 { "user" } else { "assistant" },
+                "text",
+            )
+        })
         .collect::<Vec<_>>();
     let settings = DynamicContextSettings {
         enabled: true,
@@ -37,7 +43,13 @@ fn pending_batch_keeps_the_recent_direct_window_out_of_the_summary() {
 #[test]
 fn an_existing_summary_waits_for_a_new_unsummarized_trigger_window() {
     let history = (0..14)
-        .map(|index| message(&format!("m-{index}"), if index % 2 == 0 { "user" } else { "assistant" }, "text"))
+        .map(|index| {
+            message(
+                &format!("m-{index}"),
+                if index % 2 == 0 { "user" } else { "assistant" },
+                "text",
+            )
+        })
         .collect::<Vec<_>>();
     let context = DynamicContextState {
         covered_through_message_id: Some("m-7".into()),
@@ -57,7 +69,13 @@ fn an_existing_summary_waits_for_a_new_unsummarized_trigger_window() {
 #[test]
 fn trimming_never_removes_messages_not_covered_by_context() {
     let history = (0..8)
-        .map(|index| message(&format!("m-{index}"), if index % 2 == 0 { "user" } else { "assistant" }, "text"))
+        .map(|index| {
+            message(
+                &format!("m-{index}"),
+                if index % 2 == 0 { "user" } else { "assistant" },
+                "text",
+            )
+        })
         .collect::<Vec<_>>();
     let context = DynamicContextState {
         covered_through_message_id: Some("m-3".into()),
@@ -80,7 +98,9 @@ fn analyzer_response_is_parsed_as_structured_context() {
     assert_eq!(parsed.summary, "A concise summary");
     assert_eq!(parsed.facts, vec!["Likes Rust"]);
     assert_eq!(parsed.covered_through_message_id.as_deref(), Some("m-4"));
-    assert!(render_context_section(&parsed).unwrap().contains("Finish tests"));
+    assert!(render_context_section(&parsed)
+        .unwrap()
+        .contains("Finish tests"));
 }
 
 #[test]

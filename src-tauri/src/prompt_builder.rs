@@ -72,19 +72,13 @@ pub fn build_system_prompt(
             push_section(
                 &mut sections,
                 &block.priority,
-                &format!(
-                    "PROMPT SET {}: {}",
-                    prompt_set.name,
-                    block.title.trim()
-                ),
+                &format!("PROMPT SET {}: {}", prompt_set.name, block.title.trim()),
                 block.content.trim().to_owned(),
             );
         }
     }
 
-    if let Some(instructions) =
-        response_rules::instructions(&context.prompt_config.preset_ids)
-    {
+    if let Some(instructions) = response_rules::instructions(&context.prompt_config.preset_ids) {
         push_section(
             &mut sections,
             &priorities.presets,
@@ -180,10 +174,7 @@ pub fn build_system_prompt(
     ))
 }
 
-pub fn resolve_assistant_placeholders(
-    prompt: String,
-    context: &ChatPromptContext,
-) -> String {
+pub fn resolve_assistant_placeholders(prompt: String, context: &ChatPromptContext) -> String {
     let assistant_name = context
         .character
         .as_ref()
@@ -194,12 +185,7 @@ pub fn resolve_assistant_placeholders(
     prompt.replace("{{char}}", assistant_name)
 }
 
-fn push_section(
-    sections: &mut Vec<PromptSection>,
-    priority: &str,
-    title: &str,
-    content: String,
-) {
+fn push_section(sections: &mut Vec<PromptSection>, priority: &str, title: &str, content: String) {
     if content.trim().is_empty() {
         return;
     }
@@ -288,7 +274,11 @@ fn character_prompt(item: &GalaxyItem, custom_style: Option<&GalaxyItem>) -> Str
     ];
     push_field(&mut lines, "Short description", Some(&item.description));
 
-    if let Some(sections) = item.data.get("definitionSections").and_then(Value::as_array) {
+    if let Some(sections) = item
+        .data
+        .get("definitionSections")
+        .and_then(Value::as_array)
+    {
         let rendered = render_sections(sections);
         if !rendered.is_empty() {
             lines.push("Character definition:".into());

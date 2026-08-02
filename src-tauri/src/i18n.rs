@@ -15,12 +15,9 @@ pub mod keys {
     pub const MESSAGE_EMPTY: &str = "backend.message.empty";
     pub const MESSAGE_USER_BEFORE_ASSISTANT_MISSING: &str =
         "backend.message.userBeforeAssistantMissing";
-    pub const MESSAGE_REGENERATE_ASSISTANT_ONLY: &str =
-        "backend.message.regenerateAssistantOnly";
-    pub const MESSAGE_CONTINUE_ASSISTANT_ONLY: &str =
-        "backend.message.continueAssistantOnly";
-    pub const MESSAGE_VARIANTS_ASSISTANT_ONLY: &str =
-        "backend.message.variantsAssistantOnly";
+    pub const MESSAGE_REGENERATE_ASSISTANT_ONLY: &str = "backend.message.regenerateAssistantOnly";
+    pub const MESSAGE_CONTINUE_ASSISTANT_ONLY: &str = "backend.message.continueAssistantOnly";
+    pub const MESSAGE_VARIANTS_ASSISTANT_ONLY: &str = "backend.message.variantsAssistantOnly";
     pub const MESSAGE_VARIANT_NOT_FOUND: &str = "backend.message.variantNotFound";
 
     pub const PROVIDER_EMPTY_RESPONSE: &str = "backend.provider.emptyResponse";
@@ -28,28 +25,22 @@ pub mod keys {
     pub const PROVIDER_NOT_FOUND: &str = "backend.provider.notFound";
     pub const PROVIDER_NAME_REQUIRED: &str = "backend.provider.nameRequired";
     pub const PROVIDER_MODEL_REQUIRED: &str = "backend.provider.modelRequired";
-    pub const PROVIDER_EMBEDDING_MODEL_REQUIRED: &str =
-        "backend.provider.embeddingModelRequired";
-    pub const PROVIDER_EMBEDDING_MODEL_TOO_LONG: &str =
-        "backend.provider.embeddingModelTooLong";
+    pub const PROVIDER_EMBEDDING_MODEL_REQUIRED: &str = "backend.provider.embeddingModelRequired";
+    pub const PROVIDER_EMBEDDING_MODEL_TOO_LONG: &str = "backend.provider.embeddingModelTooLong";
     pub const PROVIDER_BASE_URL_TOO_LONG: &str = "backend.provider.baseUrlTooLong";
     pub const PROVIDER_API_KEY_REQUIRED: &str = "backend.provider.apiKeyRequired";
     pub const PROVIDER_API_KEY_MISSING: &str = "backend.provider.apiKeyMissing";
-    pub const PROVIDER_API_KEY_NOT_IN_STORAGE: &str =
-        "backend.provider.apiKeyNotInStorage";
+    pub const PROVIDER_API_KEY_NOT_IN_STORAGE: &str = "backend.provider.apiKeyNotInStorage";
     pub const PROVIDER_UNKNOWN_KIND: &str = "backend.provider.unknownKind";
-    pub const PROVIDER_NOT_OPENAI_COMPATIBLE: &str =
-        "backend.provider.notOpenAiCompatible";
+    pub const PROVIDER_NOT_OPENAI_COMPATIBLE: &str = "backend.provider.notOpenAiCompatible";
     pub const PROVIDER_TEMPERATURE_RANGE: &str = "backend.provider.temperatureRange";
     pub const PROVIDER_TOP_P_RANGE: &str = "backend.provider.topPRange";
     pub const PROVIDER_MAX_TOKENS_POSITIVE: &str = "backend.provider.maxTokensPositive";
-    pub const PROVIDER_CHARACTER_AI_UNSUPPORTED: &str =
-        "backend.provider.characterAiUnsupported";
+    pub const PROVIDER_CHARACTER_AI_UNSUPPORTED: &str = "backend.provider.characterAiUnsupported";
     pub const PROVIDER_CONNECTION_FAILED: &str = "backend.provider.connectionFailed";
     pub const PROVIDER_REQUEST_FAILED: &str = "backend.provider.requestFailed";
     pub const PROVIDER_REQUEST_CANCELLED: &str = "backend.provider.requestCancelled";
-    pub const PROVIDER_RESPONSE_READ_FAILED: &str =
-        "backend.provider.responseReadFailed";
+    pub const PROVIDER_RESPONSE_READ_FAILED: &str = "backend.provider.responseReadFailed";
     pub const PROVIDER_HTTP_ERROR: &str = "backend.provider.httpError";
     pub const PROVIDER_BASE_URL_REQUIRED: &str = "backend.provider.baseUrlRequired";
     pub const PROVIDER_ACCOUNT_ID_REQUIRED: &str = "backend.provider.accountIdRequired";
@@ -58,20 +49,13 @@ pub mod keys {
     pub const COMMON_NAME_TOO_LONG: &str = "backend.common.nameTooLong";
 
     pub const GALAXY_NOT_FOUND: &str = "backend.galaxy.notFound";
-    pub const GALAXY_CONTEXT_PERSONA_NOT_FOUND: &str =
-        "backend.galaxy.contextPersonaNotFound";
-    pub const GALAXY_CONTEXT_CHARACTER_NOT_FOUND: &str =
-        "backend.galaxy.contextCharacterNotFound";
-    pub const GALAXY_CONTEXT_UNIVERSE_NOT_FOUND: &str =
-        "backend.galaxy.contextUniverseNotFound";
-    pub const GALAXY_CONTEXT_WORLDBOOK_NOT_FOUND: &str =
-        "backend.galaxy.contextWorldbookNotFound";
-    pub const GALAXY_CONTEXT_STYLE_NOT_FOUND: &str =
-        "backend.galaxy.contextStyleNotFound";
-    pub const GALAXY_CONTEXT_PROMPT_SET_NOT_FOUND: &str =
-        "backend.galaxy.contextPromptSetNotFound";
-    pub const GALAXY_CONTEXT_OBJECT_NOT_FOUND: &str =
-        "backend.galaxy.contextObjectNotFound";
+    pub const GALAXY_CONTEXT_PERSONA_NOT_FOUND: &str = "backend.galaxy.contextPersonaNotFound";
+    pub const GALAXY_CONTEXT_CHARACTER_NOT_FOUND: &str = "backend.galaxy.contextCharacterNotFound";
+    pub const GALAXY_CONTEXT_UNIVERSE_NOT_FOUND: &str = "backend.galaxy.contextUniverseNotFound";
+    pub const GALAXY_CONTEXT_WORLDBOOK_NOT_FOUND: &str = "backend.galaxy.contextWorldbookNotFound";
+    pub const GALAXY_CONTEXT_STYLE_NOT_FOUND: &str = "backend.galaxy.contextStyleNotFound";
+    pub const GALAXY_CONTEXT_PROMPT_SET_NOT_FOUND: &str = "backend.galaxy.contextPromptSetNotFound";
+    pub const GALAXY_CONTEXT_OBJECT_NOT_FOUND: &str = "backend.galaxy.contextObjectNotFound";
     pub const GALAXY_DATA_MUST_BE_OBJECT: &str = "backend.galaxy.dataMustBeObject";
     pub const GALAXY_KIND_IMMUTABLE: &str = "backend.galaxy.kindImmutable";
     pub const GALAXY_DATA_TOO_LARGE: &str = "backend.galaxy.dataTooLarge";
@@ -93,10 +77,8 @@ pub mod keys {
     pub const PROMPT_BLOCK_ID_DUPLICATE: &str = "backend.prompt.blockIdDuplicate";
     pub const PROMPT_BLOCK_TITLE_TOO_LONG: &str = "backend.prompt.blockTitleTooLong";
     pub const PROMPT_BLOCK_TITLE_REQUIRED: &str = "backend.prompt.blockTitleRequired";
-    pub const PROMPT_BLOCK_PRIORITY_UNKNOWN: &str =
-        "backend.prompt.blockPriorityUnknown";
-    pub const PROMPT_BLOCK_CONTENT_REQUIRED: &str =
-        "backend.prompt.blockContentRequired";
+    pub const PROMPT_BLOCK_PRIORITY_UNKNOWN: &str = "backend.prompt.blockPriorityUnknown";
+    pub const PROMPT_BLOCK_CONTENT_REQUIRED: &str = "backend.prompt.blockContentRequired";
     pub const PROMPT_BLOCK_TOO_LONG: &str = "backend.prompt.blockTooLong";
     pub const PROMPT_BLOCKS_TOO_LARGE: &str = "backend.prompt.blocksTooLarge";
 
@@ -125,11 +107,7 @@ impl CommandError {
         }
     }
 
-    pub fn with_variable(
-        mut self,
-        name: impl Into<String>,
-        value: impl ToString,
-    ) -> Self {
+    pub fn with_variable(mut self, name: impl Into<String>, value: impl ToString) -> Self {
         self.variables.insert(name.into(), value.to_string());
         self
     }

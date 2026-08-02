@@ -1,3 +1,7 @@
+mod ai_memory;
+mod galaxy;
+mod settings;
+
 use std::{
     collections::{HashMap, HashSet},
     path::Path,
@@ -8,26 +12,33 @@ use serde_json::Value;
 
 use crate::i18n::{keys, CommandError, CommandResult};
 use crate::models::{
-    AiModuleSettings, AppSettings, AppSnapshot, Chat, ChatConfigInput, ChatPromptContext,
-    ChatState, DynamicContextState, GalaxyItem, GalaxyItemInput, Message, MessageVariant,
-    PromptConfig, Provider, SemanticMemoryCandidate, SemanticMemoryRecord, UsagePoint,
+    AppSnapshot, Chat, ChatConfigInput, ChatPromptContext, ChatState, GalaxyItem, Message,
+    MessageVariant, PromptConfig, Provider,
 };
+
+use ai_memory::clear_chat_ai_context;
+pub(crate) use ai_memory::{
+    get_dynamic_context, invalidate_chat_ai_context, list_semantic_memories,
+    prune_semantic_memories, save_dynamic_context, semantic_memory_indexed_contents,
+    upsert_semantic_memories,
+};
+use galaxy::get_galaxy_item;
+pub(crate) use galaxy::{delete_galaxy_item, upsert_galaxy_item};
+use settings::usage_history;
+pub(crate) use settings::{get_settings, provider_ids, update_settings};
 
 pub fn open(path: &Path) -> CommandResult<Connection> {
     let connection = Connection::open(path)?;
-    connection
-        .pragma_update(None, "foreign_keys", "ON")?;
-    connection
-        .pragma_update(None, "journal_mode", "WAL")?;
+    connection.pragma_update(None, "foreign_keys", "ON")?;
+    connection.pragma_update(None, "journal_mode", "WAL")?;
     migrate(&connection)?;
     remove_legacy_preview_data(&connection)?;
     Ok(connection)
 }
 
 fn migrate(connection: &Connection) -> CommandResult<()> {
-    connection
-        .execute_batch(
-            r#"
+    connection.execute_batch(
+        r#"
             CREATE TABLE IF NOT EXISTS chats (
                 id TEXT PRIMARY KEY,
                 title TEXT NOT NULL,
@@ -181,7 +192,7 @@ fn migrate(connection: &Connection) -> CommandResult<()> {
 
             INSERT OR IGNORE INTO app_settings (id, profile_name) VALUES (1, '');
             "#,
-        )?;
+    )?;
 
     ensure_column(connection, "chats", "provider_id", "TEXT")?;
     ensure_column(connection, "chats", "persona_id", "TEXT")?;
@@ -251,7 +262,12 @@ fn migrate(connection: &Connection) -> CommandResult<()> {
          WHERE role = 'assistant'",
         [],
     )?;
-    ensure_column(connection, "galaxy_items", "data_json", "TEXT NOT NULL DEFAULT '{}'")?;
+    ensure_column(
+        connection,
+        "galaxy_items",
+        "data_json",
+        "TEXT NOT NULL DEFAULT '{}'",
+    )?;
     ensure_column(
         connection,
         "providers",
@@ -344,24 +360,22 @@ fn migrate(connection: &Connection) -> CommandResult<()> {
         "response_language",
         "TEXT NOT NULL DEFAULT 'app'",
     )?;
-    connection
-        .execute_batch(
-            r#"
+    connection.execute_batch(
+        r#"
             INSERT OR IGNORE INTO message_variants (id, message_id, position, content, created_at)
             SELECT id || '-variant-0', id, 0, content, created_at
             FROM messages
             WHERE role = 'assistant';
             "#,
-        )?;
+    )?;
     migrate_legacy_profile_name(connection)?;
     migrate_prompt_configs(connection)?;
     Ok(())
 }
 
 fn migrate_legacy_profile_name(connection: &Connection) -> CommandResult<()> {
-    connection
-        .execute_batch(
-            r#"
+    connection.execute_batch(
+        r#"
             BEGIN IMMEDIATE;
             UPDATE app_settings
             SET profile_name = ''
@@ -375,13 +389,13 @@ fn migrate_legacy_profile_name(connection: &Connection) -> CommandResult<()> {
             VALUES ('profile-name-placeholder-v1');
             COMMIT;
             "#,
-        )?;
+    )?;
     Ok(())
 }
 
 fn migrate_prompt_configs(connection: &Connection) -> CommandResult<()> {
-    let mut statement = connection
-        .prepare("SELECT id, response_preset, prompt_config_json FROM chats")?;
+    let mut statement =
+        connection.prepare("SELECT id, response_preset, prompt_config_json FROM chats")?;
     let chats = statement
         .query_map([], |row| {
             Ok((
@@ -399,11 +413,10 @@ fn migrate_prompt_configs(connection: &Connection) -> CommandResult<()> {
         }
         let config = PromptConfig::from_legacy(&legacy_preset);
         let serialized = serde_json::to_string(&config)?;
-        connection
-            .execute(
-                "UPDATE chats SET prompt_config_json = ?1 WHERE id = ?2",
-                params![serialized, id],
-            )?;
+        connection.execute(
+            "UPDATE chats SET prompt_config_json = ?1 WHERE id = ?2",
+            params![serialized, id],
+        )?;
     }
     Ok(())
 }
@@ -425,23 +438,22 @@ fn ensure_column(
     column: &str,
     definition: &str,
 ) -> CommandResult<()> {
-    let mut statement = connection
-        .prepare(&format!("PRAGMA table_info({table})"))?;
+    let mut statement = connection.prepare(&format!("PRAGMA table_info({table})"))?;
     let columns = statement
         .query_map([], |row| row.get::<_, String>(1))?
         .collect::<Result<Vec<_>, _>>()?;
     drop(statement);
     if !columns.iter().any(|name| name == column) {
-        connection
-            .execute_batch(&format!("ALTER TABLE {table} ADD COLUMN {column} {definition}"))?;
+        connection.execute_batch(&format!(
+            "ALTER TABLE {table} ADD COLUMN {column} {definition}"
+        ))?;
     }
     Ok(())
 }
 
 fn remove_legacy_preview_data(connection: &Connection) -> CommandResult<()> {
-    connection
-        .execute_batch(
-            r#"
+    connection.execute_batch(
+        r#"
             DELETE FROM messages
             WHERE id IN ('message-1', 'message-2', 'message-3')
               AND chat_id = 'chat-1';
@@ -460,7 +472,7 @@ fn remove_legacy_preview_data(connection: &Connection) -> CommandResult<()> {
               AND name = 'Mistral'
               AND model = 'mistral-large-latest';
             "#,
-        )?;
+    )?;
     Ok(())
 }
 
@@ -737,7 +749,17 @@ fn messages_from_rows(
 ) -> Vec<Message> {
     rows.into_iter()
         .map(
-            |(id, chat_id, role, content, created_at, updated_at, edited, remembered, active_variant_index)| {
+            |(
+                id,
+                chat_id,
+                role,
+                content,
+                created_at,
+                updated_at,
+                edited,
+                remembered,
+                active_variant_index,
+            )| {
                 let message_variants = if role == "assistant" {
                     variants.remove(&id).unwrap_or_default()
                 } else {
@@ -792,11 +814,10 @@ pub fn chat_state(connection: &Connection, chat_id: &str) -> CommandResult<ChatS
 }
 
 fn list_galaxy_items(connection: &Connection) -> CommandResult<Vec<GalaxyItem>> {
-    let mut statement = connection
-        .prepare(
-            "SELECT id, kind, name, description, data_json, badge, accent, updated_at
+    let mut statement = connection.prepare(
+        "SELECT id, kind, name, description, data_json, badge, accent, updated_at
              FROM galaxy_items ORDER BY updated_at DESC",
-        )?;
+    )?;
     let result = statement
         .query_map([], |row| {
             let data_json: String = row.get(4)?;
@@ -817,12 +838,11 @@ fn list_galaxy_items(connection: &Connection) -> CommandResult<Vec<GalaxyItem>> 
 }
 
 fn list_providers(connection: &Connection) -> CommandResult<Vec<Provider>> {
-    let mut statement = connection
-        .prepare(
-            "SELECT id, name, kind, model, status, base_url, account_id, latency_ms,
+    let mut statement = connection.prepare(
+        "SELECT id, name, kind, model, status, base_url, account_id, latency_ms,
                     temperature, top_p, max_tokens, embedding_model, embedding_base_url
              FROM providers ORDER BY updated_at DESC",
-        )?;
+    )?;
     let result = statement
         .query_map([], |row| {
             Ok(Provider {
@@ -845,101 +865,6 @@ fn list_providers(connection: &Connection) -> CommandResult<Vec<Provider>> {
         .collect::<Result<Vec<_>, _>>()
         .map_err(CommandError::internal);
     result
-}
-
-pub fn get_settings(connection: &Connection) -> CommandResult<AppSettings> {
-    connection
-        .query_row(
-            "SELECT profile_name, profile_avatar, animations, haptics,
-                    compact_mode, send_on_enter, save_drafts,
-                    interface_scale, sidebar_width, chat_sidebar_width,
-                    sidebar_collapsed, theme_mode, theme_variant, language,
-                    chat_view_mode, show_message_avatars,
-                    show_message_timestamps, response_language, ai_modules_json
-             FROM app_settings WHERE id = 1",
-            [],
-            |row| {
-                Ok(AppSettings {
-                    profile_name: row.get(0)?,
-                    profile_avatar: row.get(1)?,
-                    animations: row.get::<_, i64>(2)? != 0,
-                    haptics: row.get::<_, i64>(3)? != 0,
-                    compact_mode: row.get::<_, i64>(4)? != 0,
-                    send_on_enter: row.get::<_, i64>(5)? != 0,
-                    save_drafts: row.get::<_, i64>(6)? != 0,
-                    interface_scale: row.get(7)?,
-                    sidebar_width: row.get(8)?,
-                    chat_sidebar_width: row.get(9)?,
-                    sidebar_collapsed: row.get::<_, i64>(10)? != 0,
-                    theme_mode: row.get(11)?,
-                    theme_variant: row.get(12)?,
-                    language: row.get(13)?,
-                    chat_view_mode: row.get(14)?,
-                    show_message_avatars: row.get::<_, i64>(15)? != 0,
-                    show_message_timestamps: row.get::<_, i64>(16)? != 0,
-                    response_language: row.get(17)?,
-                    ai_modules: serde_json::from_str::<AiModuleSettings>(
-                        &row.get::<_, String>(18)?,
-                    )
-                    .unwrap_or_default(),
-                })
-            },
-        )
-        .map_err(CommandError::internal)
-}
-
-fn usage_history(connection: &Connection) -> CommandResult<Vec<UsagePoint>> {
-    const DAY_SECONDS: i64 = 86_400;
-    const MIN_HISTORY_DAYS: i64 = 42;
-
-    let today = now_unix().div_euclid(DAY_SECONDS);
-    let earliest_timestamp = connection
-        .query_row("SELECT MIN(created_at) FROM usage_events", [], |row| {
-            row.get::<_, Option<i64>>(0)
-        })?;
-    let first_day = earliest_timestamp
-        .map(|timestamp| timestamp.div_euclid(DAY_SECONDS))
-        .unwrap_or(today - (MIN_HISTORY_DAYS - 1))
-        .min(today - (MIN_HISTORY_DAYS - 1))
-        .min(today);
-
-    let mut statement = connection
-        .prepare(
-            "SELECT created_at / ?1 AS usage_day,
-                    COALESCE(SUM(input_tokens), 0),
-                    COALESCE(SUM(output_tokens), 0),
-                    COALESCE(SUM(request_count), 0)
-             FROM usage_events
-             WHERE created_at >= ?2
-             GROUP BY usage_day
-             ORDER BY usage_day",
-        )?;
-    let totals = statement
-        .query_map(params![DAY_SECONDS, first_day * DAY_SECONDS], |row| {
-            Ok((
-                row.get::<_, i64>(0)?,
-                (
-                    row.get::<_, i64>(1)?,
-                    row.get::<_, i64>(2)?,
-                    row.get::<_, i64>(3)?,
-                ),
-            ))
-        })?
-        .collect::<Result<HashMap<_, _>, _>>()?;
-
-    let mut points = Vec::with_capacity((today - first_day + 1) as usize);
-    for day in first_day..=today {
-        let (input_tokens, output_tokens, requests) =
-            totals.get(&day).copied().unwrap_or_default();
-        points.push(UsagePoint {
-            day,
-            input_tokens,
-            output_tokens,
-            tokens: input_tokens + output_tokens,
-            requests,
-        });
-    }
-    Ok(points)
 }
 
 pub fn create_chat(
@@ -1007,25 +932,23 @@ pub fn update_chat_config(
 ) -> CommandResult<()> {
     validate_chat_links(connection, input)?;
     let prompt_config = prompt_config_json(&input.prompt_config)?;
-    let transaction = connection
-        .unchecked_transaction()?;
-    let changed = transaction
-        .execute(
-            "UPDATE chats SET title = ?1, provider_id = ?2, persona_id = ?3,
+    let transaction = connection.unchecked_transaction()?;
+    let changed = transaction.execute(
+        "UPDATE chats SET title = ?1, provider_id = ?2, persona_id = ?3,
                     character_id = ?4, universe_id = ?5, prompt_config_json = ?6,
                     updated_at = ?7
              WHERE id = ?8",
-            params![
-                input.title.trim(),
-                input.provider_id,
-                input.persona_id,
-                input.character_id,
-                input.universe_id,
-                prompt_config,
-                now_unix(),
-                chat_id,
-            ],
-        )?;
+        params![
+            input.title.trim(),
+            input.provider_id,
+            input.persona_id,
+            input.character_id,
+            input.universe_id,
+            prompt_config,
+            now_unix(),
+            chat_id,
+        ],
+    )?;
     if changed == 0 {
         return Err(CommandError::new(keys::CHAT_NOT_FOUND));
     }
@@ -1038,19 +961,20 @@ fn replace_chat_worldbooks(
     chat_id: &str,
     worldbook_ids: &[String],
 ) -> CommandResult<()> {
-    connection
-        .execute("DELETE FROM chat_worldbooks WHERE chat_id = ?1", params![chat_id])?;
+    connection.execute(
+        "DELETE FROM chat_worldbooks WHERE chat_id = ?1",
+        params![chat_id],
+    )?;
     let mut inserted = std::collections::HashSet::new();
     for worldbook_id in worldbook_ids {
         if !inserted.insert(worldbook_id) {
             continue;
         }
         let position = inserted.len().saturating_sub(1) as i64;
-        connection
-            .execute(
-                "INSERT INTO chat_worldbooks (chat_id, worldbook_id, position) VALUES (?1, ?2, ?3)",
-                params![chat_id, worldbook_id, position],
-            )?;
+        connection.execute(
+            "INSERT INTO chat_worldbooks (chat_id, worldbook_id, position) VALUES (?1, ?2, ?3)",
+            params![chat_id, worldbook_id, position],
+        )?;
     }
     Ok(())
 }
@@ -1178,12 +1102,11 @@ fn validate_prompt_config(config: &PromptConfig) -> CommandResult<()> {
 
 fn validate_optional_provider(connection: &Connection, id: Option<&str>) -> CommandResult<()> {
     if let Some(id) = id {
-        let exists: bool = connection
-            .query_row(
-                "SELECT EXISTS(SELECT 1 FROM providers WHERE id = ?1)",
-                params![id],
-                |row| row.get(0),
-            )?;
+        let exists: bool = connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM providers WHERE id = ?1)",
+            params![id],
+            |row| row.get(0),
+        )?;
         if !exists {
             return Err(CommandError::new(keys::PROVIDER_NOT_FOUND));
         }
@@ -1210,12 +1133,11 @@ fn validate_optional_galaxy(
     kind: &str,
 ) -> CommandResult<()> {
     if let Some(id) = id {
-        let exists: bool = connection
-            .query_row(
-                "SELECT EXISTS(SELECT 1 FROM galaxy_items WHERE id = ?1 AND kind = ?2)",
-                params![id, kind],
-                |row| row.get(0),
-            )?;
+        let exists: bool = connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM galaxy_items WHERE id = ?1 AND kind = ?2)",
+            params![id, kind],
+            |row| row.get(0),
+        )?;
         if !exists {
             return Err(context_object_not_found(kind));
         }
@@ -1224,11 +1146,10 @@ fn validate_optional_galaxy(
 }
 
 pub fn rename_chat(connection: &Connection, chat_id: &str, title: &str) -> CommandResult<()> {
-    let changed = connection
-        .execute(
-            "UPDATE chats SET title = ?1, updated_at = ?2 WHERE id = ?3",
-            params![title, now_unix(), chat_id],
-        )?;
+    let changed = connection.execute(
+        "UPDATE chats SET title = ?1, updated_at = ?2 WHERE id = ?3",
+        params![title, now_unix(), chat_id],
+    )?;
     if changed == 0 {
         return Err(CommandError::new(keys::CHAT_NOT_FOUND));
     }
@@ -1236,24 +1157,18 @@ pub fn rename_chat(connection: &Connection, chat_id: &str, title: &str) -> Comma
 }
 
 pub fn delete_chat(connection: &Connection, chat_id: &str) -> CommandResult<()> {
-    let changed = connection
-        .execute("DELETE FROM chats WHERE id = ?1", params![chat_id])?;
+    let changed = connection.execute("DELETE FROM chats WHERE id = ?1", params![chat_id])?;
     if changed == 0 {
         return Err(CommandError::new(keys::CHAT_NOT_FOUND));
     }
     Ok(())
 }
 
-pub fn set_chat_pinned(
-    connection: &Connection,
-    chat_id: &str,
-    pinned: bool,
-) -> CommandResult<()> {
-    let changed = connection
-        .execute(
-            "UPDATE chats SET pinned = ?1, updated_at = ?2 WHERE id = ?3",
-            params![pinned as i64, now_unix(), chat_id],
-        )?;
+pub fn set_chat_pinned(connection: &Connection, chat_id: &str, pinned: bool) -> CommandResult<()> {
+    let changed = connection.execute(
+        "UPDATE chats SET pinned = ?1, updated_at = ?2 WHERE id = ?3",
+        params![pinned as i64, now_unix(), chat_id],
+    )?;
     if changed == 0 {
         return Err(CommandError::new(keys::CHAT_NOT_FOUND));
     }
@@ -1261,26 +1176,28 @@ pub fn set_chat_pinned(
 }
 
 pub fn clear_chat(connection: &Connection, chat_id: &str) -> CommandResult<()> {
-    let transaction = connection
-        .unchecked_transaction()?;
-    let exists: bool = transaction
-        .query_row(
-            "SELECT EXISTS(SELECT 1 FROM chats WHERE id = ?1)",
-            params![chat_id],
-            |row| row.get(0),
-        )?;
+    let transaction = connection.unchecked_transaction()?;
+    let exists: bool = transaction.query_row(
+        "SELECT EXISTS(SELECT 1 FROM chats WHERE id = ?1)",
+        params![chat_id],
+        |row| row.get(0),
+    )?;
     if !exists {
         return Err(CommandError::new(keys::CHAT_NOT_FOUND));
     }
-    transaction
-        .execute("DELETE FROM messages WHERE chat_id = ?1", params![chat_id])?;
-    transaction.execute("DELETE FROM chat_contexts WHERE chat_id = ?1", params![chat_id])?;
-    transaction.execute("DELETE FROM semantic_memories WHERE chat_id = ?1", params![chat_id])?;
-    transaction
-        .execute(
-            "UPDATE chats SET preview = '', message_count = 0, updated_at = ?1 WHERE id = ?2",
-            params![now_unix(), chat_id],
-        )?;
+    transaction.execute("DELETE FROM messages WHERE chat_id = ?1", params![chat_id])?;
+    transaction.execute(
+        "DELETE FROM chat_contexts WHERE chat_id = ?1",
+        params![chat_id],
+    )?;
+    transaction.execute(
+        "DELETE FROM semantic_memories WHERE chat_id = ?1",
+        params![chat_id],
+    )?;
+    transaction.execute(
+        "UPDATE chats SET preview = '', message_count = 0, updated_at = ?1 WHERE id = ?2",
+        params![now_unix(), chat_id],
+    )?;
     transaction.commit().map_err(CommandError::internal)
 }
 
@@ -1331,8 +1248,7 @@ pub fn messages_before_message(
         return Err(CommandError::new(keys::MESSAGE_REGENERATE_ASSISTANT_ONLY));
     }
 
-    let variants =
-        message_variants_before(connection, &chat_id, created_at, message_rowid)?;
+    let variants = message_variants_before(connection, &chat_id, created_at, message_rowid)?;
     let mut statement = connection.prepare(
         "SELECT id, chat_id, role, content, created_at, updated_at, edited, remembered, active_variant_index
          FROM messages
@@ -1382,8 +1298,7 @@ pub fn messages_through_message(
         return Err(CommandError::new(keys::MESSAGE_CONTINUE_ASSISTANT_ONLY));
     }
 
-    let variants =
-        message_variants_through(connection, &chat_id, created_at, message_rowid)?;
+    let variants = message_variants_through(connection, &chat_id, created_at, message_rowid)?;
     let mut statement = connection.prepare(
         "SELECT id, chat_id, role, content, created_at, updated_at, edited, remembered, active_variant_index
          FROM messages
@@ -1459,7 +1374,12 @@ pub fn add_assistant_message(
         "INSERT INTO message_variants (
             id, message_id, position, content, created_at, edited
          ) VALUES (?1, ?2, 0, ?3, ?4, 0)",
-        params![format!("{message_id}-variant-0"), message_id, content, created_at],
+        params![
+            format!("{message_id}-variant-0"),
+            message_id,
+            content,
+            created_at
+        ],
     )?;
     transaction.execute(
         "UPDATE chats
@@ -1477,8 +1397,7 @@ pub fn append_message_variant(
     content: &str,
     edited: bool,
 ) -> CommandResult<i64> {
-    let transaction = connection
-        .unchecked_transaction()?;
+    let transaction = connection.unchecked_transaction()?;
     let (chat_id, role) = transaction
         .query_row(
             "SELECT chat_id, role FROM messages WHERE id = ?1",
@@ -1491,37 +1410,46 @@ pub fn append_message_variant(
         return Err(CommandError::new(keys::MESSAGE_VARIANTS_ASSISTANT_ONLY));
     }
 
-    let next_position = transaction
-        .query_row(
-            "SELECT COALESCE(MAX(position), -1) + 1 FROM message_variants WHERE message_id = ?1",
-            params![message_id],
-            |row| row.get::<_, i64>(0),
-        )?;
+    let next_position = transaction.query_row(
+        "SELECT COALESCE(MAX(position), -1) + 1 FROM message_variants WHERE message_id = ?1",
+        params![message_id],
+        |row| row.get::<_, i64>(0),
+    )?;
     let now = now_unix();
-    transaction
-        .execute(
-            "INSERT INTO message_variants (
+    transaction.execute(
+        "INSERT INTO message_variants (
                 id, message_id, position, content, created_at, edited
              ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            params![
-                variant_id,
-                message_id,
-                next_position,
-                content.trim(),
-                now,
-                edited as i64,
-            ],
-        )?;
-    transaction
-        .execute(
-            "UPDATE messages
+        params![
+            variant_id,
+            message_id,
+            next_position,
+            content.trim(),
+            now,
+            edited as i64,
+        ],
+    )?;
+    transaction.execute(
+        "UPDATE messages
              SET content = ?1, active_variant_index = ?2, updated_at = ?3, edited = ?4
              WHERE id = ?5",
-            params![content.trim(), next_position, now, edited as i64, message_id],
-        )?;
+        params![
+            content.trim(),
+            next_position,
+            now,
+            edited as i64,
+            message_id
+        ],
+    )?;
     refresh_chat_summary(&transaction, &chat_id)?;
-    transaction.execute("DELETE FROM chat_contexts WHERE chat_id = ?1", params![chat_id])?;
-    transaction.execute("DELETE FROM semantic_memories WHERE chat_id = ?1", params![chat_id])?;
+    transaction.execute(
+        "DELETE FROM chat_contexts WHERE chat_id = ?1",
+        params![chat_id],
+    )?;
+    transaction.execute(
+        "DELETE FROM semantic_memories WHERE chat_id = ?1",
+        params![chat_id],
+    )?;
     transaction.commit()?;
     Ok(next_position)
 }
@@ -1531,8 +1459,7 @@ pub fn select_message_variant(
     message_id: &str,
     variant_index: i64,
 ) -> CommandResult<()> {
-    let transaction = connection
-        .unchecked_transaction()?;
+    let transaction = connection.unchecked_transaction()?;
     let (chat_id, content, edited) = transaction
         .query_row(
             "SELECT messages.chat_id, message_variants.content, message_variants.edited
@@ -1550,16 +1477,27 @@ pub fn select_message_variant(
         )
         .optional()?
         .ok_or_else(|| CommandError::new(keys::MESSAGE_VARIANT_NOT_FOUND))?;
-    transaction
-        .execute(
-            "UPDATE messages
+    transaction.execute(
+        "UPDATE messages
              SET content = ?1, active_variant_index = ?2, updated_at = ?3, edited = ?4
              WHERE id = ?5",
-            params![content, variant_index, now_unix(), edited as i64, message_id],
-        )?;
+        params![
+            content,
+            variant_index,
+            now_unix(),
+            edited as i64,
+            message_id
+        ],
+    )?;
     refresh_chat_summary(&transaction, &chat_id)?;
-    transaction.execute("DELETE FROM chat_contexts WHERE chat_id = ?1", params![chat_id])?;
-    transaction.execute("DELETE FROM semantic_memories WHERE chat_id = ?1", params![chat_id])?;
+    transaction.execute(
+        "DELETE FROM chat_contexts WHERE chat_id = ?1",
+        params![chat_id],
+    )?;
+    transaction.execute(
+        "DELETE FROM semantic_memories WHERE chat_id = ?1",
+        params![chat_id],
+    )?;
     transaction.commit().map_err(CommandError::internal)
 }
 
@@ -1609,34 +1547,31 @@ pub fn clone_chat(
         return Err(CommandError::new(keys::CHAT_TITLE_TOO_LONG));
     }
     let now = now_unix();
-    let transaction = connection
-        .unchecked_transaction()?;
+    let transaction = connection.unchecked_transaction()?;
 
-    transaction
-        .execute(
-            "INSERT INTO chats (
+    transaction.execute(
+        "INSERT INTO chats (
                 id, title, preview, updated_at, message_count, pinned, provider_id,
                 persona_id, character_id, universe_id, prompt_config_json
              ) VALUES (?1, ?2, '', ?3, 0, 0, ?4, ?5, ?6, ?7, ?8)",
-            params![
-                new_chat_id,
-                title,
-                now,
-                source.0,
-                source.1,
-                source.2,
-                source.3,
-                source.4,
-            ],
-        )?;
+        params![
+            new_chat_id,
+            title,
+            now,
+            source.0,
+            source.1,
+            source.2,
+            source.3,
+            source.4,
+        ],
+    )?;
 
-    transaction
-        .execute(
-            "INSERT INTO chat_worldbooks (chat_id, worldbook_id, position)
+    transaction.execute(
+        "INSERT INTO chat_worldbooks (chat_id, worldbook_id, position)
              SELECT ?1, worldbook_id, position
              FROM chat_worldbooks WHERE chat_id = ?2",
-            params![new_chat_id, source_chat_id],
-        )?;
+        params![new_chat_id, source_chat_id],
+    )?;
 
     if include_messages || through_message_id.is_some() {
         let cutoff = match through_message_id {
@@ -1691,31 +1626,29 @@ pub fn clone_chat(
         ) in rows.iter().enumerate()
         {
             let new_message_id = format!("{new_chat_id}-message-{index}");
-            transaction
-                .execute(
-                    "INSERT INTO messages (
+            transaction.execute(
+                "INSERT INTO messages (
                         id, chat_id, role, content, created_at, updated_at, edited,
                         remembered, active_variant_index
                      ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
-                    params![
-                        new_message_id,
-                        new_chat_id,
-                        role,
-                        content,
-                        created_at,
-                        updated_at,
-                        edited,
-                        remembered,
-                        active_variant_index,
-                    ],
-                )?;
+                params![
+                    new_message_id,
+                    new_chat_id,
+                    role,
+                    content,
+                    created_at,
+                    updated_at,
+                    edited,
+                    remembered,
+                    active_variant_index,
+                ],
+            )?;
 
             if role == "assistant" {
-                let mut variant_statement = transaction
-                    .prepare(
-                        "SELECT position, content, created_at, edited
+                let mut variant_statement = transaction.prepare(
+                    "SELECT position, content, created_at, edited
                          FROM message_variants WHERE message_id = ?1 ORDER BY position ASC",
-                    )?;
+                )?;
                 let variants = variant_statement
                     .query_map(params![source_message_id], |row| {
                         Ok((
@@ -1729,20 +1662,19 @@ pub fn clone_chat(
                 drop(variant_statement);
 
                 for (position, variant_content, variant_created_at, variant_edited) in variants {
-                    transaction
-                        .execute(
-                            "INSERT INTO message_variants (
+                    transaction.execute(
+                        "INSERT INTO message_variants (
                                 id, message_id, position, content, created_at, edited
                              ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-                            params![
-                                format!("{new_message_id}-variant-{position}"),
-                                new_message_id,
-                                position,
-                                variant_content,
-                                variant_created_at,
-                                variant_edited,
-                            ],
-                        )?;
+                        params![
+                            format!("{new_message_id}-variant-{position}"),
+                            new_message_id,
+                            position,
+                            variant_content,
+                            variant_created_at,
+                            variant_edited,
+                        ],
+                    )?;
                 }
             }
         }
@@ -1773,11 +1705,10 @@ pub fn edit_message(
         return Ok(());
     }
 
-    let changed = connection
-        .execute(
-            "UPDATE messages SET content = ?1, updated_at = ?2, edited = 1 WHERE id = ?3",
-            params![content.trim(), now_unix(), message_id],
-        )?;
+    let changed = connection.execute(
+        "UPDATE messages SET content = ?1, updated_at = ?2, edited = 1 WHERE id = ?3",
+        params![content.trim(), now_unix(), message_id],
+    )?;
     if changed == 0 {
         return Err(CommandError::new(keys::MESSAGE_NOT_FOUND));
     }
@@ -1794,8 +1725,7 @@ pub fn delete_message(connection: &Connection, message_id: &str) -> CommandResul
         )
         .optional()?
         .ok_or_else(|| CommandError::new(keys::MESSAGE_NOT_FOUND))?;
-    connection
-        .execute("DELETE FROM messages WHERE id = ?1", params![message_id])?;
+    connection.execute("DELETE FROM messages WHERE id = ?1", params![message_id])?;
     refresh_chat_summary(connection, &chat_id)?;
     invalidate_chat_ai_context(connection, &chat_id)
 }
@@ -1817,10 +1747,7 @@ pub fn delete_messages(connection: &Connection, message_ids: &[String]) -> Comma
             )
             .optional()?
             .ok_or_else(|| CommandError::new(keys::MESSAGE_NOT_FOUND))?;
-        transaction.execute(
-            "DELETE FROM messages WHERE id = ?1",
-            params![message_id],
-        )?;
+        transaction.execute("DELETE FROM messages WHERE id = ?1", params![message_id])?;
         chat_ids.insert(chat_id);
     }
 
@@ -1869,11 +1796,10 @@ fn refresh_chat_summary(connection: &Connection, chat_id: &str) -> CommandResult
                 ))
             },
         )?;
-    connection
-        .execute(
-            "UPDATE chats SET preview = ?1, message_count = ?2, updated_at = ?3 WHERE id = ?4",
-            params![preview, message_count, updated_at, chat_id],
-        )?;
+    connection.execute(
+        "UPDATE chats SET preview = ?1, message_count = ?2, updated_at = ?3 WHERE id = ?4",
+        params![preview, message_count, updated_at, chat_id],
+    )?;
     Ok(())
 }
 
@@ -1908,140 +1834,7 @@ pub fn provider_optional(connection: &Connection, id: &str) -> CommandResult<Opt
 }
 
 pub fn get_provider(connection: &Connection, id: &str) -> CommandResult<Provider> {
-    provider_optional(connection, id)?
-        .ok_or_else(|| CommandError::new(keys::PROVIDER_NOT_FOUND))
-}
-
-pub fn upsert_galaxy_item(
-    connection: &Connection,
-    id: &str,
-    input: &GalaxyItemInput,
-) -> CommandResult<GalaxyItem> {
-    let name = input.name.trim();
-    if name.is_empty() {
-        return Err(CommandError::new(keys::COMMON_NAME_REQUIRED));
-    }
-    if name.chars().count() > 120 {
-        return Err(CommandError::new(keys::COMMON_NAME_TOO_LONG));
-    }
-    if !input.data.is_object() {
-        return Err(CommandError::new(keys::GALAXY_DATA_MUST_BE_OBJECT));
-    }
-    validate_galaxy_data(connection, input)?;
-
-    let existing_kind = connection
-        .query_row(
-            "SELECT kind FROM galaxy_items WHERE id = ?1",
-            params![id],
-            |row| row.get::<_, String>(0),
-        )
-        .optional()?;
-    if existing_kind
-        .as_deref()
-        .is_some_and(|kind| kind != input.kind.as_str())
-    {
-        return Err(CommandError::new(keys::GALAXY_KIND_IMMUTABLE));
-    }
-
-    let (badge, accent) = galaxy_presentation(&input.kind)?;
-    let now = now_unix();
-    let data_json = serde_json::to_string(&input.data)?;
-    if data_json.len() > 1_000_000 {
-        return Err(CommandError::new(keys::GALAXY_DATA_TOO_LARGE));
-    }
-    connection
-        .execute(
-            r#"INSERT INTO galaxy_items (id, kind, name, description, data_json, badge, accent, updated_at)
-               VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
-               ON CONFLICT(id) DO UPDATE SET
-                 kind = excluded.kind,
-                 name = excluded.name,
-                 description = excluded.description,
-                 data_json = excluded.data_json,
-                 badge = excluded.badge,
-                 accent = excluded.accent,
-                 updated_at = excluded.updated_at"#,
-            params![
-                id,
-                input.kind,
-                name,
-                input.description.trim(),
-                data_json,
-                badge,
-                accent,
-                now
-            ],
-        )?;
-    Ok(GalaxyItem {
-        id: id.into(),
-        kind: input.kind.clone(),
-        name: name.into(),
-        description: input.description.trim().into(),
-        data: input.data.clone(),
-        badge: badge.into(),
-        accent: accent.into(),
-        updated_at: now,
-    })
-}
-
-fn validate_galaxy_data(
-    connection: &Connection,
-    input: &GalaxyItemInput,
-) -> CommandResult<()> {
-    if input.kind == "prompt-set" {
-        let config = serde_json::from_value::<PromptConfig>(input.data.clone())
-            .map_err(|_| CommandError::new(keys::PROMPT_SET_INVALID))?;
-        if !config.set_ids.is_empty() {
-            return Err(CommandError::new(keys::PROMPT_SET_NESTED_NOT_ALLOWED));
-        }
-        return validate_prompt_config(&config);
-    }
-
-    if input.kind == "character" {
-        let preset = input
-            .data
-            .get("stylePreset")
-            .and_then(Value::as_str)
-            .unwrap_or("neutral");
-        if !matches!(
-            preset,
-            "neutral"
-                | "warm"
-                | "concise"
-                | "casual-lowercase"
-                | "roleplay-rich"
-                | "telegram-human"
-                | "roleplay"
-                | "literary"
-                | "custom"
-        ) {
-            return Err(CommandError::new(keys::GALAXY_STYLE_PRESET_UNKNOWN));
-        }
-
-        if preset == "custom" {
-            let style_id = input
-                .data
-                .get("styleItemId")
-                .and_then(Value::as_str)
-                .map(str::trim)
-                .filter(|value| !value.is_empty())
-                .ok_or_else(|| CommandError::new(keys::GALAXY_SAVED_STYLE_REQUIRED))?;
-            validate_optional_galaxy(connection, Some(style_id), "style")?;
-        }
-
-        if let Some(ids) = input.data.get("promptSetIds").and_then(Value::as_array) {
-            for id in ids {
-                let id = id
-                    .as_str()
-                    .map(str::trim)
-                    .filter(|value| !value.is_empty())
-                    .ok_or_else(|| CommandError::new(keys::GALAXY_PROMPT_SET_REFERENCE_INVALID))?;
-                validate_optional_galaxy(connection, Some(id), "prompt-set")?;
-            }
-        }
-    }
-
-    Ok(())
+    provider_optional(connection, id)?.ok_or_else(|| CommandError::new(keys::PROVIDER_NOT_FOUND))
 }
 
 pub fn chat_recent_message_limit(connection: &Connection, chat_id: &str) -> CommandResult<usize> {
@@ -2136,169 +1929,9 @@ pub fn get_chat_prompt_context(
     })
 }
 
-fn get_galaxy_item(connection: &Connection, id: &str) -> CommandResult<GalaxyItem> {
-    connection
-        .query_row(
-            "SELECT id, kind, name, description, data_json, badge, accent, updated_at
-             FROM galaxy_items WHERE id = ?1",
-            params![id],
-            |row| {
-                let data_json: String = row.get(4)?;
-                Ok(GalaxyItem {
-                    id: row.get(0)?,
-                    kind: row.get(1)?,
-                    name: row.get(2)?,
-                    description: row.get(3)?,
-                    data: serde_json::from_str(&data_json)
-                        .unwrap_or(Value::Object(Default::default())),
-                    badge: row.get(5)?,
-                    accent: row.get(6)?,
-                    updated_at: row.get(7)?,
-                })
-            },
-        )
-        .optional()?
-        .ok_or_else(|| CommandError::new(keys::GALAXY_NOT_FOUND))
-}
-
-pub fn delete_galaxy_item(connection: &Connection, id: &str) -> CommandResult<()> {
-    let kind = connection
-        .query_row(
-            "SELECT kind FROM galaxy_items WHERE id = ?1",
-            params![id],
-            |row| row.get::<_, String>(0),
-        )
-        .optional()?
-        .ok_or_else(|| CommandError::new(keys::GALAXY_NOT_FOUND))?;
-
-    let transaction = connection
-        .unchecked_transaction()?;
-    transaction
-        .execute("UPDATE chats SET persona_id = NULL WHERE persona_id = ?1", params![id])?;
-    transaction
-        .execute("UPDATE chats SET character_id = NULL WHERE character_id = ?1", params![id])?;
-    transaction
-        .execute("UPDATE chats SET universe_id = NULL WHERE universe_id = ?1", params![id])?;
-    transaction
-        .execute("DELETE FROM chat_worldbooks WHERE worldbook_id = ?1", params![id])?;
-
-    if kind == "style" {
-        clear_character_style_references(&transaction, id)?;
-    }
-    if kind == "prompt-set" {
-        clear_prompt_set_references(&transaction, id)?;
-    }
-
-    transaction
-        .execute("DELETE FROM galaxy_items WHERE id = ?1", params![id])?;
-    transaction.commit().map_err(CommandError::internal)
-}
-
-fn clear_character_style_references(
-    connection: &Connection,
-    style_id: &str,
-) -> CommandResult<()> {
-    let mut statement = connection
-        .prepare("SELECT id, data_json FROM galaxy_items WHERE kind = 'character'")?;
-    let rows = statement
-        .query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))?
-        .collect::<Result<Vec<_>, _>>()?;
-    drop(statement);
-
-    for (character_id, data_json) in rows {
-        let mut data = serde_json::from_str::<Value>(&data_json)
-            .unwrap_or(Value::Object(Default::default()));
-        let references_style = data
-            .get("styleItemId")
-            .and_then(Value::as_str)
-            .is_some_and(|value| value == style_id);
-        if !references_style {
-            continue;
-        }
-
-        if let Some(object) = data.as_object_mut() {
-            object.insert("stylePreset".into(), Value::String("neutral".into()));
-            object.remove("styleItemId");
-        }
-        let updated = serde_json::to_string(&data)?;
-        connection
-            .execute(
-                "UPDATE galaxy_items SET data_json = ?1, updated_at = ?2 WHERE id = ?3",
-                params![updated, now_unix(), character_id],
-            )?;
-    }
-
-    Ok(())
-}
-
-fn clear_prompt_set_references(
-    connection: &Connection,
-    prompt_set_id: &str,
-) -> CommandResult<()> {
-    let mut statement = connection
-        .prepare("SELECT id, data_json FROM galaxy_items WHERE kind = 'character'")?;
-    let characters = statement
-        .query_map([], |row| {
-            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
-        })?
-        .collect::<Result<Vec<_>, _>>()?;
-    drop(statement);
-
-    for (character_id, data_json) in characters {
-        let mut data = serde_json::from_str::<Value>(&data_json)
-            .unwrap_or(Value::Object(Default::default()));
-        let Some(ids) = data.get_mut("promptSetIds").and_then(Value::as_array_mut) else {
-            continue;
-        };
-        let before = ids.len();
-        ids.retain(|value| value.as_str() != Some(prompt_set_id));
-        if ids.len() == before {
-            continue;
-        }
-        connection
-            .execute(
-                "UPDATE galaxy_items SET data_json = ?1, updated_at = ?2 WHERE id = ?3",
-                params![
-                    serde_json::to_string(&data)?,
-                    now_unix(),
-                    character_id
-                ],
-            )?;
-    }
-
-    let mut statement = connection
-        .prepare("SELECT id, prompt_config_json, response_preset FROM chats")?;
-    let chats = statement
-        .query_map([], |row| {
-            Ok((
-                row.get::<_, String>(0)?,
-                row.get::<_, String>(1)?,
-                row.get::<_, String>(2)?,
-            ))
-        })?
-        .collect::<Result<Vec<_>, _>>()?;
-    drop(statement);
-
-    for (chat_id, raw_config, legacy_preset) in chats {
-        let mut config = parse_prompt_config(&raw_config, &legacy_preset);
-        let before = config.set_ids.len();
-        config.set_ids.retain(|id| id != prompt_set_id);
-        if config.set_ids.len() == before {
-            continue;
-        }
-        connection
-            .execute(
-                "UPDATE chats SET prompt_config_json = ?1 WHERE id = ?2",
-                params![prompt_config_json(&config)?, chat_id],
-            )?;
-    }
-    Ok(())
-}
-
 pub fn save_provider(connection: &Connection, provider: &Provider) -> CommandResult<()> {
-    connection
-        .execute(
-            r#"INSERT INTO providers (
+    connection.execute(
+        r#"INSERT INTO providers (
                     id, name, kind, model, status, base_url, account_id, latency_ms,
                     temperature, top_p, max_tokens, embedding_model, embedding_base_url,
                     created_at, updated_at
@@ -2317,23 +1950,23 @@ pub fn save_provider(connection: &Connection, provider: &Provider) -> CommandRes
                     embedding_model = excluded.embedding_model,
                     embedding_base_url = excluded.embedding_base_url,
                     updated_at = excluded.updated_at"#,
-            params![
-                provider.id,
-                provider.name,
-                provider.kind,
-                provider.model,
-                provider.status,
-                provider.base_url,
-                provider.account_id,
-                provider.latency_ms,
-                provider.temperature,
-                provider.top_p,
-                provider.max_tokens,
-                provider.embedding_model,
-                provider.embedding_base_url,
-                now_unix()
-            ],
-        )?;
+        params![
+            provider.id,
+            provider.name,
+            provider.kind,
+            provider.model,
+            provider.status,
+            provider.base_url,
+            provider.account_id,
+            provider.latency_ms,
+            provider.temperature,
+            provider.top_p,
+            provider.max_tokens,
+            provider.embedding_model,
+            provider.embedding_base_url,
+            now_unix()
+        ],
+    )?;
     Ok(())
 }
 
@@ -2348,24 +1981,20 @@ pub fn update_provider_health(
     status: &str,
     latency_ms: Option<i64>,
 ) -> CommandResult<()> {
-    connection
-        .execute(
-            "UPDATE providers SET status = ?1, latency_ms = ?2, updated_at = ?3 WHERE id = ?4",
-            params![status, latency_ms, now_unix(), id],
-        )?;
+    connection.execute(
+        "UPDATE providers SET status = ?1, latency_ms = ?2, updated_at = ?3 WHERE id = ?4",
+        params![status, latency_ms, now_unix(), id],
+    )?;
     Ok(())
 }
 
 pub fn delete_provider(connection: &Connection, id: &str) -> CommandResult<()> {
-    let transaction = connection
-        .unchecked_transaction()?;
-    transaction
-        .execute(
-            "UPDATE chats SET provider_id = NULL WHERE provider_id = ?1",
-            params![id],
-        )?;
-    transaction
-        .execute("DELETE FROM providers WHERE id = ?1", params![id])?;
+    let transaction = connection.unchecked_transaction()?;
+    transaction.execute(
+        "UPDATE chats SET provider_id = NULL WHERE provider_id = ?1",
+        params![id],
+    )?;
+    transaction.execute("DELETE FROM providers WHERE id = ?1", params![id])?;
     transaction.commit().map_err(CommandError::internal)
 }
 
@@ -2377,288 +2006,20 @@ pub fn record_usage(
     input_tokens: i64,
     output_tokens: i64,
 ) -> CommandResult<()> {
-    connection
-        .execute(
-            "INSERT INTO usage_events (
+    connection.execute(
+        "INSERT INTO usage_events (
                 id, provider_id, model, input_tokens, output_tokens, request_count, created_at
              ) VALUES (?1, ?2, ?3, ?4, ?5, 1, ?6)",
-            params![
-                id,
-                provider_id,
-                model,
-                input_tokens.max(0),
-                output_tokens.max(0),
-                now_unix()
-            ],
-        )?;
-    Ok(())
-}
-
-pub fn update_settings(connection: &Connection, settings: &AppSettings) -> CommandResult<()> {
-    connection
-        .execute(
-            "UPDATE app_settings
-             SET profile_name = ?1, profile_avatar = ?2,
-                 animations = ?3, haptics = ?4, compact_mode = ?5,
-                 send_on_enter = ?6, save_drafts = ?7, interface_scale = ?8,
-                 sidebar_width = ?9, chat_sidebar_width = ?10,
-                 sidebar_collapsed = ?11, theme_mode = ?12, theme_variant = ?13,
-                 language = ?14, chat_view_mode = ?15,
-                 show_message_avatars = ?16, show_message_timestamps = ?17,
-                 response_language = ?18, ai_modules_json = ?19
-             WHERE id = 1",
-            params![
-                settings.profile_name,
-                settings.profile_avatar,
-                settings.animations as i64,
-                settings.haptics as i64,
-                settings.compact_mode as i64,
-                settings.send_on_enter as i64,
-                settings.save_drafts as i64,
-                settings.interface_scale,
-                settings.sidebar_width,
-                settings.chat_sidebar_width,
-                settings.sidebar_collapsed as i64,
-                settings.theme_mode,
-                settings.theme_variant,
-                settings.language,
-                settings.chat_view_mode,
-                settings.show_message_avatars as i64,
-                settings.show_message_timestamps as i64,
-                settings.response_language,
-                serde_json::to_string(&settings.ai_modules)?
-            ],
-        )?;
-    Ok(())
-}
-
-pub fn get_dynamic_context(
-    connection: &Connection,
-    chat_id: &str,
-) -> CommandResult<Option<DynamicContextState>> {
-    connection
-        .query_row(
-            "SELECT context_json, covered_through_message_id, updated_at
-             FROM chat_contexts WHERE chat_id = ?1",
-            params![chat_id],
-            |row| {
-                let raw: String = row.get(0)?;
-                let mut state = serde_json::from_str::<DynamicContextState>(&raw)
-                    .unwrap_or_default();
-                state.covered_through_message_id = row.get(1)?;
-                state.updated_at = row.get(2)?;
-                Ok(state)
-            },
-        )
-        .optional()
-        .map_err(CommandError::internal)
-}
-
-pub fn save_dynamic_context(
-    connection: &Connection,
-    chat_id: &str,
-    state: &DynamicContextState,
-) -> CommandResult<()> {
-    let transaction = connection.unchecked_transaction()?;
-    let now = now_unix();
-    let mut stored = state.clone();
-    stored.updated_at = now;
-    let context_json = serde_json::to_string(&stored)?;
-    let covered_through_message_id = stored.covered_through_message_id.clone();
-    transaction.execute(
-        "INSERT INTO chat_contexts (
-            chat_id, context_json, covered_through_message_id, updated_at
-         ) VALUES (?1, ?2, ?3, ?4)
-         ON CONFLICT(chat_id) DO UPDATE SET
-            context_json = excluded.context_json,
-            covered_through_message_id = excluded.covered_through_message_id,
-            updated_at = excluded.updated_at",
-        params![chat_id, context_json, covered_through_message_id, now],
-    )?;
-    transaction.execute(
-        "DELETE FROM semantic_memories
-         WHERE chat_id = ?1 AND source_kind LIKE 'context-%'",
-        params![chat_id],
-    )?;
-    transaction.commit().map_err(CommandError::internal)
-}
-
-fn clear_chat_ai_context(connection: &Connection, chat_id: &str) -> CommandResult<()> {
-    connection.execute(
-        "DELETE FROM chat_contexts WHERE chat_id = ?1",
-        params![chat_id],
-    )?;
-    connection.execute(
-        "DELETE FROM semantic_memories WHERE chat_id = ?1",
-        params![chat_id],
+        params![
+            id,
+            provider_id,
+            model,
+            input_tokens.max(0),
+            output_tokens.max(0),
+            now_unix()
+        ],
     )?;
     Ok(())
-}
-
-pub fn invalidate_chat_ai_context(connection: &Connection, chat_id: &str) -> CommandResult<()> {
-    let transaction = connection.unchecked_transaction()?;
-    clear_chat_ai_context(&transaction, chat_id)?;
-    transaction.commit().map_err(CommandError::internal)
-}
-
-pub fn semantic_memory_indexed_contents(
-    connection: &Connection,
-    chat_id: &str,
-    provider_id: &str,
-    model: &str,
-) -> CommandResult<HashMap<(String, String), String>> {
-    let mut statement = connection.prepare(
-        "SELECT source_kind, source_id, content
-         FROM semantic_memories
-         WHERE chat_id = ?1 AND embedding_provider_id = ?2 AND embedding_model = ?3",
-    )?;
-    let rows = statement
-        .query_map(params![chat_id, provider_id, model], |row| {
-            Ok((
-                (row.get::<_, String>(0)?, row.get::<_, String>(1)?),
-                row.get::<_, String>(2)?,
-            ))
-        })?
-        .collect::<Result<HashMap<_, _>, _>>()?;
-    Ok(rows)
-}
-
-pub fn prune_semantic_memories(
-    connection: &Connection,
-    chat_id: &str,
-    provider_id: &str,
-    model: &str,
-    candidates: &[SemanticMemoryCandidate],
-) -> CommandResult<()> {
-    connection.execute(
-        "DELETE FROM semantic_memories
-         WHERE chat_id = ?1 AND (embedding_provider_id != ?2 OR embedding_model != ?3)",
-        params![chat_id, provider_id, model],
-    )?;
-    let keep = candidates
-        .iter()
-        .map(|candidate| (candidate.source_kind.as_str(), candidate.source_id.as_str()))
-        .collect::<HashSet<_>>();
-    let mut statement = connection.prepare(
-        "SELECT source_kind, source_id FROM semantic_memories
-         WHERE chat_id = ?1 AND embedding_provider_id = ?2 AND embedding_model = ?3",
-    )?;
-    let existing = statement
-        .query_map(params![chat_id, provider_id, model], |row| {
-            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
-        })?
-        .collect::<Result<Vec<_>, _>>()?;
-    drop(statement);
-
-    let stale = existing
-        .into_iter()
-        .filter(|(kind, id)| !keep.contains(&(kind.as_str(), id.as_str())))
-        .collect::<Vec<_>>();
-    if stale.is_empty() {
-        return Ok(());
-    }
-
-    let transaction = connection.unchecked_transaction()?;
-    for (kind, id) in stale {
-        transaction.execute(
-            "DELETE FROM semantic_memories
-             WHERE chat_id = ?1 AND source_kind = ?2 AND source_id = ?3",
-            params![chat_id, kind, id],
-        )?;
-    }
-    transaction.commit().map_err(CommandError::internal)
-}
-
-pub fn upsert_semantic_memories(
-    connection: &Connection,
-    chat_id: &str,
-    provider_id: &str,
-    model: &str,
-    entries: &[(SemanticMemoryCandidate, Vec<f32>)],
-) -> CommandResult<()> {
-    if entries.is_empty() {
-        return Ok(());
-    }
-    let transaction = connection.unchecked_transaction()?;
-    let now = now_unix();
-    for (candidate, embedding) in entries {
-        if embedding.is_empty() {
-            continue;
-        }
-        let id = format!(
-            "{}:{}:{}",
-            chat_id, candidate.source_kind, candidate.source_id
-        );
-        transaction.execute(
-            "INSERT INTO semantic_memories (
-                id, chat_id, source_kind, source_id, content, embedding_json,
-                embedding_provider_id, embedding_model, created_at, updated_at
-             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?9)
-             ON CONFLICT(chat_id, source_kind, source_id) DO UPDATE SET
-                content = excluded.content,
-                embedding_json = excluded.embedding_json,
-                embedding_provider_id = excluded.embedding_provider_id,
-                embedding_model = excluded.embedding_model,
-                updated_at = excluded.updated_at",
-            params![
-                id,
-                chat_id,
-                candidate.source_kind,
-                candidate.source_id,
-                candidate.content,
-                serde_json::to_string(embedding)?,
-                provider_id,
-                model,
-                now
-            ],
-        )?;
-    }
-    transaction.commit().map_err(CommandError::internal)
-}
-
-pub fn list_semantic_memories(
-    connection: &Connection,
-    chat_id: &str,
-    provider_id: &str,
-    model: &str,
-) -> CommandResult<Vec<SemanticMemoryRecord>> {
-    let mut statement = connection.prepare(
-        "SELECT source_kind, source_id, content, embedding_json
-         FROM semantic_memories
-         WHERE chat_id = ?1 AND embedding_provider_id = ?2 AND embedding_model = ?3",
-    )?;
-    let records = statement
-        .query_map(params![chat_id, provider_id, model], |row| {
-            let raw: String = row.get(3)?;
-            Ok(SemanticMemoryRecord::from_storage(
-                row.get(0)?,
-                row.get(1)?,
-                row.get(2)?,
-                serde_json::from_str::<Vec<f32>>(&raw).unwrap_or_default(),
-            ))
-        })?
-        .collect::<Result<Vec<_>, _>>()?;
-    Ok(records)
-}
-
-pub fn provider_ids(connection: &Connection) -> CommandResult<HashSet<String>> {
-    let mut statement = connection.prepare("SELECT id FROM providers")?;
-    let ids = statement
-        .query_map([], |row| row.get::<_, String>(0))?
-        .collect::<Result<HashSet<_>, _>>()?;
-    Ok(ids)
-}
-
-fn galaxy_presentation(kind: &str) -> CommandResult<(&'static str, &'static str)> {
-    match kind {
-        "persona" => Ok(("galaxy.kind.persona", "slate")),
-        "character" => Ok(("galaxy.kind.character", "blue")),
-        "universe" => Ok(("galaxy.kind.universe", "indigo")),
-        "worldbook" => Ok(("galaxy.kind.worldbook", "amber")),
-        "style" => Ok(("galaxy.kind.style", "violet")),
-        "prompt-set" => Ok(("galaxy.kind.promptSet", "emerald")),
-        _ => Err(CommandError::new(keys::GALAXY_KIND_UNKNOWN)),
-    }
 }
 
 fn now_unix() -> i64 {
@@ -2667,7 +2028,6 @@ fn now_unix() -> i64 {
         .unwrap_or_default()
         .as_secs() as i64
 }
-
 
 #[cfg(test)]
 mod tests;

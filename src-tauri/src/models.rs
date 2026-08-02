@@ -79,7 +79,6 @@ pub struct PromptConfig {
     pub custom_blocks: Vec<PromptBlock>,
 }
 
-
 impl Default for PromptConfig {
     fn default() -> Self {
         Self {
@@ -331,6 +330,24 @@ impl ProviderInput {
             embedding_model: self.embedding_model,
             embedding_base_url: self.embedding_base_url,
             has_secret: false,
+        }
+    }
+}
+
+impl From<&Provider> for ProviderInput {
+    fn from(provider: &Provider) -> Self {
+        Self {
+            id: Some(provider.id.clone()),
+            name: provider.name.clone(),
+            kind: provider.kind.clone(),
+            model: provider.model.clone(),
+            base_url: provider.base_url.clone(),
+            account_id: provider.account_id.clone(),
+            temperature: provider.temperature,
+            top_p: provider.top_p,
+            max_tokens: provider.max_tokens,
+            embedding_model: provider.embedding_model.clone(),
+            embedding_base_url: provider.embedding_base_url.clone(),
         }
     }
 }

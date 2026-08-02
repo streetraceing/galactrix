@@ -82,9 +82,8 @@ pub async fn embed_missing_candidates(
     let missing = candidates
         .iter()
         .filter(|candidate| {
-            indexed
-                .get(&(candidate.source_kind.clone(), candidate.source_id.clone()))
-                .map_or(true, |content| content != &candidate.content)
+            indexed.get(&(candidate.source_kind.clone(), candidate.source_id.clone()))
+                != Some(&candidate.content)
         })
         .cloned()
         .collect::<Vec<_>>();

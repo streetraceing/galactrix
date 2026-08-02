@@ -20,7 +20,9 @@ pub fn pending_batch(
         return Vec::new();
     }
 
-    let end = history.len().saturating_sub(settings.direct_message_limit.max(4));
+    let end = history
+        .len()
+        .saturating_sub(settings.direct_message_limit.max(4));
     if end <= start {
         return Vec::new();
     }
@@ -38,7 +40,11 @@ pub fn local_analysis(
         .iter()
         .filter(|message| matches!(message.role.as_str(), "user" | "assistant"))
         .map(|message| {
-            let role = if message.role == "user" { "User" } else { "Assistant" };
+            let role = if message.role == "user" {
+                "User"
+            } else {
+                "Assistant"
+            };
             format!("{role}: {}", compact(&message.content, 420))
         })
         .collect::<Vec<_>>();
@@ -54,11 +60,7 @@ pub fn local_analysis(
     }
 
     for message in batch.iter().filter(|message| message.remembered) {
-        push_unique(
-            &mut state.facts,
-            compact(&message.content, 280),
-            32,
-        );
+        push_unique(&mut state.facts, compact(&message.content, 280), 32);
     }
     if let Some(last) = batch.last() {
         state.covered_through_message_id = Some(last.id.clone());
@@ -125,7 +127,7 @@ pub fn parse_analysis_response(
         || !state.events.is_empty()
         || !state.decisions.is_empty()
         || !state.open_threads.is_empty())
-        .then_some(state)
+    .then_some(state)
 }
 
 pub fn trim_history(
@@ -155,7 +157,11 @@ pub fn render_context_section(state: &DynamicContextState) -> Option<String> {
     push_list(&mut sections, "Stable facts", &state.facts);
     push_list(&mut sections, "Important events", &state.events);
     push_list(&mut sections, "Decisions and commitments", &state.decisions);
-    push_list(&mut sections, "Open threads and unresolved goals", &state.open_threads);
+    push_list(
+        &mut sections,
+        "Open threads and unresolved goals",
+        &state.open_threads,
+    );
     if sections.is_empty() {
         return None;
     }
@@ -183,7 +189,11 @@ fn normalize_list(values: &mut Vec<String>, max_items: usize, max_chars: usize) 
 
 fn push_unique(values: &mut Vec<String>, value: String, max_items: usize) {
     let value = value.trim();
-    if value.is_empty() || values.iter().any(|current| current.eq_ignore_ascii_case(value)) {
+    if value.is_empty()
+        || values
+            .iter()
+            .any(|current| current.eq_ignore_ascii_case(value))
+    {
         return;
     }
     values.push(value.to_owned());
@@ -207,7 +217,12 @@ fn push_list(sections: &mut Vec<String>, title: &str, values: &[String]) {
 }
 
 fn string_field(value: &Value, key: &str) -> String {
-    value.get(key).and_then(Value::as_str).unwrap_or("").trim().to_owned()
+    value
+        .get(key)
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .trim()
+        .to_owned()
 }
 
 fn string_array(value: &Value, key: &str) -> Vec<String> {
@@ -229,7 +244,6 @@ fn extract_json_object(content: &str) -> Option<&str> {
     (end >= start).then(|| &content[start..=end])
 }
 
-
 fn compact_recent(value: &str, max_chars: usize) -> String {
     let normalized = value.split_whitespace().collect::<Vec<_>>().join(" ");
     let count = normalized.chars().count();
@@ -248,7 +262,10 @@ fn compact(value: &str, max_chars: usize) -> String {
     if normalized.chars().count() <= max_chars {
         return normalized;
     }
-    let mut result = normalized.chars().take(max_chars.saturating_sub(1)).collect::<String>();
+    let mut result = normalized
+        .chars()
+        .take(max_chars.saturating_sub(1))
+        .collect::<String>();
     result.push('…');
     result
 }

@@ -31,9 +31,15 @@ fn candidates_combine_remembered_archived_and_structured_context() {
     let settings = SemanticMemorySettings::default();
 
     let candidates = build_candidates(&history, Some(&context), &settings);
-    assert!(candidates.iter().any(|item| item.source_kind == "remembered-message"));
-    assert!(candidates.iter().any(|item| item.source_kind == "archived-message"));
-    assert!(candidates.iter().any(|item| item.source_kind == "context-summary"));
+    assert!(candidates
+        .iter()
+        .any(|item| item.source_kind == "remembered-message"));
+    assert!(candidates
+        .iter()
+        .any(|item| item.source_kind == "archived-message"));
+    assert!(candidates
+        .iter()
+        .any(|item| item.source_kind == "context-summary"));
     assert!(candidates.iter().any(|item| item.content == "Uses Rust"));
 }
 
@@ -41,12 +47,18 @@ fn candidates_combine_remembered_archived_and_structured_context() {
 fn cosine_retrieval_orders_relevant_memory_first() {
     let mut records = vec![
         SemanticMemoryRecord {
-            source_kind: "fact".into(), source_id: "one".into(), content: "Rust".into(),
-            embedding: vec![1.0, 0.0], similarity: 0.0,
+            source_kind: "fact".into(),
+            source_id: "one".into(),
+            content: "Rust".into(),
+            embedding: vec![1.0, 0.0],
+            similarity: 0.0,
         },
         SemanticMemoryRecord {
-            source_kind: "fact".into(), source_id: "two".into(), content: "Design".into(),
-            embedding: vec![0.0, 1.0], similarity: 0.0,
+            source_kind: "fact".into(),
+            source_id: "two".into(),
+            content: "Design".into(),
+            embedding: vec![0.0, 1.0],
+            similarity: 0.0,
         },
     ];
 

@@ -1,4 +1,5 @@
 use super::*;
+use crate::models::{DynamicContextState, SemanticMemoryCandidate};
 
 fn test_database() -> Connection {
     let connection = Connection::open_in_memory().expect("in-memory SQLite must open");
@@ -53,7 +54,10 @@ fn greeting_message_creates_the_initial_assistant_variant() {
     assert_eq!(state.messages[0].role, "assistant");
     assert_eq!(state.messages[0].content, "hello, glad you're here");
     assert_eq!(state.messages[0].variants.len(), 1);
-    assert_eq!(state.messages[0].variants[0].content, "hello, glad you're here");
+    assert_eq!(
+        state.messages[0].variants[0].content,
+        "hello, glad you're here"
+    );
 }
 
 #[test]
@@ -61,8 +65,7 @@ fn user_message_is_durable_before_assistant_response() {
     let connection = test_database();
     create_test_chat(&connection, "chat-1");
 
-    add_user_message(&connection, "chat-1", "user-1", "hello")
-        .expect("user message must persist");
+    add_user_message(&connection, "chat-1", "user-1", "hello").expect("user message must persist");
 
     let state = chat_state(&connection, "chat-1").expect("chat state must load");
     assert_eq!(state.chat.message_count, 1);
@@ -76,8 +79,7 @@ fn user_message_is_durable_before_assistant_response() {
 fn assistant_message_creates_initial_variant_and_updates_summary() {
     let connection = test_database();
     create_test_chat(&connection, "chat-1");
-    add_user_message(&connection, "chat-1", "user-1", "hello")
-        .expect("user message must persist");
+    add_user_message(&connection, "chat-1", "user-1", "hello").expect("user message must persist");
     add_assistant_message(&connection, "chat-1", "assistant-1", "hi")
         .expect("assistant message must persist");
 
@@ -97,12 +99,10 @@ fn assistant_message_creates_initial_variant_and_updates_summary() {
 fn deleting_multiple_messages_updates_the_chat_once_and_keeps_the_remainder() {
     let connection = test_database();
     create_test_chat(&connection, "chat-1");
-    add_user_message(&connection, "chat-1", "user-1", "first")
-        .expect("first message must persist");
+    add_user_message(&connection, "chat-1", "user-1", "first").expect("first message must persist");
     add_assistant_message(&connection, "chat-1", "assistant-1", "second")
         .expect("assistant message must persist");
-    add_user_message(&connection, "chat-1", "user-2", "third")
-        .expect("last message must persist");
+    add_user_message(&connection, "chat-1", "user-2", "third").expect("last message must persist");
 
     delete_messages(
         &connection,
@@ -190,8 +190,7 @@ fn batched_chat_and_variant_loading_preserves_relations() {
             [],
         )
         .expect("worldbook relation must insert");
-    add_user_message(&connection, "chat-1", "user-1", "hello")
-        .expect("user message must persist");
+    add_user_message(&connection, "chat-1", "user-1", "hello").expect("user message must persist");
     add_assistant_message(&connection, "chat-1", "assistant-1", "hi")
         .expect("assistant message must persist");
     append_message_variant(
@@ -224,8 +223,7 @@ fn batched_chat_and_variant_loading_preserves_relations() {
 fn messages_through_assistant_uses_the_active_variant_and_excludes_later_messages() {
     let connection = test_database();
     create_test_chat(&connection, "chat-1");
-    add_user_message(&connection, "chat-1", "user-1", "hello")
-        .expect("user message must persist");
+    add_user_message(&connection, "chat-1", "user-1", "hello").expect("user message must persist");
     add_assistant_message(&connection, "chat-1", "assistant-1", "first answer")
         .expect("assistant message must persist");
     append_message_variant(
@@ -253,8 +251,7 @@ fn messages_through_assistant_uses_the_active_variant_and_excludes_later_message
 fn messages_through_message_rejects_user_messages() {
     let connection = test_database();
     create_test_chat(&connection, "chat-1");
-    add_user_message(&connection, "chat-1", "user-1", "hello")
-        .expect("user message must persist");
+    add_user_message(&connection, "chat-1", "user-1", "hello").expect("user message must persist");
 
     let error = messages_through_message(&connection, "user-1")
         .expect_err("user messages cannot be continued");
@@ -273,8 +270,7 @@ fn usage_history_always_contains_at_least_six_weeks() {
 fn history_before_a_continuation_ends_with_an_assistant_message() {
     let connection = test_database();
     create_test_chat(&connection, "chat-1");
-    add_user_message(&connection, "chat-1", "user-1", "hello")
-        .expect("user message must persist");
+    add_user_message(&connection, "chat-1", "user-1", "hello").expect("user message must persist");
     add_assistant_message(&connection, "chat-1", "assistant-1", "first part")
         .expect("assistant message must persist");
     add_assistant_message(&connection, "chat-1", "assistant-2", "continued part")
@@ -282,15 +278,17 @@ fn history_before_a_continuation_ends_with_an_assistant_message() {
 
     let (_, history) = messages_before_message(&connection, "assistant-2")
         .expect("history before continuation must load");
-    assert_eq!(history.last().map(|message| message.role.as_str()), Some("assistant"));
+    assert_eq!(
+        history.last().map(|message| message.role.as_str()),
+        Some("assistant")
+    );
 }
 
 #[test]
 fn regeneration_history_is_stable_when_imported_messages_share_a_timestamp() {
     let connection = test_database();
     create_test_chat(&connection, "chat-1");
-    add_user_message(&connection, "chat-1", "user-1", "hello")
-        .expect("user message must persist");
+    add_user_message(&connection, "chat-1", "user-1", "hello").expect("user message must persist");
     add_assistant_message(&connection, "chat-1", "assistant-1", "first part")
         .expect("assistant message must persist");
     add_assistant_message(&connection, "chat-1", "assistant-2", "continued part")
@@ -341,8 +339,7 @@ fn dynamic_context_and_semantic_memory_are_invalidated_together() {
         covered_through_message_id: Some("message-1".into()),
         ..DynamicContextState::default()
     };
-    save_dynamic_context(&connection, "chat-1", &state)
-        .expect("dynamic context must save");
+    save_dynamic_context(&connection, "chat-1", &state).expect("dynamic context must save");
 
     let provider = Provider {
         id: "provider-1".into(),
@@ -381,30 +378,21 @@ fn dynamic_context_and_semantic_memory_are_invalidated_together() {
         .expect("context must load")
         .is_some());
     assert_eq!(
-        list_semantic_memories(
-            &connection,
-            "chat-1",
-            "provider-1",
-            "qwen3-embedding"
-        )
-        .expect("memories must load")
-        .len(),
+        list_semantic_memories(&connection, "chat-1", "provider-1", "qwen3-embedding")
+            .expect("memories must load")
+            .len(),
         1
     );
 
-    invalidate_chat_ai_context(&connection, "chat-1")
-        .expect("derived AI context must invalidate");
+    invalidate_chat_ai_context(&connection, "chat-1").expect("derived AI context must invalidate");
     assert!(get_dynamic_context(&connection, "chat-1")
         .expect("context query must succeed")
         .is_none());
-    assert!(list_semantic_memories(
-        &connection,
-        "chat-1",
-        "provider-1",
-        "qwen3-embedding"
-    )
-    .expect("memory query must succeed")
-    .is_empty());
+    assert!(
+        list_semantic_memories(&connection, "chat-1", "provider-1", "qwen3-embedding")
+            .expect("memory query must succeed")
+            .is_empty()
+    );
 }
 
 #[test]
@@ -443,13 +431,9 @@ fn semantic_memory_reindexes_changed_content_and_prunes_stale_sources() {
     )
     .expect("memory must save");
 
-    let indexed = semantic_memory_indexed_contents(
-        &connection,
-        "chat-1",
-        "provider-1",
-        "qwen3-embedding",
-    )
-    .expect("indexed contents must load");
+    let indexed =
+        semantic_memory_indexed_contents(&connection, "chat-1", "provider-1", "qwen3-embedding")
+            .expect("indexed contents must load");
     assert_eq!(
         indexed
             .get(&("remembered-message".into(), "message-1".into()))
@@ -469,30 +453,20 @@ fn semantic_memory_reindexes_changed_content_and_prunes_stale_sources() {
         &[(changed.clone(), vec![0.0, 1.0])],
     )
     .expect("changed memory must update");
-    prune_semantic_memories(
-        &connection,
-        "chat-1",
-        "provider-1",
-        "qwen3-embedding",
-        &[],
-    )
-    .expect("stale memory must prune");
-    assert!(list_semantic_memories(
-        &connection,
-        "chat-1",
-        "provider-1",
-        "qwen3-embedding"
-    )
-    .expect("memory query must succeed")
-    .is_empty());
+    prune_semantic_memories(&connection, "chat-1", "provider-1", "qwen3-embedding", &[])
+        .expect("stale memory must prune");
+    assert!(
+        list_semantic_memories(&connection, "chat-1", "provider-1", "qwen3-embedding")
+            .expect("memory query must succeed")
+            .is_empty()
+    );
 }
 
 #[test]
 fn message_interaction_time_and_edited_marker_follow_the_active_content() {
     let connection = test_database();
     create_test_chat(&connection, "chat-1");
-    add_user_message(&connection, "chat-1", "user-1", "draft")
-        .expect("user message must persist");
+    add_user_message(&connection, "chat-1", "user-1", "draft").expect("user message must persist");
     add_assistant_message(&connection, "chat-1", "assistant-1", "original")
         .expect("assistant message must persist");
     connection
@@ -502,8 +476,7 @@ fn message_interaction_time_and_edited_marker_follow_the_active_content() {
         )
         .expect("timestamps must be arranged");
 
-    edit_message(&connection, "user-1", "unused", "edited user")
-        .expect("user edit must persist");
+    edit_message(&connection, "user-1", "unused", "edited user").expect("user edit must persist");
     append_message_variant(
         &connection,
         "assistant-1",
@@ -537,8 +510,7 @@ fn message_interaction_time_and_edited_marker_follow_the_active_content() {
     assert_eq!(assistant.content, "edited assistant");
     assert!(assistant.updated_at > assistant.created_at);
 
-    select_message_variant(&connection, "assistant-1", 1)
-        .expect("regenerated variant must select");
+    select_message_variant(&connection, "assistant-1", 1).expect("regenerated variant must select");
     let state = chat_state(&connection, "chat-1").expect("chat state must reload");
     let assistant = state
         .messages

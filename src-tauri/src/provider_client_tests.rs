@@ -1,8 +1,7 @@
 use super::{
     block_api_key, embedding_endpoint_saved, exponential_delay, first_available_key,
     is_retryable_status, parse_api_keys, parse_embedding_response, parse_rate_limit_delay,
-    rate_limit_state_from_headers,
-    uses_ollama_embedding_api,
+    rate_limit_state_from_headers, uses_ollama_embedding_api,
 };
 use reqwest::header::{HeaderMap, HeaderValue};
 use serde_json::json;
@@ -71,7 +70,6 @@ fn embedding_endpoint_uses_provider_defaults_only_when_empty() {
     );
 }
 
-
 #[test]
 fn ollama_embed_response_is_parsed_for_custom_endpoints() {
     let saved = provider("custom", Some("http://127.0.0.1:11534/api/embed"));
@@ -109,7 +107,6 @@ fn openai_embedding_response_keeps_index_order() {
     assert_eq!(parsed, vec![vec![0.1, 0.2], vec![0.3, 0.4]]);
 }
 
-
 #[test]
 fn api_key_lists_are_trimmed_and_deduplicated_in_priority_order() {
     assert_eq!(
@@ -138,7 +135,6 @@ fn rate_limit_reset_headers_support_provider_duration_formats() {
     assert!(parsed <= Duration::from_secs(2));
 }
 
-
 #[test]
 fn exhausted_rate_limit_dimensions_use_their_matching_reset_window() {
     let mut headers = HeaderMap::new();
@@ -154,10 +150,7 @@ fn exhausted_rate_limit_dimensions_use_their_matching_reset_window() {
         "x-ratelimit-remaining-tokens",
         HeaderValue::from_static("0"),
     );
-    headers.insert(
-        "x-ratelimit-reset-tokens",
-        HeaderValue::from_static("2m"),
-    );
+    headers.insert("x-ratelimit-reset-tokens", HeaderValue::from_static("2m"));
 
     let state = rate_limit_state_from_headers(200, &headers);
     assert!(state.exhausted);

@@ -29,9 +29,7 @@ pub fn initialize() -> CommandResult<()> {
         return Ok(());
     }
 
-    let _guard = INITIALIZATION_LOCK
-        .lock()
-        .map_err(CommandError::internal)?;
+    let _guard = INITIALIZATION_LOCK.lock().map_err(CommandError::internal)?;
     if INITIALIZED.get().is_some() {
         return Ok(());
     }
@@ -45,11 +43,10 @@ fn ensure_available() -> CommandResult<()> {
     initialize()
 }
 
-
 fn normalize_provider_secrets(secret: &str) -> String {
     let mut normalized = Vec::new();
     for key in secret.lines().map(str::trim).filter(|key| !key.is_empty()) {
-        if !normalized.iter().any(|saved| *saved == key) {
+        if !normalized.contains(&key) {
             normalized.push(key);
         }
     }

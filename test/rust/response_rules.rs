@@ -19,16 +19,21 @@ fn continuation_instruction_uses_the_requested_language() {
 
 #[test]
 fn continued_assistant_messages_regenerate_as_continuations() {
-    assert_eq!(regeneration_mode(Some("user")), Some(RegenerationMode::Reply));
+    assert_eq!(
+        regeneration_mode(Some("user")),
+        Some(RegenerationMode::Reply)
+    );
     assert_eq!(
         regeneration_mode(Some("assistant")),
         Some(RegenerationMode::Continuation),
     );
     assert_eq!(regeneration_mode(Some("system")), None);
     assert!(regeneration_instruction(RegenerationMode::Reply, Some("ru")).is_none());
-    assert!(regeneration_instruction(RegenerationMode::Continuation, Some("ru"))
-        .expect("continuation instruction must exist")
-        .starts_with("Продолжи"));
+    assert!(
+        regeneration_instruction(RegenerationMode::Continuation, Some("ru"))
+            .expect("continuation instruction must exist")
+            .starts_with("Продолжи")
+    );
 }
 
 #[test]
@@ -38,7 +43,6 @@ fn casual_brief_rule_sets_short_human_defaults() {
     assert!(value.contains("long compound sentences"));
     assert!(value.contains("expand only"));
 }
-
 
 #[test]
 fn lowercase_rules_include_relaxed_and_strict_modes() {
