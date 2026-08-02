@@ -15,6 +15,7 @@ import type {
   ProviderModelResult,
   PromptPreviewInput,
   PromptPreviewResult,
+  UsagePoint,
 } from '../types';
 
 export class BackendCommandError extends Error {
@@ -78,6 +79,11 @@ async function invokeBackend<T>(
 export async function loadSnapshot(): Promise<AppSnapshot> {
   requireTauri();
   return invokeBackend<AppSnapshot>('get_app_snapshot');
+}
+
+export async function loadUsageHistory(): Promise<UsagePoint[]> {
+  requireTauri();
+  return invokeBackend<UsagePoint[]>('get_usage_history');
 }
 
 export async function loadChatState(chatId: string): Promise<ChatState> {

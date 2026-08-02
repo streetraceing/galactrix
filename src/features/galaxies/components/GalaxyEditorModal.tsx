@@ -6,6 +6,7 @@ import { PromptPreviewCard } from '../../../components/ui/PromptPreviewCard';
 import { PromptBuilder } from '../../chats/components/PromptBuilder';
 import { promptPreviewFromDraft } from '../../chats/promptPreview';
 import { galaxyInputAvatar, withAvatar } from '../../../lib/avatar';
+import { isMobilePlatform } from '../../../lib/platform';
 import type {
   CharacterData,
   GalaxyItem,
@@ -49,6 +50,7 @@ export function GalaxyEditorModal({
   onOpenChange: (open: boolean) => void;
   onSave: (draft: GalaxyItemInput) => void;
 }) {
+  const autoFocus = !isMobilePlatform();
   const { t } = useTranslation(['galaxies', 'common']);
   const [draft, setDraft] = useState(initialDraft);
 
@@ -132,7 +134,7 @@ export function GalaxyEditorModal({
                 variant="secondary"
                 value={draft.name}
                 placeholder={t('galaxyEditorModal.objectName')}
-                autoFocus
+                autoFocus={autoFocus}
                 autoComplete="off"
                 maxLength={120}
                 onChange={(event) =>

@@ -150,7 +150,10 @@ test('full prompt preview includes the current conversation history', async () =
       'utf8',
     ),
     readFile(chatsScreenPath, 'utf8'),
-    readFile(new URL('../../src-tauri/src/lib.rs', import.meta.url), 'utf8'),
+    readFile(
+      new URL('../../src-tauri/src/prompt_preview.rs', import.meta.url),
+      'utf8',
+    ),
   ]);
 
   assert.match(types, /conversationMessages: Message\[\]/);
@@ -158,7 +161,7 @@ test('full prompt preview includes the current conversation history', async () =
   assert.match(previewBuilder, /message\.remembered/);
   assert.match(modal, /messages\s*=\s*\[\]/);
   assert.match(screen, /messages=\{configMessages\}/);
-  assert.match(backend, /input\.conversation_messages/);
+  assert.match(backend, /input\s*\.conversation_messages/);
   assert.match(backend, /prompt\.push_str\("\[SYSTEM\]\\n"\)/);
   assert.match(backend, /"assistant" => "ASSISTANT"/);
 });
@@ -179,4 +182,19 @@ test('optimistic messages keep stable ids through the backend commit', async () 
   assert.match(rustBackend, /user_message_id: Option<String>/);
   assert.match(rustBackend, /assistant_message_id: Option<String>/);
   assert.match(list, /keepVirtualTailMounted/);
+});
+
+test('usage statistics refresh after generation and when opening profile', async () => {
+  const [controller, frontendBackend, rustBackend] = await Promise.all([
+    readFile(controllerPath, 'utf8'),
+    readFile(new URL('../../src/lib/backend.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../../src-tauri/src/lib.rs', import.meta.url), 'utf8'),
+  ]);
+
+  assert.match(controller, /const refreshUsage = useCallback/);
+  assert.match(controller, /activeTab !== 'profile'/);
+  assert.match(controller, /await refreshUsage\(\)\.catch/);
+  assert.match(frontendBackend, /get_usage_history/);
+  assert.match(rustBackend, /fn get_usage_history/);
+  assert.match(rustBackend, /get_usage_history,/);
 });

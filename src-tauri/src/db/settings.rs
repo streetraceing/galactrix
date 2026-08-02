@@ -48,7 +48,7 @@ pub(crate) fn get_settings(connection: &Connection) -> CommandResult<AppSettings
         .map_err(CommandError::internal)
 }
 
-pub(super) fn usage_history(connection: &Connection) -> CommandResult<Vec<UsagePoint>> {
+pub(crate) fn usage_history(connection: &Connection) -> CommandResult<Vec<UsagePoint>> {
     const DAY_SECONDS: i64 = 86_400;
     const MIN_HISTORY_DAYS: i64 = 42;
 

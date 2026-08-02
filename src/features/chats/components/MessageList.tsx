@@ -119,6 +119,7 @@ function isMessageSelectionControl(target: EventTarget | null) {
 function MessageMenu({
   message,
   children,
+  viewActive,
   onBranch,
   onEditRequest,
   onDeleteRequest,
@@ -131,18 +132,32 @@ function MessageMenu({
   onError,
 }: MessageActionProps & {
   children: ReactNode;
+  viewActive: boolean;
   onSelectMessage: (messageId: string) => void;
 }) {
   const { t } = useTranslation('chats');
   const isMobile = isMobilePlatform();
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (isMobile && !viewActive) setOpen(false);
+  }, [isMobile, viewActive]);
+
   const run = (action: () => Promise<void>) => {
     void action().catch((error) => onError(errorMessage(error)));
   };
   const isAssistant = message.role === 'assistant';
 
   return (
-    <ContextMenu>
-      <ContextMenuTrigger className="block min-w-0">
+    <ContextMenu
+      open={isMobile ? open && viewActive : undefined}
+      onOpenChange={(nextOpen) => {
+        if (isMobile) setOpen(viewActive && nextOpen);
+      }}
+    >
+      <ContextMenuTrigger
+        className={`block min-w-0 ${isMobile ? 'mobile-message-context-target' : ''}`}
+      >
         {children}
       </ContextMenuTrigger>
       <ContextMenuContent className="w-[min(16rem,calc(100dvw-1rem))] max-h-[calc(100dvh-1rem)] max-w-[calc(100dvw-1rem)] overflow-y-auto overscroll-contain">
@@ -2296,6 +2311,7 @@ function MessageListComponent({
                       <div className="relative z-10">
                         <MessageMenu
                           message={message}
+                          viewActive={viewActive}
                           onBranch={onBranch}
                           onRemember={onRemember}
                           onRegenerate={regenerate}

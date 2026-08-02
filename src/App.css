@@ -139,6 +139,13 @@
     @apply select-text!;
   }
 
+  .mobile-message-context-target,
+  .mobile-message-context-target * {
+    -webkit-touch-callout: none !important;
+    -webkit-user-select: none !important;
+    user-select: none !important;
+  }
+
   button,
   [role='button'] {
     @apply touch-manipulation;

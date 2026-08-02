@@ -172,31 +172,39 @@ test('embedding capability survives Telescope export and has a backend probe', a
 });
 
 test('a custom embedding URL is treated as the complete endpoint', async () => {
-  const [providerClient, embeddingSection, ruTelescopeRaw] = await Promise.all([
-    readFile(
-      new URL('../../src-tauri/src/provider_client.rs', import.meta.url),
-      'utf8',
-    ),
-    readFile(
-      new URL(
-        '../../src/features/telescope/components/ProviderEmbeddingSection.tsx',
-        import.meta.url,
+  const [providerClient, endpoints, embeddingSection, ruTelescopeRaw] =
+    await Promise.all([
+      readFile(
+        new URL('../../src-tauri/src/provider_client.rs', import.meta.url),
+        'utf8',
       ),
-      'utf8',
-    ),
-    readFile(
-      new URL('../../src/i18n/locales/ru/telescope.json', import.meta.url),
-      'utf8',
-    ),
-  ]);
+      readFile(
+        new URL(
+          '../../src-tauri/src/provider_client/endpoints.rs',
+          import.meta.url,
+        ),
+        'utf8',
+      ),
+      readFile(
+        new URL(
+          '../../src/features/telescope/components/ProviderEmbeddingSection.tsx',
+          import.meta.url,
+        ),
+        'utf8',
+      ),
+      readFile(
+        new URL('../../src/i18n/locales/ru/telescope.json', import.meta.url),
+        'utf8',
+      ),
+    ]);
   const ruTelescope = JSON.parse(ruTelescopeRaw) as Record<string, string>;
 
-  assert.match(providerClient, /fn embedding_endpoint_saved/);
-  assert.match(providerClient, /return Ok\(endpoint\.to_owned\(\)\)/);
+  assert.match(endpoints, /fn embedding_endpoint_saved/);
+  assert.match(endpoints, /return Ok\(endpoint\.to_owned\(\)\)/);
   assert.match(providerClient, /client\.post\(&embedding_url\)/);
   assert.match(providerClient, /client\.post\(&url\)/);
   assert.match(providerClient, /uses_ollama_embedding_api/);
-  assert.match(providerClient, /normalized\.ends_with\("\/api\/embed"\)/);
+  assert.match(endpoints, /normalized\.ends_with\("\/api\/embed"\)/);
   assert.match(providerClient, /parse_embedding_response/);
   assert.match(providerClient, /value\.get\("embeddings"\)/);
   assert.match(providerClient, /value\.get\("embedding"\)/);
@@ -216,6 +224,7 @@ test('providers accept multiple protected API keys with temporary rate-limit rot
     backend,
     models,
     client,
+    retry,
     storage,
     ruTelescopeRaw,
   ] = await Promise.all([
@@ -251,6 +260,10 @@ test('providers accept multiple protected API keys with temporary rate-limit rot
       'utf8',
     ),
     readFile(
+      new URL('../../src-tauri/src/provider_client/retry.rs', import.meta.url),
+      'utf8',
+    ),
+    readFile(
       new URL('../../src-tauri/src/secure_storage.rs', import.meta.url),
       'utf8',
     ),
@@ -272,12 +285,12 @@ test('providers accept multiple protected API keys with temporary rate-limit rot
   assert.match(backend, /Record<string, string\[\]>/);
   assert.match(models, /pub api_keys: Option<Vec<String>>/);
   assert.match(models, /normalized_secret/);
-  assert.match(client, /parse_api_keys/);
-  assert.match(client, /x-ratelimit-remaining-requests/);
-  assert.match(client, /x-ratelimit-reset-requests/);
-  assert.match(client, /block_api_key/);
-  assert.match(client, /first_available_key/);
-  assert.match(client, /tokio::time::sleep\(wait\)\.await/);
+  assert.match(retry, /parse_api_keys/);
+  assert.match(retry, /x-ratelimit-remaining-requests/);
+  assert.match(retry, /x-ratelimit-reset-requests/);
+  assert.match(retry, /block_api_key/);
+  assert.match(retry, /first_available_key/);
+  assert.match(retry, /tokio::time::sleep\(wait\)\.await/);
   assert.doesNotMatch(client, /wait <= Duration::from_millis\(max_delay\)/);
   assert.match(storage, /normalize_provider_secrets/);
   assert.equal(ruTelescope['providerCredentials.apiKeys'], 'API-ключи');

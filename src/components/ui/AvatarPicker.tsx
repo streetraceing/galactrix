@@ -90,7 +90,7 @@ export function AvatarPicker({
         />
 
         <label htmlFor={inputId} className="min-w-0 text-sm font-medium">
-          {t('profile:identitySettings.avatar')}
+          {t('identitySettings.avatar', { ns: 'profile' })}
         </label>
 
         {description ? (

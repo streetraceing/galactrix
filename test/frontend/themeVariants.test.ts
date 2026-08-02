@@ -27,13 +27,16 @@ test('all extended color themes can be selected and persisted', async () => {
     ),
     readFile(new URL('../../src/types.ts', import.meta.url), 'utf8'),
     readFile(new URL('../../src/App.css', import.meta.url), 'utf8'),
-    readFile(new URL('../../src-tauri/src/lib.rs', import.meta.url), 'utf8'),
+    readFile(
+      new URL('../../src-tauri/src/app_settings.rs', import.meta.url),
+      'utf8',
+    ),
   ]);
 
   for (const variant of expectedVariants) {
     assert.match(settings, new RegExp(`id: '${variant}'`));
     assert.match(types, new RegExp(String.raw`\| '${variant}'`));
     assert.match(css, new RegExp(`data-theme-variant='${variant}'`, 'g'));
-    assert.match(backend, new RegExp(String.raw`\| "${variant}"`));
+    assert.match(backend, new RegExp(`"${variant}",`));
   }
 });

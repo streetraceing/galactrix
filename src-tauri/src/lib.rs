@@ -22,7 +22,7 @@ use i18n::{keys, CommandError, CommandResult};
 use models::{
     AppSettings, AppSnapshot, ChatConfigInput, ChatState, CreatedChat, EmbeddingProbeResult,
     GalaxyItem, GalaxyItemInput, PromptPreviewInput, PromptPreviewResult, Provider,
-    ProviderImportInput, ProviderInput, ProviderModelResult,
+    ProviderImportInput, ProviderInput, ProviderModelResult, UsagePoint,
 };
 use tauri::{Manager, State};
 use uuid::Uuid;
@@ -59,6 +59,12 @@ fn get_app_snapshot(state: State<'_, AppState>) -> CommandResult<AppSnapshot> {
         provider.has_secret = secure_storage::has_provider_secret(&provider.id);
     }
     Ok(snapshot)
+}
+
+#[tauri::command]
+fn get_usage_history(state: State<'_, AppState>) -> CommandResult<Vec<UsagePoint>> {
+    let database = state.database.lock().map_err(CommandError::internal)?;
+    db::usage_history(&database)
 }
 
 #[tauri::command]
@@ -912,6 +918,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             get_app_snapshot,
+            get_usage_history,
             get_chat_state,
             cancel_generation,
             create_chat,

@@ -114,7 +114,7 @@ test('message gestures preserve context menus while supporting click and drag se
   assert.match(source, /selectedMessageIds\.size > 0 \? 'select-none'/);
   assert.match(source, /onDeleteMany\(selectedMessages\.map/);
   assert.match(source, /setDeletingSelection\(true\)/);
-  assert.match(source, /<ContextMenu>/);
+  assert.match(source, /<ContextMenu/);
   assert.match(source, /data-message-id=\{message\.id\}/);
   assert.match(source, /messageList\.selectedMessages/);
 });

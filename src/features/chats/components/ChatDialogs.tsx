@@ -1,6 +1,7 @@
 import { Button, Input } from '@heroui/react';
 import type { ChangeEvent } from 'react';
 import { UiModal } from '../../../components/ui/UiModal';
+import { isMobilePlatform } from '../../../lib/platform';
 import type { Chat } from '../../../types';
 import { useTranslation } from 'react-i18next';
 
@@ -26,6 +27,7 @@ export function ChatDialogs({
   onCloseConfirm: () => void;
 }) {
   const { t } = useTranslation('chats');
+  const autoFocus = !isMobilePlatform();
   return (
     <>
       <UiModal
@@ -61,7 +63,7 @@ export function ChatDialogs({
           variant="secondary"
           value={renameValue}
           maxLength={120}
-          autoFocus
+          autoFocus={autoFocus}
           onChange={(event: ChangeEvent<HTMLInputElement>) =>
             onRenameValueChange(event.target.value)
           }

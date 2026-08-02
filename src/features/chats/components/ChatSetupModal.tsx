@@ -2,6 +2,7 @@ import { Button, Input, Label, TextArea } from '@heroui/react';
 import { useEffect, useState } from 'react';
 import { UiModal } from '../../../components/ui/UiModal';
 import { PromptPreviewCard } from '../../../components/ui/PromptPreviewCard';
+import { isMobilePlatform } from '../../../lib/platform';
 import type {
   CharacterData,
   Chat,
@@ -63,6 +64,7 @@ export function ChatSetupModal({
   onOpenChange: (open: boolean) => void;
   onSubmit: (input: ChatConfigInput) => void;
 }) {
+  const autoFocus = !isMobilePlatform();
   const { t } = useTranslation('chats');
   const [form, setForm] = useState<ChatConfigInput>(newChatConfig);
 
@@ -146,7 +148,7 @@ export function ChatSetupModal({
               variant="secondary"
               value={form.title}
               maxLength={120}
-              autoFocus
+              autoFocus={autoFocus}
               autoComplete="off"
               onChange={(event) =>
                 setForm((current) => ({

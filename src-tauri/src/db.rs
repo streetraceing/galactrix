@@ -24,8 +24,7 @@ pub(crate) use ai_memory::{
 };
 use galaxy::get_galaxy_item;
 pub(crate) use galaxy::{delete_galaxy_item, upsert_galaxy_item};
-use settings::usage_history;
-pub(crate) use settings::{get_settings, provider_ids, update_settings};
+pub(crate) use settings::{get_settings, provider_ids, update_settings, usage_history};
 
 pub fn open(path: &Path) -> CommandResult<Connection> {
     let connection = Connection::open(path)?;

@@ -22,6 +22,18 @@ const mobileBackPath = new URL(
   '../../src/hooks/useMobileBackEntry.ts',
   import.meta.url,
 );
+const chatDialogsPath = new URL(
+  '../../src/features/chats/components/ChatDialogs.tsx',
+  import.meta.url,
+);
+const chatSetupPath = new URL(
+  '../../src/features/chats/components/ChatSetupModal.tsx',
+  import.meta.url,
+);
+const galaxyEditorPath = new URL(
+  '../../src/features/galaxies/components/GalaxyEditorModal.tsx',
+  import.meta.url,
+);
 
 test('mobile continuation is available only from the context menu', async () => {
   const source = await readFile(messageListPath, 'utf8');
@@ -64,6 +76,38 @@ test('mobile message actions open dialogs directly from menu item clicks', async
   assert.match(source, /ContextMenuItem onClick=\{onEditRequest\}/);
   assert.match(source, /ContextMenuItem onClick=\{onHistoryRequest\}/);
   assert.match(source, /isMobile \? \([\s\S]*?responseHistory/);
+});
+
+test('mobile message menus cannot select text and close with the chat canvas', async () => {
+  const [messageSource, cssSource] = await Promise.all([
+    readFile(messageListPath, 'utf8'),
+    readFile(new URL('../../src/App.css', import.meta.url), 'utf8'),
+  ]);
+
+  assert.match(
+    messageSource,
+    /open=\{isMobile \? open && viewActive : undefined\}/,
+  );
+  assert.match(
+    messageSource,
+    /if \(isMobile && !viewActive\) setOpen\(false\)/,
+  );
+  assert.match(messageSource, /mobile-message-context-target/);
+  assert.match(cssSource, /\.mobile-message-context-target \*/);
+  assert.match(cssSource, /-webkit-touch-callout: none !important/);
+});
+
+test('input autofocus remains a desktop-only behavior', async () => {
+  const sources = await Promise.all(
+    [chatDialogsPath, chatSetupPath, galaxyEditorPath].map((path) =>
+      readFile(path, 'utf8'),
+    ),
+  );
+
+  for (const source of sources) {
+    assert.match(source, /const autoFocus = !isMobilePlatform\(\)/);
+    assert.match(source, /autoFocus=\{autoFocus\}/);
+  }
 });
 
 test('mobile variant history is viewport bounded and does not use a side submenu', async () => {

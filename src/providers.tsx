@@ -1,6 +1,7 @@
 import { Toast } from '@heroui/react';
 import { ThemeProvider as NextThemesProvider } from 'next-themes';
 import type { ReactNode } from 'react';
+import { SwipeDismissToast } from './components/ui/SwipeDismissToast';
 import { I18nProvider } from './i18n';
 
 export function Providers({ children }: { children: ReactNode }) {
@@ -21,7 +22,11 @@ export function Providers({ children }: { children: ReactNode }) {
           width="min(26rem, calc(100vw - 1rem))"
           maxVisibleToasts={3}
           className="top-[max(0.5rem,env(safe-area-inset-top))]"
-        />
+        >
+          {({ toast: toastItem }) => (
+            <SwipeDismissToast toastItem={toastItem} />
+          )}
+        </Toast.Provider>
       </NextThemesProvider>
     </I18nProvider>
   );

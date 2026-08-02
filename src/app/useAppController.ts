@@ -26,6 +26,7 @@ import {
   isBackendCommandError,
   loadChatState,
   loadSnapshot,
+  loadUsageHistory,
   regenerateMessage,
   renameChat,
   saveProvider,
@@ -123,6 +124,12 @@ export function useAppController() {
     return { ...state, messages: chatMessages };
   }, []);
 
+  const refreshUsage = useCallback(async () => {
+    const usage = await loadUsageHistory();
+    setSnapshot((current) => ({ ...current, usage }));
+    return usage;
+  }, []);
+
   const boot = useCallback(async () => {
     setLoading(true);
     setFatalError('');
@@ -134,6 +141,11 @@ export function useAppController() {
       setLoading(false);
     }
   }, [refresh]);
+
+  useEffect(() => {
+    if (loading || activeTab !== 'profile') return;
+    void refreshUsage().catch(() => undefined);
+  }, [activeTab, loading, refreshUsage]);
 
   useEffect(() => {
     void boot();
@@ -334,6 +346,7 @@ export function useAppController() {
           getResponseLocale(snapshot.settings.responseLanguage),
         );
         await refreshChat(chatId);
+        await refreshUsage().catch(() => undefined);
         haptic();
       } catch (error) {
         await refreshChat(chatId).catch(() => undefined);
@@ -350,7 +363,13 @@ export function useAppController() {
         }
       }
     },
-    [activeChatId, haptic, refreshChat, snapshot.settings.responseLanguage],
+    [
+      activeChatId,
+      haptic,
+      refreshChat,
+      refreshUsage,
+      snapshot.settings.responseLanguage,
+    ],
   );
 
   const cancelCurrentGeneration = useCallback(async () => {
@@ -472,6 +491,7 @@ export function useAppController() {
           getResponseLocale(snapshot.settings.responseLanguage),
         );
         if (chatId) await refreshChat(chatId);
+        await refreshUsage().catch(() => undefined);
         haptic();
       } catch (error) {
         if (chatId) await refreshChat(chatId).catch(() => undefined);
@@ -491,6 +511,7 @@ export function useAppController() {
     [
       haptic,
       refreshChat,
+      refreshUsage,
       snapshot.messages,
       snapshot.settings.responseLanguage,
     ],

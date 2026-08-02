@@ -167,7 +167,10 @@ test('chat setup exposes a bounded recent-message context limit', async () => {
     ),
     readFile(promptConfigPath, 'utf8'),
     readFile(promptPreviewPath, 'utf8'),
-    readFile(new URL('../../src-tauri/src/lib.rs', import.meta.url), 'utf8'),
+    readFile(
+      new URL('../../src-tauri/src/generation_context.rs', import.meta.url),
+      'utf8',
+    ),
   ]);
 
   assert.match(config, /recentMessageLimit: 50/);
