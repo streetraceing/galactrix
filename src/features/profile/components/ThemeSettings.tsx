@@ -13,6 +13,9 @@ const variants = [
   { id: 'lavender', label: 'Lavender' },
   { id: 'discord', label: 'Discord' },
   { id: 'spotify', label: 'Spotify' },
+  { id: 'mint', label: 'Mint' },
+  { id: 'uber', label: 'Uber' },
+  { id: 'rabbit', label: 'Rabbit' },
   { id: 'catppuccin', labelKey: 'theme.variant.catppuccin' },
   { id: 'tokyo-night', labelKey: 'theme.variant.tokyoNight' },
   { id: 'nord', labelKey: 'theme.variant.nord' },
@@ -94,7 +97,7 @@ export function ThemeSettings({
               <Select.Value />
               <Select.Indicator />
             </Select.Trigger>
-            <Select.Popover>
+            <Select.Popover className="max-h-[min(24rem,60dvh)] overflow-y-auto">
               <ListBox>
                 {variants.map((entry) => {
                   const label =

@@ -3,6 +3,9 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 const expectedVariants = [
+  'mint',
+  'uber',
+  'rabbit',
   'catppuccin',
   'tokyo-night',
   'nord',

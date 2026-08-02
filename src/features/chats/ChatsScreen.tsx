@@ -179,11 +179,7 @@ export function ChatsScreen({
     const distanceBeforeResize = Math.max(0, distanceAfterResize - delta);
     if (distanceBeforeResize > 48) return;
 
-    window.requestAnimationFrame(() => {
-      const currentScroller = messageScrollRef.current;
-      if (!currentScroller) return;
-      currentScroller.scrollTop = currentScroller.scrollHeight;
-    });
+    scroller.scrollTop = scroller.scrollHeight;
   }, []);
 
   const cancelGeneration = useCallback(async () => {

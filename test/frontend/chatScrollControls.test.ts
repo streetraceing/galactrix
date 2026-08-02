@@ -81,12 +81,23 @@ test('composer growth keeps the current chat pinned when it was already at the b
 
   assert.match(composer, /new ResizeObserver/);
   assert.match(composer, /onHeightChange\?\.\(delta\)/);
+  const resizeEffect = composer.match(
+    /useLayoutEffect\(\(\) => \{[\s\S]*?\n  }, \[draft\]\);/,
+  );
+  assert.ok(resizeEffect);
+  assert.match(resizeEffect[0], /textArea\.style\.height = 'auto'/);
+  assert.doesNotMatch(resizeEffect[0], /requestAnimationFrame/);
   assert.match(chatsScreen, /distanceBeforeResize/);
   assert.match(chatsScreen, /distanceAfterResize - delta/);
-  assert.match(
-    chatsScreen,
-    /currentScroller\.scrollTop = currentScroller\.scrollHeight/,
+  const resizeHandler = chatsScreen.match(
+    /const keepBottomPinnedAfterComposerResize[\s\S]*?\n  }, \[\]\);/,
   );
+  assert.ok(resizeHandler);
+  assert.match(
+    resizeHandler[0],
+    /scroller\.scrollTop = scroller\.scrollHeight/,
+  );
+  assert.doesNotMatch(resizeHandler[0], /requestAnimationFrame/);
 });
 
 test('regeneration uses the same symmetric typing bubble as a new response', async () => {

@@ -1,5 +1,5 @@
 import { Surface, TextArea } from '@heroui/react';
-import { memo, useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { ChangeEvent, KeyboardEvent } from 'react';
 import { Icon } from '../../../components/Icon';
 import { TooltipIconButton } from '../../../components/ui/TooltipIconButton';
@@ -94,14 +94,12 @@ function ChatComposerComponent({
     return () => observer.disconnect();
   }, [onHeightChange]);
 
-  useEffect(() => {
-    const frame = window.requestAnimationFrame(() => {
-      const textArea = textAreaRef.current;
-      if (!textArea) return;
-      textArea.style.height = 'auto';
-      textArea.style.height = `${Math.min(textArea.scrollHeight, 192)}px`;
-    });
-    return () => window.cancelAnimationFrame(frame);
+  useLayoutEffect(() => {
+    const textArea = textAreaRef.current;
+    if (!textArea) return;
+
+    textArea.style.height = 'auto';
+    textArea.style.height = `${Math.min(textArea.scrollHeight, 192)}px`;
   }, [draft]);
 
   useEffect(() => {
@@ -230,7 +228,7 @@ function ChatComposerComponent({
               placeholder={t('chatComposer.placeholder')}
               aria-label={t('chatComposer.label')}
               disabled={!provider || sending}
-              className="min-w-0 max-h-48 min-h-12 w-full resize-none  overflow-y-auto transition-none ring-0"
+              className="scrollbar-thin min-h-12 max-h-48 min-w-0 w-full resize-none overflow-y-auto transition-none ring-0"
             />
             <div className="flex size-12 self-end items-center justify-center">
               {sending ? (
