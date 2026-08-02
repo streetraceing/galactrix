@@ -288,7 +288,30 @@ pub struct ProviderInput {
 #[serde(rename_all = "camelCase")]
 pub struct ProviderImportInput {
     pub provider: ProviderInput,
+    #[serde(default)]
+    pub api_keys: Option<Vec<String>>,
+    #[serde(default)]
     pub api_key: Option<String>,
+}
+
+impl ProviderImportInput {
+    pub fn normalized_secret(&self) -> Option<String> {
+        let mut keys = Vec::new();
+        for value in self
+            .api_keys
+            .iter()
+            .flatten()
+            .map(String::as_str)
+            .chain(self.api_key.as_deref())
+        {
+            for key in value.lines().map(str::trim).filter(|key| !key.is_empty()) {
+                if !keys.iter().any(|saved| saved == key) {
+                    keys.push(key.to_owned());
+                }
+            }
+        }
+        (!keys.is_empty()).then(|| keys.join("\n"))
+    }
 }
 
 impl ProviderInput {
@@ -625,4 +648,39 @@ pub struct SemanticMemoryCandidate {
     pub source_kind: String,
     pub source_id: String,
     pub content: String,
+}
+
+#[cfg(test)]
+mod provider_import_tests {
+    use super::{ProviderImportInput, ProviderInput};
+
+    fn provider_input() -> ProviderInput {
+        ProviderInput {
+            id: Some("provider".into()),
+            name: "Provider".into(),
+            kind: "custom".into(),
+            model: "model".into(),
+            base_url: Some("https://example.com/v1".into()),
+            account_id: None,
+            temperature: 0.7,
+            top_p: 0.95,
+            max_tokens: 1024,
+            embedding_model: None,
+            embedding_base_url: None,
+        }
+    }
+
+    #[test]
+    fn provider_import_preserves_all_keys_and_accepts_the_legacy_field() {
+        let entry = ProviderImportInput {
+            provider: provider_input(),
+            api_keys: Some(vec![" primary ".into(), "secondary".into()]),
+            api_key: Some("secondary\nlegacy".into()),
+        };
+
+        assert_eq!(
+            entry.normalized_secret().as_deref(),
+            Some("primary\nsecondary\nlegacy")
+        );
+    }
 }

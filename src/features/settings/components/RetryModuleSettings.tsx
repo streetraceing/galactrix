@@ -17,6 +17,7 @@ export function RetryModuleSettings({
 
   return (
     <ModuleSettingsCard
+      moduleId="retry"
       icon="refresh"
       title={t('ai.retry.title')}
       description={t('ai.retry.description')}

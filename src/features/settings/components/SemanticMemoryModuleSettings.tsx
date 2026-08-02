@@ -27,6 +27,7 @@ export function SemanticMemoryModuleSettings({
 
   return (
     <ModuleSettingsCard
+      moduleId="semanticMemory"
       icon="database"
       title={t('ai.semantic.title')}
       description={t('ai.semantic.description')}

@@ -50,7 +50,7 @@ export function TelescopeScreen({
     provider: ProviderInput,
     apiKey?: string,
   ) => Promise<EmbeddingProbeResult>;
-  onExportSecrets: (ids: string[]) => Promise<Record<string, string>>;
+  onExportSecrets: (ids: string[]) => Promise<Record<string, string[]>>;
   onImport: (entries: ProviderImportInput[]) => Promise<number>;
   onSave: (provider: ProviderInput, apiKey?: string) => Promise<Provider>;
   onCheck: (id: string) => Promise<Provider>;
@@ -74,7 +74,7 @@ export function TelescopeScreen({
     onTestEmbeddings,
     onSave,
     onReadSecrets: async (providerId) =>
-      (await onExportSecrets([providerId]))[providerId] ?? '',
+      ((await onExportSecrets([providerId]))[providerId] ?? []).join('\n'),
   });
   const connectedCount = providers.filter(
     (provider) => provider.status === 'connected',
@@ -207,7 +207,13 @@ export function TelescopeScreen({
     );
     setTransferring(true);
     try {
-      const secrets = includeSecrets ? await onExportSecrets(exportIds) : {};
+      const secrets: Record<string, string[]> = includeSecrets
+        ? await onExportSecrets(exportIds)
+        : {};
+      const exportedKeyCount = Object.values(secrets).reduce(
+        (total, keys) => total + keys.length,
+        0,
+      );
       const exported = await exportJsonFile(
         datedJsonName('galactrix-telescope'),
         createTelescopeExport(selectedProviders, secrets),
@@ -218,7 +224,7 @@ export function TelescopeScreen({
       toast.success(t('telescopeScreen.telescopeExportIsReady'), {
         description: includeSecrets
           ? t('telescopeScreen.exportedWithKeys', {
-              value1: Object.keys(secrets).length,
+              value1: exportedKeyCount,
             })
           : t('telescopeScreen.exportedWithoutKeys', {
               value1: selectedProviders.length,

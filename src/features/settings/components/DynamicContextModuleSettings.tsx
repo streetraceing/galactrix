@@ -32,6 +32,7 @@ export function DynamicContextModuleSettings({
 
   return (
     <ModuleSettingsCard
+      moduleId="dynamicContext"
       icon="brain"
       title={t('ai.dynamic.title')}
       description={t('ai.dynamic.description')}

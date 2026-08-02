@@ -280,7 +280,7 @@ export async function saveProvider(
 
 export async function exportProviderSecrets(ids: string[]) {
   requireTauri();
-  return invokeBackend<Record<string, string>>('export_provider_secrets', {
+  return invokeBackend<Record<string, string[]>>('export_provider_secrets', {
     providerIds: ids,
   });
 }

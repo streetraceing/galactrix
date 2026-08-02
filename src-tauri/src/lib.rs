@@ -1207,13 +1207,21 @@ async fn save_provider(
 fn export_provider_secrets(
     provider_ids: Vec<String>,
     state: State<'_, AppState>,
-) -> CommandResult<HashMap<String, String>> {
+) -> CommandResult<HashMap<String, Vec<String>>> {
     let database = state.database.lock().map_err(CommandError::internal)?;
     let mut secrets = HashMap::new();
     for id in provider_ids {
         db::get_provider(&database, &id)?;
         if let Some(secret) = secure_storage::read_provider_secret(&id)? {
-            secrets.insert(id, secret);
+            let keys = secret
+                .lines()
+                .map(str::trim)
+                .filter(|key| !key.is_empty())
+                .map(str::to_owned)
+                .collect::<Vec<_>>();
+            if !keys.is_empty() {
+                secrets.insert(id, keys);
+            }
         }
     }
     Ok(secrets)
@@ -1252,12 +1260,7 @@ fn import_providers(
                 .id
                 .clone()
                 .unwrap_or_else(|| Uuid::new_v4().to_string());
-            let new_secret = entry
-                .api_key
-                .as_deref()
-                .map(str::trim)
-                .filter(|value| !value.is_empty())
-                .map(str::to_owned);
+            let new_secret = entry.normalized_secret();
             let previous_secret = secure_storage::read_provider_secret(&id)?;
             let previous_provider = db::provider_optional(&database, &id)?;
             let mut provider = entry

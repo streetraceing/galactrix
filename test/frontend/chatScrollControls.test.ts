@@ -6,6 +6,14 @@ const messageListPath = new URL(
   '../../src/features/chats/components/MessageList.tsx',
   import.meta.url,
 );
+const composerPath = new URL(
+  '../../src/features/chats/components/ChatComposer.tsx',
+  import.meta.url,
+);
+const chatsScreenPath = new URL(
+  '../../src/features/chats/ChatsScreen.tsx',
+  import.meta.url,
+);
 
 test('long chats expose a stable scroll-to-bottom affordance', async () => {
   const source = await readFile(messageListPath, 'utf8');
@@ -60,6 +68,25 @@ test('virtual scrolling updates only bounded message windows', async () => {
   assert.doesNotMatch(source, /setVirtualViewport/);
   assert.doesNotMatch(source, /chat-message-virtual-spacer/);
   assert.doesNotMatch(source, /loadEarlierMessages/);
+  assert.match(source, /aria-busy=\{sending\}/);
+  assert.match(source, /sending \? 'pointer-events-none select-none' : ''/);
+  assert.match(source, /isLastVisualMessage \? 'pb-0'/);
+});
+
+test('composer growth keeps the current chat pinned when it was already at the bottom', async () => {
+  const [composer, chatsScreen] = await Promise.all([
+    readFile(composerPath, 'utf8'),
+    readFile(chatsScreenPath, 'utf8'),
+  ]);
+
+  assert.match(composer, /new ResizeObserver/);
+  assert.match(composer, /onHeightChange\?\.\(delta\)/);
+  assert.match(chatsScreen, /distanceBeforeResize/);
+  assert.match(chatsScreen, /distanceAfterResize - delta/);
+  assert.match(
+    chatsScreen,
+    /currentScroller\.scrollTop = currentScroller\.scrollHeight/,
+  );
 });
 
 test('regeneration uses the same symmetric typing bubble as a new response', async () => {

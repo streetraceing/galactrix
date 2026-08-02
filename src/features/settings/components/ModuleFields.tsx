@@ -2,6 +2,7 @@ import { Input, Label, ListBox, Select, Surface } from '@heroui/react';
 import {
   useEffect,
   useId,
+  useRef,
   useState,
   type ChangeEvent,
   type Key,
@@ -117,7 +118,33 @@ export function ModuleProviderSelect({
   );
 }
 
+const MODULE_COLLAPSE_STORAGE_PREFIX = 'galactrix.aiModuleCollapsed.';
+
+function moduleCollapseStorageKey(moduleId: string) {
+  return `${MODULE_COLLAPSE_STORAGE_PREFIX}${moduleId}`;
+}
+
+function readModuleExpanded(moduleId: string, enabled: boolean) {
+  if (!enabled) return false;
+  try {
+    return localStorage.getItem(moduleCollapseStorageKey(moduleId)) !== 'true';
+  } catch {
+    return true;
+  }
+}
+
+function persistModuleCollapsed(moduleId: string, collapsed: boolean) {
+  try {
+    const key = moduleCollapseStorageKey(moduleId);
+    if (collapsed) localStorage.setItem(key, 'true');
+    else localStorage.removeItem(key);
+  } catch {
+    // Settings still work when persistent browser storage is unavailable.
+  }
+}
+
 export function ModuleSettingsCard({
+  moduleId,
   icon,
   title,
   description,
@@ -127,6 +154,7 @@ export function ModuleSettingsCard({
   onEnabledChange,
   children,
 }: {
+  moduleId: string;
   icon: IconName;
   title: string;
   description: string;
@@ -137,13 +165,19 @@ export function ModuleSettingsCard({
   children: ReactNode;
 }) {
   const { t } = useTranslation('settings');
-  const [isExpanded, setIsExpanded] = useState(enabled);
+  const [isExpanded, setIsExpanded] = useState(() =>
+    readModuleExpanded(moduleId, enabled),
+  );
+  const previousEnabledRef = useRef(enabled);
   const panelId = useId();
   const detailsVisible = enabled && isExpanded;
 
   useEffect(() => {
+    if (previousEnabledRef.current === enabled) return;
+    previousEnabledRef.current = enabled;
+    persistModuleCollapsed(moduleId, false);
     setIsExpanded(enabled);
-  }, [enabled]);
+  }, [enabled, moduleId]);
 
   return (
     <Surface className="settings-card-enter w-full min-w-0 max-w-full overflow-hidden rounded-2xl border border-separator bg-surface p-4 shadow-surface ring-1 ring-inset ring-foreground/5 transition sm:p-5">
@@ -159,7 +193,13 @@ export function ModuleSettingsCard({
           { module: title },
         )}
         disabled={!enabled}
-        onClick={() => setIsExpanded((current) => !current)}
+        onClick={() =>
+          setIsExpanded((current) => {
+            const next = !current;
+            persistModuleCollapsed(moduleId, !next);
+            return next;
+          })
+        }
       >
         <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent/10 text-accent">
           <Icon name={icon} className="size-5" />
@@ -180,6 +220,7 @@ export function ModuleSettingsCard({
           description={enabledDescription}
           value={enabled}
           onChange={(nextEnabled) => {
+            persistModuleCollapsed(moduleId, false);
             setIsExpanded(nextEnabled);
             onEnabledChange(nextEnabled);
           }}

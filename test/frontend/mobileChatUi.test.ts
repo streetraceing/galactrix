@@ -26,7 +26,7 @@ const mobileBackPath = new URL(
 test('mobile continuation is available only from the context menu', async () => {
   const source = await readFile(messageListPath, 'utf8');
   const compactNavigator = source.match(
-    /if \(compact\) \{[\s\S]*?\n  \}\n\n  return \(/,
+    /if \(compact\) \{[\s\S]*?\r?\n  \}\r?\n\r?\n  return \(/,
   )?.[0];
 
   assert.ok(compactNavigator, 'compact mobile navigator must exist');

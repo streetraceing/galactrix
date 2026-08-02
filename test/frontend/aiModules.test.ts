@@ -68,7 +68,10 @@ test('settings separate parameters and animated searchable modules', async () =>
     /<Tabs\.Panel id="parameters"[\s\S]*<ProfilePreferences/,
   );
   assert.match(settings, /<Tabs\.Panel id="modules"[\s\S]*<AiModulesSettings/);
-  assert.match(moduleCard, /useState\(enabled\)/);
+  assert.match(moduleCard, /readModuleExpanded\(moduleId, enabled\)/);
+  assert.match(moduleCard, /galactrix\.aiModuleCollapsed\./);
+  assert.match(moduleCard, /localStorage\.setItem\(key, 'true'\)/);
+  assert.match(moduleCard, /persistModuleCollapsed\(moduleId, false\)/);
   assert.match(moduleCard, /const detailsVisible = enabled && isExpanded/);
   assert.match(moduleCard, /setIsExpanded\(nextEnabled\)/);
   assert.match(moduleCard, /aria-hidden=\{!detailsVisible\}/);
@@ -208,42 +211,57 @@ test('a custom embedding URL is treated as the complete endpoint', async () => {
 });
 
 test('providers accept multiple protected API keys with temporary rate-limit rotation', async () => {
-  const [credentials, editor, telescope, client, storage, ruTelescopeRaw] =
-    await Promise.all([
-      readFile(
-        new URL(
-          '../../src/features/telescope/components/ProviderCredentials.tsx',
-          import.meta.url,
-        ),
-        'utf8',
+  const [
+    credentials,
+    editor,
+    telescope,
+    transfer,
+    backend,
+    models,
+    client,
+    storage,
+    ruTelescopeRaw,
+  ] = await Promise.all([
+    readFile(
+      new URL(
+        '../../src/features/telescope/components/ProviderCredentials.tsx',
+        import.meta.url,
       ),
-      readFile(
-        new URL(
-          '../../src/features/telescope/useProviderEditor.ts',
-          import.meta.url,
-        ),
-        'utf8',
+      'utf8',
+    ),
+    readFile(
+      new URL(
+        '../../src/features/telescope/useProviderEditor.ts',
+        import.meta.url,
       ),
-      readFile(
-        new URL(
-          '../../src/features/telescope/TelescopeScreen.tsx',
-          import.meta.url,
-        ),
-        'utf8',
+      'utf8',
+    ),
+    readFile(
+      new URL(
+        '../../src/features/telescope/TelescopeScreen.tsx',
+        import.meta.url,
       ),
-      readFile(
-        new URL('../../src-tauri/src/provider_client.rs', import.meta.url),
-        'utf8',
-      ),
-      readFile(
-        new URL('../../src-tauri/src/secure_storage.rs', import.meta.url),
-        'utf8',
-      ),
-      readFile(
-        new URL('../../src/i18n/locales/ru/telescope.json', import.meta.url),
-        'utf8',
-      ),
-    ]);
+      'utf8',
+    ),
+    readFile(
+      new URL('../../src/features/telescope/transfer.ts', import.meta.url),
+      'utf8',
+    ),
+    readFile(new URL('../../src/lib/backend.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../../src-tauri/src/models.rs', import.meta.url), 'utf8'),
+    readFile(
+      new URL('../../src-tauri/src/provider_client.rs', import.meta.url),
+      'utf8',
+    ),
+    readFile(
+      new URL('../../src-tauri/src/secure_storage.rs', import.meta.url),
+      'utf8',
+    ),
+    readFile(
+      new URL('../../src/i18n/locales/ru/telescope.json', import.meta.url),
+      'utf8',
+    ),
+  ]);
   const ruTelescope = JSON.parse(ruTelescopeRaw) as Record<string, string>;
 
   assert.match(credentials, /type="password"/);
@@ -251,11 +269,19 @@ test('providers accept multiple protected API keys with temporary rate-limit rot
   assert.match(editor, /setToken\(await onReadSecrets\(provider\.id\)\)/);
   assert.match(editor, /loadingCredentials/);
   assert.match(telescope, /onExportSecrets\(\[providerId\]\)/);
+  assert.match(telescope, /\.join\('\\n'\)/);
+  assert.match(transfer, /apiKeys: secrets\[provider\.id\]/);
+  assert.match(transfer, /normalizeApiKeys\(entry\.apiKeys, entry\.apiKey\)/);
+  assert.match(backend, /Record<string, string\[\]>/);
+  assert.match(models, /pub api_keys: Option<Vec<String>>/);
+  assert.match(models, /normalized_secret/);
   assert.match(client, /parse_api_keys/);
   assert.match(client, /x-ratelimit-remaining-requests/);
   assert.match(client, /x-ratelimit-reset-requests/);
   assert.match(client, /block_api_key/);
   assert.match(client, /first_available_key/);
+  assert.match(client, /tokio::time::sleep\(wait\)\.await/);
+  assert.doesNotMatch(client, /wait <= Duration::from_millis\(max_delay\)/);
   assert.match(storage, /normalize_provider_secrets/);
   assert.equal(ruTelescope['providerCredentials.apiKeys'], 'API-ключи');
 });

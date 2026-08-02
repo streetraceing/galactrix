@@ -364,13 +364,8 @@ where
         } else {
             let (index, wait) = earliest_key_release(pool_id, &keys)
                 .unwrap_or((0, Duration::ZERO));
-            if settings.enabled
-                && retry_round + 1 < attempts
-                && wait > Duration::ZERO
-                && wait <= Duration::from_millis(max_delay)
-            {
+            if settings.enabled && retry_round + 1 < attempts && wait > Duration::ZERO {
                 tokio::time::sleep(wait).await;
-                retry_round += 1;
                 tried_keys.clear();
                 continue;
             }
@@ -408,12 +403,10 @@ where
                             .unwrap_or_else(|| {
                                 exponential_delay(initial_delay, max_delay, retry_round + 1)
                             });
-                        if delay <= Duration::from_millis(max_delay) {
-                            tokio::time::sleep(delay).await;
-                            retry_round += 1;
-                            tried_keys.clear();
-                            continue;
-                        }
+                        tokio::time::sleep(delay).await;
+                        retry_round += 1;
+                        tried_keys.clear();
+                        continue;
                     }
                     return Ok(response);
                 }

@@ -28,6 +28,7 @@ function ChatComposerComponent({
   wide,
   onSend,
   onCancel,
+  onHeightChange,
 }: {
   chatId: string;
   provider?: Provider;
@@ -39,9 +40,11 @@ function ChatComposerComponent({
   wide: boolean;
   onSend: (value: string) => Promise<void>;
   onCancel: () => Promise<void>;
+  onHeightChange?: (delta: number) => void;
 }) {
   const { t } = useTranslation('chats');
   const [draft, setDraft] = useState(() => readDraft(chatId, saveDrafts));
+  const rootRef = useRef<HTMLDivElement>(null);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
   const draftRef = useRef(draft);
   const submittingRef = useRef(false);
@@ -74,6 +77,22 @@ function ChatComposerComponent({
     },
     [chatId, saveDrafts],
   );
+
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root || typeof ResizeObserver === 'undefined') return;
+
+    let previousHeight = root.getBoundingClientRect().height;
+    const observer = new ResizeObserver(([entry]) => {
+      const nextHeight =
+        entry?.contentRect.height ?? root.getBoundingClientRect().height;
+      const delta = nextHeight - previousHeight;
+      previousHeight = nextHeight;
+      if (Math.abs(delta) > 0.5) onHeightChange?.(delta);
+    });
+    observer.observe(root);
+    return () => observer.disconnect();
+  }, [onHeightChange]);
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
@@ -177,7 +196,10 @@ function ChatComposerComponent({
   };
 
   return (
-    <div className="shrink-0 border-t border-separator bg-background px-3 py-2 sm:px-5 sm:py-4">
+    <div
+      ref={rootRef}
+      className="shrink-0 border-t border-separator bg-background px-3 py-2 sm:px-5 sm:py-4"
+    >
       <div className={`mx-auto w-full ${wide ? 'max-w-5xl' : 'max-w-3xl'}`}>
         <Surface className="rounded-2xl p-2 transition-shadow">
           <div className="grid grid-cols-[minmax(0,1fr)_3rem] items-end gap-2">

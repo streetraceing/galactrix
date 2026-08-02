@@ -1144,6 +1144,10 @@ function MessageListComponent({
   const lastMessage = messages[messages.length - 1];
   const hasPendingAssistant =
     lastMessage?.role === 'assistant' && lastMessage.pending === true;
+  const showStandaloneTypingBubble =
+    sending &&
+    !hasPendingAssistant &&
+    (!messageGeneration || messageGeneration.mode === 'continue');
   const estimatedMessageHeights = useMemo(() => {
     if (!virtualizationEnabled) return [];
     return messages.map((message) => {
@@ -2302,7 +2306,7 @@ function MessageListComponent({
         <div
           ref={scrollRef}
           data-chat-id={chatId}
-          className={`chat-message-scroller scrollbar-thin flex min-h-0 w-full flex-1 flex-col overflow-y-scroll px-3 sm:px-5 ${
+          className={`chat-message-scroller scrollbar-thin flex min-h-0 w-full flex-1 flex-col overflow-y-scroll pt-5 pb-2 px-3 sm:px-5 ${
             selectedMessageIds.size > 0 ? 'select-none' : ''
           }`}
           onScroll={handleMessageScroll}
@@ -2323,9 +2327,10 @@ function MessageListComponent({
           <div
             key={chatId}
             ref={messageCanvasRef}
+            aria-busy={sending}
             className={`chat-message-canvas mx-auto mt-auto flex w-full flex-col ${
               wide ? 'max-w-5xl' : 'max-w-3xl'
-            }`}
+            } ${sending ? 'pointer-events-none select-none' : ''}`}
           >
             <div
               className={
@@ -2353,7 +2358,7 @@ function MessageListComponent({
                     : undefined
                 }
               >
-                {visibleMessages.map((message) => {
+                {visibleMessages.map((message, visibleIndex) => {
                   const isUser = message.role === 'user';
                   const isSelected = selectedMessageIds.has(message.id);
                   const displayName = isUser
@@ -2379,6 +2384,9 @@ function MessageListComponent({
                     message.role === 'assistant' && message.pending === true;
                   const showsTypingBubble =
                     isRegenerating || isPendingAssistant;
+                  const isLastVisualMessage =
+                    visibleStart + visibleIndex === messages.length - 1 &&
+                    !showStandaloneTypingBubble;
 
                   const content = (
                     <div
@@ -2539,7 +2547,9 @@ function MessageListComponent({
                       key={message.id}
                       ref={virtualMessageRefFor(message.id)}
                       data-virtual-message-id={message.id}
-                      className="chat-message-virtual-slot shrink-0 pb-3 sm:pb-4"
+                      className={`chat-message-virtual-slot shrink-0 ${
+                        isLastVisualMessage ? 'pb-0' : 'pb-3 sm:pb-4'
+                      }`}
                     >
                       {isMobile ? (
                         <SwipeableMessage
@@ -2560,9 +2570,7 @@ function MessageListComponent({
               </div>
             </div>
 
-            {sending &&
-            !hasPendingAssistant &&
-            (!messageGeneration || messageGeneration.mode === 'continue') ? (
+            {showStandaloneTypingBubble ? (
               <article className="message-enter mb-3 flex items-start gap-2.5 sm:mb-4 sm:gap-3">
                 {showAvatars ? (
                   <AppAvatar

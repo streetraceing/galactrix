@@ -29,7 +29,7 @@ export type TelescopeExport = {
 
 export function createTelescopeExport(
   providers: Provider[],
-  secrets: Record<string, string>,
+  secrets: Record<string, string[]>,
 ): TelescopeExport {
   return {
     format: 'galactrix.telescope',
@@ -38,7 +38,7 @@ export function createTelescopeExport(
     includesSecrets: Object.keys(secrets).length > 0,
     providers: providers.map((provider) => ({
       provider: providerToInput(provider),
-      apiKey: secrets[provider.id],
+      apiKeys: secrets[provider.id],
     })),
   };
 }
@@ -83,9 +83,18 @@ export function parseTelescopeExport(value: unknown): TelescopeImportEntry[] {
         topP: finiteNumber(provider.topP, 0.95),
         maxTokens: Math.round(finiteNumber(provider.maxTokens, 4096)),
       },
-      apiKey: optionalString(entry.apiKey),
+      apiKeys: normalizeApiKeys(entry.apiKeys, entry.apiKey),
     };
   });
+}
+
+function normalizeApiKeys(value: unknown, legacyValue: unknown) {
+  const values = Array.isArray(value) ? value : [];
+  const keys = [...values, legacyValue]
+    .flatMap((item) => stringValue(item).split(/\r?\n/))
+    .map((item) => item.trim())
+    .filter(Boolean);
+  return [...new Set(keys)];
 }
 
 function objectValue(value: unknown): Record<string, unknown> {

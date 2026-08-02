@@ -257,6 +257,8 @@ export type ProviderInput = {
 
 export type ProviderImportInput = {
   provider: ProviderInput;
+  apiKeys?: string[];
+  /** Legacy Telescope v1 field accepted during import. */
   apiKey?: string;
 };
 
