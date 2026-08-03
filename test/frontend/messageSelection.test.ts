@@ -77,7 +77,7 @@ test('range selection can collapse at its origin and expand again', () => {
 test('message gestures preserve context menus while supporting click and drag selection', async () => {
   const source = await readFile(messageListPath, 'utf8');
 
-  assert.match(source, /TOUCH_MULTISELECT_HOLD_MS = 320/);
+  assert.doesNotMatch(source, /TOUCH_MULTISELECT_HOLD_MS/);
   assert.match(source, /event\.pointerType === 'mouse' && event\.button === 2/);
   assert.match(source, /toggleMessageSelection\(current, gesture\.startId\)/);
   assert.match(source, /shouldStartMessageRangeSelection\(/);
@@ -90,8 +90,11 @@ test('message gestures preserve context menus while supporting click and drag se
     source,
     /armed: isSecondaryMouse \|\| selectedMessageIds\.size > 0/,
   );
-  assert.match(source, /activatedByHold/);
-  assert.match(source, /isTouch && selectedMessageIds\.size === 0/);
+  assert.doesNotMatch(source, /activatedByHold/);
+  assert.match(
+    source,
+    /if \(isTouch && selectedMessageIds\.size === 0\) return/,
+  );
   assert.match(source, /onContextMenuCapture=/);
   assert.match(source, /selectionGestureRef\.current\?\.active/);
   assert.match(source, /event\.key !== 'Escape'/);

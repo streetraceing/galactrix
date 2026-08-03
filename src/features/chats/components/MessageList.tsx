@@ -80,7 +80,6 @@ type VariantDirection = 'next' | 'previous';
 const MESSAGE_SELECTION_DRAG_THRESHOLD = 6;
 const MESSAGE_SELECTION_RETURN_THRESHOLD = 28;
 const TOUCH_SELECTION_MOVE_THRESHOLD = 10;
-const TOUCH_MULTISELECT_HOLD_MS = 320;
 const SCROLL_TO_BOTTOM_RELEASE_MS = 1_400;
 const CHAT_LAYOUT_BOTTOM_LOCK_MS = 420;
 
@@ -94,9 +93,7 @@ type MessageSelectionGesture = {
   startY: number;
   active: boolean;
   armed: boolean;
-  activatedByHold: boolean;
   expandedBeyondOrigin: boolean;
-  holdTimer: number | null;
   baseSelection: Set<string>;
 };
 
@@ -147,6 +144,10 @@ function MessageMenu({
     void action().catch((error) => onError(errorMessage(error)));
   };
   const isAssistant = message.role === 'assistant';
+
+  if (isMobile && !viewActive) {
+    return <div className="block min-w-0">{children}</div>;
+  }
 
   return (
     <ContextMenu
@@ -1151,10 +1152,6 @@ function MessageListComponent({
       const gesture = selectionGestureRef.current;
       if (!gesture) return;
 
-      if (gesture.holdTimer != null) {
-        window.clearTimeout(gesture.holdTimer);
-      }
-
       const scroller = scrollRef.current;
       const capturedPointerId = pointerId ?? gesture.pointerId;
       if (scroller?.hasPointerCapture(capturedPointerId)) {
@@ -1176,10 +1173,6 @@ function MessageListComponent({
 
   useEffect(
     () => () => {
-      const gesture = selectionGestureRef.current;
-      if (gesture?.holdTimer != null) {
-        window.clearTimeout(gesture.holdTimer);
-      }
       if (scrollToBottomReleaseTimerRef.current != null) {
         window.clearTimeout(scrollToBottomReleaseTimerRef.current);
       }
@@ -1315,10 +1308,6 @@ function MessageListComponent({
       endId: string,
     ) => {
       gesture.active = true;
-      if (gesture.holdTimer != null) {
-        window.clearTimeout(gesture.holdTimer);
-        gesture.holdTimer = null;
-      }
       suppressContextMenuUntilRef.current = Number.POSITIVE_INFINITY;
       if (!event.currentTarget.hasPointerCapture(event.pointerId)) {
         event.currentTarget.setPointerCapture(event.pointerId);
@@ -1343,6 +1332,12 @@ function MessageListComponent({
         event.pointerType === 'mouse' && event.button === 2;
       if (!isTouch && !isPrimaryMouse && !isSecondaryMouse) return;
 
+      // A touch hold belongs to the message context menu. Starting the range
+      // selection gesture here used to race with that menu and highlighted the
+      // message instead. Once selection mode is already active, touch remains
+      // available for extending or toggling the selection.
+      if (isTouch && selectedMessageIds.size === 0) return;
+
       if (isPrimaryMouse && selectedMessageIds.size > 0) {
         event.preventDefault();
       }
@@ -1358,32 +1353,13 @@ function MessageListComponent({
         startY: event.clientY,
         active: false,
         armed: isSecondaryMouse || selectedMessageIds.size > 0,
-        activatedByHold: false,
         expandedBeyondOrigin: false,
-        holdTimer: null,
         baseSelection: new Set(selectedMessageIds),
       };
 
-      if (isTouch && selectedMessageIds.size === 0) {
-        gesture.holdTimer = window.setTimeout(() => {
-          if (selectionGestureRef.current !== gesture) return;
-          gesture.armed = true;
-          gesture.activatedByHold = true;
-          gesture.active = true;
-          gesture.holdTimer = null;
-          suppressContextMenuUntilRef.current = Number.POSITIVE_INFINITY;
-          const scroller = scrollRef.current;
-          if (scroller && !scroller.hasPointerCapture(gesture.pointerId)) {
-            scroller.setPointerCapture(gesture.pointerId);
-          }
-          window.getSelection()?.removeAllRanges();
-          updateDragSelection(gesture, gesture.startId);
-        }, TOUCH_MULTISELECT_HOLD_MS);
-      }
-
       selectionGestureRef.current = gesture;
     },
-    [clearSelectionGesture, scrollRef, selectedMessageIds, updateDragSelection],
+    [clearSelectionGesture, selectedMessageIds],
   );
 
   const handleSelectionPointerMove = useCallback(
@@ -1462,8 +1438,6 @@ function MessageListComponent({
       const dy = event.clientY - gesture.startY;
       const distance = Math.hypot(dx, dy);
       const wasActive = gesture.active;
-      const wasTouchHold =
-        gesture.pointerType === 'touch' && gesture.activatedByHold;
       const pressThreshold =
         gesture.pointerType === 'touch'
           ? TOUCH_SELECTION_MOVE_THRESHOLD
@@ -1471,7 +1445,7 @@ function MessageListComponent({
       const isShortSelectionPress =
         distance <= pressThreshold &&
         ((gesture.pointerType === 'mouse' && gesture.button === 0) ||
-          (gesture.pointerType === 'touch' && !wasTouchHold));
+          gesture.pointerType === 'touch');
 
       if (wasActive) {
         suppressContextMenuUntilRef.current = Date.now() + 800;

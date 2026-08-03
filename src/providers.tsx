@@ -19,9 +19,9 @@ export function Providers({ children }: { children: ReactNode }) {
         {children}
         <Toast.Provider
           placement="top end"
-          width="min(26rem, calc(100vw - 1rem))"
+          width="min(26rem, calc(100dvw - 1rem - env(safe-area-inset-left) - env(safe-area-inset-right)))"
           maxVisibleToasts={3}
-          className="top-[max(0.5rem,env(safe-area-inset-top))]"
+          className="app-toast-region"
         >
           {({ toast: toastItem }) => (
             <SwipeDismissToast toastItem={toastItem} />

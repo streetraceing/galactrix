@@ -92,6 +92,14 @@ test('mobile message menus cannot select text and close with the chat canvas', a
     messageSource,
     /if \(isMobile && !viewActive\) setOpen\(false\)/,
   );
+  assert.match(
+    messageSource,
+    /if \(isMobile && !viewActive\) \{[\s\S]*?return <div className="block min-w-0">\{children\}<\/div>/,
+  );
+  assert.match(
+    messageSource,
+    /if \(isTouch && selectedMessageIds\.size === 0\) return/,
+  );
   assert.match(messageSource, /mobile-message-context-target/);
   assert.match(cssSource, /\.mobile-message-context-target \*/);
   assert.match(cssSource, /-webkit-touch-callout: none !important/);

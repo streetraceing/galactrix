@@ -1,9 +1,17 @@
-import { Spinner, Toast, toast, type ToastContentValue } from '@heroui/react';
-import { useEffect, useRef } from 'react';
-import type { PointerEvent as ReactPointerEvent } from 'react';
+import {
+  Button,
+  Spinner,
+  Toast,
+  toast,
+  type ToastContentValue,
+} from '@heroui/react';
+import { isValidElement, useEffect, useMemo, useRef, useState } from 'react';
+import type { PointerEvent as ReactPointerEvent, ReactNode } from 'react';
 import type { QueuedToast } from 'react-aria-components/Toast';
+import { useTranslation } from 'react-i18next';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { isMobilePlatform } from '../../lib/platform';
+import { Icon } from '../Icon';
 import { shouldDismissToastSwipe, toastSwipeOpacity } from './toastSwipe';
 
 const SWIPE_AXIS_THRESHOLD = 7;
@@ -16,6 +24,39 @@ type ToastSwipeGesture = {
   axis?: 'horizontal' | 'vertical';
 };
 
+type CopyState = 'idle' | 'copied' | 'failed';
+
+export function readableToastText(value: ReactNode): string {
+  if (typeof value === 'string' || typeof value === 'number') {
+    return String(value);
+  }
+  if (Array.isArray(value)) {
+    return value.map(readableToastText).filter(Boolean).join(' ');
+  }
+  if (isValidElement<{ children?: ReactNode }>(value)) {
+    return readableToastText(value.props.children);
+  }
+  return '';
+}
+
+async function writeClipboardText(value: string) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(value);
+    return;
+  }
+
+  const textarea = document.createElement('textarea');
+  textarea.value = value;
+  textarea.setAttribute('readonly', '');
+  textarea.style.position = 'fixed';
+  textarea.style.opacity = '0';
+  document.body.appendChild(textarea);
+  textarea.select();
+  const copied = document.execCommand('copy');
+  textarea.remove();
+  if (!copied) throw new Error('Clipboard is unavailable');
+}
+
 function resetToastPosition(element: HTMLElement) {
   element.style.transition = `transform ${SWIPE_EXIT_MS}ms var(--motion-ease), opacity ${SWIPE_EXIT_MS}ms linear`;
   element.style.transform = 'translateX(0)';
@@ -27,21 +68,64 @@ export function SwipeDismissToast({
 }: {
   toastItem: QueuedToast<ToastContentValue>;
 }) {
+  const { t } = useTranslation('common');
   const isMobile = isMobilePlatform();
   const compactLayout = useMediaQuery('(max-width: 768px)');
   const gestureRef = useRef<ToastSwipeGesture | null>(null);
   const closeTimerRef = useRef<number | null>(null);
+  const copyStateTimerRef = useRef<number | null>(null);
+  const [expanded, setExpanded] = useState(false);
+  const [copyState, setCopyState] = useState<CopyState>('idle');
   const content = toastItem.content;
+  const isDanger = content.variant === 'danger';
+  const copyText = useMemo(
+    () =>
+      [readableToastText(content.title), readableToastText(content.description)]
+        .filter(Boolean)
+        .join('\n\n'),
+    [content.description, content.title],
+  );
+
+  useEffect(() => {
+    setExpanded(false);
+    setCopyState('idle');
+  }, [toastItem.key]);
+
+  useEffect(() => {
+    if (!expanded) return;
+    toast.pauseAll();
+    return () => toast.resumeAll();
+  }, [expanded]);
 
   useEffect(
     () => () => {
       if (closeTimerRef.current != null) {
         window.clearTimeout(closeTimerRef.current);
       }
+      if (copyStateTimerRef.current != null) {
+        window.clearTimeout(copyStateTimerRef.current);
+      }
       if (gestureRef.current) toast.resumeAll();
     },
     [],
   );
+
+  const copyError = async () => {
+    if (!copyText) return;
+    if (copyStateTimerRef.current != null) {
+      window.clearTimeout(copyStateTimerRef.current);
+    }
+    try {
+      await writeClipboardText(copyText);
+      setCopyState('copied');
+    } catch {
+      setCopyState('failed');
+    }
+    copyStateTimerRef.current = window.setTimeout(
+      () => setCopyState('idle'),
+      1_800,
+    );
+  };
 
   const finishGesture = (
     event: ReactPointerEvent<HTMLElement>,
@@ -83,7 +167,9 @@ export function SwipeDismissToast({
     <Toast
       toast={toastItem}
       variant={content.variant}
-      className={isMobile ? 'touch-pan-y' : undefined}
+      className={`app-toast min-w-0 max-w-full ${
+        isDanger ? 'app-toast-danger' : ''
+      } ${isMobile ? 'touch-pan-y' : ''}`}
       onPointerDown={(event) => {
         if (
           !isMobile ||
@@ -140,10 +226,51 @@ export function SwipeDismissToast({
           {content.indicator}
         </Toast.Indicator>
       )}
-      <Toast.Content>
-        {content.title ? <Toast.Title>{content.title}</Toast.Title> : null}
+      <Toast.Content className="min-w-0 overflow-hidden">
+        {content.title ? (
+          <Toast.Title className="max-w-full wrap-anywhere">
+            {content.title}
+          </Toast.Title>
+        ) : null}
         {content.description ? (
-          <Toast.Description>{content.description}</Toast.Description>
+          <Toast.Description
+            className={`max-w-full whitespace-pre-wrap wrap-anywhere ${
+              isDanger && expanded
+                ? 'app-toast-description-expanded'
+                : isDanger
+                  ? 'line-clamp-2'
+                  : 'line-clamp-3'
+            }`}
+          >
+            {content.description}
+          </Toast.Description>
+        ) : null}
+        {isDanger && copyText ? (
+          <div className="mt-2 flex max-w-full flex-wrap items-center gap-1">
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 min-w-0 px-2 text-xs"
+              onPress={() => void copyError()}
+            >
+              <Icon name="copy" className="size-3.5 shrink-0" />
+              {copyState === 'copied'
+                ? t('toast.copied')
+                : copyState === 'failed'
+                  ? t('toast.copyFailed')
+                  : t('toast.copy')}
+            </Button>
+            {content.description ? (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 min-w-0 px-2 text-xs"
+                onPress={() => setExpanded((current) => !current)}
+              >
+                {expanded ? t('toast.hideDetails') : t('toast.showDetails')}
+              </Button>
+            ) : null}
+          </div>
         ) : null}
         {compactLayout && content.actionProps?.children ? (
           <Toast.ActionButton {...content.actionProps} />

@@ -1374,6 +1374,35 @@
       var(--motion-ease-exit) reverse both;
   }
 
+  .app-toast-region {
+    top: max(0.5rem, env(safe-area-inset-top)) !important;
+    right: max(0.5rem, env(safe-area-inset-right)) !important;
+    width: min(
+      26rem,
+      calc(
+        100dvw - 1rem - env(safe-area-inset-left) - env(safe-area-inset-right)
+      )
+    ) !important;
+    max-width: calc(
+      100dvw - 1rem - env(safe-area-inset-left) - env(safe-area-inset-right)
+    );
+  }
+
+  .app-toast {
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  .app-toast-danger {
+    max-height: min(70dvh, 28rem);
+  }
+
+  .app-toast-description-expanded {
+    max-height: min(42dvh, 16rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
   .tabs__indicator,
   .accordion__panel,
   .accordion__indicator,
