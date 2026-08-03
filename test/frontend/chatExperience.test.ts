@@ -14,6 +14,10 @@ const composerPath = new URL(
   '../../src/features/chats/components/ChatComposer.tsx',
   import.meta.url,
 );
+const routerPath = new URL(
+  '../../src/app/AppScreenRouter.tsx',
+  import.meta.url,
+);
 const controllerPath = new URL(
   '../../src/app/useAppController.ts',
   import.meta.url,
@@ -119,6 +123,40 @@ test('printable keys focus the open chat composer without stealing shortcuts', a
     source,
     /window\.addEventListener\('keydown', focusComposerForTyping, true\)/,
   );
+});
+
+test('composer focus after send is configurable and independent from mobile opening autofocus', async () => {
+  const [composer, screen, router] = await Promise.all([
+    readFile(composerPath, 'utf8'),
+    readFile(chatsScreenPath, 'utf8'),
+    readFile(routerPath, 'utf8'),
+  ]);
+
+  assert.match(
+    router,
+    /focusComposerAfterSend=\{snapshot\.settings\.focusComposerAfterSend\}/,
+  );
+  assert.match(screen, /focusAfterSend=\{focusComposerAfterSend\}/);
+  assert.match(composer, /pendingFocusAfterSendRef/);
+  assert.match(composer, /pendingFocusAfterSendRef\.current = focusAfterSend/);
+  assert.match(
+    composer,
+    /if \(sending \|\| !pendingFocusAfterSendRef\.current/,
+  );
+  assert.match(
+    composer,
+    /if \(focusComposer\(\)\) pendingFocusAfterSendRef\.current = false/,
+  );
+});
+
+test('only newly appended message containers receive an entrance animation', async () => {
+  const source = await readFile(messageListPath, 'utf8');
+
+  assert.match(source, /seenMessageIdsRef/);
+  assert.match(source, /messageEntryTimersRef/);
+  assert.match(source, /!previous\.ids\.has\(messageId\)/);
+  assert.match(source, /enteringMessageIds\.has\(message\.id\)/);
+  assert.match(source, /MESSAGE_ENTRY_ANIMATION_MS/);
 });
 
 test('new chats can start with an assistant greeting', async () => {

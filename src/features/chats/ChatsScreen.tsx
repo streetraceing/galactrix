@@ -57,6 +57,7 @@ export function ChatsScreen({
   onSend,
   onCancelGeneration,
   sendOnEnter,
+  focusComposerAfterSend,
   saveDrafts,
   chatViewMode,
   showMessageAvatars,
@@ -74,6 +75,9 @@ export function ChatsScreen({
   );
   const [working, setWorking] = useState(false);
   const [scrollToBottomRequest, setScrollToBottomRequest] = useState(0);
+  const [messageSelectionActive, setMessageSelectionActive] = useState(false);
+  const [clearMessageSelectionRequest, setClearMessageSelectionRequest] =
+    useState(0);
   const [renameTarget, setRenameTarget] = useState<Chat | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const [configTarget, setConfigTarget] = useState<Chat | 'new' | null>(null);
@@ -246,6 +250,14 @@ export function ChatsScreen({
 
   const openNewChat = useCallback(() => setConfigTarget('new'), []);
 
+  const handleConversationBack = useCallback(() => {
+    if (messageSelectionActive) {
+      setClearMessageSelectionRequest((current) => current + 1);
+      return;
+    }
+    onCloseChat();
+  }, [messageSelectionActive, onCloseChat]);
+
   const saveConfig = async (input: ChatConfigInput) => {
     if (!configTarget || working) return;
     setWorking(true);
@@ -347,7 +359,7 @@ export function ChatsScreen({
               galaxyItems={galaxyItems}
               showBack={isSinglePane}
               maximized={chatMaximized}
-              onBack={onCloseChat}
+              onBack={handleConversationBack}
               onToggleMaximized={toggleChatMaximized}
               onAction={handleAction}
             />
@@ -373,6 +385,8 @@ export function ChatsScreen({
                     wide={chatMaximized}
                     scrollRef={messageScrollRef}
                     scrollToBottomRequest={scrollToBottomRequest}
+                    clearSelectionRequest={clearMessageSelectionRequest}
+                    onSelectionActiveChange={setMessageSelectionActive}
                     onBranch={onBranchMessage}
                     onEdit={onEditMessage}
                     onDelete={onDeleteMessage}
@@ -393,6 +407,7 @@ export function ChatsScreen({
                   provider={canvasProvider}
                   sending={sending && canvasChat.id === activeChat.id}
                   sendOnEnter={sendOnEnter}
+                  focusAfterSend={focusComposerAfterSend}
                   saveDrafts={saveDrafts}
                   shouldAutoFocus={shouldAutoFocusComposer}
                   focusKey={`${canvasChat.id}:${isChatOpen}`}

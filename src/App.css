@@ -1292,6 +1292,8 @@
 
 @layer components {
   .message-enter {
+    @apply backface-hidden;
+    will-change: transform, opacity;
     animation: galactrix-message-enter var(--motion-standard) var(--motion-ease)
       both;
   }
@@ -1390,7 +1392,11 @@
 
   .app-toast {
     max-width: 100%;
-    overflow: hidden;
+  }
+
+  .app-toast-close-button {
+    top: 0.375rem !important;
+    right: 0.375rem !important;
   }
 
   .app-toast-danger {

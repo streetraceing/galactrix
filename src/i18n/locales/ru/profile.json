@@ -47,6 +47,8 @@
   "profilePreferences.aSeparateDraftForEachChat": "Отдельный черновик для каждого чата",
   "profilePreferences.compactMode": "Компактный режим",
   "profilePreferences.enterSendsMessage": "Enter отправляет сообщение",
+  "profilePreferences.focusComposerAfterSend": "Автофокус после отправки",
+  "profilePreferences.focusComposerAfterSendDescription": "Возвращать фокус в строку ввода после отправки; на телефоне это снова открывает клавиатуру",
   "profilePreferences.hapticFeedback": "Виброотклик",
   "profilePreferences.interface": "Интерфейс",
   "profilePreferences.lessSpacingAndMoreInformationOnScreen": "Меньше отступов и больше информации на экране",

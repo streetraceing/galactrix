@@ -45,9 +45,12 @@ test('danger toasts keep long errors bounded, expandable, and copyable', async (
   assert.match(component, /writeClipboardText\(copyText\)/);
   assert.match(component, /toast\.showDetails/);
   assert.match(component, /toast\.hideDetails/);
+  assert.match(component, /className="app-toast-close-button"/);
   assert.match(providers, /100dvw/);
   assert.match(providers, /app-toast-region/);
   assert.match(css, /env\(safe-area-inset-left\)/);
   assert.match(css, /\.app-toast-danger/);
   assert.match(css, /max-height: min\(70dvh, 28rem\)/);
+  assert.match(css, /\.app-toast-close-button/);
+  assert.match(css, /right: 0\.375rem !important/);
 });

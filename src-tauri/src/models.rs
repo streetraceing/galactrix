@@ -475,6 +475,8 @@ pub struct AppSettings {
     pub haptics: bool,
     pub compact_mode: bool,
     pub send_on_enter: bool,
+    #[serde(default = "default_true")]
+    pub focus_composer_after_send: bool,
     pub save_drafts: bool,
     pub chat_view_mode: String,
     pub show_message_avatars: bool,
@@ -500,6 +502,7 @@ impl Default for AppSettings {
             haptics: true,
             compact_mode: false,
             send_on_enter: true,
+            focus_composer_after_send: true,
             save_drafts: true,
             chat_view_mode: "conversation".into(),
             show_message_avatars: true,

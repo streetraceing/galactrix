@@ -9,6 +9,7 @@ export function createDefaultSettings(): AppSettings {
     haptics: true,
     compactMode: false,
     sendOnEnter: true,
+    focusComposerAfterSend: true,
     saveDrafts: true,
     chatViewMode: 'conversation',
     showMessageAvatars: true,

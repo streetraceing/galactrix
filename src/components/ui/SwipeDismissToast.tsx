@@ -226,7 +226,7 @@ export function SwipeDismissToast({
           {content.indicator}
         </Toast.Indicator>
       )}
-      <Toast.Content className="min-w-0 overflow-hidden">
+      <Toast.Content className="min-w-0 overflow-hidden pr-4">
         {content.title ? (
           <Toast.Title className="max-w-full wrap-anywhere">
             {content.title}
@@ -279,7 +279,7 @@ export function SwipeDismissToast({
       {!compactLayout && content.actionProps?.children ? (
         <Toast.ActionButton {...content.actionProps} />
       ) : null}
-      <Toast.CloseButton />
+      <Toast.CloseButton className="app-toast-close-button" />
     </Toast>
   );
 }

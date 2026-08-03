@@ -83,6 +83,7 @@ test('application defaults are fresh and keep feature modules independent', () =
   assert.deepEqual(snapshot.chats, []);
   assert.deepEqual(snapshot.messages, []);
   assert.equal(snapshot.settings.themeVariant, 'default');
+  assert.equal(snapshot.settings.focusComposerAfterSend, true);
 });
 
 test('chat state transformations are deterministic and preserve stable objects', () => {

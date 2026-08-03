@@ -32,6 +32,7 @@ import { MarkdownContent } from '../../../components/ui/MarkdownContent';
 import { UiModal } from '../../../components/ui/UiModal';
 import { errorMessage } from '../../../lib/errors';
 import { isMobilePlatform } from '../../../lib/platform';
+import { useMobileBackEntry } from '../../../hooks/useMobileBackEntry';
 import type { Message, Provider } from '../../../types';
 import { MessageHistoryModal } from './MessageHistoryModal';
 import { MessageEditModal } from './MessageEditModal';
@@ -80,6 +81,7 @@ type VariantDirection = 'next' | 'previous';
 const MESSAGE_SELECTION_DRAG_THRESHOLD = 6;
 const MESSAGE_SELECTION_RETURN_THRESHOLD = 28;
 const TOUCH_SELECTION_MOVE_THRESHOLD = 10;
+const MESSAGE_ENTRY_ANIMATION_MS = 480;
 const SCROLL_TO_BOTTOM_RELEASE_MS = 1_400;
 const CHAT_LAYOUT_BOTTOM_LOCK_MS = 420;
 
@@ -600,6 +602,7 @@ function SwipeableMessage({
   onRegenerate,
   onError,
   isSelectionGesture,
+  selectionActive,
 }: {
   message: Message;
   children: ReactNode;
@@ -607,6 +610,7 @@ function SwipeableMessage({
   onRegenerate: (messageId: string) => Promise<void>;
   onError: (message: string) => void;
   isSelectionGesture: (pointerId: number) => boolean;
+  selectionActive: boolean;
 }) {
   const { t } = useTranslation('chats');
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -659,6 +663,7 @@ function SwipeableMessage({
       event.pointerType !== 'touch' ||
       message.role !== 'assistant' ||
       message.variants.length === 0 ||
+      selectionActive ||
       selectingVariant.current
     ) {
       return;
@@ -934,6 +939,8 @@ function MessageListComponent({
   wide,
   scrollRef,
   scrollToBottomRequest,
+  clearSelectionRequest,
+  onSelectionActiveChange,
   onBranch,
   onEdit,
   onDelete,
@@ -959,6 +966,8 @@ function MessageListComponent({
   wide: boolean;
   scrollRef: RefObject<HTMLDivElement | null>;
   scrollToBottomRequest: number;
+  clearSelectionRequest: number;
+  onSelectionActiveChange: (active: boolean) => void;
   onBranch: (messageId: string) => Promise<void>;
   onEdit: (messageId: string, content: string) => Promise<void>;
   onDelete: (messageId: string) => Promise<void>;
@@ -979,6 +988,9 @@ function MessageListComponent({
   const [selectedMessageIds, setSelectedMessageIds] = useState<Set<string>>(
     () => new Set(),
   );
+  const [enteringMessageIds, setEnteringMessageIds] = useState<Set<string>>(
+    () => new Set(),
+  );
   const [messageGeneration, setMessageGeneration] = useState<{
     messageId: string;
     mode: 'regenerate' | 'continue';
@@ -986,6 +998,12 @@ function MessageListComponent({
   const messageGenerationRef = useRef<string | null>(null);
   const variantSelectionRef = useRef<string | null>(null);
   const selectionGestureRef = useRef<MessageSelectionGesture | null>(null);
+  const previousClearSelectionRequestRef = useRef(clearSelectionRequest);
+  const seenMessageIdsRef = useRef<{
+    chatId: string;
+    ids: Set<string>;
+  } | null>(null);
+  const messageEntryTimersRef = useRef(new Map<string, number>());
   const suppressContextMenuUntilRef = useRef(0);
   const scrollingToBottomRef = useRef(false);
   const scrollToBottomReleaseTimerRef = useRef<number | null>(null);
@@ -1038,6 +1056,12 @@ function MessageListComponent({
     string | null
   >(null);
   const virtualLayoutKey = `${chatId}:${wide ? 'wide' : 'normal'}`;
+  if (!seenMessageIdsRef.current) {
+    seenMessageIdsRef.current = {
+      chatId,
+      ids: new Set(messages.map((message) => message.id)),
+    };
+  }
   const [virtualWindow, setVirtualWindow] = useState(() => ({
     layoutKey: virtualLayoutKey,
     start: Math.max(0, messages.length - 12),
@@ -1171,6 +1195,79 @@ function MessageListComponent({
     );
   }, [clearSelectionGesture]);
 
+  useMobileBackEntry(
+    isMobile && viewActive && selectedMessageIds.size > 0,
+    clearMessageSelection,
+  );
+
+  useEffect(() => {
+    onSelectionActiveChange(viewActive && selectedMessageIds.size > 0);
+  }, [onSelectionActiveChange, selectedMessageIds.size, viewActive]);
+
+  useEffect(
+    () => () => {
+      onSelectionActiveChange(false);
+    },
+    [onSelectionActiveChange],
+  );
+
+  useEffect(() => {
+    if (viewActive) return;
+    clearMessageSelection();
+  }, [clearMessageSelection, viewActive]);
+
+  useEffect(() => {
+    if (previousClearSelectionRequestRef.current === clearSelectionRequest) {
+      return;
+    }
+    previousClearSelectionRequestRef.current = clearSelectionRequest;
+    clearMessageSelection();
+  }, [clearMessageSelection, clearSelectionRequest]);
+
+  useLayoutEffect(() => {
+    const currentIds = new Set(messages.map((message) => message.id));
+    const previous = seenMessageIdsRef.current;
+
+    if (!previous || previous.chatId !== chatId) {
+      for (const timer of messageEntryTimersRef.current.values()) {
+        window.clearTimeout(timer);
+      }
+      messageEntryTimersRef.current.clear();
+      seenMessageIdsRef.current = { chatId, ids: currentIds };
+      setEnteringMessageIds((current) =>
+        current.size === 0 ? current : new Set(),
+      );
+      return;
+    }
+
+    const addedIds = messages
+      .map((message) => message.id)
+      .filter((messageId) => !previous.ids.has(messageId));
+    seenMessageIdsRef.current = { chatId, ids: currentIds };
+    if (addedIds.length === 0) return;
+
+    setEnteringMessageIds((current) => {
+      const next = new Set(current);
+      for (const messageId of addedIds) next.add(messageId);
+      return next;
+    });
+
+    for (const messageId of addedIds) {
+      const previousTimer = messageEntryTimersRef.current.get(messageId);
+      if (previousTimer != null) window.clearTimeout(previousTimer);
+      const timer = window.setTimeout(() => {
+        messageEntryTimersRef.current.delete(messageId);
+        setEnteringMessageIds((current) => {
+          if (!current.has(messageId)) return current;
+          const next = new Set(current);
+          next.delete(messageId);
+          return next;
+        });
+      }, MESSAGE_ENTRY_ANIMATION_MS);
+      messageEntryTimersRef.current.set(messageId, timer);
+    }
+  }, [chatId, messages]);
+
   useEffect(
     () => () => {
       if (scrollToBottomReleaseTimerRef.current != null) {
@@ -1188,12 +1285,17 @@ function MessageListComponent({
       if (measurementCommitTimerRef.current != null) {
         window.clearTimeout(measurementCommitTimerRef.current);
       }
+      for (const timer of messageEntryTimersRef.current.values()) {
+        window.clearTimeout(timer);
+      }
+      messageEntryTimersRef.current.clear();
     },
     [],
   );
 
   useEffect(() => {
     if (
+      isMobile ||
       selectedMessageIds.size === 0 ||
       editing ||
       deleting ||
@@ -1218,11 +1320,13 @@ function MessageListComponent({
     deletingSelection,
     editing,
     historyMessageId,
+    isMobile,
     selectedMessageIds.size,
   ]);
 
   useEffect(() => {
     if (
+      isMobile ||
       selectedMessageIds.size === 0 ||
       editing ||
       deleting ||
@@ -1256,6 +1360,7 @@ function MessageListComponent({
     deletingSelection,
     editing,
     historyMessageId,
+    isMobile,
     selectedMessageIds.size,
   ]);
 
@@ -1352,7 +1457,7 @@ function MessageListComponent({
         startX: event.clientX,
         startY: event.clientY,
         active: false,
-        armed: isSecondaryMouse || selectedMessageIds.size > 0,
+        armed: isSecondaryMouse || (!isTouch && selectedMessageIds.size > 0),
         expandedBeyondOrigin: false,
         baseSelection: new Set(selectedMessageIds),
       };
@@ -2437,8 +2542,10 @@ function MessageListComponent({
                       ref={virtualMessageRefFor(message.id)}
                       data-virtual-message-id={message.id}
                       className={`chat-message-virtual-slot shrink-0 ${
-                        isLastVisualMessage ? 'pb-0' : 'pb-3 sm:pb-4'
-                      }`}
+                        enteringMessageIds.has(message.id)
+                          ? 'message-enter'
+                          : ''
+                      } ${isLastVisualMessage ? 'pb-0' : 'pb-3 sm:pb-4'}`}
                     >
                       {isMobile ? (
                         <SwipeableMessage
@@ -2447,6 +2554,7 @@ function MessageListComponent({
                           onRegenerate={regenerate}
                           onError={reportError}
                           isSelectionGesture={isSelectionGesture}
+                          selectionActive={selectedMessageIds.size > 0}
                         >
                           {content}
                         </SwipeableMessage>

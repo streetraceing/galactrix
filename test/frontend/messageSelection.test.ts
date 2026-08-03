@@ -88,7 +88,7 @@ test('message gestures preserve context menus while supporting click and drag se
   assert.match(source, /window\.getSelection\(\)\?\.removeAllRanges\(\)/);
   assert.match(
     source,
-    /armed: isSecondaryMouse \|\| selectedMessageIds\.size > 0/,
+    /armed:\s*isSecondaryMouse \|\| \(!isTouch && selectedMessageIds\.size > 0\)/,
   );
   assert.doesNotMatch(source, /activatedByHold/);
   assert.match(

@@ -132,6 +132,7 @@ fn migrate(connection: &Connection) -> CommandResult<()> {
                 haptics INTEGER NOT NULL DEFAULT 1,
                 compact_mode INTEGER NOT NULL DEFAULT 0,
                 send_on_enter INTEGER NOT NULL DEFAULT 1,
+                focus_composer_after_send INTEGER NOT NULL DEFAULT 1,
                 save_drafts INTEGER NOT NULL DEFAULT 1,
                 chat_view_mode TEXT NOT NULL DEFAULT 'conversation',
                 show_message_avatars INTEGER NOT NULL DEFAULT 1,
@@ -287,6 +288,12 @@ fn migrate(connection: &Connection) -> CommandResult<()> {
     )?;
     ensure_column(connection, "providers", "embedding_model", "TEXT")?;
     ensure_column(connection, "providers", "embedding_base_url", "TEXT")?;
+    ensure_column(
+        connection,
+        "app_settings",
+        "focus_composer_after_send",
+        "INTEGER NOT NULL DEFAULT 1",
+    )?;
     ensure_column(
         connection,
         "app_settings",

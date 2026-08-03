@@ -103,6 +103,12 @@ export function ChatPreferences({
         onChange={(value) => onChange('sendOnEnter', value)}
       />
       <SettingSwitchRow
+        label={t('profilePreferences.focusComposerAfterSend')}
+        description={t('profilePreferences.focusComposerAfterSendDescription')}
+        value={settings.focusComposerAfterSend}
+        onChange={(value) => onChange('focusComposerAfterSend', value)}
+      />
+      <SettingSwitchRow
         label={t('profilePreferences.saveDrafts')}
         description={t('profilePreferences.aSeparateDraftForEachChat')}
         value={settings.saveDrafts}

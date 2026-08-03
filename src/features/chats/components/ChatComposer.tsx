@@ -1,5 +1,12 @@
 import { Surface, TextArea } from '@heroui/react';
-import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import type { ChangeEvent, KeyboardEvent } from 'react';
 import { Icon } from '../../../components/Icon';
 import { TooltipIconButton } from '../../../components/ui/TooltipIconButton';
@@ -27,6 +34,7 @@ function ChatComposerComponent({
   provider,
   sending,
   sendOnEnter,
+  focusAfterSend,
   saveDrafts,
   shouldAutoFocus,
   focusKey,
@@ -39,6 +47,7 @@ function ChatComposerComponent({
   provider?: Provider;
   sending: boolean;
   sendOnEnter: boolean;
+  focusAfterSend: boolean;
   saveDrafts: boolean;
   shouldAutoFocus: boolean;
   focusKey: string;
@@ -53,7 +62,16 @@ function ChatComposerComponent({
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
   const draftRef = useRef(draft);
   const submittingRef = useRef(false);
+  const pendingFocusAfterSendRef = useRef(false);
   const providerId = provider?.id;
+
+  const focusComposer = useCallback(() => {
+    const textArea = textAreaRef.current;
+    if (!textArea || textArea.disabled) return false;
+    textArea.focus({ preventScroll: true });
+    textArea.setSelectionRange(textArea.value.length, textArea.value.length);
+    return true;
+  }, []);
 
   useEffect(() => {
     draftRef.current = draft;
@@ -108,17 +126,27 @@ function ChatComposerComponent({
   }, [draft]);
 
   useEffect(() => {
-    if (!shouldAutoFocus || !providerId || sending) return;
+    if (!shouldAutoFocus || !providerId) return;
 
     const frame = window.requestAnimationFrame(() => {
-      const textArea = textAreaRef.current;
-      if (!textArea || textArea.disabled) return;
-      textArea.focus({ preventScroll: true });
-      textArea.setSelectionRange(textArea.value.length, textArea.value.length);
+      focusComposer();
     });
 
     return () => window.cancelAnimationFrame(frame);
-  }, [focusKey, providerId, sending, shouldAutoFocus]);
+  }, [focusComposer, focusKey, providerId, shouldAutoFocus]);
+
+  useEffect(() => {
+    if (!focusAfterSend) {
+      pendingFocusAfterSendRef.current = false;
+      return;
+    }
+    if (sending || !pendingFocusAfterSendRef.current || !providerId) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      if (focusComposer()) pendingFocusAfterSendRef.current = false;
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [focusAfterSend, focusComposer, providerId, sending]);
 
   useEffect(() => {
     if (!shouldAutoFocus || !providerId || sending) return;
@@ -185,6 +213,7 @@ function ChatComposerComponent({
     if (!value || !provider || sending || submittingRef.current) return;
 
     submittingRef.current = true;
+    pendingFocusAfterSendRef.current = focusAfterSend;
     setDraft('');
     try {
       await onSend(value);
@@ -195,6 +224,11 @@ function ChatComposerComponent({
       }
     } finally {
       submittingRef.current = false;
+      if (focusAfterSend) {
+        window.requestAnimationFrame(() => {
+          if (focusComposer()) pendingFocusAfterSendRef.current = false;
+        });
+      }
     }
   };
 

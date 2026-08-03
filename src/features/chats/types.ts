@@ -57,6 +57,7 @@ export type ChatsScreenProps = {
   onSend: (content: string) => Promise<void>;
   onCancelGeneration: () => Promise<void>;
   sendOnEnter: boolean;
+  focusComposerAfterSend: boolean;
   saveDrafts: boolean;
   chatViewMode: AppSettings['chatViewMode'];
   showMessageAvatars: boolean;

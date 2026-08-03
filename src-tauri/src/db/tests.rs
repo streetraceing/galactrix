@@ -313,6 +313,7 @@ fn ai_module_settings_round_trip_without_affecting_existing_preferences() {
     let connection = test_database();
     let mut settings = get_settings(&connection).expect("settings must load");
     settings.profile_name = "Tester".into();
+    settings.focus_composer_after_send = false;
     settings.ai_modules.retry.max_attempts = 5;
     settings.ai_modules.dynamic_context.enabled = true;
     settings.ai_modules.dynamic_context.mode = "local".into();
@@ -323,6 +324,7 @@ fn ai_module_settings_round_trip_without_affecting_existing_preferences() {
     let loaded = get_settings(&connection).expect("settings must reload");
 
     assert_eq!(loaded.profile_name, "Tester");
+    assert!(!loaded.focus_composer_after_send);
     assert_eq!(loaded.ai_modules.retry.max_attempts, 5);
     assert!(loaded.ai_modules.dynamic_context.enabled);
     assert_eq!(loaded.ai_modules.dynamic_context.mode, "local");

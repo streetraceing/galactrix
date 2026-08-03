@@ -6,6 +6,10 @@ const messageListPath = new URL(
   '../../src/features/chats/components/MessageList.tsx',
   import.meta.url,
 );
+const chatsScreenPath = new URL(
+  '../../src/features/chats/ChatsScreen.tsx',
+  import.meta.url,
+);
 const conversationHeaderPath = new URL(
   '../../src/features/chats/components/ConversationHeader.tsx',
   import.meta.url,
@@ -103,6 +107,36 @@ test('mobile message menus cannot select text and close with the chat canvas', a
   assert.match(messageSource, /mobile-message-context-target/);
   assert.match(cssSource, /\.mobile-message-context-target \*/);
   assert.match(cssSource, /-webkit-touch-callout: none !important/);
+});
+
+test('mobile message selection survives scrolling and consumes back before chat navigation', async () => {
+  const [messageSource, screenSource] = await Promise.all([
+    readFile(messageListPath, 'utf8'),
+    readFile(chatsScreenPath, 'utf8'),
+  ]);
+
+  assert.match(
+    messageSource,
+    /useMobileBackEntry\([\s\S]*?selectedMessageIds\.size > 0,[\s\S]*?clearMessageSelection/,
+  );
+  assert.match(
+    messageSource,
+    /useEffect\(\(\) => \{\s*if \(\s*isMobile \|\|[\s\S]*?const onPointerDown/,
+  );
+  assert.match(
+    messageSource,
+    /toggleMessageSelection\(current, gesture\.startId\)/,
+  );
+  assert.match(
+    messageSource,
+    /selectionActive=\{selectedMessageIds\.size > 0\}/,
+  );
+  assert.match(screenSource, /if \(messageSelectionActive\)/);
+  assert.match(
+    screenSource,
+    /setClearMessageSelectionRequest\(\(current\) => current \+ 1\)/,
+  );
+  assert.match(screenSource, /onBack=\{handleConversationBack\}/);
 });
 
 test('input autofocus remains a desktop-only behavior', async () => {

@@ -47,6 +47,8 @@
   "profilePreferences.aSeparateDraftForEachChat": "A separate draft for each chat",
   "profilePreferences.compactMode": "Compact mode",
   "profilePreferences.enterSendsMessage": "Enter sends message",
+  "profilePreferences.focusComposerAfterSend": "Auto-focus after sending",
+  "profilePreferences.focusComposerAfterSendDescription": "Keep typing ready after a message is sent; on phones this reopens the keyboard",
   "profilePreferences.hapticFeedback": "Haptic feedback",
   "profilePreferences.interface": "Interface",
   "profilePreferences.lessSpacingAndMoreInformationOnScreen": "Less spacing and more information on screen",

@@ -306,6 +306,7 @@ export type AppSettings = {
   haptics: boolean;
   compactMode: boolean;
   sendOnEnter: boolean;
+  focusComposerAfterSend: boolean;
   saveDrafts: boolean;
   chatViewMode: 'conversation' | 'messenger';
   showMessageAvatars: boolean;
