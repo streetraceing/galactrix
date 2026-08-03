@@ -11,6 +11,7 @@ import {
 } from '../../components/ui/ExportOptions';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { UiModal } from '../../components/ui/UiModal';
+import { useSwipeableTabs } from '../../hooks/useSwipeableTabs';
 import {
   datedJsonName,
   defaultExportDestination,
@@ -35,6 +36,8 @@ import {
 import { createGalaxyDraft, draftFromItem } from './model';
 import { createGalaxiesExport, parseGalaxiesExport } from './transfer';
 import { useTranslation } from 'react-i18next';
+
+const galaxySectionKeys = galaxySections.map(({ id }) => id);
 
 export function GalaxiesScreen({
   items,
@@ -62,6 +65,11 @@ export function GalaxiesScreen({
   );
   const [importing, setImporting] = useState(false);
   const [error, setError] = useState('');
+  const swipeRef = useSwipeableTabs({
+    keys: galaxySectionKeys,
+    selectedKey: section,
+    onSelectionChange: setSection,
+  });
 
   const byKind = useMemo(
     () =>
@@ -220,7 +228,7 @@ export function GalaxiesScreen({
   };
 
   return (
-    <div className="page-scroll mobile-screen-enter flex-1">
+    <div ref={swipeRef} className="page-scroll mobile-screen-enter flex-1">
       <div className="page-container">
         <PageHeader
           title={t('galaxiesScreen.galaxies')}

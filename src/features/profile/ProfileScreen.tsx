@@ -1,6 +1,7 @@
 import { Tabs } from '@heroui/react';
 import { useState } from 'react';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { useSwipeableTabs } from '../../hooks/useSwipeableTabs';
 import type {
   AppSettings,
   GalaxyItem,
@@ -13,6 +14,13 @@ import { UsageTimeline } from './components/UsageTimeline';
 import { useTranslation } from 'react-i18next';
 
 type ProfileSection = 'overview' | 'tokens' | 'requests' | 'identities';
+
+const profileSections: readonly ProfileSection[] = [
+  'overview',
+  'tokens',
+  'requests',
+  'identities',
+];
 
 export function ProfileScreen({
   usage,
@@ -35,9 +43,14 @@ export function ProfileScreen({
 }) {
   const { t } = useTranslation('profile');
   const [section, setSection] = useState<ProfileSection>('overview');
+  const swipeRef = useSwipeableTabs({
+    keys: profileSections,
+    selectedKey: section,
+    onSelectionChange: setSection,
+  });
 
   return (
-    <div className="page-scroll mobile-screen-enter flex-1">
+    <div ref={swipeRef} className="page-scroll mobile-screen-enter flex-1">
       <div className="page-container">
         <PageHeader
           title={t('profileScreen.profile')}

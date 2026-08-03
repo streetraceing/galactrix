@@ -2,11 +2,14 @@ import { Tabs } from '@heroui/react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { useSwipeableTabs } from '../../hooks/useSwipeableTabs';
 import type { AppSettings, Provider } from '../../types';
 import { ProfilePreferences } from '../profile/components/ProfilePreferences';
 import { AiModulesSettings } from './components/AiModulesSettings';
 
 type SettingsSection = 'parameters' | 'modules';
+
+const settingsSections: readonly SettingsSection[] = ['parameters', 'modules'];
 
 export function SettingsScreen({
   settings,
@@ -21,9 +24,14 @@ export function SettingsScreen({
 }) {
   const { t } = useTranslation('settings');
   const [section, setSection] = useState<SettingsSection>('parameters');
+  const swipeRef = useSwipeableTabs({
+    keys: settingsSections,
+    selectedKey: section,
+    onSelectionChange: setSection,
+  });
 
   return (
-    <div className="page-scroll mobile-screen-enter flex-1">
+    <div ref={swipeRef} className="page-scroll mobile-screen-enter flex-1">
       <div className="page-container">
         <PageHeader
           title={t('settingsScreen.settings')}
