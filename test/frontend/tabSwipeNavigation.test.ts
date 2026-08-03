@@ -84,3 +84,16 @@ test('phone page and modal gutters use compact responsive spacing', async () => 
   assert.match(modalSource, /ui-modal-mobile-body[^`]*px-2/);
   assert.match(modalSource, /ui-modal-mobile-footer[^"']*px-2/);
 });
+
+test('mobile tab panels align with the page gutter', async () => {
+  const cssSource = await readFile(appCssPath, 'utf8');
+
+  assert.match(
+    cssSource,
+    /\.page-container > \.tabs,[\s\S]*?\.page-container > \.tabs > \.tabs__list-container\s*\{[\s\S]*?@apply[^;]*min-w-0[^;]*max-w-full/,
+  );
+  assert.match(
+    cssSource,
+    /\.page-container > \.tabs > \.tabs__panel\s*\{[\s\S]*?@apply[^;]*px-0/,
+  );
+});

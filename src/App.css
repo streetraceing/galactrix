@@ -1478,6 +1478,15 @@
     @apply w-full max-w-full grow-0 shrink-0 basis-full overflow-x-hidden;
   }
 
+  .page-container > .tabs,
+  .page-container > .tabs > .tabs__list-container {
+    @apply min-w-0 max-w-full;
+  }
+
+  .page-container > .tabs > .tabs__panel {
+    @apply px-0;
+  }
+
   .page-header-copy {
     @apply h-22 min-h-22 max-h-22;
   }
