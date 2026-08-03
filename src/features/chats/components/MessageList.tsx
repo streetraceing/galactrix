@@ -78,6 +78,13 @@ type MessageActionProps = {
 
 type VariantDirection = 'next' | 'previous';
 
+export type MessageResponseActionRequest = {
+  id: number;
+  chatId: string;
+  messageId: string;
+  action: 'regenerate' | 'continue';
+};
+
 const MESSAGE_SELECTION_DRAG_THRESHOLD = 6;
 const MESSAGE_SELECTION_RETURN_THRESHOLD = 28;
 const TOUCH_SELECTION_MOVE_THRESHOLD = 10;
@@ -384,17 +391,7 @@ function VariantNavigator({
 
   if (compact) {
     return (
-      <div className="mt-1 flex items-center gap-1 text-[0.65rem] text-muted">
-        <span className="inline-flex items-center gap-0.5">
-          <Icon
-            name={isLastVariant ? 'regenerate' : 'chevron-left'}
-            className="size-3"
-          />
-          {t('messageList.swipeLeft')}
-          {activePosition > 0 ? (
-            <Icon name="chevron-right" className="size-3" />
-          ) : null}
-        </span>
+      <div className="mt-1 flex items-center text-muted">
         <Button
           size="sm"
           variant="ghost"
@@ -940,6 +937,7 @@ function MessageListComponent({
   scrollRef,
   scrollToBottomRequest,
   clearSelectionRequest,
+  responseActionRequest,
   onSelectionActiveChange,
   onBranch,
   onEdit,
@@ -967,6 +965,7 @@ function MessageListComponent({
   scrollRef: RefObject<HTMLDivElement | null>;
   scrollToBottomRequest: number;
   clearSelectionRequest: number;
+  responseActionRequest: MessageResponseActionRequest | null;
   onSelectionActiveChange: (active: boolean) => void;
   onBranch: (messageId: string) => Promise<void>;
   onEdit: (messageId: string, content: string) => Promise<void>;
@@ -2073,14 +2072,17 @@ function MessageListComponent({
     setEditing(message);
   };
 
-  const reportError = (error: unknown) => {
-    const description = errorMessage(error);
-    if (!description) return;
-    toast.danger(t('errors.chatActionFailed'), {
-      description,
-      timeout: 3_500,
-    });
-  };
+  const reportError = useCallback(
+    (error: unknown) => {
+      const description = errorMessage(error);
+      if (!description) return;
+      toast.danger(t('errors.chatActionFailed'), {
+        description,
+        timeout: 3_500,
+      });
+    },
+    [t],
+  );
 
   const selectVariant = async (messageId: string, variantIndex: number) => {
     if (variantSelectionRef.current) return;
@@ -2145,33 +2147,65 @@ function MessageListComponent({
     }
   };
 
-  const runMessageGeneration = async (
-    messageId: string,
-    mode: 'regenerate' | 'continue',
-    action: (messageId: string) => Promise<void>,
-  ) => {
-    if (messageGenerationRef.current) return;
-    messageGenerationRef.current = messageId;
-    setMessageGeneration({ messageId, mode });
-    setVariantDirections((current) => ({
-      ...current,
-      [messageId]: 'next',
-    }));
-    try {
-      await action(messageId);
-    } finally {
-      if (messageGenerationRef.current === messageId) {
-        messageGenerationRef.current = null;
-        setMessageGeneration(null);
+  const runMessageGeneration = useCallback(
+    async (
+      messageId: string,
+      mode: 'regenerate' | 'continue',
+      action: (messageId: string) => Promise<void>,
+    ) => {
+      if (messageGenerationRef.current) return;
+      messageGenerationRef.current = messageId;
+      setMessageGeneration({ messageId, mode });
+      setVariantDirections((current) => ({
+        ...current,
+        [messageId]: 'next',
+      }));
+      try {
+        await action(messageId);
+      } finally {
+        if (messageGenerationRef.current === messageId) {
+          messageGenerationRef.current = null;
+          setMessageGeneration(null);
+        }
       }
+    },
+    [],
+  );
+
+  const regenerate = useCallback(
+    (messageId: string) =>
+      runMessageGeneration(messageId, 'regenerate', onRegenerate),
+    [onRegenerate, runMessageGeneration],
+  );
+
+  const continueResponse = useCallback(
+    (messageId: string) =>
+      runMessageGeneration(messageId, 'continue', onContinue),
+    [onContinue, runMessageGeneration],
+  );
+
+  const handledResponseActionRequestRef = useRef(0);
+  useEffect(() => {
+    if (
+      !responseActionRequest ||
+      responseActionRequest.chatId !== chatId ||
+      handledResponseActionRequestRef.current === responseActionRequest.id
+    ) {
+      return;
     }
-  };
-
-  const regenerate = (messageId: string) =>
-    runMessageGeneration(messageId, 'regenerate', onRegenerate);
-
-  const continueResponse = (messageId: string) =>
-    runMessageGeneration(messageId, 'continue', onContinue);
+    handledResponseActionRequestRef.current = responseActionRequest.id;
+    const action =
+      responseActionRequest.action === 'regenerate'
+        ? regenerate
+        : continueResponse;
+    void action(responseActionRequest.messageId).catch(reportError);
+  }, [
+    chatId,
+    continueResponse,
+    regenerate,
+    reportError,
+    responseActionRequest,
+  ]);
 
   const copySelectedMessages = async () => {
     if (selectedMessages.length === 0) return;

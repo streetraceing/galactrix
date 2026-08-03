@@ -47,10 +47,27 @@ test('mobile continuation is available only from the context menu', async () => 
 
   assert.ok(compactNavigator, 'compact mobile navigator must exist');
   assert.doesNotMatch(compactNavigator, /continueResponseShort|onContinue/);
+  assert.doesNotMatch(compactNavigator, /messageList\.swipeLeft/);
   assert.match(
     source,
     /ContextMenuItem onClick=\{\(\) => run\(\(\) => onContinue\(message\.id\)\)\}/,
   );
+});
+
+test('chat overflow menu routes response actions through the animated message pipeline', async () => {
+  const [screenSource, messageSource, headerSource] = await Promise.all([
+    readFile(chatsScreenPath, 'utf8'),
+    readFile(messageListPath, 'utf8'),
+    readFile(conversationHeaderPath, 'utf8'),
+  ]);
+
+  assert.match(screenSource, /requestLatestResponseAction\('regenerate'\)/);
+  assert.match(screenSource, /requestLatestResponseAction\('continue'\)/);
+  assert.match(screenSource, /responseActionRequest=\{responseActionRequest\}/);
+  assert.match(messageSource, /responseActionRequest\.action === 'regenerate'/);
+  assert.match(messageSource, /runMessageGeneration/);
+  assert.match(headerSource, /onRegenerateLast=\{onRegenerateLast\}/);
+  assert.match(headerSource, /onContinueLast=\{onContinueLast\}/);
 });
 
 test('mobile swipe is easy to acquire and uses one bounded release transition', async () => {

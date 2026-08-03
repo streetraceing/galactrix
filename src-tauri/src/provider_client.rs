@@ -3,7 +3,7 @@ mod retry;
 
 use std::time::Instant;
 
-use reqwest::{Client, RequestBuilder, Response};
+use reqwest::{Client, RequestBuilder};
 use serde_json::{json, Value};
 
 use crate::i18n::{keys, CommandError, CommandResult};
@@ -15,12 +15,12 @@ use endpoints::{
     embedding_endpoint_saved, ollama_base, ollama_base_saved, openai_base, openai_base_saved,
     required_text, uses_ollama_embedding_api, validate_provider, validate_saved_provider,
 };
-use retry::{provider_pool_id_input, send_with_retry};
+use retry::{provider_pool_id_input, send_with_retry, JsonResponse};
 
 #[cfg(test)]
 use retry::{
-    block_api_key, exponential_delay, first_available_key, is_retryable_status, parse_api_keys,
-    parse_rate_limit_delay, rate_limit_state_from_headers,
+    block_api_key, exponential_delay, first_available_key, is_empty_json, is_retryable_status,
+    parse_api_keys, parse_rate_limit_delay, rate_limit_state_from_headers,
 };
 
 pub async fn list_models(
@@ -78,7 +78,7 @@ pub async fn list_models(
         }
     }?;
 
-    let value = response_json(response).await?;
+    let value = response_json(response)?;
     let mut models = match provider.kind.as_str() {
         "ollama" | "ollama-cloud" => value
             .get("models")
@@ -197,7 +197,7 @@ pub async fn complete(
         }
     }?;
 
-    let value = response_json(response).await?;
+    let value = response_json(response)?;
     let latency_ms = started.elapsed().as_millis().min(i64::MAX as u128) as i64;
 
     if matches!(provider.kind.as_str(), "ollama" | "ollama-cloud") {
@@ -299,7 +299,7 @@ pub async fn embed(
         .await?
     };
 
-    let value = response_json(response).await?;
+    let value = response_json(response)?;
     let embeddings = parse_embedding_response(&value)?;
 
     if embeddings.len() != inputs.len() || embeddings.iter().any(Vec::is_empty) {
@@ -386,15 +386,10 @@ fn authenticated(request: RequestBuilder, api_key: Option<&str>) -> RequestBuild
     }
 }
 
-async fn response_json(response: Response) -> CommandResult<Value> {
-    let status = response.status();
-    let text = response
-        .text()
-        .await
-        .map_err(|error| CommandError::with_detail(keys::PROVIDER_RESPONSE_READ_FAILED, error))?;
-    let value = serde_json::from_str::<Value>(&text).unwrap_or_else(|_| json!({ "raw": text }));
+fn response_json(response: JsonResponse) -> CommandResult<Value> {
+    let JsonResponse { status, value } = response;
 
-    if status.is_success() {
+    if (200..300).contains(&status) {
         return Ok(value);
     }
 
@@ -408,7 +403,7 @@ async fn response_json(response: Response) -> CommandResult<Value> {
         .filter(|message| !message.is_empty())
         .unwrap_or("-");
     Err(CommandError::new(keys::PROVIDER_HTTP_ERROR)
-        .with_variable("status", status.as_u16())
+        .with_variable("status", status)
         .with_variable("detail", detail))
 }
 

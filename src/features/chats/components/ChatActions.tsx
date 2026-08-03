@@ -76,9 +76,17 @@ export function ChatActions({
 export function ChatActionsButton({
   chat,
   onAction,
+  canUseResponseActions,
+  responseActionsBusy,
+  onRegenerateLast,
+  onContinueLast,
 }: {
   chat: Chat;
   onAction: (action: ChatAction, chat: Chat) => void;
+  canUseResponseActions: boolean;
+  responseActionsBusy: boolean;
+  onRegenerateLast: () => void;
+  onContinueLast: () => void;
 }) {
   const { t } = useTranslation('chats');
   const [open, setOpen] = useState(false);
@@ -86,6 +94,11 @@ export function ChatActionsButton({
     setOpen(false);
     onAction(action, chat);
   };
+  const runResponseAction = (action: () => void) => {
+    setOpen(false);
+    action();
+  };
+  const responseActionDisabled = !canUseResponseActions || responseActionsBusy;
 
   return (
     <Popover isOpen={open} onOpenChange={setOpen}>
@@ -107,6 +120,27 @@ export function ChatActionsButton({
             {chat.title}
           </Popover.Heading>
           <div className="grid gap-0.5">
+            <Button
+              size="sm"
+              variant="ghost"
+              className="justify-start"
+              isDisabled={responseActionDisabled}
+              onPress={() => runResponseAction(onRegenerateLast)}
+            >
+              <Icon name="regenerate" className="size-4 text-accent" />
+              {t('messageList.regenerate')}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="justify-start"
+              isDisabled={responseActionDisabled}
+              onPress={() => runResponseAction(onContinueLast)}
+            >
+              <Icon name="sparkles" className="size-4 text-accent" />
+              {t('messageList.continueResponse')}
+            </Button>
+            <div className="my-1 h-px bg-separator" />
             <Button
               size="sm"
               variant="ghost"

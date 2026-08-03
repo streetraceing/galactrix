@@ -45,12 +45,8 @@ function ContextMenuContent({
         <ContextMenuPrimitive.Popup
           data-slot="context-menu-content"
           className={cn(
-            'ui-overlay-surface z-50 min-w-40 overflow-hidden p-1.5 outline-none',
+            'ui-overlay-surface app-context-menu z-50 min-w-40 overflow-hidden p-1.5 outline-none',
             'max-h-(--available-height) overflow-y-auto',
-            'origin-[var(--transform-origin)] transition-[opacity,transform] duration-[var(--motion-fast)] ease-[var(--motion-ease)] motion-reduce:transition-none',
-            'data-starting-style:translate-y-1 data-starting-style:scale-95 data-starting-style:opacity-0',
-            'data-ending-style:translate-y-1 data-ending-style:scale-95 data-ending-style:opacity-0',
-            'data-instant:transition-none',
             className,
           )}
           {...props}
@@ -160,12 +156,8 @@ function ContextMenuSubContent({
         <ContextMenuPrimitive.Popup
           data-slot="context-menu-sub-content"
           className={cn(
-            'ui-overlay-surface z-50 min-w-40 overflow-hidden p-1.5 outline-none',
+            'ui-overlay-surface app-context-menu app-context-submenu z-50 min-w-40 overflow-hidden p-1.5 outline-none',
             'max-h-(--available-height) overflow-y-auto',
-            'origin-[var(--transform-origin)] transition-[opacity,transform] duration-[var(--motion-fast)] ease-[var(--motion-ease)] motion-reduce:transition-none',
-            'data-starting-style:translate-x-1 data-starting-style:scale-95 data-starting-style:opacity-0',
-            'data-ending-style:translate-x-1 data-ending-style:scale-95 data-ending-style:opacity-0',
-            'data-instant:transition-none',
             className,
           )}
           {...props}

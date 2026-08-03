@@ -205,6 +205,10 @@ function ConversationHeaderComponent({
   onBack,
   onToggleMaximized,
   onAction,
+  canUseResponseActions,
+  responseActionsBusy,
+  onRegenerateLast,
+  onContinueLast,
 }: {
   chat: Chat;
   provider?: Provider;
@@ -214,6 +218,10 @@ function ConversationHeaderComponent({
   onBack: () => void;
   onToggleMaximized: () => void;
   onAction: (action: ChatAction, chat: Chat) => void;
+  canUseResponseActions: boolean;
+  responseActionsBusy: boolean;
+  onRegenerateLast: () => void;
+  onContinueLast: () => void;
 }) {
   const { t } = useTranslation('chats');
   const isMobile = isMobilePlatform();
@@ -355,7 +363,14 @@ function ConversationHeaderComponent({
               />
             </TooltipIconButton>
           ) : null}
-          <ChatActionsButton chat={chat} onAction={onAction} />
+          <ChatActionsButton
+            chat={chat}
+            onAction={onAction}
+            canUseResponseActions={canUseResponseActions}
+            responseActionsBusy={responseActionsBusy}
+            onRegenerateLast={onRegenerateLast}
+            onContinueLast={onContinueLast}
+          />
         </div>
       </header>
 

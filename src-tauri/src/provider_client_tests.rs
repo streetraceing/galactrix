@@ -1,11 +1,13 @@
 use super::{
-    block_api_key, embedding_endpoint_saved, exponential_delay, first_available_key,
+    block_api_key, embedding_endpoint_saved, exponential_delay, first_available_key, is_empty_json,
     is_retryable_status, parse_api_keys, parse_embedding_response, parse_rate_limit_delay,
-    rate_limit_state_from_headers, uses_ollama_embedding_api,
+    rate_limit_state_from_headers, send_with_retry, uses_ollama_embedding_api,
 };
 use reqwest::header::{HeaderMap, HeaderValue};
 use serde_json::json;
 use std::collections::HashSet;
+use std::io::{Read, Write};
+use std::net::TcpListener;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 #[test]
@@ -24,6 +26,57 @@ fn only_temporary_http_failures_are_retried() {
     for status in [400, 401, 403, 404, 422, 600] {
         assert!(!is_retryable_status(status), "{status} should not retry");
     }
+}
+
+#[test]
+fn empty_success_payloads_are_treated_as_incomplete_responses() {
+    for value in [json!(null), json!("  "), json!([]), json!({})] {
+        assert!(is_empty_json(&value));
+    }
+    assert!(!is_empty_json(&json!({ "choices": [] })));
+}
+
+#[test]
+fn malformed_success_body_is_retried_before_it_reaches_the_caller() {
+    tauri::async_runtime::block_on(async {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind test server");
+        let address = listener.local_addr().expect("test server address");
+        let server = std::thread::spawn(move || {
+            for body in ["{", r#"{"ok":true}"#] {
+                let (mut stream, _) = listener.accept().expect("accept request");
+                let mut request = [0_u8; 2048];
+                let _ = stream.read(&mut request).expect("read request");
+                write!(
+                    stream,
+                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                    body.len(),
+                    body
+                )
+                .expect("write response");
+            }
+        });
+        let client = reqwest::Client::new();
+        let url = format!("http://{address}/retry");
+        let settings = crate::models::RetrySettings {
+            enabled: true,
+            max_attempts: 2,
+            initial_delay_ms: 100,
+            max_delay_ms: 100,
+        };
+
+        let response = send_with_retry(
+            "malformed-success-body",
+            None,
+            |_| client.get(&url),
+            &settings,
+            crate::i18n::keys::PROVIDER_REQUEST_FAILED,
+        )
+        .await
+        .expect("second response should succeed");
+
+        assert_eq!(response.value, json!({ "ok": true }));
+        server.join().expect("test server should stop");
+    });
 }
 
 fn provider(kind: &str, embedding_base_url: Option<&str>) -> crate::models::Provider {

@@ -16,7 +16,10 @@ import { ChatDialogs } from './components/ChatDialogs';
 import { ChatSetupModal } from './components/ChatSetupModal';
 import { ChatSidebar } from './components/ChatSidebar';
 import { ConversationHeader } from './components/ConversationHeader';
-import { MessageList } from './components/MessageList';
+import {
+  MessageList,
+  type MessageResponseActionRequest,
+} from './components/MessageList';
 import type { ChatAction, ChatsScreenProps } from './types';
 import { draftKey } from './utils';
 import { useTranslation } from 'react-i18next';
@@ -78,6 +81,8 @@ export function ChatsScreen({
   const [messageSelectionActive, setMessageSelectionActive] = useState(false);
   const [clearMessageSelectionRequest, setClearMessageSelectionRequest] =
     useState(0);
+  const [responseActionRequest, setResponseActionRequest] =
+    useState<MessageResponseActionRequest | null>(null);
   const [renameTarget, setRenameTarget] = useState<Chat | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const [configTarget, setConfigTarget] = useState<Chat | 'new' | null>(null);
@@ -87,6 +92,7 @@ export function ChatsScreen({
   } | null>(null);
   const messageScrollRef = useRef<HTMLDivElement | null>(null);
   const sendInFlightRef = useRef(false);
+  const responseActionRequestIdRef = useRef(0);
 
   const activeChat = activeChatById(chats, activeChatId);
 
@@ -103,6 +109,13 @@ export function ChatsScreen({
   const canvasMessages = activeChat
     ? (messagesByChat.get(activeChat.id) ?? EMPTY_MESSAGES)
     : EMPTY_MESSAGES;
+  const latestAssistantMessage = useMemo(() => {
+    for (let index = canvasMessages.length - 1; index >= 0; index -= 1) {
+      const message = canvasMessages[index];
+      if (message.role === 'assistant' && !message.pending) return message;
+    }
+    return null;
+  }, [canvasMessages]);
   const configChatId =
     configTarget && configTarget !== 'new' ? configTarget.id : undefined;
   const configMessages = configChatId
@@ -195,6 +208,20 @@ export function ChatsScreen({
       showChatError(error);
     }
   }, [onCancelGeneration, showChatError]);
+
+  const requestLatestResponseAction = useCallback(
+    (action: MessageResponseActionRequest['action']) => {
+      if (!canvasChat || !latestAssistantMessage || sending) return;
+      responseActionRequestIdRef.current += 1;
+      setResponseActionRequest({
+        id: responseActionRequestIdRef.current,
+        chatId: canvasChat.id,
+        messageId: latestAssistantMessage.id,
+        action,
+      });
+    },
+    [canvasChat, latestAssistantMessage, sending],
+  );
 
   const handleAction = useCallback(
     (action: ChatAction, chat: Chat) => {
@@ -362,6 +389,10 @@ export function ChatsScreen({
               onBack={handleConversationBack}
               onToggleMaximized={toggleChatMaximized}
               onAction={handleAction}
+              canUseResponseActions={latestAssistantMessage != null}
+              responseActionsBusy={sending}
+              onRegenerateLast={() => requestLatestResponseAction('regenerate')}
+              onContinueLast={() => requestLatestResponseAction('continue')}
             />
             <div className="relative flex min-h-0 flex-1">
               {canvasChat ? (
@@ -386,6 +417,7 @@ export function ChatsScreen({
                     scrollRef={messageScrollRef}
                     scrollToBottomRequest={scrollToBottomRequest}
                     clearSelectionRequest={clearMessageSelectionRequest}
+                    responseActionRequest={responseActionRequest}
                     onSelectionActiveChange={setMessageSelectionActive}
                     onBranch={onBranchMessage}
                     onEdit={onEditMessage}

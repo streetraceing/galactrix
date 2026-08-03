@@ -29,3 +29,19 @@ test('ordinary application layout styles use Tailwind apply utilities', async ()
   assert.match(css, /overflow-anchor: none/);
   assert.match(css, /@keyframes galactrix-message-enter/);
 });
+
+test('context menus use a lightweight custom transition without scale or blur', async () => {
+  const [css, component] = await Promise.all([
+    readFile(appCssPath, 'utf8'),
+    readFile(
+      new URL('../../src/components/ui/context-menu.tsx', import.meta.url),
+      'utf8',
+    ),
+  ]);
+
+  assert.match(css, /\.app-context-menu \{[\s\S]*backdrop-filter: none/);
+  assert.match(css, /\.app-context-menu\[data-starting-style\]/);
+  assert.match(css, /transform: translate3d/);
+  assert.doesNotMatch(component, /data-starting-style:scale/);
+  assert.match(component, /app-context-menu app-context-submenu/);
+});

@@ -291,6 +291,9 @@ test('providers accept multiple protected API keys with temporary rate-limit rot
   assert.match(retry, /block_api_key/);
   assert.match(retry, /first_available_key/);
   assert.match(retry, /tokio::time::sleep\(wait\)\.await/);
+  assert.match(retry, /buffer_json_response\(response\)\.await/);
+  assert.match(retry, /PROVIDER_RESPONSE_READ_FAILED/);
+  assert.match(retry, /is_empty_json/);
   assert.doesNotMatch(client, /wait <= Duration::from_millis\(max_delay\)/);
   assert.match(storage, /normalize_provider_secrets/);
   assert.equal(ruTelescope['providerCredentials.apiKeys'], 'API-ключи');

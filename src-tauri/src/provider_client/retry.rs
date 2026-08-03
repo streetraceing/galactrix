@@ -4,8 +4,9 @@ use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use reqwest::{header::HeaderMap, RequestBuilder, Response};
+use serde_json::{json, Value};
 
-use crate::i18n::{CommandError, CommandResult};
+use crate::i18n::{keys, CommandError, CommandResult};
 use crate::models::{ProviderInput, RetrySettings};
 
 #[derive(Default)]
@@ -21,13 +22,18 @@ pub(super) struct RateLimitState {
     pub(super) reset_after: Option<Duration>,
 }
 
+pub(super) struct JsonResponse {
+    pub(super) status: u16,
+    pub(super) value: Value,
+}
+
 pub(super) async fn send_with_retry<F>(
     pool_id: &str,
     api_key: Option<&str>,
     mut build_request: F,
     settings: &RetrySettings,
     error_key: &'static str,
-) -> CommandResult<Response>
+) -> CommandResult<JsonResponse>
 where
     F: FnMut(Option<&str>) -> RequestBuilder,
 {
@@ -93,7 +99,7 @@ where
                         tried_keys.clear();
                         continue;
                     }
-                    return Ok(response);
+                    return buffer_json_response(response).await;
                 }
 
                 if retry_round + 1 < attempts && is_retryable_status(status) {
@@ -105,7 +111,20 @@ where
                     tried_keys.clear();
                     continue;
                 }
-                return Ok(response);
+                match buffer_json_response(response).await {
+                    Ok(response) => return Ok(response),
+                    Err(_) if retry_round + 1 < attempts => {
+                        tokio::time::sleep(exponential_delay(
+                            initial_delay,
+                            max_delay,
+                            retry_round + 1,
+                        ))
+                        .await;
+                        retry_round += 1;
+                        tried_keys.clear();
+                    }
+                    Err(error) => return Err(error),
+                }
             }
             Err(error) => {
                 if retry_round + 1 >= attempts || !is_retryable_request_error(&error) {
@@ -117,6 +136,50 @@ where
                 tried_keys.clear();
             }
         }
+    }
+}
+
+async fn buffer_json_response(response: Response) -> CommandResult<JsonResponse> {
+    let status = response.status().as_u16();
+    let body = match response.bytes().await {
+        Ok(body) => body,
+        Err(error) if (200..300).contains(&status) => {
+            return Err(CommandError::with_detail(
+                keys::PROVIDER_RESPONSE_READ_FAILED,
+                error,
+            ));
+        }
+        Err(error) => {
+            return Ok(JsonResponse {
+                status,
+                value: json!({ "raw": error.to_string() }),
+            });
+        }
+    };
+
+    match serde_json::from_slice::<Value>(&body) {
+        Ok(value) if (200..300).contains(&status) && is_empty_json(&value) => Err(
+            CommandError::with_detail(keys::PROVIDER_RESPONSE_READ_FAILED, "empty JSON response"),
+        ),
+        Ok(value) => Ok(JsonResponse { status, value }),
+        Err(error) if (200..300).contains(&status) => Err(CommandError::with_detail(
+            keys::PROVIDER_RESPONSE_READ_FAILED,
+            error,
+        )),
+        Err(_) => Ok(JsonResponse {
+            status,
+            value: json!({ "raw": String::from_utf8_lossy(&body) }),
+        }),
+    }
+}
+
+pub(super) fn is_empty_json(value: &Value) -> bool {
+    match value {
+        Value::Null => true,
+        Value::String(value) => value.trim().is_empty(),
+        Value::Array(value) => value.is_empty(),
+        Value::Object(value) => value.is_empty(),
+        Value::Bool(_) | Value::Number(_) => false,
     }
 }
 

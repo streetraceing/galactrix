@@ -1145,6 +1145,41 @@
     @apply rounded-xl;
   }
 
+  .app-context-menu {
+    background-color: var(--overlay);
+    backdrop-filter: none;
+    transform: translate3d(0, 0, 0);
+    transform-origin: var(--transform-origin);
+    transition:
+      opacity 110ms linear,
+      transform 160ms cubic-bezier(0.16, 1, 0.3, 1);
+    will-change: opacity, transform;
+  }
+
+  .app-context-menu[data-starting-style] {
+    opacity: 0;
+    transform: translate3d(0, -0.35rem, 0);
+  }
+
+  .app-context-menu[data-ending-style] {
+    opacity: 0;
+    transform: translate3d(0, -0.15rem, 0);
+    transition-duration: 80ms;
+    transition-timing-function: cubic-bezier(0.4, 0, 1, 1);
+  }
+
+  .app-context-menu.app-context-submenu[data-starting-style] {
+    transform: translate3d(-0.3rem, 0, 0);
+  }
+
+  .app-context-menu.app-context-submenu[data-ending-style] {
+    transform: translate3d(-0.12rem, 0, 0);
+  }
+
+  .app-context-menu[data-instant] {
+    transition: none;
+  }
+
   html[data-compact='on'] .page-container {
     @apply gap-3 py-3 sm:gap-4 sm:py-4;
   }
@@ -1487,6 +1522,10 @@
   .mobile-screen-enter,
   .mobile-chat-enter {
     @apply animate-none;
+  }
+
+  .app-context-menu {
+    transition: none;
   }
 
   .typing-dot {
