@@ -35,6 +35,7 @@ function ChatComposerComponent({
   sending,
   sendOnEnter,
   focusAfterSend,
+  focusAfterActionRequest,
   saveDrafts,
   shouldAutoFocus,
   focusKey,
@@ -48,6 +49,7 @@ function ChatComposerComponent({
   sending: boolean;
   sendOnEnter: boolean;
   focusAfterSend: boolean;
+  focusAfterActionRequest: number;
   saveDrafts: boolean;
   shouldAutoFocus: boolean;
   focusKey: string;
@@ -63,6 +65,7 @@ function ChatComposerComponent({
   const draftRef = useRef(draft);
   const submittingRef = useRef(false);
   const pendingFocusAfterSendRef = useRef(false);
+  const previousFocusAfterActionRequestRef = useRef(focusAfterActionRequest);
   const providerId = provider?.id;
 
   const focusComposer = useCallback(() => {
@@ -147,6 +150,28 @@ function ChatComposerComponent({
     });
     return () => window.cancelAnimationFrame(frame);
   }, [focusAfterSend, focusComposer, providerId, sending]);
+
+  useEffect(() => {
+    if (
+      previousFocusAfterActionRequestRef.current === focusAfterActionRequest
+    ) {
+      return;
+    }
+    previousFocusAfterActionRequestRef.current = focusAfterActionRequest;
+    pendingFocusAfterSendRef.current = focusAfterSend;
+    if (!focusAfterSend || sending || !providerId) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      if (focusComposer()) pendingFocusAfterSendRef.current = false;
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [
+    focusAfterActionRequest,
+    focusAfterSend,
+    focusComposer,
+    providerId,
+    sending,
+  ]);
 
   useEffect(() => {
     if (!shouldAutoFocus || !providerId || sending) return;

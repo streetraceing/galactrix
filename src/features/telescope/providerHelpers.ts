@@ -40,7 +40,7 @@ export function providerToInput(provider: Provider): ProviderInput {
     temperature: provider.temperature,
     topP: provider.topP,
     maxTokens: provider.maxTokens,
-    embeddingModel: provider.embeddingModel,
-    embeddingBaseUrl: provider.embeddingBaseUrl,
+    embeddingModel: provider.embeddingModel ?? undefined,
+    embeddingBaseUrl: provider.embeddingBaseUrl ?? undefined,
   };
 }

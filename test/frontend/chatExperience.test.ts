@@ -126,10 +126,11 @@ test('printable keys focus the open chat composer without stealing shortcuts', a
 });
 
 test('composer focus after send is configurable and independent from mobile opening autofocus', async () => {
-  const [composer, screen, router] = await Promise.all([
+  const [composer, screen, router, messageList] = await Promise.all([
     readFile(composerPath, 'utf8'),
     readFile(chatsScreenPath, 'utf8'),
     readFile(routerPath, 'utf8'),
+    readFile(messageListPath, 'utf8'),
   ]);
 
   assert.match(
@@ -147,16 +148,31 @@ test('composer focus after send is configurable and independent from mobile open
     composer,
     /if \(focusComposer\(\)\) pendingFocusAfterSendRef\.current = false/,
   );
+  assert.match(screen, /focusAfterActionRequest=\{focusComposerRequest\}/);
+  assert.match(
+    messageList,
+    /await action\(messageId\);\s*onGenerationComplete\(\)/,
+  );
+  assert.match(composer, /previousFocusAfterActionRequestRef/);
 });
 
 test('only newly appended message containers receive an entrance animation', async () => {
-  const source = await readFile(messageListPath, 'utf8');
+  const [source, css] = await Promise.all([
+    readFile(messageListPath, 'utf8'),
+    readFile(new URL('../../src/App.css', import.meta.url), 'utf8'),
+  ]);
 
   assert.match(source, /seenMessageIdsRef/);
   assert.match(source, /messageEntryTimersRef/);
   assert.match(source, /!previous\.ids\.has\(messageId\)/);
   assert.match(source, /enteringMessageIds\.has\(message\.id\)/);
   assert.match(source, /MESSAGE_ENTRY_ANIMATION_MS/);
+  const keyframes = css.match(
+    /@keyframes galactrix-message-enter \{[\s\S]*?\n\}/,
+  )?.[0];
+  assert.ok(keyframes);
+  assert.doesNotMatch(keyframes, /transform:/);
+  assert.match(css, /\.message-enter \{[\s\S]*will-change: opacity/);
 });
 
 test('new chats can start with an assistant greeting', async () => {

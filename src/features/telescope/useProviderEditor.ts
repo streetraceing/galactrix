@@ -153,7 +153,7 @@ export function useProviderEditor({
           baseUrl: form.baseUrl?.trim() || undefined,
           accountId: form.accountId?.trim() || undefined,
           embeddingModel:
-            form.embeddingModel === undefined
+            form.embeddingModel == null
               ? undefined
               : form.embeddingModel.trim(),
           embeddingBaseUrl: form.embeddingBaseUrl?.trim() || undefined,

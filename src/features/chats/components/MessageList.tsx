@@ -88,7 +88,7 @@ export type MessageResponseActionRequest = {
 const MESSAGE_SELECTION_DRAG_THRESHOLD = 6;
 const MESSAGE_SELECTION_RETURN_THRESHOLD = 28;
 const TOUCH_SELECTION_MOVE_THRESHOLD = 10;
-const MESSAGE_ENTRY_ANIMATION_MS = 480;
+const MESSAGE_ENTRY_ANIMATION_MS = 240;
 const SCROLL_TO_BOTTOM_RELEASE_MS = 1_400;
 const CHAT_LAYOUT_BOTTOM_LOCK_MS = 420;
 
@@ -938,6 +938,7 @@ function MessageListComponent({
   scrollToBottomRequest,
   clearSelectionRequest,
   responseActionRequest,
+  onGenerationComplete,
   onSelectionActiveChange,
   onBranch,
   onEdit,
@@ -966,6 +967,7 @@ function MessageListComponent({
   scrollToBottomRequest: number;
   clearSelectionRequest: number;
   responseActionRequest: MessageResponseActionRequest | null;
+  onGenerationComplete: () => void;
   onSelectionActiveChange: (active: boolean) => void;
   onBranch: (messageId: string) => Promise<void>;
   onEdit: (messageId: string, content: string) => Promise<void>;
@@ -2162,6 +2164,7 @@ function MessageListComponent({
       }));
       try {
         await action(messageId);
+        onGenerationComplete();
       } finally {
         if (messageGenerationRef.current === messageId) {
           messageGenerationRef.current = null;
@@ -2169,7 +2172,7 @@ function MessageListComponent({
         }
       }
     },
-    [],
+    [onGenerationComplete],
   );
 
   const regenerate = useCallback(

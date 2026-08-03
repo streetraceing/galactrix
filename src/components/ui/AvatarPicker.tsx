@@ -15,6 +15,8 @@ export function AvatarPicker({
   compact = false,
   onChange,
   className,
+  showLabel = false,
+  showPreview = false,
 }: {
   value?: string;
   name: string;
@@ -23,6 +25,8 @@ export function AvatarPicker({
   compact?: boolean;
   onChange: (value?: string) => void | Promise<void>;
   className?: string;
+  showPreview?: boolean;
+  showLabel?: boolean;
 }) {
   const { t } = useTranslation(['common', 'profile']);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -80,18 +84,22 @@ export function AvatarPicker({
           compact ? 'gap-x-3 gap-y-1' : 'gap-x-4 gap-y-2',
         )}
       >
-        <AppAvatar
-          src={value}
-          name={name}
-          className={clsx(
-            'row-span-2 shrink-0',
-            compact ? 'size-14' : 'size-20 sm:size-24',
-          )}
-        />
+        {showPreview ? (
+          <AppAvatar
+            src={value}
+            name={name}
+            className={clsx(
+              'row-span-2 shrink-0',
+              compact ? 'size-14' : 'size-20 sm:size-24',
+            )}
+          />
+        ) : null}
 
-        <label htmlFor={inputId} className="min-w-0 text-sm font-medium">
-          {t('identitySettings.avatar', { ns: 'profile' })}
-        </label>
+        {showLabel ? (
+          <label htmlFor={inputId} className="min-w-0 text-sm font-medium">
+            {t('identitySettings.avatar', { ns: 'profile' })}
+          </label>
+        ) : null}
 
         {description ? (
           <p className="min-w-0 text-xs leading-5 text-muted">{description}</p>

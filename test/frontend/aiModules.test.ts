@@ -171,6 +171,42 @@ test('embedding capability survives Telescope export and has a backend probe', a
   assert.match(backend, /test_provider_embeddings/);
 });
 
+test('provider embeddings are off by default and nullable backend values stay off', async () => {
+  const [helpers, section, editor, models] = await Promise.all([
+    readFile(
+      new URL(
+        '../../src/features/telescope/providerHelpers.ts',
+        import.meta.url,
+      ),
+      'utf8',
+    ),
+    readFile(
+      new URL(
+        '../../src/features/telescope/components/ProviderEmbeddingSection.tsx',
+        import.meta.url,
+      ),
+      'utf8',
+    ),
+    readFile(
+      new URL(
+        '../../src/features/telescope/useProviderEditor.ts',
+        import.meta.url,
+      ),
+      'utf8',
+    ),
+    readFile(new URL('../../src-tauri/src/models.rs', import.meta.url), 'utf8'),
+  ]);
+
+  assert.match(helpers, /embeddingModel: undefined/);
+  assert.match(helpers, /provider\.embeddingModel \?\? undefined/);
+  assert.match(section, /form\.embeddingModel != null/);
+  assert.match(editor, /form\.embeddingModel == null/);
+  assert.match(
+    models,
+    /skip_serializing_if = "Option::is_none"[\s\S]*embedding_model/,
+  );
+});
+
 test('a custom embedding URL is treated as the complete endpoint', async () => {
   const [providerClient, endpoints, embeddingSection, ruTelescopeRaw] =
     await Promise.all([

@@ -83,6 +83,7 @@ export function ChatsScreen({
     useState(0);
   const [responseActionRequest, setResponseActionRequest] =
     useState<MessageResponseActionRequest | null>(null);
+  const [focusComposerRequest, setFocusComposerRequest] = useState(0);
   const [renameTarget, setRenameTarget] = useState<Chat | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const [configTarget, setConfigTarget] = useState<Chat | 'new' | null>(null);
@@ -222,6 +223,10 @@ export function ChatsScreen({
     },
     [canvasChat, latestAssistantMessage, sending],
   );
+
+  const requestComposerFocusAfterGeneration = useCallback(() => {
+    setFocusComposerRequest((current) => current + 1);
+  }, []);
 
   const handleAction = useCallback(
     (action: ChatAction, chat: Chat) => {
@@ -418,6 +423,7 @@ export function ChatsScreen({
                     scrollToBottomRequest={scrollToBottomRequest}
                     clearSelectionRequest={clearMessageSelectionRequest}
                     responseActionRequest={responseActionRequest}
+                    onGenerationComplete={requestComposerFocusAfterGeneration}
                     onSelectionActiveChange={setMessageSelectionActive}
                     onBranch={onBranchMessage}
                     onEdit={onEditMessage}
@@ -440,6 +446,7 @@ export function ChatsScreen({
                   sending={sending && canvasChat.id === activeChat.id}
                   sendOnEnter={sendOnEnter}
                   focusAfterSend={focusComposerAfterSend}
+                  focusAfterActionRequest={focusComposerRequest}
                   saveDrafts={saveDrafts}
                   shouldAutoFocus={shouldAutoFocusComposer}
                   focusKey={`${canvasChat.id}:${isChatOpen}`}

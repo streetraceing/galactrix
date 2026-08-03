@@ -262,7 +262,9 @@ pub struct Provider {
     pub temperature: f64,
     pub top_p: f64,
     pub max_tokens: i64,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub embedding_model: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub embedding_base_url: Option<String>,
     pub has_secret: bool,
 }
@@ -702,5 +704,15 @@ mod provider_import_tests {
             entry.normalized_secret().as_deref(),
             Some("primary\nsecondary\nlegacy")
         );
+    }
+
+    #[test]
+    fn provider_without_embeddings_omits_nullable_embedding_fields() {
+        let provider =
+            provider_input().into_provider("provider".into(), "connected".into(), Some(12));
+        let value = serde_json::to_value(provider).expect("serialize provider");
+
+        assert!(value.get("embeddingModel").is_none());
+        assert!(value.get("embeddingBaseUrl").is_none());
     }
 }

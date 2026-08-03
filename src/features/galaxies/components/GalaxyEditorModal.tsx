@@ -103,10 +103,14 @@ export function GalaxyEditorModal({
     >
       <div className="space-y-4">
         {draft.kind === 'persona' || draft.kind === 'character' ? (
-          <Surface className="rounded-2xl border border-separator p-4 sm:p-5">
+          <Surface className="rounded-2xl border border-separator p-4 sm:p-5 flex flex-col gap-1">
+            <label className="min-w-0 text-sm font-medium">
+              {t('identitySettings.avatar', { ns: 'profile' })}
+            </label>
             <AvatarPicker
               value={galaxyInputAvatar(draft.data)}
               name={draft.name || draftKindLabel}
+              showPreview
               description={t(
                 'galaxyEditorModal.thePhotoAppearsInTheLibraryChatHeaderAndNext',
               )}

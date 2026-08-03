@@ -28,7 +28,7 @@ export function ProviderEmbeddingSection({
   onTest: () => void;
 }) {
   const { t } = useTranslation('telescope');
-  const enabled = form.embeddingModel !== undefined;
+  const enabled = form.embeddingModel != null;
 
   return (
     <Surface className="rounded-2xl border border-separator bg-surface-secondary/50 p-4">

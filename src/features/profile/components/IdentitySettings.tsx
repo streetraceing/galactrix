@@ -155,10 +155,14 @@ export function IdentitySettings({
               </Button>
             </div>
           </div>
+          <label className="min-w-0 text-sm font-medium">
+            {t('identitySettings.avatar', { ns: 'profile' })}
+          </label>
           <AvatarPicker
             value={settings.profileAvatar}
             name={displayProfileName}
             disabled={savingProfile}
+            showPreview
             description={t(
               'identitySettings.thePhotoIsCroppedToASquareAndStoredOnly',
             )}
