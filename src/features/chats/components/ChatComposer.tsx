@@ -71,6 +71,7 @@ function ChatComposerComponent({
   const focusComposer = useCallback(() => {
     const textArea = textAreaRef.current;
     if (!textArea || textArea.disabled) return false;
+    if (document.activeElement === textArea) return true;
     textArea.focus({ preventScroll: true });
     textArea.setSelectionRange(textArea.value.length, textArea.value.length);
     return true;
@@ -174,7 +175,7 @@ function ChatComposerComponent({
   ]);
 
   useEffect(() => {
-    if (!shouldAutoFocus || !providerId || sending) return;
+    if (!shouldAutoFocus || !providerId) return;
 
     const focusComposerForTyping = (event: globalThis.KeyboardEvent) => {
       if (
@@ -231,7 +232,7 @@ function ChatComposerComponent({
     window.addEventListener('keydown', focusComposerForTyping, true);
     return () =>
       window.removeEventListener('keydown', focusComposerForTyping, true);
-  }, [providerId, sending, shouldAutoFocus]);
+  }, [providerId, shouldAutoFocus]);
 
   const submit = async () => {
     const value = draft.trim();
@@ -239,13 +240,19 @@ function ChatComposerComponent({
 
     submittingRef.current = true;
     pendingFocusAfterSendRef.current = focusAfterSend;
+    draftRef.current = '';
     setDraft('');
     try {
       await onSend(value);
-      removeStorageItem(draftKey(chatId));
+      if (draftRef.current) persistDraft(chatId, draftRef.current);
+      else removeStorageItem(draftKey(chatId));
     } catch (error) {
       if (!backendErrorHasVariable(error, 'messagePersisted', 'true')) {
-        setDraft((current) => current || value);
+        setDraft((current) => {
+          const restored = current || value;
+          draftRef.current = restored;
+          return restored;
+        });
       }
     } finally {
       submittingRef.current = false;
@@ -272,9 +279,10 @@ function ChatComposerComponent({
               variant="secondary"
               rows={1}
               value={draft}
-              onChange={(event: ChangeEvent<HTMLTextAreaElement>) =>
-                setDraft(event.target.value)
-              }
+              onChange={(event: ChangeEvent<HTMLTextAreaElement>) => {
+                draftRef.current = event.target.value;
+                setDraft(event.target.value);
+              }}
               onKeyDown={(event: KeyboardEvent<HTMLTextAreaElement>) => {
                 const sendWithShortcut =
                   event.key === 'Enter' &&
@@ -291,7 +299,7 @@ function ChatComposerComponent({
               enterKeyHint={sendOnEnter ? 'send' : 'enter'}
               placeholder={t('chatComposer.placeholder')}
               aria-label={t('chatComposer.label')}
-              disabled={!provider || sending}
+              disabled={!provider}
               className="scrollbar-thin min-h-12 max-h-48 min-w-0 w-full resize-none overflow-y-auto transition-none ring-0"
             />
             <div className="flex size-12 self-end items-center justify-center">

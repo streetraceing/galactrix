@@ -154,6 +154,13 @@ test('composer focus after send is configurable and independent from mobile open
     /await action\(messageId\);\s*onGenerationComplete\(\)/,
   );
   assert.match(composer, /previousFocusAfterActionRequestRef/);
+  assert.match(composer, /document\.activeElement === textArea/);
+  assert.match(composer, /disabled=\{!provider\}/);
+  assert.doesNotMatch(composer, /disabled=\{!provider \|\| sending\}/);
+  assert.match(
+    composer,
+    /if \(draftRef\.current\) persistDraft\(chatId, draftRef\.current\)/,
+  );
 });
 
 test('only newly appended message containers receive an entrance animation', async () => {

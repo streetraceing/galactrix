@@ -113,15 +113,15 @@ impl PromptConfig {
 }
 
 fn default_retry_attempts() -> u32 {
-    3
+    5
 }
 
 fn default_retry_initial_delay_ms() -> u64 {
-    750
+    500
 }
 
 fn default_retry_max_delay_ms() -> u64 {
-    8_000
+    6_000
 }
 
 fn default_dynamic_context_mode() -> String {
@@ -674,7 +674,7 @@ pub struct SemanticMemoryCandidate {
 
 #[cfg(test)]
 mod provider_import_tests {
-    use super::{ProviderImportInput, ProviderInput};
+    use super::{ProviderImportInput, ProviderInput, RetrySettings};
 
     fn provider_input() -> ProviderInput {
         ProviderInput {
@@ -714,5 +714,15 @@ mod provider_import_tests {
 
         assert!(value.get("embeddingModel").is_none());
         assert!(value.get("embeddingBaseUrl").is_none());
+    }
+
+    #[test]
+    fn reliable_request_defaults_prefer_more_frequent_retries() {
+        let retry = RetrySettings::default();
+
+        assert!(retry.enabled);
+        assert_eq!(retry.max_attempts, 5);
+        assert_eq!(retry.initial_delay_ms, 500);
+        assert_eq!(retry.max_delay_ms, 6_000);
     }
 }

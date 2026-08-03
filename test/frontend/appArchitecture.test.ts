@@ -76,7 +76,7 @@ test('application defaults are fresh and keep feature modules independent', () =
   const second = createDefaultSettings();
 
   first.aiModules.retry.maxAttempts = 99;
-  assert.equal(second.aiModules.retry.maxAttempts, 3);
+  assert.equal(second.aiModules.retry.maxAttempts, 5);
   assert.notEqual(first.aiModules, second.aiModules);
 
   const snapshot = createEmptySnapshot();

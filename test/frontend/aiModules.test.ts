@@ -42,7 +42,7 @@ test('new AI modules are backward-compatible and independently configurable', as
 
   assert.match(
     appState,
-    /retry:\s*\{[\s\S]*enabled: true[\s\S]*maxAttempts: 3/,
+    /retry:\s*\{[\s\S]*enabled: true[\s\S]*maxAttempts: 5[\s\S]*initialDelayMs: 500[\s\S]*maxDelayMs: 6000/,
   );
   assert.match(appState, /dynamicContext:\s*\{[\s\S]*enabled: false/);
   assert.match(appState, /semanticMemory:\s*\{[\s\S]*enabled: false/);

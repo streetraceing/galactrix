@@ -25,9 +25,9 @@ export function createDefaultSettings(): AppSettings {
     aiModules: {
       retry: {
         enabled: true,
-        maxAttempts: 3,
-        initialDelayMs: 750,
-        maxDelayMs: 8000,
+        maxAttempts: 5,
+        initialDelayMs: 500,
+        maxDelayMs: 6000,
       },
       dynamicContext: {
         enabled: false,
