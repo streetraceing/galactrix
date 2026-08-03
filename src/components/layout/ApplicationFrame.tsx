@@ -2,6 +2,7 @@ import { Spinner } from '@heroui/react';
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { isMobilePlatform } from '../../lib/platform';
+import { useMobileKeyboardVisibility } from '../../hooks/useMobileKeyboardVisibility';
 import { resolveProfileName } from '../../lib/profile';
 import type { AppSettings, Chat, TabId } from '../../types';
 import { ResizeHandle } from '../ResizeHandle';
@@ -46,6 +47,7 @@ export function ApplicationFrame({
   const { t } = useTranslation('common');
   const [sidebarResizing, setSidebarResizing] = useState(false);
   const isMobile = isMobilePlatform();
+  const mobileKeyboardVisible = useMobileKeyboardVisibility(isMobile);
   const hideDesktopNavigation =
     !isMobile && activeTab === 'chats' && chatMaximized;
   const displayProfileName = resolveProfileName(
@@ -134,7 +136,7 @@ export function ApplicationFrame({
           <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
             {children}
           </div>
-          {isMobile && mobileNavigationVisible ? (
+          {isMobile && mobileNavigationVisible && !mobileKeyboardVisible ? (
             <MobileBottomNavigation
               activeTab={activeTab}
               profileName={displayProfileName}

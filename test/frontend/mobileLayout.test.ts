@@ -19,6 +19,18 @@ const usageTimelinePath = new URL(
   '../../src/features/profile/components/UsageTimeline.tsx',
   import.meta.url,
 );
+const moduleFieldsPath = new URL(
+  '../../src/features/settings/components/ModuleFields.tsx',
+  import.meta.url,
+);
+const applicationFramePath = new URL(
+  '../../src/components/layout/ApplicationFrame.tsx',
+  import.meta.url,
+);
+const mobileKeyboardPath = new URL(
+  '../../src/hooks/useMobileKeyboardVisibility.ts',
+  import.meta.url,
+);
 
 test('mobile page headers share one compact centered title area', async () => {
   const [componentSource, cssSource] = await Promise.all([
@@ -72,4 +84,28 @@ test('mobile page headers are explicitly non-sticky', async () => {
     cssSource,
     /@media \(max-width: 820px\)[\s\S]*?\.page-header\s*\{[\s\S]*?@apply static! inset-auto!/,
   );
+});
+
+test('mobile settings keep field rings visible and number drafts editable', async () => {
+  const source = await readFile(moduleFieldsPath, 'utf8');
+
+  assert.match(source, /const \[draft, setDraft\] = useState/);
+  assert.match(source, /value=\{draft\}/);
+  assert.match(source, /rawValue\.trim\(\) !== ''/);
+  assert.match(source, /onBlur=\{commitDraft\}/);
+  assert.doesNotMatch(source, /Number\(event\.target\.value\)/);
+  assert.match(source, /-mx-1 min-h-0 overflow-hidden px-1 sm:mx-0 sm:px-0/);
+});
+
+test('mobile bottom navigation stays hidden while the keyboard contracts the viewport', async () => {
+  const [frame, keyboard] = await Promise.all([
+    readFile(applicationFramePath, 'utf8'),
+    readFile(mobileKeyboardPath, 'utf8'),
+  ]);
+
+  assert.match(frame, /useMobileKeyboardVisibility\(isMobile\)/);
+  assert.match(frame, /mobileNavigationVisible && !mobileKeyboardVisible/);
+  assert.match(keyboard, /isKeyboardInput\(document\.activeElement\)/);
+  assert.match(keyboard, /baselineHeight - currentHeight > threshold/);
+  assert.match(keyboard, /viewport\?\.addEventListener\('resize', update\)/);
 });

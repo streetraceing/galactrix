@@ -35,6 +35,27 @@ export function ModuleNumberField({
   step?: number;
   onChange: (value: number) => void;
 }) {
+  const [draft, setDraft] = useState(() => String(value));
+  const editingRef = useRef(false);
+
+  useEffect(() => {
+    if (!editingRef.current) setDraft(String(value));
+  }, [value]);
+
+  const commitDraft = () => {
+    editingRef.current = false;
+    const parsed = Number(draft);
+
+    if (draft.trim() === '' || !Number.isFinite(parsed)) {
+      setDraft(String(value));
+      return;
+    }
+
+    const next = Math.min(max, Math.max(min, parsed));
+    setDraft(String(next));
+    if (next !== value) onChange(next);
+  };
+
   return (
     <div className="grid min-w-0 gap-3 py-3 first:pt-0 sm:grid-cols-[minmax(0,1fr)_9rem] sm:items-center">
       <div className="min-w-0">
@@ -48,11 +69,24 @@ export function ModuleNumberField({
         min={min}
         max={max}
         step={step}
-        value={String(value)}
+        value={draft}
+        inputMode={step % 1 === 0 ? 'numeric' : 'decimal'}
         aria-label={label}
+        onFocus={() => {
+          editingRef.current = true;
+        }}
         onChange={(event: ChangeEvent<HTMLInputElement>) => {
-          const next = Number(event.target.value);
-          if (Number.isFinite(next)) onChange(next);
+          const rawValue = event.target.value;
+          setDraft(rawValue);
+
+          const next = Number(rawValue);
+          if (rawValue.trim() !== '' && Number.isFinite(next)) {
+            onChange(Math.min(max, Math.max(min, next)));
+          }
+        }}
+        onBlur={commitDraft}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') event.currentTarget.blur();
         }}
       />
     </div>
@@ -231,7 +265,7 @@ export function ModuleSettingsCard({
           aria-hidden={!detailsVisible}
           inert={!detailsVisible}
         >
-          <div className="min-h-0 overflow-hidden">
+          <div className="-mx-1 min-h-0 overflow-hidden px-1 sm:mx-0 sm:px-0">
             <div
               id={panelId}
               className="divide-y divide-separator border-t border-separator pt-3"
