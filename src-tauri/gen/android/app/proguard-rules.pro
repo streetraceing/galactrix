@@ -23,10 +23,9 @@
 # Required by rustls-platform-verifier, which loads these classes through JNI.
 -keep, includedescriptorclasses class org.rustls.platformverifier.** { *; }
 
-# Keep the Kotlin declaration aligned with its exported Rust JNI symbol.
--keepclassmembers class ru.streetraceing.galactrix.MainActivity {
-    native <methods>;
-}
+# Keep the class name and native declaration aligned with the exported Rust JNI symbol.
+# Keeping only the native member is insufficient because R8 may rename the class.
+-keep class ru.streetraceing.galactrix.MainActivity { *; }
 
 # The Android keyring backend resolves this Kotlin/JNI bridge at runtime.
 -keep class io.crates.keyring.Keyring { *; }

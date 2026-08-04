@@ -54,6 +54,8 @@ android {
             }
         }
         getByName("release") {
+            // Galactrix supports user-configured LAN/custom HTTP endpoints.
+            manifestPlaceholders["usesCleartextTraffic"] = "true"
             signingConfig = signingConfigs.getByName("release")
 
             isMinifyEnabled = true
