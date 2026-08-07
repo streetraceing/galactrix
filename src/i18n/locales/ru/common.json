@@ -103,5 +103,11 @@
   "export.destination.downloads.title": "Сохранить в загрузки",
   "export.destination.downloads.description": "Файл будет скачан с автоматически созданным именем.",
   "user.defaultName": "Пользователь",
-  "errors.unknown": "Неизвестная ошибка"
+  "errors.unknown": "Неизвестная ошибка",
+  "desktopTitlebar.createPersona": "Создать персону Галактики",
+  "desktopTitlebar.createCharacter": "Создать персонажа Галактики",
+  "desktopTitlebar.createUniverse": "Создать вселенную Галактики",
+  "desktopTitlebar.createWorldbook": "Создать ворлдбук Галактики",
+  "desktopTitlebar.createStyle": "Создать стиль Галактики",
+  "desktopTitlebar.createPromptSet": "Создать набор промптов Галактики"
 }

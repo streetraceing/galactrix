@@ -88,11 +88,17 @@ test('chat config round-trip preserves a direct style selection', () => {
     messageCount: 0,
     pinned: false,
     styleItemId: 'style-1',
+    moduleOverrides: { retry: false, contextBudget: true },
     worldbookIds: [],
     promptConfig: defaultPromptConfig,
   };
 
-  assert.equal(chatConfigFromChat(chat).styleItemId, 'style-1');
+  const config = chatConfigFromChat(chat);
+  assert.equal(config.styleItemId, 'style-1');
+  assert.deepEqual(config.moduleOverrides, {
+    retry: false,
+    contextBudget: true,
+  });
 });
 
 test('persona normalization preserves explicit pronouns', () => {

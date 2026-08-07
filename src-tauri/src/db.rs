@@ -12,7 +12,7 @@ use serde_json::Value;
 
 use crate::i18n::{keys, CommandError, CommandResult};
 use crate::models::{
-    AppSnapshot, Chat, ChatConfigInput, ChatPromptContext, ChatState, GalaxyItem, Message,
+    AppSnapshot, Chat, ChatConfigInput, ChatModuleOverrides, ChatPromptContext, ChatState, GalaxyItem, Message,
     MessageVariant, PromptConfig, Provider,
 };
 
@@ -51,7 +51,8 @@ fn migrate(connection: &Connection) -> CommandResult<()> {
                 style_item_id TEXT,
                 universe_id TEXT,
                 response_preset TEXT NOT NULL DEFAULT 'natural',
-                prompt_config_json TEXT NOT NULL DEFAULT '{}'
+                prompt_config_json TEXT NOT NULL DEFAULT '{}',
+                module_overrides_json TEXT NOT NULL DEFAULT '{}'
             );
 
             CREATE TABLE IF NOT EXISTS messages (
@@ -210,6 +211,12 @@ fn migrate(connection: &Connection) -> CommandResult<()> {
         connection,
         "chats",
         "prompt_config_json",
+        "TEXT NOT NULL DEFAULT '{}'",
+    )?;
+    ensure_column(
+        connection,
+        "chats",
+        "module_overrides_json",
         "TEXT NOT NULL DEFAULT '{}'",
     )?;
     ensure_column(
@@ -440,6 +447,14 @@ fn prompt_config_json(config: &PromptConfig) -> CommandResult<String> {
     Ok(serde_json::to_string(config)?)
 }
 
+fn parse_module_overrides(raw: &str) -> ChatModuleOverrides {
+    serde_json::from_str(raw).unwrap_or_default()
+}
+
+fn module_overrides_json(overrides: &ChatModuleOverrides) -> CommandResult<String> {
+    Ok(serde_json::to_string(overrides)?)
+}
+
 fn ensure_column(
     connection: &Connection,
     table: &str,
@@ -516,7 +531,7 @@ fn list_chats(connection: &Connection) -> CommandResult<Vec<Chat>> {
     let mut worldbooks = worldbook_ids_by_chat(connection)?;
     let mut statement = connection.prepare(
         "SELECT id, title, preview, updated_at, message_count, pinned, provider_id,
-                persona_id, character_id, style_item_id, universe_id, prompt_config_json, response_preset
+                persona_id, character_id, style_item_id, universe_id, prompt_config_json, module_overrides_json, response_preset
          FROM chats ORDER BY pinned DESC, updated_at DESC",
     )?;
     let rows = statement
@@ -535,6 +550,7 @@ fn list_chats(connection: &Connection) -> CommandResult<Vec<Chat>> {
                 row.get::<_, Option<String>>(10)?,
                 row.get::<_, String>(11)?,
                 row.get::<_, String>(12)?,
+                row.get::<_, String>(13)?,
             ))
         })?
         .collect::<Result<Vec<_>, _>>()?;
@@ -555,6 +571,7 @@ fn list_chats(connection: &Connection) -> CommandResult<Vec<Chat>> {
                 style_item_id,
                 universe_id,
                 prompt_config_json,
+                module_overrides_json,
                 legacy_preset,
             )| Chat {
                 worldbook_ids: worldbooks.remove(&id).unwrap_or_default(),
@@ -570,6 +587,7 @@ fn list_chats(connection: &Connection) -> CommandResult<Vec<Chat>> {
                 style_item_id,
                 universe_id,
                 prompt_config: parse_prompt_config(&prompt_config_json, &legacy_preset),
+                module_overrides: parse_module_overrides(&module_overrides_json),
             },
         )
         .collect())
@@ -590,7 +608,7 @@ pub fn get_chat(connection: &Connection, chat_id: &str) -> CommandResult<Chat> {
     let row = connection
         .query_row(
             "SELECT id, title, preview, updated_at, message_count, pinned, provider_id,
-                    persona_id, character_id, style_item_id, universe_id, prompt_config_json, response_preset
+                    persona_id, character_id, style_item_id, universe_id, prompt_config_json, module_overrides_json, response_preset
              FROM chats WHERE id = ?1",
             params![chat_id],
             |row| {
@@ -608,6 +626,7 @@ pub fn get_chat(connection: &Connection, chat_id: &str) -> CommandResult<Chat> {
                     row.get::<_, Option<String>>(10)?,
                     row.get::<_, String>(11)?,
                     row.get::<_, String>(12)?,
+                    row.get::<_, String>(13)?,
                 ))
             },
         )
@@ -625,7 +644,8 @@ pub fn get_chat(connection: &Connection, chat_id: &str) -> CommandResult<Chat> {
         character_id: row.8,
         style_item_id: row.9,
         universe_id: row.10,
-        prompt_config: parse_prompt_config(&row.11, &row.12),
+        prompt_config: parse_prompt_config(&row.11, &row.13),
+        module_overrides: parse_module_overrides(&row.12),
         worldbook_ids: worldbook_ids_for_chat(connection, &row.0)?,
     })
 }
@@ -887,6 +907,7 @@ pub fn create_chat(
 ) -> CommandResult<()> {
     validate_chat_links(connection, input)?;
     let prompt_config = prompt_config_json(&input.prompt_config)?;
+    let module_overrides = module_overrides_json(&input.module_overrides)?;
     let greeting = input
         .greeting_message
         .as_deref()
@@ -897,8 +918,8 @@ pub fn create_chat(
     transaction.execute(
         "INSERT INTO chats (
             id, title, preview, updated_at, message_count, pinned, provider_id,
-            persona_id, character_id, style_item_id, universe_id, prompt_config_json
-         ) VALUES (?1, ?2, ?3, ?4, ?5, 0, ?6, ?7, ?8, ?9, ?10, ?11)",
+            persona_id, character_id, style_item_id, universe_id, prompt_config_json, module_overrides_json
+         ) VALUES (?1, ?2, ?3, ?4, ?5, 0, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
         params![
             id,
             input.title.trim(),
@@ -911,6 +932,7 @@ pub fn create_chat(
             input.style_item_id,
             input.universe_id,
             prompt_config,
+            module_overrides,
         ],
     )?;
     replace_chat_worldbooks(&transaction, id, &input.worldbook_ids)?;
@@ -946,12 +968,13 @@ pub fn update_chat_config(
 ) -> CommandResult<()> {
     validate_chat_links(connection, input)?;
     let prompt_config = prompt_config_json(&input.prompt_config)?;
+    let module_overrides = module_overrides_json(&input.module_overrides)?;
     let transaction = connection.unchecked_transaction()?;
     let changed = transaction.execute(
         "UPDATE chats SET title = ?1, provider_id = ?2, persona_id = ?3,
                     character_id = ?4, style_item_id = ?5, universe_id = ?6,
-                    prompt_config_json = ?7, updated_at = ?8
-             WHERE id = ?9",
+                    prompt_config_json = ?7, module_overrides_json = ?8, updated_at = ?9
+             WHERE id = ?10",
         params![
             input.title.trim(),
             input.provider_id,
@@ -960,6 +983,7 @@ pub fn update_chat_config(
             input.style_item_id,
             input.universe_id,
             prompt_config,
+            module_overrides,
             now_unix(),
             chat_id,
         ],
@@ -1540,7 +1564,7 @@ pub fn clone_chat(
 ) -> CommandResult<String> {
     let source = connection
         .query_row(
-            "SELECT provider_id, persona_id, character_id, style_item_id, universe_id, prompt_config_json
+            "SELECT provider_id, persona_id, character_id, style_item_id, universe_id, prompt_config_json, module_overrides_json
              FROM chats WHERE id = ?1",
             params![source_chat_id],
             |row| {
@@ -1551,6 +1575,7 @@ pub fn clone_chat(
                     row.get::<_, Option<String>>(3)?,
                     row.get::<_, Option<String>>(4)?,
                     row.get::<_, String>(5)?,
+                    row.get::<_, String>(6)?,
                 ))
             },
         )
@@ -1570,8 +1595,8 @@ pub fn clone_chat(
     transaction.execute(
         "INSERT INTO chats (
                 id, title, preview, updated_at, message_count, pinned, provider_id,
-                persona_id, character_id, style_item_id, universe_id, prompt_config_json
-             ) VALUES (?1, ?2, '', ?3, 0, 0, ?4, ?5, ?6, ?7, ?8, ?9)",
+                persona_id, character_id, style_item_id, universe_id, prompt_config_json, module_overrides_json
+             ) VALUES (?1, ?2, '', ?3, 0, 0, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
         params![
             new_chat_id,
             title,
@@ -1582,6 +1607,7 @@ pub fn clone_chat(
             source.3,
             source.4,
             source.5,
+            source.6,
         ],
     )?;
 
@@ -1854,6 +1880,21 @@ pub fn provider_optional(connection: &Connection, id: &str) -> CommandResult<Opt
 
 pub fn get_provider(connection: &Connection, id: &str) -> CommandResult<Provider> {
     provider_optional(connection, id)?.ok_or_else(|| CommandError::new(keys::PROVIDER_NOT_FOUND))
+}
+
+pub fn chat_module_overrides(
+    connection: &Connection,
+    chat_id: &str,
+) -> CommandResult<ChatModuleOverrides> {
+    let raw: String = connection
+        .query_row(
+            "SELECT module_overrides_json FROM chats WHERE id = ?1",
+            params![chat_id],
+            |row| row.get(0),
+        )
+        .optional()?
+        .ok_or_else(|| CommandError::new(keys::CHAT_NOT_FOUND))?;
+    Ok(parse_module_overrides(&raw))
 }
 
 pub fn chat_recent_message_limit(connection: &Connection, chat_id: &str) -> CommandResult<usize> {

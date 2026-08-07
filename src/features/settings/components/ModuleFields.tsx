@@ -10,6 +10,7 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Icon, type IconName } from '../../../components/Icon';
+import { useMediaQuery } from '../../../hooks/useMediaQuery';
 import {
   readStorageItem,
   removeStorageItem,
@@ -196,19 +197,20 @@ export function ModuleSettingsCard({
   children: ReactNode;
 }) {
   const { t } = useTranslation('settings');
-  const [isExpanded, setIsExpanded] = useState(() =>
-    readModuleExpanded(moduleId, enabled),
+  const isCompactLayout = useMediaQuery('(max-width: 820px)');
+  const [isExpanded, setIsExpanded] = useState(
+    () => readModuleExpanded(moduleId, enabled) && !isCompactLayout,
   );
   const previousEnabledRef = useRef(enabled);
   const panelId = useId();
-  const detailsVisible = enabled && isExpanded;
+  const detailsVisible = isExpanded;
 
   useEffect(() => {
     if (previousEnabledRef.current === enabled) return;
     previousEnabledRef.current = enabled;
     persistModuleCollapsed(moduleId, false);
-    setIsExpanded(enabled);
-  }, [enabled, moduleId]);
+    setIsExpanded(enabled && !isCompactLayout);
+  }, [enabled, isCompactLayout, moduleId]);
 
   return (
     <Surface className="settings-card-enter w-full min-w-0 max-w-full overflow-hidden rounded-2xl border border-separator bg-surface p-4 shadow-surface ring-1 ring-inset ring-foreground/5 transition sm:p-5">
@@ -223,7 +225,6 @@ export function ModuleSettingsCard({
             : 'ai.module.expandSettings',
           { module: title },
         )}
-        disabled={!enabled}
         onClick={() =>
           setIsExpanded((current) => {
             const next = !current;
@@ -252,7 +253,7 @@ export function ModuleSettingsCard({
           value={enabled}
           onChange={(nextEnabled) => {
             persistModuleCollapsed(moduleId, false);
-            setIsExpanded(nextEnabled);
+            setIsExpanded(nextEnabled && !isCompactLayout);
             onEnabledChange(nextEnabled);
           }}
         />

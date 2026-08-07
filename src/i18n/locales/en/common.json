@@ -97,5 +97,11 @@
   "export.destination.downloads.title": "Save to Downloads",
   "export.destination.downloads.description": "Downloads the file with an automatically generated name.",
   "user.defaultName": "User",
-  "errors.unknown": "Unknown error"
+  "errors.unknown": "Unknown error",
+  "desktopTitlebar.createPersona": "Create Galaxy persona",
+  "desktopTitlebar.createCharacter": "Create Galaxy character",
+  "desktopTitlebar.createUniverse": "Create Galaxy universe",
+  "desktopTitlebar.createWorldbook": "Create Galaxy worldbook",
+  "desktopTitlebar.createStyle": "Create Galaxy style",
+  "desktopTitlebar.createPromptSet": "Create Galaxy prompt set"
 }

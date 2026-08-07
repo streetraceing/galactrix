@@ -1,10 +1,20 @@
-import { Button, Chip, SearchField, Tabs } from '@heroui/react';
+import {
+  Button,
+  Chip,
+  Dropdown,
+  Label,
+  SearchField,
+  Tabs,
+} from '@heroui/react';
 import { useEffect, useMemo, useState } from 'react';
 import { Icon } from '../../components/Icon';
-import { TooltipIconButton } from '../../components/ui/TooltipIconButton';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { toast } from '../../i18n/toast';
 import { errorMessage } from '../../lib/errors';
+import {
+  consumeGalaxyQuickCreate,
+  subscribeGalaxyQuickCreate,
+} from '../../lib/galaxyQuickCreate';
 import {
   ExportDestinationPicker,
   ExportSelectionList,
@@ -30,6 +40,7 @@ import { GalaxyEditorModal } from './components/GalaxyEditorModal';
 import {
   galaxyKindCreateLabelKeys,
   galaxyKindDescriptionKeys,
+  galaxyKindIcons,
   galaxyKindLabelKeys,
   galaxySections,
 } from './catalog';
@@ -163,6 +174,7 @@ export function GalaxiesScreen({
   };
 
   const openCreate = (kind: GalaxyKind = 'persona') => {
+    setSection(kind);
     setEditing(null);
     setDraft(createGalaxyDraft(kind));
     setError('');
@@ -170,13 +182,13 @@ export function GalaxiesScreen({
   };
 
   useEffect(() => {
-    const createCurrentItem = () => openCreate(section);
-    window.addEventListener('galactrix:new-galaxy-item', createCurrentItem);
-    return () =>
-      window.removeEventListener(
-        'galactrix:new-galaxy-item',
-        createCurrentItem,
-      );
+    const createRequestedItem = () => {
+      const request = consumeGalaxyQuickCreate();
+      if (request == null) return;
+      openCreate(request === 'current' ? section : request);
+    };
+    createRequestedItem();
+    return subscribeGalaxyQuickCreate(createRequestedItem);
   }, [section]);
 
   const openEdit = (item: GalaxyItem) => {
@@ -275,25 +287,37 @@ export function GalaxiesScreen({
                 <Icon name="upload" className="size-4" />{' '}
                 {t('galaxiesScreen.import')}
               </Button>
-              <TooltipIconButton
-                label={`${t('galaxiesScreen.create')} ${t(galaxyKindCreateLabelKeys[section])}`}
-                variant="primary"
-                className="flex lg:hidden"
-                onPress={() => openCreate(section)}
-              >
-                <Icon name="plus" className="size-4" />
-              </TooltipIconButton>
-              <Button
-                variant="primary"
-                className="w-full sm:w-auto hidden lg:flex"
-                onPress={() => openCreate(section)}
-              >
-                <Icon name="plus" className="size-4" />{' '}
-                <span>
-                  {t('galaxiesScreen.create')}{' '}
-                  {t(galaxyKindCreateLabelKeys[section])}
-                </span>
-              </Button>
+              <Dropdown className="flex-1 sm:flex-none">
+                <Button
+                  variant="primary"
+                  className="w-full sm:w-auto"
+                  aria-label={t('galaxiesScreen.quickCreateDescription')}
+                >
+                  <Icon name="plus" className="size-4" />
+                  <span>{t('galaxiesScreen.quickCreate')}</span>
+                  <Icon name="chevron" className="size-3.5" />
+                </Button>
+                <Dropdown.Popover placement="bottom end" className="min-w-56">
+                  <Dropdown.Menu
+                    aria-label={t('galaxiesScreen.quickCreateDescription')}
+                    onAction={(key) => openCreate(String(key) as GalaxyKind)}
+                  >
+                    {galaxySections.map((entry) => (
+                      <Dropdown.Item
+                        key={entry.id}
+                        id={entry.id}
+                        textValue={`${t('galaxiesScreen.create')} ${t(galaxyKindCreateLabelKeys[entry.id])}`}
+                      >
+                        <Icon
+                          name={galaxyKindIcons[entry.id]}
+                          className="size-4"
+                        />
+                        <Label>{t(entry.labelKey)}</Label>
+                      </Dropdown.Item>
+                    ))}
+                  </Dropdown.Menu>
+                </Dropdown.Popover>
+              </Dropdown>
             </div>
           }
         />
@@ -332,7 +356,9 @@ export function GalaxiesScreen({
                 <Tabs.Tab key={entry.id} id={entry.id}>
                   {t(entry.labelKey)}
                   <Chip size="sm" variant="soft" className="bg-transparent">
-                    {byKind[entry.id].length}
+                    {normalizedQuery
+                      ? visibleByKind[entry.id].length
+                      : byKind[entry.id].length}
                   </Chip>
                   <Tabs.Indicator />
                 </Tabs.Tab>
@@ -389,6 +415,15 @@ export function GalaxiesScreen({
                       normalizedQuery
                         ? t('galaxiesScreen.noSearchResultsDescription')
                         : t(galaxyKindDescriptionKeys[entry.id])
+                    }
+                    action={
+                      normalizedQuery
+                        ? undefined
+                        : {
+                            label: t(galaxyKindCreateLabelKeys[entry.id]),
+                            onPress: () => openCreate(entry.id),
+                            icon: <Icon name="plus" className="size-4" />,
+                          }
                     }
                     compact
                   />

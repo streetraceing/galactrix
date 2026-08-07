@@ -14,6 +14,7 @@ export function createChatConfig(defaultTitle: string): ChatConfigInput {
     greetingMessage: '',
     worldbookIds: [],
     promptConfig: clonePromptConfig(defaultPromptConfig),
+    moduleOverrides: {},
   };
 }
 
@@ -27,6 +28,7 @@ export function chatConfigFromChat(chat: Chat): ChatConfigInput {
     universeId: chat.universeId,
     worldbookIds: [...chat.worldbookIds],
     promptConfig: clonePromptConfig(chat.promptConfig),
+    moduleOverrides: { ...(chat.moduleOverrides ?? {}) },
   };
 }
 

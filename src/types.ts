@@ -14,6 +14,7 @@ export type Chat = {
   universeId?: string;
   worldbookIds: string[];
   promptConfig: PromptConfig;
+  moduleOverrides?: ChatModuleOverrides;
 };
 
 export type PromptPresetId =
@@ -71,6 +72,7 @@ export type ChatConfigInput = {
   universeId?: string;
   worldbookIds: string[];
   promptConfig: PromptConfig;
+  moduleOverrides: ChatModuleOverrides;
 };
 
 export type MessageVariant = {
@@ -295,10 +297,41 @@ export type SemanticMemorySettings = {
   archivedMessageLimit: number;
 };
 
+export type ContextBudgetSettings = {
+  enabled: boolean;
+  maxCharacters: number;
+  preserveRecentMessages: number;
+};
+
+export type RepetitionGuardSettings = {
+  enabled: boolean;
+  recentAssistantMessages: number;
+  maxCharactersPerMessage: number;
+};
+
+export type ResponseCleanupSettings = {
+  enabled: boolean;
+  collapseBlankLines: boolean;
+  removeDuplicatedTail: boolean;
+};
+
+export type AiModuleId =
+  | 'retry'
+  | 'dynamicContext'
+  | 'semanticMemory'
+  | 'contextBudget'
+  | 'repetitionGuard'
+  | 'responseCleanup';
+
+export type ChatModuleOverrides = Partial<Record<AiModuleId, boolean>>;
+
 export type AiModuleSettings = {
   retry: RetrySettings;
   dynamicContext: DynamicContextSettings;
   semanticMemory: SemanticMemorySettings;
+  contextBudget: ContextBudgetSettings;
+  repetitionGuard: RepetitionGuardSettings;
+  responseCleanup: ResponseCleanupSettings;
 };
 
 export type AppSettings = {

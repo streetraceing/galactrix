@@ -1,7 +1,9 @@
 use super::{
-    continuation_instruction, instruction, normalize_response, regeneration_instruction,
+    continuation_instruction, instruction, normalize_response, normalize_response_with_cleanup,
+    regeneration_instruction,
     regeneration_mode, RegenerationMode,
 };
+use crate::models::ResponseCleanupSettings;
 
 #[test]
 fn trims_edges_without_rewriting_model_content() {
@@ -54,4 +56,27 @@ fn lowercase_rules_include_relaxed_and_strict_modes() {
     assert!(strict.contains("strict output constraint"));
     assert!(strict.contains("прост проверял связь, что делаешь?"));
     assert!(strict.contains("Never ignore this rule"));
+}
+
+#[test]
+fn response_cleanup_is_conservative_and_optional() {
+    let settings = ResponseCleanupSettings {
+        enabled: true,
+        collapse_blank_lines: true,
+        remove_duplicated_tail: true,
+    };
+    let repeated = "First paragraph.\n\n\n\nThis final paragraph is long enough to deduplicate.\n\nThis final paragraph is long enough to deduplicate.";
+    assert_eq!(
+        normalize_response_with_cleanup(repeated, &settings),
+        "First paragraph.\n\nThis final paragraph is long enough to deduplicate."
+    );
+
+    let disabled = ResponseCleanupSettings {
+        enabled: false,
+        ..settings
+    };
+    assert_eq!(
+        normalize_response_with_cleanup("  one\n\n\n\ntwo  ", &disabled),
+        "one\n\n\n\ntwo"
+    );
 }

@@ -6,7 +6,7 @@ export function AppInfo({ version }: { version: string }) {
   const { t } = useTranslation('profile');
   return (
     <Surface className="flex w-full min-w-0 max-w-full items-center gap-3 overflow-hidden rounded-2xl border border-separator p-4">
-      <div>
+      <div className="md:hidden">
         <BrandMark size={38} />
       </div>
       <div className="min-w-0 flex-1">

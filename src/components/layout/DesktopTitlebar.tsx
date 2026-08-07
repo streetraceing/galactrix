@@ -4,7 +4,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { MouseEvent } from 'react';
 import { navigationItems } from '../../app/navigation';
 import { isMobilePlatform } from '../../lib/platform';
-import type { Chat, TabId } from '../../types';
+import { requestGalaxyQuickCreate } from '../../lib/galaxyQuickCreate';
+import type { Chat, GalaxyKind, TabId } from '../../types';
 import { BrandMark } from '../BrandMark';
 import { Icon } from '../Icon';
 import { TooltipIconButton } from '../ui/TooltipIconButton';
@@ -17,6 +18,7 @@ type Command = {
   hint: string;
   icon: IconName;
   shortcut?: string;
+  searchOnly?: boolean;
   run: () => void;
 };
 
@@ -41,8 +43,13 @@ export function DesktopTitlebar({
   const isMobile = isMobilePlatform();
   const appWindow = useMemo(() => getCurrentWindow(), []);
 
-  const commands = useMemo<Command[]>(
-    () => [
+  const commands = useMemo<Command[]>(() => {
+    const createGalaxy = (kind?: GalaxyKind) => {
+      requestGalaxyQuickCreate(kind);
+      onNavigate('galaxies');
+    };
+
+    return [
       {
         id: 'new-chat',
         label: t('desktopTitlebar.startANewChat'),
@@ -84,14 +91,25 @@ export function DesktopTitlebar({
         hint: t('desktopTitlebar.openTheEditorInTheCurrentLibrarySection'),
         icon: 'galaxies',
         shortcut: 'Ctrl+Shift+G',
-        run: () => {
-          onNavigate('galaxies');
-          window.setTimeout(
-            () => window.dispatchEvent(new Event('galactrix:new-galaxy-item')),
-            0,
-          );
-        },
+        run: () => createGalaxy(),
       },
+      ...(
+        [
+          ['persona', 'desktopTitlebar.createPersona', 'user'],
+          ['character', 'desktopTitlebar.createCharacter', 'brain'],
+          ['universe', 'desktopTitlebar.createUniverse', 'planet'],
+          ['worldbook', 'desktopTitlebar.createWorldbook', 'book'],
+          ['style', 'desktopTitlebar.createStyle', 'sparkles'],
+          ['prompt-set', 'desktopTitlebar.createPromptSet', 'database'],
+        ] as const
+      ).map(([kind, labelKey, icon]) => ({
+        id: `new-galaxy-${kind}`,
+        label: t(labelKey),
+        hint: t('desktopTitlebar.createGalaxyObject'),
+        icon,
+        searchOnly: true,
+        run: () => createGalaxy(kind),
+      })),
       {
         id: 'new-provider',
         label: t('desktopTitlebar.addConnection'),
@@ -120,9 +138,8 @@ export function DesktopTitlebar({
         icon: 'minimize',
         run: () => void appWindow.minimize(),
       },
-    ],
-    [activeTab, appWindow, onNavigate, onToggleSidebar],
-  );
+    ];
+  }, [activeTab, appWindow, onNavigate, onToggleSidebar]);
 
   useEffect(() => {
     if (isMobile) return;
@@ -206,7 +223,7 @@ export function DesktopTitlebar({
     ? commands.filter((command) =>
         `${command.label} ${command.hint}`.toLowerCase().includes(normalized),
       )
-    : commands;
+    : commands.filter((command) => !command.searchOnly);
   const filteredChats = normalized
     ? chats
         .filter((chat) =>

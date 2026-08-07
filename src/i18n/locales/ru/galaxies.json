@@ -181,9 +181,11 @@
   "personaEditor.attributeValuePlaceholder": "Подробно опишите этот факт",
   "style.roleplayRich": "Глубокий роллплей",
   "style.telegramHuman": "Как человек в Telegram",
-  "galaxiesScreen.search": "Поиск в текущей библиотеке…",
+  "galaxiesScreen.search": "Поиск по всем Галактикам…",
   "galaxiesScreen.clearSearch": "Очистить поиск по галактикам",
   "galaxiesScreen.noSearchResults": "По этому запросу ничего не найдено",
-  "galaxiesScreen.noSearchResultsDescription": "Попробуйте другое имя или описание.",
-  "personaEditor.pronounsPlaceholder": "Например: она/её, они/их"
+  "galaxiesScreen.noSearchResultsDescription": "Попробуйте другой запрос или выберите раздел, где есть совпадения.",
+  "personaEditor.pronounsPlaceholder": "Например: она/её, они/их",
+  "galaxiesScreen.quickCreate": "Быстро создать",
+  "galaxiesScreen.quickCreateDescription": "Создать любой объект Галактики"
 }

@@ -67,6 +67,58 @@ pub fn normalize_response(content: &str) -> String {
     content.trim().to_owned()
 }
 
+pub fn normalize_response_with_cleanup(
+    content: &str,
+    settings: &crate::models::ResponseCleanupSettings,
+) -> String {
+    let mut normalized = normalize_response(content);
+    if !settings.enabled || normalized.is_empty() {
+        return normalized;
+    }
+    if settings.collapse_blank_lines {
+        normalized = collapse_blank_lines(&normalized);
+    }
+    if settings.remove_duplicated_tail {
+        normalized = remove_duplicated_tail(&normalized);
+    }
+    normalized.trim().to_owned()
+}
+
+fn collapse_blank_lines(content: &str) -> String {
+    let mut lines = Vec::new();
+    let mut blank_run = 0_usize;
+    let mut in_fence = false;
+    for line in content.lines() {
+        let trimmed = line.trim_start();
+        if trimmed.starts_with("```") || trimmed.starts_with("~~~") {
+            in_fence = !in_fence;
+        }
+        if !in_fence && line.trim().is_empty() {
+            blank_run += 1;
+            if blank_run > 1 {
+                continue;
+            }
+        } else {
+            blank_run = 0;
+        }
+        lines.push(line);
+    }
+    lines.join("\n")
+}
+
+fn remove_duplicated_tail(content: &str) -> String {
+    let paragraphs = content.split("\n\n").collect::<Vec<_>>();
+    if paragraphs.len() < 2 {
+        return content.to_owned();
+    }
+    let last = paragraphs[paragraphs.len() - 1].trim();
+    let previous = paragraphs[paragraphs.len() - 2].trim();
+    if last.chars().count() < 24 || last != previous {
+        return content.to_owned();
+    }
+    paragraphs[..paragraphs.len() - 1].join("\n\n")
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RegenerationMode {
     Reply,

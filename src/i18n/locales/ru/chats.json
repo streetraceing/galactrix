@@ -273,5 +273,17 @@
   "chatContextPicker.responseStyle": "Стиль ответа для чата",
   "chatContextPicker.useCharacterStyle": "Использовать стиль персонажа",
   "chatContextPicker.expand": "Показать",
-  "chatContextPicker.collapse": "Скрыть"
+  "chatContextPicker.collapse": "Скрыть",
+  "chatSetupModal.sections": "Разделы настроек чата",
+  "chatSetupModal.general": "Основное",
+  "chatSetupModal.context": "Контекст",
+  "chatSetupModal.modules": "Модули",
+  "chatSetupModal.prompt": "Промпт",
+  "chatModules.title": "Модули этого чата",
+  "chatModules.description": "Переопределяйте глобальные AI-модули только там, где этому чату нужно другое поведение. Наследуемые модули продолжают следовать Настройкам.",
+  "chatModules.globalOn": "Глобально · вкл.",
+  "chatModules.globalOff": "Глобально · выкл.",
+  "chatModules.overridden": "Переопределено",
+  "chatModules.useGlobal": "Как глобально",
+  "chatModules.resetAll": "Сбросить переопределения"
 }

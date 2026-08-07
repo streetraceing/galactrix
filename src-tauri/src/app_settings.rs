@@ -108,6 +108,15 @@ fn normalize_ai_settings(settings: &mut AppSettings, provider_ids: &HashSet<Stri
     semantic.similarity_threshold = semantic.similarity_threshold.clamp(0.0, 1.0);
     semantic.batch_size = semantic.batch_size.clamp(1, 64);
     semantic.archived_message_limit = semantic.archived_message_limit.clamp(20, 5_000);
+
+    let budget = &mut settings.ai_modules.context_budget;
+    budget.max_characters = budget.max_characters.clamp(4_000, 500_000);
+    budget.preserve_recent_messages = budget.preserve_recent_messages.clamp(2, 100);
+
+    let repetition = &mut settings.ai_modules.repetition_guard;
+    repetition.recent_assistant_messages = repetition.recent_assistant_messages.clamp(1, 12);
+    repetition.max_characters_per_message =
+        repetition.max_characters_per_message.clamp(120, 4_000);
 }
 
 fn valid_provider_id(
@@ -134,6 +143,10 @@ mod tests {
             ..AppSettings::default()
         };
         settings.ai_modules.retry.max_attempts = 99;
+        settings.ai_modules.context_budget.max_characters = 1;
+        settings.ai_modules.context_budget.preserve_recent_messages = 999;
+        settings.ai_modules.repetition_guard.recent_assistant_messages = 99;
+        settings.ai_modules.repetition_guard.max_characters_per_message = 1;
 
         let normalized = normalize(settings, &HashSet::new()).expect("normalize settings");
 
@@ -142,6 +155,19 @@ mod tests {
         assert_eq!(normalized.language, "system");
         assert_eq!(normalized.interface_scale, 1.5);
         assert_eq!(normalized.ai_modules.retry.max_attempts, 8);
+        assert_eq!(normalized.ai_modules.context_budget.max_characters, 4_000);
+        assert_eq!(
+            normalized.ai_modules.context_budget.preserve_recent_messages,
+            100
+        );
+        assert_eq!(
+            normalized.ai_modules.repetition_guard.recent_assistant_messages,
+            12
+        );
+        assert_eq!(
+            normalized.ai_modules.repetition_guard.max_characters_per_message,
+            120
+        );
     }
 
     #[test]

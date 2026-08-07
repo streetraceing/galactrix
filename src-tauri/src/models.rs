@@ -17,6 +17,8 @@ pub struct Chat {
     pub universe_id: Option<String>,
     pub worldbook_ids: Vec<String>,
     pub prompt_config: PromptConfig,
+    #[serde(default)]
+    pub module_overrides: ChatModuleOverrides,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -113,6 +115,49 @@ impl PromptConfig {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct ChatModuleOverrides {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub retry: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dynamic_context: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub semantic_memory: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context_budget: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub repetition_guard: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub response_cleanup: Option<bool>,
+}
+
+impl ChatModuleOverrides {
+    pub fn retry_enabled(&self, global: bool) -> bool {
+        self.retry.unwrap_or(global)
+    }
+
+    pub fn dynamic_context_enabled(&self, global: bool) -> bool {
+        self.dynamic_context.unwrap_or(global)
+    }
+
+    pub fn semantic_memory_enabled(&self, global: bool) -> bool {
+        self.semantic_memory.unwrap_or(global)
+    }
+
+    pub fn context_budget_enabled(&self, global: bool) -> bool {
+        self.context_budget.unwrap_or(global)
+    }
+
+    pub fn repetition_guard_enabled(&self, global: bool) -> bool {
+        self.repetition_guard.unwrap_or(global)
+    }
+
+    pub fn response_cleanup_enabled(&self, global: bool) -> bool {
+        self.response_cleanup.unwrap_or(global)
+    }
+}
+
 fn default_retry_attempts() -> u32 {
     5
 }
@@ -161,6 +206,22 @@ fn default_semantic_archived_message_limit() -> usize {
     400
 }
 
+fn default_context_budget_characters() -> usize {
+    48_000
+}
+
+fn default_context_budget_preserve_messages() -> usize {
+    12
+}
+
+fn default_repetition_guard_messages() -> usize {
+    4
+}
+
+fn default_repetition_guard_message_characters() -> usize {
+    600
+}
+
 fn default_true() -> bool {
     true
 }
@@ -196,6 +257,8 @@ pub struct ChatConfigInput {
     pub worldbook_ids: Vec<String>,
     #[serde(default)]
     pub prompt_config: PromptConfig,
+    #[serde(default)]
+    pub module_overrides: ChatModuleOverrides,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -459,6 +522,69 @@ impl Default for SemanticMemorySettings {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ContextBudgetSettings {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "default_context_budget_characters")]
+    pub max_characters: usize,
+    #[serde(default = "default_context_budget_preserve_messages")]
+    pub preserve_recent_messages: usize,
+}
+
+impl Default for ContextBudgetSettings {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            max_characters: default_context_budget_characters(),
+            preserve_recent_messages: default_context_budget_preserve_messages(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RepetitionGuardSettings {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "default_repetition_guard_messages")]
+    pub recent_assistant_messages: usize,
+    #[serde(default = "default_repetition_guard_message_characters")]
+    pub max_characters_per_message: usize,
+}
+
+impl Default for RepetitionGuardSettings {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            recent_assistant_messages: default_repetition_guard_messages(),
+            max_characters_per_message: default_repetition_guard_message_characters(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResponseCleanupSettings {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "default_true")]
+    pub collapse_blank_lines: bool,
+    #[serde(default = "default_true")]
+    pub remove_duplicated_tail: bool,
+}
+
+impl Default for ResponseCleanupSettings {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            collapse_blank_lines: true,
+            remove_duplicated_tail: true,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct AiModuleSettings {
@@ -468,6 +594,12 @@ pub struct AiModuleSettings {
     pub dynamic_context: DynamicContextSettings,
     #[serde(default)]
     pub semantic_memory: SemanticMemorySettings,
+    #[serde(default)]
+    pub context_budget: ContextBudgetSettings,
+    #[serde(default)]
+    pub repetition_guard: RepetitionGuardSettings,
+    #[serde(default)]
+    pub response_cleanup: ResponseCleanupSettings,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

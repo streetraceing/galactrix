@@ -26,6 +26,7 @@ export function AppScreenRouter({
         messages={snapshot.messages}
         providers={snapshot.providers}
         galaxyItems={snapshot.galaxyItems}
+        aiModules={snapshot.settings.aiModules}
         profileName={snapshot.settings.profileName}
         profileAvatar={snapshot.settings.profileAvatar}
         activeChatId={controller.activeChatId}

@@ -24,6 +24,7 @@ fn create_test_chat(connection: &Connection, id: &str) {
             universe_id: None,
             worldbook_ids: Vec::new(),
             prompt_config: PromptConfig::default(),
+            module_overrides: Default::default(),
         },
     )
     .expect("chat must be created");
@@ -45,6 +46,7 @@ fn greeting_message_creates_the_initial_assistant_variant() {
             universe_id: None,
             worldbook_ids: Vec::new(),
             prompt_config: PromptConfig::default(),
+            module_overrides: Default::default(),
         },
     )
     .expect("chat with greeting must be created");
@@ -558,6 +560,7 @@ fn chat_style_override_is_persisted_and_used_in_prompt_context() {
             universe_id: None,
             worldbook_ids: Vec::new(),
             prompt_config: PromptConfig::default(),
+            module_overrides: Default::default(),
         },
     )
     .expect("chat must save");
@@ -601,6 +604,7 @@ fn deleting_style_unlinks_direct_chat_override() {
             universe_id: None,
             worldbook_ids: Vec::new(),
             prompt_config: PromptConfig::default(),
+            module_overrides: Default::default(),
         },
     )
     .expect("chat must save");
@@ -608,4 +612,54 @@ fn deleting_style_unlinks_direct_chat_override() {
     delete_galaxy_item(&connection, "style-chat").expect("style must delete");
     let chat = get_chat(&connection, "chat-style").expect("chat must load");
     assert_eq!(chat.style_item_id, None);
+}
+
+#[test]
+fn chat_module_overrides_persist_update_and_clone() {
+    let connection = test_database();
+    let mut input = ChatConfigInput {
+        title: "Module chat".into(),
+        greeting_message: None,
+        provider_id: None,
+        persona_id: None,
+        character_id: None,
+        style_item_id: None,
+        universe_id: None,
+        worldbook_ids: Vec::new(),
+        prompt_config: PromptConfig::default(),
+        module_overrides: crate::models::ChatModuleOverrides {
+            retry: Some(false),
+            context_budget: Some(true),
+            ..Default::default()
+        },
+    };
+
+    create_chat(&connection, "chat-modules", &input).expect("chat must save");
+    let saved = get_chat(&connection, "chat-modules").expect("chat must load");
+    assert_eq!(saved.module_overrides.retry, Some(false));
+    assert_eq!(saved.module_overrides.context_budget, Some(true));
+    assert_eq!(saved.module_overrides.semantic_memory, None);
+
+    input.module_overrides = crate::models::ChatModuleOverrides {
+        semantic_memory: Some(true),
+        response_cleanup: Some(true),
+        ..Default::default()
+    };
+    update_chat_config(&connection, "chat-modules", &input).expect("chat must update");
+    let updated = get_chat(&connection, "chat-modules").expect("chat must reload");
+    assert_eq!(updated.module_overrides.retry, None);
+    assert_eq!(updated.module_overrides.semantic_memory, Some(true));
+    assert_eq!(updated.module_overrides.response_cleanup, Some(true));
+
+    clone_chat(
+        &connection,
+        "chat-modules",
+        "chat-modules-copy",
+        "Module chat copy",
+        false,
+        None,
+    )
+    .expect("chat must clone");
+    let cloned = get_chat(&connection, "chat-modules-copy").expect("clone must load");
+    assert_eq!(cloned.module_overrides, updated.module_overrides);
 }

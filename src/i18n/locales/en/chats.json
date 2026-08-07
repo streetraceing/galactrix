@@ -261,5 +261,17 @@
   "chatContextPicker.responseStyle": "Response style override",
   "chatContextPicker.useCharacterStyle": "Use character style",
   "chatContextPicker.expand": "Show",
-  "chatContextPicker.collapse": "Hide"
+  "chatContextPicker.collapse": "Hide",
+  "chatSetupModal.sections": "Chat settings sections",
+  "chatSetupModal.general": "General",
+  "chatSetupModal.context": "Context",
+  "chatSetupModal.modules": "Modules",
+  "chatSetupModal.prompt": "Prompt",
+  "chatModules.title": "Modules for this chat",
+  "chatModules.description": "Override global AI modules only where this chat needs different behavior. Inherited modules keep following Settings.",
+  "chatModules.globalOn": "Global · on",
+  "chatModules.globalOff": "Global · off",
+  "chatModules.overridden": "Override",
+  "chatModules.useGlobal": "Use global",
+  "chatModules.resetAll": "Reset overrides"
 }

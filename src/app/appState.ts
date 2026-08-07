@@ -50,6 +50,21 @@ export function createDefaultSettings(): AppSettings {
         indexArchivedMessages: true,
         archivedMessageLimit: 400,
       },
+      contextBudget: {
+        enabled: false,
+        maxCharacters: 48_000,
+        preserveRecentMessages: 12,
+      },
+      repetitionGuard: {
+        enabled: false,
+        recentAssistantMessages: 4,
+        maxCharactersPerMessage: 600,
+      },
+      responseCleanup: {
+        enabled: false,
+        collapseBlankLines: true,
+        removeDuplicatedTail: true,
+      },
     },
   };
 }

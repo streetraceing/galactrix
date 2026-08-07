@@ -1,4 +1,5 @@
 import type {
+  AiModuleSettings,
   AppSettings,
   Chat,
   ChatConfigInput,
@@ -21,6 +22,7 @@ export type ChatsScreenProps = {
   messages: Message[];
   providers: Provider[];
   galaxyItems: GalaxyItem[];
+  aiModules: AiModuleSettings;
   profileName: string;
   profileAvatar?: string;
   activeChatId: string;

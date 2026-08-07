@@ -31,6 +31,7 @@ export function ChatsScreen({
   messages,
   providers,
   galaxyItems,
+  aiModules,
   profileName,
   profileAvatar,
   activeChatId,
@@ -475,6 +476,7 @@ export function ChatsScreen({
         isOpen={configTarget != null}
         chat={configTarget === 'new' ? null : configTarget}
         galaxyItems={galaxyItems}
+        aiModules={aiModules}
         providers={providers}
         profileName={displayProfileName}
         responseLanguage={responseLanguage}

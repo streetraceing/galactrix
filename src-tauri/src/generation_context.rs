@@ -4,8 +4,9 @@ use uuid::Uuid;
 use crate::ai_context;
 use crate::db;
 use crate::dynamic_context;
+use crate::generation_modules;
 use crate::i18n::{CommandError, CommandResult};
-use crate::models::{Message, Provider, RetrySettings};
+use crate::models::{Message, Provider, ResponseCleanupSettings, RetrySettings};
 use crate::prompt_builder;
 use crate::provider_client;
 use crate::provider_support;
@@ -16,6 +17,7 @@ pub(crate) struct PreparedGeneration {
     pub(crate) history: Vec<Message>,
     pub(crate) system_prompt: Option<String>,
     pub(crate) retry: RetrySettings,
+    pub(crate) response_cleanup: ResponseCleanupSettings,
 }
 
 pub(crate) async fn prepare(
@@ -28,6 +30,7 @@ pub(crate) async fn prepare(
 ) -> CommandResult<PreparedGeneration> {
     let (
         settings,
+        module_overrides,
         mut context,
         mut system_prompt,
         analysis_provider,
@@ -36,6 +39,7 @@ pub(crate) async fn prepare(
     ) = {
         let database = state.database.lock().map_err(CommandError::internal)?;
         let settings = db::get_settings(&database)?;
+        let module_overrides = db::chat_module_overrides(&database, chat_id)?;
         let context = db::get_dynamic_context(&database, chat_id)?;
         let system_prompt =
             build_chat_system_prompt(&database, chat_id, full_history, response_language)?;
@@ -56,6 +60,7 @@ pub(crate) async fn prepare(
             .or_else(|| Some(chat_provider.clone()));
         (
             settings,
+            module_overrides,
             context,
             system_prompt,
             analysis_provider,
@@ -64,11 +69,15 @@ pub(crate) async fn prepare(
         )
     };
 
-    let retry = settings.ai_modules.retry.clone();
-    let dynamic_settings = &settings.ai_modules.dynamic_context;
+    let mut retry = settings.ai_modules.retry.clone();
+    retry.enabled = module_overrides.retry_enabled(retry.enabled);
+
+    let mut dynamic_settings = settings.ai_modules.dynamic_context.clone();
+    dynamic_settings.enabled =
+        module_overrides.dynamic_context_enabled(dynamic_settings.enabled);
     if dynamic_settings.enabled {
         let batch =
-            dynamic_context::pending_batch(full_history, context.as_ref(), dynamic_settings);
+            dynamic_context::pending_batch(full_history, context.as_ref(), &dynamic_settings);
         if !batch.is_empty() {
             let analysis_secret = analysis_provider.as_ref().and_then(provider_secret_or_none);
             let model_provider = if dynamic_settings.mode == "local" {
@@ -77,7 +86,7 @@ pub(crate) async fn prepare(
                 analysis_provider.as_ref()
             };
             let outcome = ai_context::analyze_dialogue(
-                dynamic_settings,
+                &dynamic_settings,
                 context.as_ref(),
                 &batch,
                 model_provider,
@@ -114,7 +123,9 @@ pub(crate) async fn prepare(
         );
     }
 
-    let semantic_settings = &settings.ai_modules.semantic_memory;
+    let mut semantic_settings = settings.ai_modules.semantic_memory.clone();
+    semantic_settings.enabled =
+        module_overrides.semantic_memory_enabled(semantic_settings.enabled);
     if semantic_settings.enabled {
         if let Some(provider) = embedding_provider.as_ref() {
             let embedding_model = provider
@@ -130,7 +141,7 @@ pub(crate) async fn prepare(
                 let candidates = semantic_memory::build_candidates(
                     full_history,
                     semantic_context,
-                    semantic_settings,
+                    &semantic_settings,
                 );
                 let embedding_secret = provider_secret_or_none(provider);
                 let indexed = {
@@ -224,6 +235,14 @@ pub(crate) async fn prepare(
         }
     }
 
+    let mut repetition_settings = settings.ai_modules.repetition_guard.clone();
+    repetition_settings.enabled =
+        module_overrides.repetition_guard_enabled(repetition_settings.enabled);
+    append_prompt_section(
+        &mut system_prompt,
+        generation_modules::repetition_guard_section(full_history, &repetition_settings),
+    );
+
     let history = if dynamic_settings.enabled {
         dynamic_context::trim_history(
             full_history,
@@ -238,11 +257,19 @@ pub(crate) async fn prepare(
     } else {
         history
     };
+    let mut context_budget = settings.ai_modules.context_budget.clone();
+    context_budget.enabled = module_overrides.context_budget_enabled(context_budget.enabled);
+    let history = generation_modules::trim_history_for_budget(&history, &context_budget);
+
+    let mut response_cleanup = settings.ai_modules.response_cleanup.clone();
+    response_cleanup.enabled =
+        module_overrides.response_cleanup_enabled(response_cleanup.enabled);
 
     Ok(PreparedGeneration {
         history,
         system_prompt,
         retry,
+        response_cleanup,
     })
 }
 

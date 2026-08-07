@@ -46,6 +46,9 @@ test('new AI modules are backward-compatible and independently configurable', as
   );
   assert.match(appState, /dynamicContext:\s*\{[\s\S]*enabled: false/);
   assert.match(appState, /semanticMemory:\s*\{[\s\S]*enabled: false/);
+  assert.match(appState, /contextBudget:\s*\{[\s\S]*enabled: false/);
+  assert.match(appState, /repetitionGuard:\s*\{[\s\S]*enabled: false/);
+  assert.match(appState, /responseCleanup:\s*\{[\s\S]*enabled: false/);
   assert.match(settings, /<AiModulesSettings/);
   assert.match(settings, /providers=\{providers\}/);
 });
@@ -69,8 +72,8 @@ test('settings separate parameters and animated searchable modules', async () =>
   assert.match(moduleCard, /galactrix\.aiModuleCollapsed\./);
   assert.match(moduleCard, /writeStorageItem\(key, 'true'\)/);
   assert.match(moduleCard, /persistModuleCollapsed\(moduleId, false\)/);
-  assert.match(moduleCard, /const detailsVisible = enabled && isExpanded/);
-  assert.match(moduleCard, /setIsExpanded\(nextEnabled\)/);
+  assert.match(moduleCard, /const detailsVisible = isExpanded/);
+  assert.match(moduleCard, /setIsExpanded\(nextEnabled && !isCompactLayout\)/);
   assert.match(moduleCard, /aria-hidden=\{!detailsVisible\}/);
   assert.match(moduleCard, /grid-rows-\[1fr\]/);
   assert.match(moduleCard, /grid-rows-\[0fr\]/);
@@ -83,6 +86,10 @@ test('settings separate parameters and animated searchable modules', async () =>
     /hidden=\{!visibleModuleIds\.has\('dynamicContext'\)\}/,
   );
   assert.match(modules, /ai\.modules\.noResults/);
+  assert.match(modules, /visibleModuleIds\.has\('contextBudget'\)/);
+  assert.match(modules, /visibleModuleIds\.has\('repetitionGuard'\)/);
+  assert.match(modules, /visibleModuleIds\.has\('responseCleanup'\)/);
+  assert.doesNotMatch(moduleCard, /disabled=\{!enabled\}/);
   assert.doesNotMatch(moduleCard, /Accordion|DisclosureGroup/);
 });
 

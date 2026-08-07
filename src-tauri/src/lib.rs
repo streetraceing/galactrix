@@ -3,6 +3,7 @@ mod app_settings;
 mod db;
 mod dynamic_context;
 mod generation_context;
+mod generation_modules;
 mod i18n;
 mod models;
 mod prompt_builder;
@@ -311,7 +312,10 @@ async fn regenerate_message(
         }
     };
 
-    let response_content = response_rules::normalize_response(&completion.content);
+    let response_content = response_rules::normalize_response_with_cleanup(
+        &completion.content,
+        &prepared.response_cleanup,
+    );
     if response_content.is_empty() {
         if let Ok(database) = state.database.lock() {
             let _ = db::update_provider_health(&database, &provider.id, "error", None);
@@ -396,7 +400,10 @@ async fn continue_message(
         }
     };
 
-    let continuation = response_rules::normalize_response(&completion.content);
+    let continuation = response_rules::normalize_response_with_cleanup(
+        &completion.content,
+        &prepared.response_cleanup,
+    );
     if continuation.is_empty() {
         if let Ok(database) = state.database.lock() {
             let _ = db::update_provider_health(&database, &provider.id, "error", None);
@@ -506,7 +513,10 @@ async fn send_chat_message(
         }
     };
 
-    let response_content = response_rules::normalize_response(&completion.content);
+    let response_content = response_rules::normalize_response_with_cleanup(
+        &completion.content,
+        &prepared.response_cleanup,
+    );
     if response_content.is_empty() {
         if let Ok(database) = state.database.lock() {
             let _ = db::update_provider_health(&database, &provider.id, "error", None);

@@ -161,9 +161,11 @@
   "personaEditor.attributeValuePlaceholder": "Describe this fact in detail",
   "style.roleplayRich": "Deep roleplay",
   "style.telegramHuman": "Human Telegram chat",
-  "galaxiesScreen.search": "Search current library…",
+  "galaxiesScreen.search": "Search all Galaxies…",
   "galaxiesScreen.clearSearch": "Clear galaxy search",
   "galaxiesScreen.noSearchResults": "Nothing matches this search",
-  "galaxiesScreen.noSearchResultsDescription": "Try another name or description.",
-  "personaEditor.pronounsPlaceholder": "For example: she/her, they/them"
+  "galaxiesScreen.noSearchResultsDescription": "Try another query or choose a section with matching results.",
+  "personaEditor.pronounsPlaceholder": "For example: she/her, they/them",
+  "galaxiesScreen.quickCreate": "Quick create",
+  "galaxiesScreen.quickCreateDescription": "Create any Galaxy object"
 }

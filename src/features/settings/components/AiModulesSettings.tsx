@@ -1,12 +1,13 @@
 import { SearchField } from '@heroui/react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { AiModuleSettings, Provider } from '../../../types';
+import type { AiModuleId, AiModuleSettings, Provider } from '../../../types';
+import { ContextBudgetModuleSettings } from './ContextBudgetModuleSettings';
 import { DynamicContextModuleSettings } from './DynamicContextModuleSettings';
+import { RepetitionGuardModuleSettings } from './RepetitionGuardModuleSettings';
+import { ResponseCleanupModuleSettings } from './ResponseCleanupModuleSettings';
 import { RetryModuleSettings } from './RetryModuleSettings';
 import { SemanticMemoryModuleSettings } from './SemanticMemoryModuleSettings';
-
-type ModuleId = 'retry' | 'dynamicContext' | 'semanticMemory';
 
 export function AiModulesSettings({
   value,
@@ -21,7 +22,7 @@ export function AiModulesSettings({
   const [query, setQuery] = useState('');
   const normalizedQuery = query.trim().toLocaleLowerCase();
   const moduleCatalog: Array<{
-    id: ModuleId;
+    id: AiModuleId;
     title: string;
     description: string;
   }> = [
@@ -39,6 +40,21 @@ export function AiModulesSettings({
       id: 'semanticMemory',
       title: t('ai.semantic.title'),
       description: t('ai.semantic.description'),
+    },
+    {
+      id: 'contextBudget',
+      title: t('ai.contextBudget.title'),
+      description: t('ai.contextBudget.description'),
+    },
+    {
+      id: 'repetitionGuard',
+      title: t('ai.repetitionGuard.title'),
+      description: t('ai.repetitionGuard.description'),
+    },
+    {
+      id: 'responseCleanup',
+      title: t('ai.responseCleanup.title'),
+      description: t('ai.responseCleanup.description'),
     },
   ];
   const visibleModuleIds = new Set(
@@ -91,6 +107,28 @@ export function AiModulesSettings({
             providers={providers}
             onChange={(semanticMemory) =>
               onChange({ ...value, semanticMemory })
+            }
+          />
+        </div>
+        <div hidden={!visibleModuleIds.has('contextBudget')}>
+          <ContextBudgetModuleSettings
+            value={value.contextBudget}
+            onChange={(contextBudget) => onChange({ ...value, contextBudget })}
+          />
+        </div>
+        <div hidden={!visibleModuleIds.has('repetitionGuard')}>
+          <RepetitionGuardModuleSettings
+            value={value.repetitionGuard}
+            onChange={(repetitionGuard) =>
+              onChange({ ...value, repetitionGuard })
+            }
+          />
+        </div>
+        <div hidden={!visibleModuleIds.has('responseCleanup')}>
+          <ResponseCleanupModuleSettings
+            value={value.responseCleanup}
+            onChange={(responseCleanup) =>
+              onChange({ ...value, responseCleanup })
             }
           />
         </div>
