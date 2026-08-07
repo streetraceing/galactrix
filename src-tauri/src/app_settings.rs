@@ -112,6 +112,9 @@ fn normalize_ai_settings(settings: &mut AppSettings, provider_ids: &HashSet<Stri
     let budget = &mut settings.ai_modules.context_budget;
     budget.max_characters = budget.max_characters.clamp(4_000, 500_000);
     budget.preserve_recent_messages = budget.preserve_recent_messages.clamp(2, 100);
+    budget.worldbook_scan_messages = budget.worldbook_scan_messages.clamp(1, 50);
+    budget.max_worldbook_entries = budget.max_worldbook_entries.clamp(1, 100);
+    budget.max_system_characters = budget.max_system_characters.clamp(4_000, 200_000);
 
     let repetition = &mut settings.ai_modules.repetition_guard;
     repetition.recent_assistant_messages = repetition.recent_assistant_messages.clamp(1, 12);
@@ -145,6 +148,9 @@ mod tests {
         settings.ai_modules.retry.max_attempts = 99;
         settings.ai_modules.context_budget.max_characters = 1;
         settings.ai_modules.context_budget.preserve_recent_messages = 999;
+        settings.ai_modules.context_budget.worldbook_scan_messages = 999;
+        settings.ai_modules.context_budget.max_worldbook_entries = 999;
+        settings.ai_modules.context_budget.max_system_characters = 1;
         settings.ai_modules.repetition_guard.recent_assistant_messages = 99;
         settings.ai_modules.repetition_guard.max_characters_per_message = 1;
 
@@ -160,6 +166,9 @@ mod tests {
             normalized.ai_modules.context_budget.preserve_recent_messages,
             100
         );
+        assert_eq!(normalized.ai_modules.context_budget.worldbook_scan_messages, 50);
+        assert_eq!(normalized.ai_modules.context_budget.max_worldbook_entries, 100);
+        assert_eq!(normalized.ai_modules.context_budget.max_system_characters, 4_000);
         assert_eq!(
             normalized.ai_modules.repetition_guard.recent_assistant_messages,
             12

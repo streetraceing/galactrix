@@ -16,7 +16,14 @@ export function PromptPreviewCard({
   title?: string;
 }) {
   const { t } = useTranslation('common');
-  const resolvedTitle = title ?? t('promptPreviewCard.promptEstimate');
+  const contribution = input.scope === 'contribution';
+  const resolvedTitle =
+    title ??
+    t(
+      contribution
+        ? 'promptPreviewCard.contributionEstimate'
+        : 'promptPreviewCard.promptEstimate',
+    );
   const [result, setResult] = useState<PromptPreviewResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -80,9 +87,9 @@ export function PromptPreviewCard({
                 {resolvedTitle}
               </strong>
               <span className="mt-0.5 block wrap-break-word text-xs leading-5 text-muted">
-                {t('promptPreviewCard.resultAfterSubstitutingNamesFor')}
-                {'{{user}}'} {t('promptPreviewCard.and')}
-                {'{{char}}'}.
+                {contribution
+                  ? t('promptPreviewCard.contributionDescription')
+                  : t('promptPreviewCard.requestDescription')}
               </span>
             </span>
           </div>
@@ -94,7 +101,11 @@ export function PromptPreviewCard({
             onPress={() => setPreviewOpen(true)}
           >
             <Icon name="info" className="size-4" />{' '}
-            {t('promptPreviewCard.fullPrompt')}
+            {t(
+              contribution
+                ? 'promptPreviewCard.viewContribution'
+                : 'promptPreviewCard.viewRequest',
+            )}
           </Button>
         </div>
 
@@ -109,7 +120,24 @@ export function PromptPreviewCard({
           <Chip size="sm" variant="soft">
             {t('count.character', { count: result?.characters ?? 0 })}
           </Chip>
+          {!contribution && (result?.savedApproximateTokens ?? 0) > 0 ? (
+            <Chip size="sm" variant="soft" color="success">
+              {t('promptPreviewCard.tokensSavedPercent', {
+                count: result?.savedApproximateTokens ?? 0,
+                percent: Math.round(
+                  ((result?.savedApproximateTokens ?? 0) /
+                    Math.max(result?.baselineApproximateTokens ?? 0, 1)) *
+                    100,
+                ),
+              })}
+            </Chip>
+          ) : null}
         </div>
+        {!contribution && (result?.runtimeVariableSections.length ?? 0) > 0 ? (
+          <p className="mt-3 text-xs leading-5 text-muted">
+            {t('promptPreviewCard.runtimeModulesNotice')}
+          </p>
+        ) : null}
         {error ? (
           <p className="selectable mt-3 text-xs text-danger">{error}</p>
         ) : null}
@@ -118,9 +146,15 @@ export function PromptPreviewCard({
       <UiModal
         isOpen={previewOpen}
         onOpenChange={setPreviewOpen}
-        title={t('promptPreviewCard.fullSystemPrompt')}
+        title={t(
+          contribution
+            ? 'promptPreviewCard.promptContribution'
+            : 'promptPreviewCard.baseModelRequest',
+        )}
         description={t(
-          'promptPreviewCard.thisIsTheExactSectionOrderTheModelReceivesVariables',
+          contribution
+            ? 'promptPreviewCard.contributionModalDescription'
+            : 'promptPreviewCard.requestModalDescription',
         )}
         size="cover"
         footer={
@@ -141,7 +175,11 @@ export function PromptPreviewCard({
       >
         <pre className="selectable min-h-48 whitespace-pre-wrap wrap-break-word rounded-2xl border border-separator bg-default/50 p-4 font-mono text-xs leading-5">
           {result?.prompt ||
-            t('promptPreviewCard.thereAreNoActiveSourcesInThePromptYet')}
+            t(
+              contribution
+                ? 'promptPreviewCard.noContributionYet'
+                : 'promptPreviewCard.thereAreNoActiveSourcesInThePromptYet',
+            )}
         </pre>
       </UiModal>
     </>

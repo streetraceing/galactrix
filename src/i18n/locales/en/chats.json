@@ -45,7 +45,7 @@
   "chatProviderPicker.noProvider": "No provider",
   "chatProviderPicker.provider": "Provider",
   "chatProviderPicker.selectAConnection": "Select a connection",
-  "chatSetupModal.chatPromptEstimate": "Chat prompt estimate",
+  "chatSetupModal.chatPromptEstimate": "Base model request",
   "chatSetupModal.chatSettings": "Chat settings",
   "chatSetupModal.createChat": "Create chat",
   "chatSetupModal.name": "Name",

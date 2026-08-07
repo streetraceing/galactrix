@@ -35,6 +35,11 @@ const settings: AiModuleSettings = {
     enabled: false,
     maxCharacters: 48_000,
     preserveRecentMessages: 12,
+    compactSystemPrompt: true,
+    selectiveWorldbookEntries: true,
+    worldbookScanMessages: 8,
+    maxWorldbookEntries: 12,
+    maxSystemCharacters: 24_000,
   },
   repetitionGuard: {
     enabled: false,

@@ -1,4 +1,5 @@
 import type {
+  AiModuleSettings,
   CharacterData,
   ChatConfigInput,
   GalaxyItem,
@@ -6,9 +7,10 @@ import type {
   Message,
   PromptPreviewInput,
 } from '../../types';
-import { getLocale, i18next } from '../../i18n';
+import { i18next } from '../../i18n';
 import { clonePromptConfig, defaultPromptConfig } from './promptConfig';
 import { effectiveStyleItemId } from './chatConfig';
+import { effectiveChatModuleEnabled } from './chatModules';
 
 function asInput(item: GalaxyItem): GalaxyItemInput {
   return {
@@ -50,12 +52,35 @@ export function promptPreviewFromChat(
   profileName?: string,
   conversationMessages: Message[] = [],
   responseLanguage?: 'en' | 'ru',
+  aiModules?: AiModuleSettings,
 ): PromptPreviewInput {
   const persona = findInput(items, config.personaId, 'persona');
   const character = findInput(items, config.characterId, 'character');
   const universe = findInput(items, config.universeId, 'universe');
 
+  const contextBudget = aiModules
+    ? {
+        ...aiModules.contextBudget,
+        enabled: effectiveChatModuleEnabled(
+          aiModules,
+          config.moduleOverrides,
+          'contextBudget',
+        ),
+      }
+    : undefined;
+  const repetitionGuard = aiModules
+    ? {
+        ...aiModules.repetitionGuard,
+        enabled: effectiveChatModuleEnabled(
+          aiModules,
+          config.moduleOverrides,
+          'repetitionGuard',
+        ),
+      }
+    : undefined;
+
   return {
+    scope: 'request',
     persona,
     character,
     universe,
@@ -76,10 +101,7 @@ export function promptPreviewFromChat(
     rememberedMessages: conversationMessages.filter(
       (message) => message.remembered,
     ),
-    conversationMessages:
-      (config.promptConfig.recentMessageLimit ?? 0) > 0
-        ? conversationMessages.slice(-config.promptConfig.recentMessageLimit)
-        : conversationMessages,
+    conversationMessages,
     userName:
       persona?.name ||
       profileName ||
@@ -87,6 +109,22 @@ export function promptPreviewFromChat(
     characterName:
       character?.name || i18next.t('preview.character', { ns: 'chats' }),
     responseLanguage,
+    contextBudget,
+    repetitionGuard,
+    dynamicContextEnabled: aiModules
+      ? effectiveChatModuleEnabled(
+          aiModules,
+          config.moduleOverrides,
+          'dynamicContext',
+        )
+      : false,
+    semanticMemoryEnabled: aiModules
+      ? effectiveChatModuleEnabled(
+          aiModules,
+          config.moduleOverrides,
+          'semanticMemory',
+        )
+      : false,
   };
 }
 
@@ -95,13 +133,13 @@ export function promptPreviewFromDraft(
   items: GalaxyItem[],
 ): PromptPreviewInput {
   const input: PromptPreviewInput = {
+    scope: 'contribution',
     worldbooks: [],
     promptSets: [],
     promptConfig: clonePromptConfig(defaultPromptConfig),
     rememberedMessages: [],
     conversationMessages: [],
     userName: i18next.t('user.defaultName', { ns: 'common' }),
-    responseLanguage: getLocale(),
   };
 
   switch (draft.kind) {
@@ -113,7 +151,10 @@ export function promptPreviewFromDraft(
       const data = draft.data as CharacterData;
       input.character = draft;
       input.characterName = draft.name;
-      input.characterStyle = findInput(items, data.styleItemId, 'style');
+      input.characterStyle =
+        data.stylePreset === 'custom'
+          ? findInput(items, data.styleItemId, 'style')
+          : undefined;
       input.promptSets = selectedPromptSets(items, [], draft);
       break;
     }
@@ -124,16 +165,6 @@ export function promptPreviewFromDraft(
       input.worldbooks = [draft];
       break;
     case 'style':
-      input.character = {
-        kind: 'character',
-        name: i18next.t('preview.character', { ns: 'chats' }),
-        description: '',
-        data: {
-          definitionSections: [],
-          stylePreset: 'custom',
-          promptSetIds: [],
-        } satisfies CharacterData,
-      };
       input.characterStyle = draft;
       break;
     case 'prompt-set':

@@ -201,7 +201,7 @@ test('new chats can start with an assistant greeting', async () => {
   assert.match(database, /message_variants/);
 });
 
-test('full prompt preview includes the current conversation history', async () => {
+test('base model request preview includes the current conversation history', async () => {
   const [types, previewBuilder, modal, screen, backend] = await Promise.all([
     readFile(new URL('../../src/types.ts', import.meta.url), 'utf8'),
     readFile(

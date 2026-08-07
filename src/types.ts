@@ -191,7 +191,10 @@ export type GalaxyItemInput = {
   data: GalaxyItemData;
 };
 
+export type PromptPreviewScope = 'request' | 'contribution';
+
 export type PromptPreviewInput = {
+  scope?: PromptPreviewScope;
   persona?: GalaxyItemInput;
   character?: GalaxyItemInput;
   universe?: GalaxyItemInput;
@@ -204,12 +207,21 @@ export type PromptPreviewInput = {
   userName?: string;
   characterName?: string;
   responseLanguage?: 'en' | 'ru';
+  contextBudget?: ContextBudgetSettings;
+  repetitionGuard?: RepetitionGuardSettings;
+  dynamicContextEnabled?: boolean;
+  semanticMemoryEnabled?: boolean;
 };
+
+export type PromptPreviewRuntimeSection = 'dynamicContext' | 'semanticMemory';
 
 export type PromptPreviewResult = {
   prompt: string;
   approximateTokens: number;
+  baselineApproximateTokens: number;
+  savedApproximateTokens: number;
   characters: number;
+  runtimeVariableSections: PromptPreviewRuntimeSection[];
 };
 
 export type ProviderKind =
@@ -301,6 +313,11 @@ export type ContextBudgetSettings = {
   enabled: boolean;
   maxCharacters: number;
   preserveRecentMessages: number;
+  compactSystemPrompt: boolean;
+  selectiveWorldbookEntries: boolean;
+  worldbookScanMessages: number;
+  maxWorldbookEntries: number;
+  maxSystemCharacters: number;
 };
 
 export type RepetitionGuardSettings = {

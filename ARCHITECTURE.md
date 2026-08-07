@@ -14,7 +14,7 @@ The Rust backend keeps Tauri commands thin and separates infrastructure from dom
 2. `runtime.rs` owns shared state and generation cancellation; `generation_context.rs` owns AI-context preparation and resolves per-chat module overrides; `generation_modules.rs` contains pure context/repetition transformations.
 3. `db.rs` coordinates persistence, while `db/galaxy.rs`, `db/settings.rs` and `db/ai_memory.rs` own focused storage domains.
 4. `provider_client.rs` owns provider operations; endpoint policy and retry/rate-limit transport live in dedicated submodules.
-5. `provider_support.rs`, `app_settings.rs` and `prompt_preview.rs` contain testable validation and transformation rules without Tauri state.
+5. `provider_support.rs`, `app_settings.rs` and `prompt_preview.rs` contain testable validation and transformation rules without Tauri state. `prompt_builder.rs` is the single source of truth for deterministic prompt sections and token-economy filtering.
 
 ## Conventions
 
@@ -25,6 +25,9 @@ The Rust backend keeps Tauri commands thin and separates infrastructure from dom
 - Application-only hooks belong in `src/app`; reusable browser and interaction hooks belong in `src/hooks`.
 - Feature modules may depend on shared components, libraries, i18n and types. Shared layers must not import feature modules.
 - AI module parameters live in global settings; chats persist only sparse `inherit / on / off` overrides so new modules do not duplicate settings state.
+- Prompt previews have two explicit scopes: Galaxy editors render only the item contribution (plus explicit inherited dependencies), while chat settings render the deterministic model request after recent-message and token-economy limits. Runtime-selected Dynamic Context and Semantic Memory are disclosed instead of fabricated.
+- Token economy must preserve semantics before saving size: remove duplicate rules/remembered messages, treat Worldbook keywords as local activation metadata, select relevant Worldbook entries from recent dialogue, compact only framework text, and drop lower-priority system sections before higher-priority ones. CRITICAL sections are never removed by the system prompt target.
+- A remembered message is promoted to `[REMEMBERED FACTS]` only after it falls out of the direct history sent to the provider; do not pay for the same message in both places.
 - Add a regression test whenever state reconciliation, persistence or a cross-layer contract changes.
 - Keep Tauri command names and serialized camelCase contracts stable; move implementation behind them instead of coupling domain modules to Tauri.
 - Keep SQLite transactions inside the storage domain that owns the invariant. Cross-domain orchestration belongs above `db`.

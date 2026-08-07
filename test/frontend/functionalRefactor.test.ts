@@ -92,3 +92,81 @@ test('backend module overrides stay independent from global settings', async () 
   assert.match(generation, /module_overrides\.repetition_guard_enabled/);
   assert.match(generation, /module_overrides\.response_cleanup_enabled/);
 });
+
+test('token economy aggressively reduces deterministic request context', async () => {
+  const [appState, settings, builder, generation, preview, generationModules] =
+    await Promise.all([
+      readFile(new URL('../../src/app/appState.ts', import.meta.url), 'utf8'),
+      readFile(
+        new URL(
+          '../../src/features/settings/components/ContextBudgetModuleSettings.tsx',
+          import.meta.url,
+        ),
+        'utf8',
+      ),
+      readFile(
+        new URL('../../src-tauri/src/prompt_builder.rs', import.meta.url),
+        'utf8',
+      ),
+      readFile(generationPath, 'utf8'),
+      readFile(
+        new URL('../../src-tauri/src/prompt_preview.rs', import.meta.url),
+        'utf8',
+      ),
+      readFile(
+        new URL('../../src-tauri/src/generation_modules.rs', import.meta.url),
+        'utf8',
+      ),
+    ]);
+
+  assert.match(appState, /compactSystemPrompt: true/);
+  assert.match(appState, /selectiveWorldbookEntries: true/);
+  assert.match(settings, /presetAggressive/);
+  assert.match(settings, /presetExtreme/);
+  assert.match(settings, /maxSystemCharacters/);
+  assert.match(settings, /maxWorldbookEntries/);
+  assert.match(builder, /select_worldbook_entries/);
+  assert.match(builder, /Keywords are local activation metadata/);
+  assert.match(builder, /fit_sections_to_budget/);
+  assert.match(builder, /claimed_presets/);
+  assert.match(builder, /claimed_set_blocks/);
+  assert.match(generation, /Only archived remembered messages are promoted/);
+  assert.match(preview, /archived_remembered_messages/);
+  assert.match(generationModules, /visible_history/);
+  assert.match(
+    generationModules,
+    /Older recent replies no longer present in direct history/,
+  );
+  assert.match(generation, /repetition_guard_section\(full_history, &history/);
+});
+
+test('Galaxy editor preview renders only the real contribution scope', async () => {
+  const [frontend, card, backend, galaxiesEn] = await Promise.all([
+    readFile(
+      new URL('../../src/features/chats/promptPreview.ts', import.meta.url),
+      'utf8',
+    ),
+    readFile(
+      new URL('../../src/components/ui/PromptPreviewCard.tsx', import.meta.url),
+      'utf8',
+    ),
+    readFile(
+      new URL('../../src-tauri/src/prompt_preview.rs', import.meta.url),
+      'utf8',
+    ),
+    readFile(
+      new URL('../../src/i18n/locales/en/galaxies.json', import.meta.url),
+      'utf8',
+    ),
+  ]);
+
+  assert.match(frontend, /scope: 'contribution'/);
+  assert.match(frontend, /case 'style':\s*input\.characterStyle = draft/);
+  assert.match(frontend, /data\.stylePreset === 'custom'/);
+  assert.doesNotMatch(frontend, /case 'style':[\s\S]{0,180}input\.character =/);
+  assert.match(backend, /scope == "contribution"/);
+  assert.match(backend, /build_contribution_prompt/);
+  assert.match(card, /promptPreviewCard\.viewContribution/);
+  assert.match(card, /promptPreviewCard\.baseModelRequest/);
+  assert.match(galaxiesEn, /Prompt contribution/);
+});

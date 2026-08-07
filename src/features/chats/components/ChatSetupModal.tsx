@@ -293,6 +293,7 @@ export function ChatSetupModal({
                 profileName,
                 messages,
                 responseLanguage,
+                aiModules,
               )}
               title={t('chatSetupModal.chatPromptEstimate')}
             />

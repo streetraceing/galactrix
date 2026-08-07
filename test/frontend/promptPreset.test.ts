@@ -157,7 +157,7 @@ test('roleplay and Telegram bundles are available as built-in prompt sets', asyn
 });
 
 test('chat setup exposes a bounded recent-message context limit', async () => {
-  const [setup, config, preview, backend] = await Promise.all([
+  const [setup, config, preview, backend, previewBackend] = await Promise.all([
     readFile(
       new URL(
         '../../src/features/chats/components/ChatSetupModal.tsx',
@@ -171,17 +171,19 @@ test('chat setup exposes a bounded recent-message context limit', async () => {
       new URL('../../src-tauri/src/generation_context.rs', import.meta.url),
       'utf8',
     ),
+    readFile(
+      new URL('../../src-tauri/src/prompt_preview.rs', import.meta.url),
+      'utf8',
+    ),
   ]);
 
   assert.match(config, /recentMessageLimit: 50/);
   assert.match(setup, /chat-recent-message-limit/);
   assert.match(setup, /max=\{500\}/);
-  assert.match(
-    preview,
-    /conversationMessages\.slice\(-config\.promptConfig\.recentMessageLimit\)/,
-  );
+  assert.match(preview, /conversationMessages,/);
   assert.match(
     backend,
     /history\[history\.len\(\) - recent_message_limit\.\.\]/,
   );
+  assert.match(previewBackend, /apply_recent_message_limit/);
 });

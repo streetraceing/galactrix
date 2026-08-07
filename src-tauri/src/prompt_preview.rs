@@ -1,11 +1,14 @@
 use uuid::Uuid;
 
+use crate::generation_modules;
 use crate::models::{
-    ChatPromptContext, GalaxyItem, GalaxyItemInput, PromptPreviewInput, PromptPreviewResult,
+    ChatPromptContext, GalaxyItem, GalaxyItemInput, Message,
+    PromptPreviewInput, PromptPreviewResult, RepetitionGuardSettings,
 };
-use crate::prompt_builder;
+use crate::prompt_builder::{self, PromptBuildOptions};
 
 pub(crate) fn build(input: PromptPreviewInput) -> PromptPreviewResult {
+    let scope = input.scope.as_deref().unwrap_or("request");
     let user_name = input
         .user_name
         .as_deref()
@@ -51,21 +54,140 @@ pub(crate) fn build(input: PromptPreviewInput) -> PromptPreviewResult {
             .collect(),
         prompt_config: input.prompt_config,
     };
-    let system_prompt = prompt_builder::build_system_prompt(
-        &context,
+
+    if scope == "contribution" {
+        let prompt = prompt_builder::build_contribution_prompt(&context, &input.remembered_messages)
+            .unwrap_or_default()
+            .replace("{{user}}", &user_name)
+            .replace("{{char}}", &character_name);
+        let approximate_tokens = approximate_token_count(&prompt);
+        return PromptPreviewResult {
+            prompt: prompt.clone(),
+            approximate_tokens,
+            baseline_approximate_tokens: approximate_tokens,
+            saved_approximate_tokens: 0,
+            characters: prompt.chars().count() as i64,
+            runtime_variable_sections: Vec::new(),
+        };
+    }
+
+    let context_budget = input.context_budget.unwrap_or_default();
+    let repetition_guard = input.repetition_guard.unwrap_or_default();
+    let recent_history = apply_recent_message_limit(
+        &input.conversation_messages,
+        context.prompt_config.recent_message_limit,
+    );
+    let optimized_history =
+        generation_modules::trim_history_for_budget(&recent_history, &context_budget);
+    let optimized_remembered = archived_remembered_messages(
         &input.remembered_messages,
+        &optimized_history,
+    );
+    let baseline_remembered =
+        archived_remembered_messages(&input.remembered_messages, &recent_history);
+
+    let options = PromptBuildOptions::from_context_budget(&context_budget);
+    let optimized_system = prompt_builder::build_system_prompt_with_histories(
+        &context,
+        &optimized_remembered,
+        &input.conversation_messages,
         input.response_language.as_deref(),
+        &options,
     )
-    .unwrap_or_default()
-    .replace("{{user}}", &user_name)
-    .replace("{{char}}", &character_name);
+    .map(|prompt| replace_names(prompt, &user_name, &character_name));
+    let baseline_system = prompt_builder::build_system_prompt_with_histories(
+        &context,
+        &baseline_remembered,
+        &input.conversation_messages,
+        input.response_language.as_deref(),
+        &PromptBuildOptions::default(),
+    )
+    .map(|prompt| replace_names(prompt, &user_name, &character_name));
+
+    let optimized_system = append_repetition_guard(
+        optimized_system,
+        &input.conversation_messages,
+        &optimized_history,
+        &repetition_guard,
+    );
+    let baseline_system = append_repetition_guard(
+        baseline_system,
+        &input.conversation_messages,
+        &recent_history,
+        &repetition_guard,
+    );
+
+    let prompt = render_request(optimized_system.as_deref(), &optimized_history);
+    let baseline_prompt = render_request(baseline_system.as_deref(), &recent_history);
+    let approximate_tokens = approximate_token_count(&prompt);
+    let baseline_approximate_tokens = approximate_token_count(&baseline_prompt);
+    let saved_approximate_tokens = baseline_approximate_tokens.saturating_sub(approximate_tokens);
+    let mut runtime_variable_sections = Vec::new();
+    if input.dynamic_context_enabled {
+        runtime_variable_sections.push("dynamicContext".to_owned());
+    }
+    if input.semantic_memory_enabled {
+        runtime_variable_sections.push("semanticMemory".to_owned());
+    }
+
+    PromptPreviewResult {
+        prompt: prompt.clone(),
+        approximate_tokens,
+        baseline_approximate_tokens,
+        saved_approximate_tokens,
+        characters: prompt.chars().count() as i64,
+        runtime_variable_sections,
+    }
+}
+
+fn archived_remembered_messages(remembered: &[Message], active_history: &[Message]) -> Vec<Message> {
+    let active_ids = active_history
+        .iter()
+        .map(|message| message.id.as_str())
+        .collect::<std::collections::HashSet<_>>();
+    remembered
+        .iter()
+        .filter(|message| message.remembered && !active_ids.contains(message.id.as_str()))
+        .cloned()
+        .collect()
+}
+
+fn apply_recent_message_limit(history: &[Message], limit: usize) -> Vec<Message> {
+    if limit > 0 && history.len() > limit {
+        history[history.len() - limit..].to_vec()
+    } else {
+        history.to_vec()
+    }
+}
+
+fn append_repetition_guard(
+    mut system_prompt: Option<String>,
+    history: &[Message],
+    visible_history: &[Message],
+    settings: &RepetitionGuardSettings,
+) -> Option<String> {
+    let Some(section) =
+        generation_modules::repetition_guard_section(history, visible_history, settings)
+    else {
+        return system_prompt;
+    };
+    match &mut system_prompt {
+        Some(prompt) if !prompt.trim().is_empty() => {
+            prompt.push_str("\n\n");
+            prompt.push_str(section.trim());
+        }
+        _ => system_prompt = Some(section),
+    }
+    system_prompt
+}
+
+fn render_request(system_prompt: Option<&str>, messages: &[Message]) -> String {
     let mut prompt = String::new();
-    if !system_prompt.trim().is_empty() {
+    if let Some(system_prompt) = system_prompt.filter(|value| !value.trim().is_empty()) {
         prompt.push_str("[SYSTEM]\n");
         prompt.push_str(system_prompt.trim());
     }
-    for message in input
-        .conversation_messages
+    for message in messages
         .iter()
         .filter(|message| matches!(message.role.as_str(), "system" | "user" | "assistant"))
     {
@@ -82,12 +204,13 @@ pub(crate) fn build(input: PromptPreviewInput) -> PromptPreviewResult {
         prompt.push_str("]\n");
         prompt.push_str(message.content.trim());
     }
+    prompt
+}
 
-    PromptPreviewResult {
-        approximate_tokens: approximate_token_count(&prompt),
-        characters: prompt.chars().count() as i64,
-        prompt,
-    }
+fn replace_names(prompt: String, user_name: &str, character_name: &str) -> String {
+    prompt
+        .replace("{{user}}", user_name)
+        .replace("{{char}}", character_name)
 }
 
 fn preview_galaxy_item(input: GalaxyItemInput) -> GalaxyItem {
@@ -121,6 +244,31 @@ fn approximate_token_count(value: &str) -> i64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn message(id: &str, remembered: bool) -> Message {
+        Message {
+            id: id.into(),
+            chat_id: "chat".into(),
+            role: "user".into(),
+            content: format!("message {id}"),
+            created_at: 0,
+            updated_at: 0,
+            edited: false,
+            remembered,
+            active_variant_index: 0,
+            variants: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn remembered_messages_still_in_direct_history_are_not_duplicated() {
+        let remembered = vec![message("old", true), message("recent", true)];
+        let active = vec![message("recent", true)];
+
+        let archived = archived_remembered_messages(&remembered, &active);
+        assert_eq!(archived.len(), 1);
+        assert_eq!(archived[0].id, "old");
+    }
 
     #[test]
     fn token_estimate_handles_empty_ascii_and_unicode_text() {

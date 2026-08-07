@@ -1,4 +1,3 @@
-use rusqlite::Connection;
 use uuid::Uuid;
 
 use crate::ai_context;
@@ -32,7 +31,7 @@ pub(crate) async fn prepare(
         settings,
         module_overrides,
         mut context,
-        mut system_prompt,
+        prompt_context,
         analysis_provider,
         embedding_provider,
         recent_message_limit,
@@ -41,8 +40,7 @@ pub(crate) async fn prepare(
         let settings = db::get_settings(&database)?;
         let module_overrides = db::chat_module_overrides(&database, chat_id)?;
         let context = db::get_dynamic_context(&database, chat_id)?;
-        let system_prompt =
-            build_chat_system_prompt(&database, chat_id, full_history, response_language)?;
+        let prompt_context = db::get_chat_prompt_context(&database, chat_id)?;
         let analysis_provider = settings
             .ai_modules
             .dynamic_context
@@ -62,12 +60,15 @@ pub(crate) async fn prepare(
             settings,
             module_overrides,
             context,
-            system_prompt,
+            prompt_context,
             analysis_provider,
             embedding_provider,
             recent_message_limit,
         )
     };
+
+    let mut context_budget = settings.ai_modules.context_budget.clone();
+    context_budget.enabled = module_overrides.context_budget_enabled(context_budget.enabled);
 
     let mut retry = settings.ai_modules.retry.clone();
     retry.enabled = module_overrides.retry_enabled(retry.enabled);
@@ -115,17 +116,19 @@ pub(crate) async fn prepare(
             }
             context = Some(outcome.state);
         }
-        append_prompt_section(
-            &mut system_prompt,
-            context
-                .as_ref()
-                .and_then(dynamic_context::render_context_section),
-        );
     }
+    let dynamic_section = if dynamic_settings.enabled {
+        context
+            .as_ref()
+            .and_then(dynamic_context::render_context_section)
+    } else {
+        None
+    };
 
     let mut semantic_settings = settings.ai_modules.semantic_memory.clone();
     semantic_settings.enabled =
         module_overrides.semantic_memory_enabled(semantic_settings.enabled);
+    let mut semantic_section = None;
     if semantic_settings.enabled {
         if let Some(provider) = embedding_provider.as_ref() {
             let embedding_model = provider
@@ -215,10 +218,7 @@ pub(crate) async fn prepare(
                                     semantic_settings.top_k,
                                     semantic_settings.similarity_threshold,
                                 );
-                                append_prompt_section(
-                                    &mut system_prompt,
-                                    semantic_memory::render_memory_section(&selected),
-                                );
+                                semantic_section = semantic_memory::render_memory_section(&selected);
                             }
                         }
                         Err(error) => {
@@ -235,14 +235,6 @@ pub(crate) async fn prepare(
         }
     }
 
-    let mut repetition_settings = settings.ai_modules.repetition_guard.clone();
-    repetition_settings.enabled =
-        module_overrides.repetition_guard_enabled(repetition_settings.enabled);
-    append_prompt_section(
-        &mut system_prompt,
-        generation_modules::repetition_guard_section(full_history, &repetition_settings),
-    );
-
     let history = if dynamic_settings.enabled {
         dynamic_context::trim_history(
             full_history,
@@ -257,9 +249,36 @@ pub(crate) async fn prepare(
     } else {
         history
     };
-    let mut context_budget = settings.ai_modules.context_budget.clone();
-    context_budget.enabled = module_overrides.context_budget_enabled(context_budget.enabled);
     let history = generation_modules::trim_history_for_budget(&history, &context_budget);
+
+    // A remembered message that is still present in the direct history must not be paid for
+    // twice. Only archived remembered messages are promoted into the persistent system section.
+    let active_message_ids = history
+        .iter()
+        .map(|message| message.id.as_str())
+        .collect::<std::collections::HashSet<_>>();
+    let remembered_history = full_history
+        .iter()
+        .filter(|message| message.remembered && !active_message_ids.contains(message.id.as_str()))
+        .cloned()
+        .collect::<Vec<_>>();
+    let mut system_prompt = build_chat_system_prompt(
+        &prompt_context,
+        &remembered_history,
+        full_history,
+        response_language,
+        &context_budget,
+    );
+    append_prompt_section(&mut system_prompt, dynamic_section);
+    append_prompt_section(&mut system_prompt, semantic_section);
+
+    let mut repetition_settings = settings.ai_modules.repetition_guard.clone();
+    repetition_settings.enabled =
+        module_overrides.repetition_guard_enabled(repetition_settings.enabled);
+    append_prompt_section(
+        &mut system_prompt,
+        generation_modules::repetition_guard_section(full_history, &history, &repetition_settings),
+    );
 
     let mut response_cleanup = settings.ai_modules.response_cleanup.clone();
     response_cleanup.enabled =
@@ -274,14 +293,21 @@ pub(crate) async fn prepare(
 }
 
 fn build_chat_system_prompt(
-    database: &Connection,
-    chat_id: &str,
-    history: &[Message],
+    context: &crate::models::ChatPromptContext,
+    remembered_history: &[Message],
+    activation_history: &[Message],
     response_language: Option<&str>,
-) -> CommandResult<Option<String>> {
-    let context = db::get_chat_prompt_context(database, chat_id)?;
-    let prompt = prompt_builder::build_system_prompt(&context, history, response_language);
-    Ok(prompt.map(|prompt| prompt_builder::resolve_assistant_placeholders(prompt, &context)))
+    context_budget: &crate::models::ContextBudgetSettings,
+) -> Option<String> {
+    let options = prompt_builder::PromptBuildOptions::from_context_budget(context_budget);
+    prompt_builder::build_system_prompt_with_histories(
+        context,
+        remembered_history,
+        activation_history,
+        response_language,
+        &options,
+    )
+    .map(|prompt| prompt_builder::resolve_assistant_placeholders(prompt, context))
 }
 
 fn append_prompt_section(base: &mut Option<String>, section: Option<String>) {

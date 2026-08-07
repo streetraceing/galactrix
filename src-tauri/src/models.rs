@@ -214,6 +214,26 @@ fn default_context_budget_preserve_messages() -> usize {
     12
 }
 
+fn default_context_budget_compact_system_prompt() -> bool {
+    true
+}
+
+fn default_context_budget_selective_worldbook_entries() -> bool {
+    true
+}
+
+fn default_context_budget_worldbook_scan_messages() -> usize {
+    8
+}
+
+fn default_context_budget_max_worldbook_entries() -> usize {
+    12
+}
+
+fn default_context_budget_max_system_characters() -> usize {
+    24_000
+}
+
 fn default_repetition_guard_messages() -> usize {
     4
 }
@@ -531,6 +551,16 @@ pub struct ContextBudgetSettings {
     pub max_characters: usize,
     #[serde(default = "default_context_budget_preserve_messages")]
     pub preserve_recent_messages: usize,
+    #[serde(default = "default_context_budget_compact_system_prompt")]
+    pub compact_system_prompt: bool,
+    #[serde(default = "default_context_budget_selective_worldbook_entries")]
+    pub selective_worldbook_entries: bool,
+    #[serde(default = "default_context_budget_worldbook_scan_messages")]
+    pub worldbook_scan_messages: usize,
+    #[serde(default = "default_context_budget_max_worldbook_entries")]
+    pub max_worldbook_entries: usize,
+    #[serde(default = "default_context_budget_max_system_characters")]
+    pub max_system_characters: usize,
 }
 
 impl Default for ContextBudgetSettings {
@@ -539,6 +569,11 @@ impl Default for ContextBudgetSettings {
             enabled: false,
             max_characters: default_context_budget_characters(),
             preserve_recent_messages: default_context_budget_preserve_messages(),
+            compact_system_prompt: default_context_budget_compact_system_prompt(),
+            selective_worldbook_entries: default_context_budget_selective_worldbook_entries(),
+            worldbook_scan_messages: default_context_budget_worldbook_scan_messages(),
+            max_worldbook_entries: default_context_budget_max_worldbook_entries(),
+            max_system_characters: default_context_budget_max_system_characters(),
         }
     }
 }
@@ -706,6 +741,8 @@ pub struct ChatPromptContext {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PromptPreviewInput {
+    #[serde(default)]
+    pub scope: Option<String>,
     pub persona: Option<GalaxyItemInput>,
     pub character: Option<GalaxyItemInput>,
     pub universe: Option<GalaxyItemInput>,
@@ -723,6 +760,14 @@ pub struct PromptPreviewInput {
     pub user_name: Option<String>,
     pub character_name: Option<String>,
     pub response_language: Option<String>,
+    #[serde(default)]
+    pub context_budget: Option<ContextBudgetSettings>,
+    #[serde(default)]
+    pub repetition_guard: Option<RepetitionGuardSettings>,
+    #[serde(default)]
+    pub dynamic_context_enabled: bool,
+    #[serde(default)]
+    pub semantic_memory_enabled: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -730,7 +775,10 @@ pub struct PromptPreviewInput {
 pub struct PromptPreviewResult {
     pub prompt: String,
     pub approximate_tokens: i64,
+    pub baseline_approximate_tokens: i64,
+    pub saved_approximate_tokens: i64,
     pub characters: i64,
+    pub runtime_variable_sections: Vec<String>,
 }
 
 #[derive(Debug, Clone)]

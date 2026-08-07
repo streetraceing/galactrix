@@ -45,7 +45,7 @@
   "chatProviderPicker.noProvider": "Без провайдера",
   "chatProviderPicker.provider": "Провайдер",
   "chatProviderPicker.selectAConnection": "Выберите подключение",
-  "chatSetupModal.chatPromptEstimate": "Расчёт промпта чата",
+  "chatSetupModal.chatPromptEstimate": "Базовый запрос модели",
   "chatSetupModal.chatSettings": "Настройки чата",
   "chatSetupModal.createChat": "Создать чат",
   "chatSetupModal.name": "Название",

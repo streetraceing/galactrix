@@ -21,7 +21,10 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:dev:pc": "npm run tauri -- dev",
-    "tauri:dev:android": "scripts\\android-dev.cmd"
+    "tauri:dev:android": "scripts\\android-dev.cmd",
+    "npm:patch": "npm version patch",
+    "npm:minor": "npm version minor",
+    "npm:major": "npm version major"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
