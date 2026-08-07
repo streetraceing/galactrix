@@ -38,12 +38,12 @@ export function galaxyItemDetails(item: GalaxyItem): string[] {
     }
     case 'character': {
       const data = normalized as CharacterData;
-      const style = stylePresets.find(
-        (entry) => entry.id === data.stylePreset,
-      )?.label;
+      const style = stylePresets.find((entry) => entry.id === data.stylePreset);
       return [
         summary('summary.section', { count: data.definitionSections.length }),
-        style ? summary('summary.style', { style }) : '',
+        style
+          ? summary('summary.style', { style: summary(style.labelKey) })
+          : '',
       ].filter(Boolean);
     }
     case 'universe': {

@@ -1,5 +1,7 @@
 import { Accordion, Chip, Label, Surface } from '@heroui/react';
+import { useEffect, useState } from 'react';
 import { Icon } from '../../../components/Icon';
+import { useMediaQuery } from '../../../hooks/useMediaQuery';
 import type {
   GalaxyItem,
   PromptConfig,
@@ -12,6 +14,14 @@ import { PromptPrioritySelect } from './prompt-builder/PromptPrioritySelect';
 import { PromptRulesSection } from './prompt-builder/PromptRulesSection';
 import { PromptSetsField } from './prompt-builder/PromptSetsField';
 import { useTranslation } from 'react-i18next';
+
+function preferredPromptBuilderSections(
+  isCompactLayout: boolean,
+  mode: 'chat' | 'set',
+): string[] {
+  if (isCompactLayout) return [];
+  return mode === 'chat' ? ['rules', 'priorities'] : ['rules', 'custom'];
+}
 
 export function PromptBuilder({
   value,
@@ -29,9 +39,20 @@ export function PromptBuilder({
   mode?: 'chat' | 'set';
 }) {
   const { t } = useTranslation('chats');
+  const isCompactLayout = useMediaQuery('(max-width: 820px)');
+  const [expandedKeys, setExpandedKeys] = useState<Set<string | number>>(
+    () => new Set(preferredPromptBuilderSections(isCompactLayout, mode)),
+  );
+
+  useEffect(() => {
+    setExpandedKeys(
+      new Set(preferredPromptBuilderSections(isCompactLayout, mode)),
+    );
+  }, [isCompactLayout, mode]);
+
   return (
     <Surface className="min-w-0 overflow-hidden rounded-2xl border border-separator bg-surface-secondary/50">
-      <div className="flex min-w-0 flex-col items-stretch gap-3 border-b border-separator p-4 sm:flex-row sm:items-start sm:justify-between sm:p-5">
+      <div className="flex min-w-0 flex-col items-stretch gap-2.5 border-b border-separator p-3 sm:flex-row sm:items-start sm:justify-between sm:gap-3 sm:p-5">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <span className="grid size-8 place-items-center rounded-xl bg-accent/10 text-accent">
@@ -87,9 +108,8 @@ export function PromptBuilder({
 
       <Accordion
         allowsMultipleExpanded
-        defaultExpandedKeys={
-          mode === 'chat' ? ['rules', 'priorities'] : ['rules', 'custom']
-        }
+        expandedKeys={expandedKeys}
+        onExpandedChange={setExpandedKeys}
         hideSeparator
         className="w-full"
       >

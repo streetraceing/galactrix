@@ -23,7 +23,7 @@ export function StyleEditor({
           autoComplete="off"
           fullWidth
           variant="secondary"
-          rows={6}
+          rows={4}
           value={data.instructions}
           placeholder={t(
             'styleEditor.responseLengthToneActionFormatVocabularyEmojiFrequency',
@@ -37,7 +37,7 @@ export function StyleEditor({
           autoComplete="off"
           fullWidth
           variant="secondary"
-          rows={5}
+          rows={3}
           value={data.example}
           placeholder={t('styleEditor.optionalExampleMessageInThisStyle')}
           aria-label={t('styleEditor.styleExample')}

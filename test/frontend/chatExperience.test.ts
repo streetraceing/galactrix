@@ -27,6 +27,10 @@ const setupModalPath = new URL(
   import.meta.url,
 );
 const databasePath = new URL('../../src-tauri/src/db.rs', import.meta.url);
+const chatConfigPath = new URL(
+  '../../src/features/chats/chatConfig.ts',
+  import.meta.url,
+);
 
 test('chat switching keeps one full-width canvas without a temporary skeleton', async () => {
   const [screen, list] = await Promise.all([
@@ -183,12 +187,13 @@ test('only newly appended message containers receive an entrance animation', asy
 });
 
 test('new chats can start with an assistant greeting', async () => {
-  const [modal, database] = await Promise.all([
+  const [modal, chatConfig, database] = await Promise.all([
     readFile(setupModalPath, 'utf8'),
+    readFile(chatConfigPath, 'utf8'),
     readFile(databasePath, 'utf8'),
   ]);
 
-  assert.match(modal, /greetingMessage: ''/);
+  assert.match(chatConfig, /greetingMessage: ''/);
   assert.match(modal, /<TextArea[\s\S]*chat-greeting/);
   assert.match(modal, /chat \? undefined : greetingMessage \|\| undefined/);
   assert.match(database, /input[\s\S]*greeting_message/);

@@ -1,4 +1,4 @@
-import { Button, Chip, Tabs } from '@heroui/react';
+import { Button, Chip, SearchField, Tabs } from '@heroui/react';
 import { useEffect, useMemo, useState } from 'react';
 import { Icon } from '../../components/Icon';
 import { TooltipIconButton } from '../../components/ui/TooltipIconButton';
@@ -52,6 +52,7 @@ export function GalaxiesScreen({
 }) {
   const { t } = useTranslation(['galaxies', 'common']);
   const [section, setSection] = useState<GalaxyKind>('persona');
+  const [query, setQuery] = useState('');
   const [editing, setEditing] = useState<GalaxyItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<GalaxyItem | null>(null);
   const [draft, setDraft] = useState<GalaxyItemInput>(createGalaxyDraft());
@@ -80,6 +81,21 @@ export function GalaxiesScreen({
         ]),
       ) as Record<GalaxyKind, GalaxyItem[]>,
     [items],
+  );
+  const normalizedQuery = query.trim().toLocaleLowerCase();
+  const visibleByKind = useMemo(
+    () =>
+      Object.fromEntries(
+        galaxySections.map(({ id }) => [
+          id,
+          byKind[id].filter((item) =>
+            `${item.name} ${item.description}`
+              .toLocaleLowerCase()
+              .includes(normalizedQuery),
+          ),
+        ]),
+      ) as Record<GalaxyKind, GalaxyItem[]>,
+    [byKind, normalizedQuery],
   );
   const styles = useMemo(
     () => items.filter((item) => item.kind === 'style'),
@@ -282,6 +298,26 @@ export function GalaxiesScreen({
           }
         />
 
+        <SearchField
+          fullWidth
+          variant="secondary"
+          value={query}
+          onChange={setQuery}
+          className="mb-3 sm:mb-4"
+        >
+          <SearchField.Group>
+            <SearchField.SearchIcon />
+            <SearchField.Input
+              autoComplete="off"
+              placeholder={t('galaxiesScreen.search')}
+              aria-label={t('galaxiesScreen.search')}
+            />
+            <SearchField.ClearButton
+              aria-label={t('galaxiesScreen.clearSearch')}
+            />
+          </SearchField.Group>
+        </SearchField>
+
         <Tabs
           selectedKey={section}
           onSelectionChange={(key) => setSection(String(key) as GalaxyKind)}
@@ -305,7 +341,7 @@ export function GalaxiesScreen({
           </Tabs.ListContainer>
 
           {galaxySections.map((entry) => {
-            const sectionItems = byKind[entry.id];
+            const sectionItems = visibleByKind[entry.id];
             return (
               <Tabs.Panel key={entry.id} id={entry.id} className="pt-5 sm:pt-6">
                 <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
@@ -341,11 +377,19 @@ export function GalaxiesScreen({
                   </div>
                 ) : (
                   <EmptyState
-                    icon="galaxies"
-                    title={t('galaxiesScreen.theValue1SectionIsEmpty', {
-                      value1: t(entry.labelKey),
-                    })}
-                    description={t(galaxyKindDescriptionKeys[entry.id])}
+                    icon={normalizedQuery ? 'search' : 'galaxies'}
+                    title={
+                      normalizedQuery
+                        ? t('galaxiesScreen.noSearchResults')
+                        : t('galaxiesScreen.theValue1SectionIsEmpty', {
+                            value1: t(entry.labelKey),
+                          })
+                    }
+                    description={
+                      normalizedQuery
+                        ? t('galaxiesScreen.noSearchResultsDescription')
+                        : t(galaxyKindDescriptionKeys[entry.id])
+                    }
                     compact
                   />
                 )}

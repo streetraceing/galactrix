@@ -109,3 +109,67 @@ test('mobile bottom navigation stays hidden while the keyboard contracts the vie
   assert.match(keyboard, /baselineHeight - currentHeight > threshold/);
   assert.match(keyboard, /viewport\?\.addEventListener\('resize', update\)/);
 });
+
+test('chat configuration starts dense prompt sections collapsed on phones', async () => {
+  const [builder, contextPicker, setup, galaxyEditor] = await Promise.all([
+    readFile(
+      new URL(
+        '../../src/features/chats/components/PromptBuilder.tsx',
+        import.meta.url,
+      ),
+      'utf8',
+    ),
+    readFile(
+      new URL(
+        '../../src/features/chats/components/ChatContextPicker.tsx',
+        import.meta.url,
+      ),
+      'utf8',
+    ),
+    readFile(
+      new URL(
+        '../../src/features/chats/components/ChatSetupModal.tsx',
+        import.meta.url,
+      ),
+      'utf8',
+    ),
+    readFile(
+      new URL(
+        '../../src/features/galaxies/components/GalaxyEditorModal.tsx',
+        import.meta.url,
+      ),
+      'utf8',
+    ),
+  ]);
+
+  assert.match(builder, /useMediaQuery\('\(max-width: 820px\)'\)/);
+  assert.match(builder, /if \(isCompactLayout\) return \[\];/);
+  assert.match(builder, /expandedKeys=\{expandedKeys\}/);
+  assert.match(builder, /onExpandedChange=\{setExpandedKeys\}/);
+  assert.match(
+    contextPicker,
+    /const \[expanded, setExpanded\] = useState\(false\)/,
+  );
+  assert.match(contextPicker, /!isCompactLayout \|\| expanded/);
+  assert.match(contextPicker, /chatContextPicker\.expand/);
+  assert.match(setup, /space-y-3 sm:space-y-5/);
+  assert.doesNotMatch(galaxyEditor, /min-h-48/);
+  assert.match(galaxyEditor, /min-h-20 sm:min-h-24/);
+});
+
+test('chat recent-message limit keeps an editable text draft', async () => {
+  const source = await readFile(
+    new URL(
+      '../../src/features/chats/components/ChatSetupModal.tsx',
+      import.meta.url,
+    ),
+    'utf8',
+  );
+
+  assert.match(
+    source,
+    /const \[recentLimitDraft, setRecentLimitDraft\] = useState/,
+  );
+  assert.match(source, /if \(rawValue\.trim\(\) === ''\) return/);
+  assert.match(source, /onBlur=\{\(\) =>/);
+});

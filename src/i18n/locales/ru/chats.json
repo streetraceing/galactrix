@@ -22,7 +22,7 @@
   "chatContextPicker.noPersona": "Без персоны",
   "chatContextPicker.noUniverse": "Без вселенной",
   "chatContextPicker.noWorldbooks": "Без ворлдбуков",
-  "chatContextPicker.oneUserPersonaOneCharacterOneUniverseAndMultipleWorldbooks": "Одна персона пользователя, один персонаж, одна вселенная и несколько ворлдбуков.",
+  "chatContextPicker.oneUserPersonaOneCharacterOneUniverseAndMultipleWorldbooks": "Одна персона пользователя, один персонаж, необязательный стиль ответа, одна вселенная и несколько ворлдбуков.",
   "chatContextPicker.roleplayContext": "Ролевой контекст",
   "chatContextPicker.selectWorldbooks": "Выберите ворлдбуки",
   "chatContextPicker.universe": "Вселенная",
@@ -269,5 +269,9 @@
   "promptRulesSection.telegramSet": "Набор «Переписка в Telegram»",
   "chatSetupModal.recentMessageLimit": "Последние сообщения в контексте",
   "chatSetupModal.recentMessageLimitDescription": "Максимальное число последних сообщений, отправляемых модели. По умолчанию 50; 0 - без дополнительного ограничения.",
-  "messageList.edited": "Редактировано"
+  "messageList.edited": "Редактировано",
+  "chatContextPicker.responseStyle": "Стиль ответа для чата",
+  "chatContextPicker.useCharacterStyle": "Использовать стиль персонажа",
+  "chatContextPicker.expand": "Показать",
+  "chatContextPicker.collapse": "Скрыть"
 }

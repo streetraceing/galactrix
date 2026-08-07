@@ -13,6 +13,7 @@ pub struct Chat {
     pub provider_id: Option<String>,
     pub persona_id: Option<String>,
     pub character_id: Option<String>,
+    pub style_item_id: Option<String>,
     pub universe_id: Option<String>,
     pub worldbook_ids: Vec<String>,
     pub prompt_config: PromptConfig,
@@ -189,6 +190,7 @@ pub struct ChatConfigInput {
     pub provider_id: Option<String>,
     pub persona_id: Option<String>,
     pub character_id: Option<String>,
+    pub style_item_id: Option<String>,
     pub universe_id: Option<String>,
     #[serde(default)]
     pub worldbook_ids: Vec<String>,

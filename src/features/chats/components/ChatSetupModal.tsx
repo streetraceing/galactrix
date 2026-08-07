@@ -4,42 +4,25 @@ import { UiModal } from '../../../components/ui/UiModal';
 import { PromptPreviewCard } from '../../../components/ui/PromptPreviewCard';
 import { isMobilePlatform } from '../../../lib/platform';
 import type {
-  CharacterData,
   Chat,
   ChatConfigInput,
   GalaxyItem,
   Message,
-  PromptContextPriorities,
   Provider,
 } from '../../../types';
-import { clonePromptConfig, defaultPromptConfig } from '../promptConfig';
+import {
+  activePromptSources,
+  chatConfigFromChat,
+  createChatConfig,
+  inheritedPromptSetIds,
+  isChatConfigValid,
+  normalizeRecentMessageLimit,
+} from '../chatConfig';
 import { promptPreviewFromChat } from '../promptPreview';
 import { ChatContextPicker } from './ChatContextPicker';
 import { ChatProviderPicker } from './ChatProviderPicker';
 import { PromptBuilder } from './PromptBuilder';
 import { useTranslation } from 'react-i18next';
-import { i18next } from '../../../i18n';
-
-function newChatConfig(): ChatConfigInput {
-  return {
-    title: i18next.t('setup.defaultTitle', { ns: 'chats' }),
-    greetingMessage: '',
-    worldbookIds: [],
-    promptConfig: clonePromptConfig(defaultPromptConfig),
-  };
-}
-
-function configFromChat(chat: Chat): ChatConfigInput {
-  return {
-    title: chat.title,
-    providerId: chat.providerId,
-    personaId: chat.personaId,
-    characterId: chat.characterId,
-    universeId: chat.universeId,
-    worldbookIds: [...chat.worldbookIds],
-    promptConfig: clonePromptConfig(chat.promptConfig),
-  };
-}
 
 export function ChatSetupModal({
   isOpen,
@@ -66,25 +49,22 @@ export function ChatSetupModal({
 }) {
   const autoFocus = !isMobilePlatform();
   const { t } = useTranslation('chats');
-  const [form, setForm] = useState<ChatConfigInput>(newChatConfig);
+  const defaultTitle = t('setup.defaultTitle');
+  const [form, setForm] = useState<ChatConfigInput>(() =>
+    createChatConfig(defaultTitle),
+  );
+  const [recentLimitDraft, setRecentLimitDraft] = useState('');
 
   useEffect(() => {
     if (!isOpen) return;
-    setForm(
-      chat
-        ? configFromChat(chat)
-        : {
-            ...newChatConfig(),
-            promptConfig: clonePromptConfig(defaultPromptConfig),
-          },
-    );
-  }, [chat, isOpen]);
+    const nextForm = chat
+      ? chatConfigFromChat(chat)
+      : createChatConfig(defaultTitle);
+    setForm(nextForm);
+    setRecentLimitDraft(String(nextForm.promptConfig.recentMessageLimit ?? 50));
+  }, [chat, defaultTitle, isOpen]);
 
-  const promptIsValid = form.promptConfig.customBlocks.every(
-    (block) =>
-      !block.enabled || Boolean(block.title.trim() && block.content.trim()),
-  );
-  const canSubmit = Boolean(form.title.trim()) && promptIsValid && !saving;
+  const canSubmit = isChatConfigValid(form) && !saving;
   const submit = () => {
     if (!canSubmit) return;
     const greetingMessage = form.greetingMessage?.trim();
@@ -94,16 +74,7 @@ export function ChatSetupModal({
       greetingMessage: chat ? undefined : greetingMessage || undefined,
     });
   };
-  const activePromptSources: Array<keyof PromptContextPriorities> = [
-    ...(form.personaId ? (['persona'] as const) : []),
-    ...(form.characterId ? (['character'] as const) : []),
-    ...(form.universeId ? (['universe'] as const) : []),
-    ...(form.worldbookIds.length ? (['worldbooks'] as const) : []),
-    ...(messages.some((message) => message.remembered)
-      ? (['remembered'] as const)
-      : []),
-    ...(form.promptConfig.presetIds.length ? (['presets'] as const) : []),
-  ];
+  const promptSources = activePromptSources(form, messages);
 
   return (
     <UiModal
@@ -138,8 +109,8 @@ export function ChatSetupModal({
         </div>
       }
     >
-      <div className="min-w-0 space-y-5">
-        <div className="grid min-w-0 gap-4 sm:grid-cols-2">
+      <div className="min-w-0 space-y-3 sm:space-y-5">
+        <div className="grid min-w-0 gap-3 sm:grid-cols-2 sm:gap-4">
           <div className="flex min-w-0 flex-col gap-1.5">
             <Label htmlFor="chat-title">{t('chatSetupModal.name')}</Label>
             <Input
@@ -180,12 +151,24 @@ export function ChatSetupModal({
             min={0}
             max={500}
             step={1}
-            value={String(form.promptConfig.recentMessageLimit ?? 50)}
+            value={recentLimitDraft}
             onChange={(event) => {
-              const parsed = Number.parseInt(event.target.value, 10);
-              const recentMessageLimit = Number.isFinite(parsed)
-                ? Math.min(500, Math.max(0, parsed))
-                : 0;
+              const rawValue = event.target.value;
+              setRecentLimitDraft(rawValue);
+              if (rawValue.trim() === '') return;
+              const recentMessageLimit = normalizeRecentMessageLimit(rawValue);
+              setForm((current) => ({
+                ...current,
+                promptConfig: {
+                  ...current.promptConfig,
+                  recentMessageLimit,
+                },
+              }));
+            }}
+            onBlur={() => {
+              const recentMessageLimit =
+                normalizeRecentMessageLimit(recentLimitDraft);
+              setRecentLimitDraft(String(recentMessageLimit));
               setForm((current) => ({
                 ...current,
                 promptConfig: {
@@ -204,6 +187,7 @@ export function ChatSetupModal({
           galaxyItems={galaxyItems}
           value={form}
           onChange={setForm}
+          isOpen={isOpen}
         />
 
         {!chat ? (
@@ -237,13 +221,8 @@ export function ChatSetupModal({
         <PromptBuilder
           value={form.promptConfig}
           sets={galaxyItems.filter((item) => item.kind === 'prompt-set')}
-          inheritedSetIds={
-            (
-              galaxyItems.find((item) => item.id === form.characterId)?.data as
-                CharacterData | undefined
-            )?.promptSetIds ?? []
-          }
-          activeContextFields={activePromptSources}
+          inheritedSetIds={inheritedPromptSetIds(form, galaxyItems)}
+          activeContextFields={promptSources}
           onChange={(promptConfig) =>
             setForm((current) => ({ ...current, promptConfig }))
           }

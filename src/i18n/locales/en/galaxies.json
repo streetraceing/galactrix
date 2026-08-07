@@ -88,7 +88,7 @@
   "styleEditor.responseLengthToneActionFormatVocabularyEmojiFrequency": "Response length, tone, action format, vocabulary, emoji frequency…",
   "styleEditor.styleExample": "Style example",
   "styleEditor.styleInstructions": "Style instructions",
-  "styleEditor.thePresetCanBeSelectedInAnyCharacterSSettings": "The preset can be selected in any character’s settings.",
+  "styleEditor.thePresetCanBeSelectedInAnyCharacterSSettings": "The preset can be used directly in a chat or selected in a character’s settings.",
   "universeEditor.describeTheWorldSPhysicsEraFactionsConstraintsAndImportant": "Describe the world’s physics, era, factions, constraints, and important rules.",
   "universeEditor.universeRulesAndFacts": "Universe rules and facts",
   "worldbookEditor.addTheFirstWorldbookEntry": "Add the first worldbook entry.",
@@ -160,5 +160,10 @@
   "count.libraryObject_other": "{{count}} library objects",
   "personaEditor.attributeValuePlaceholder": "Describe this fact in detail",
   "style.roleplayRich": "Deep roleplay",
-  "style.telegramHuman": "Human Telegram chat"
+  "style.telegramHuman": "Human Telegram chat",
+  "galaxiesScreen.search": "Search current library…",
+  "galaxiesScreen.clearSearch": "Clear galaxy search",
+  "galaxiesScreen.noSearchResults": "Nothing matches this search",
+  "galaxiesScreen.noSearchResultsDescription": "Try another name or description.",
+  "personaEditor.pronounsPlaceholder": "For example: she/her, they/them"
 }

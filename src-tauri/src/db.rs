@@ -48,6 +48,7 @@ fn migrate(connection: &Connection) -> CommandResult<()> {
                 provider_id TEXT,
                 persona_id TEXT,
                 character_id TEXT,
+                style_item_id TEXT,
                 universe_id TEXT,
                 response_preset TEXT NOT NULL DEFAULT 'natural',
                 prompt_config_json TEXT NOT NULL DEFAULT '{}'
@@ -197,6 +198,7 @@ fn migrate(connection: &Connection) -> CommandResult<()> {
     ensure_column(connection, "chats", "provider_id", "TEXT")?;
     ensure_column(connection, "chats", "persona_id", "TEXT")?;
     ensure_column(connection, "chats", "character_id", "TEXT")?;
+    ensure_column(connection, "chats", "style_item_id", "TEXT")?;
     ensure_column(connection, "chats", "universe_id", "TEXT")?;
     ensure_column(
         connection,
@@ -514,7 +516,7 @@ fn list_chats(connection: &Connection) -> CommandResult<Vec<Chat>> {
     let mut worldbooks = worldbook_ids_by_chat(connection)?;
     let mut statement = connection.prepare(
         "SELECT id, title, preview, updated_at, message_count, pinned, provider_id,
-                persona_id, character_id, universe_id, prompt_config_json, response_preset
+                persona_id, character_id, style_item_id, universe_id, prompt_config_json, response_preset
          FROM chats ORDER BY pinned DESC, updated_at DESC",
     )?;
     let rows = statement
@@ -530,8 +532,9 @@ fn list_chats(connection: &Connection) -> CommandResult<Vec<Chat>> {
                 row.get::<_, Option<String>>(7)?,
                 row.get::<_, Option<String>>(8)?,
                 row.get::<_, Option<String>>(9)?,
-                row.get::<_, String>(10)?,
+                row.get::<_, Option<String>>(10)?,
                 row.get::<_, String>(11)?,
+                row.get::<_, String>(12)?,
             ))
         })?
         .collect::<Result<Vec<_>, _>>()?;
@@ -549,6 +552,7 @@ fn list_chats(connection: &Connection) -> CommandResult<Vec<Chat>> {
                 provider_id,
                 persona_id,
                 character_id,
+                style_item_id,
                 universe_id,
                 prompt_config_json,
                 legacy_preset,
@@ -563,6 +567,7 @@ fn list_chats(connection: &Connection) -> CommandResult<Vec<Chat>> {
                 provider_id,
                 persona_id,
                 character_id,
+                style_item_id,
                 universe_id,
                 prompt_config: parse_prompt_config(&prompt_config_json, &legacy_preset),
             },
@@ -585,7 +590,7 @@ pub fn get_chat(connection: &Connection, chat_id: &str) -> CommandResult<Chat> {
     let row = connection
         .query_row(
             "SELECT id, title, preview, updated_at, message_count, pinned, provider_id,
-                    persona_id, character_id, universe_id, prompt_config_json, response_preset
+                    persona_id, character_id, style_item_id, universe_id, prompt_config_json, response_preset
              FROM chats WHERE id = ?1",
             params![chat_id],
             |row| {
@@ -600,8 +605,9 @@ pub fn get_chat(connection: &Connection, chat_id: &str) -> CommandResult<Chat> {
                     row.get::<_, Option<String>>(7)?,
                     row.get::<_, Option<String>>(8)?,
                     row.get::<_, Option<String>>(9)?,
-                    row.get::<_, String>(10)?,
+                    row.get::<_, Option<String>>(10)?,
                     row.get::<_, String>(11)?,
+                    row.get::<_, String>(12)?,
                 ))
             },
         )
@@ -617,8 +623,9 @@ pub fn get_chat(connection: &Connection, chat_id: &str) -> CommandResult<Chat> {
         provider_id: row.6,
         persona_id: row.7,
         character_id: row.8,
-        universe_id: row.9,
-        prompt_config: parse_prompt_config(&row.10, &row.11),
+        style_item_id: row.9,
+        universe_id: row.10,
+        prompt_config: parse_prompt_config(&row.11, &row.12),
         worldbook_ids: worldbook_ids_for_chat(connection, &row.0)?,
     })
 }
@@ -890,8 +897,8 @@ pub fn create_chat(
     transaction.execute(
         "INSERT INTO chats (
             id, title, preview, updated_at, message_count, pinned, provider_id,
-            persona_id, character_id, universe_id, prompt_config_json
-         ) VALUES (?1, ?2, ?3, ?4, ?5, 0, ?6, ?7, ?8, ?9, ?10)",
+            persona_id, character_id, style_item_id, universe_id, prompt_config_json
+         ) VALUES (?1, ?2, ?3, ?4, ?5, 0, ?6, ?7, ?8, ?9, ?10, ?11)",
         params![
             id,
             input.title.trim(),
@@ -901,6 +908,7 @@ pub fn create_chat(
             input.provider_id,
             input.persona_id,
             input.character_id,
+            input.style_item_id,
             input.universe_id,
             prompt_config,
         ],
@@ -941,14 +949,15 @@ pub fn update_chat_config(
     let transaction = connection.unchecked_transaction()?;
     let changed = transaction.execute(
         "UPDATE chats SET title = ?1, provider_id = ?2, persona_id = ?3,
-                    character_id = ?4, universe_id = ?5, prompt_config_json = ?6,
-                    updated_at = ?7
-             WHERE id = ?8",
+                    character_id = ?4, style_item_id = ?5, universe_id = ?6,
+                    prompt_config_json = ?7, updated_at = ?8
+             WHERE id = ?9",
         params![
             input.title.trim(),
             input.provider_id,
             input.persona_id,
             input.character_id,
+            input.style_item_id,
             input.universe_id,
             prompt_config,
             now_unix(),
@@ -986,22 +995,24 @@ fn replace_chat_worldbooks(
 }
 
 fn validate_chat_links(connection: &Connection, input: &ChatConfigInput) -> CommandResult<()> {
-    if input.title.trim().is_empty() {
+    let title = input.title.trim();
+    if title.is_empty() {
         return Err(CommandError::new(keys::CHAT_TITLE_REQUIRED));
     }
-    if input.title.chars().count() > 120 {
+    if title.chars().count() > 120 {
         return Err(CommandError::new(keys::CHAT_TITLE_TOO_LONG));
     }
     if input
         .greeting_message
         .as_deref()
-        .is_some_and(|value| value.chars().count() > 12_000)
+        .is_some_and(|value| value.trim().chars().count() > 12_000)
     {
         return Err(CommandError::new(keys::CHAT_GREETING_TOO_LONG));
     }
     validate_optional_provider(connection, input.provider_id.as_deref())?;
     validate_optional_galaxy(connection, input.persona_id.as_deref(), "persona")?;
     validate_optional_galaxy(connection, input.character_id.as_deref(), "character")?;
+    validate_optional_galaxy(connection, input.style_item_id.as_deref(), "style")?;
     validate_optional_galaxy(connection, input.universe_id.as_deref(), "universe")?;
     for id in &input.worldbook_ids {
         validate_optional_galaxy(connection, Some(id), "worldbook")?;
@@ -1529,7 +1540,7 @@ pub fn clone_chat(
 ) -> CommandResult<String> {
     let source = connection
         .query_row(
-            "SELECT provider_id, persona_id, character_id, universe_id, prompt_config_json
+            "SELECT provider_id, persona_id, character_id, style_item_id, universe_id, prompt_config_json
              FROM chats WHERE id = ?1",
             params![source_chat_id],
             |row| {
@@ -1538,7 +1549,8 @@ pub fn clone_chat(
                     row.get::<_, Option<String>>(1)?,
                     row.get::<_, Option<String>>(2)?,
                     row.get::<_, Option<String>>(3)?,
-                    row.get::<_, String>(4)?,
+                    row.get::<_, Option<String>>(4)?,
+                    row.get::<_, String>(5)?,
                 ))
             },
         )
@@ -1558,8 +1570,8 @@ pub fn clone_chat(
     transaction.execute(
         "INSERT INTO chats (
                 id, title, preview, updated_at, message_count, pinned, provider_id,
-                persona_id, character_id, universe_id, prompt_config_json
-             ) VALUES (?1, ?2, '', ?3, 0, 0, ?4, ?5, ?6, ?7, ?8)",
+                persona_id, character_id, style_item_id, universe_id, prompt_config_json
+             ) VALUES (?1, ?2, '', ?3, 0, 0, ?4, ?5, ?6, ?7, ?8, ?9)",
         params![
             new_chat_id,
             title,
@@ -1569,6 +1581,7 @@ pub fn clone_chat(
             source.2,
             source.3,
             source.4,
+            source.5,
         ],
     )?;
 
@@ -1859,7 +1872,8 @@ pub fn get_chat_prompt_context(
     connection: &Connection,
     chat_id: &str,
 ) -> CommandResult<ChatPromptContext> {
-    let (persona_id, character_id, universe_id, raw_prompt_config, legacy_preset): (
+    let (persona_id, character_id, style_item_id, universe_id, raw_prompt_config, legacy_preset): (
+        Option<String>,
         Option<String>,
         Option<String>,
         Option<String>,
@@ -1867,7 +1881,7 @@ pub fn get_chat_prompt_context(
         String,
     ) = connection
         .query_row(
-            "SELECT persona_id, character_id, universe_id, prompt_config_json, response_preset
+            "SELECT persona_id, character_id, style_item_id, universe_id, prompt_config_json, response_preset
              FROM chats WHERE id = ?1",
             params![chat_id],
             |row| {
@@ -1877,6 +1891,7 @@ pub fn get_chat_prompt_context(
                     row.get(2)?,
                     row.get(3)?,
                     row.get(4)?,
+                    row.get(5)?,
                 ))
             },
         )
@@ -1899,11 +1914,14 @@ pub fn get_chat_prompt_context(
         .iter()
         .map(|id| get_galaxy_item(connection, id))
         .collect::<Result<Vec<_>, _>>()?;
-    let character_style = character
+    let character_style_id = character
         .as_ref()
+        .filter(|item| item.data.get("stylePreset").and_then(Value::as_str) == Some("custom"))
         .and_then(|item| item.data.get("styleItemId"))
         .and_then(Value::as_str)
-        .filter(|id| !id.is_empty())
+        .filter(|id| !id.is_empty());
+    let effective_style_id = style_item_id.as_deref().or(character_style_id);
+    let character_style = effective_style_id
         .and_then(|id| get_galaxy_item(connection, id).ok())
         .filter(|item| item.kind == "style");
 

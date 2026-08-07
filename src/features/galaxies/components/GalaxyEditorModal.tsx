@@ -101,9 +101,9 @@ export function GalaxyEditorModal({
         </>
       }
     >
-      <div className="space-y-4">
+      <div className="space-y-3 sm:space-y-4">
         {draft.kind === 'persona' || draft.kind === 'character' ? (
-          <Surface className="rounded-2xl border border-separator p-4 sm:p-5 flex flex-col gap-1">
+          <Surface className="rounded-2xl border border-separator p-3 sm:p-5 flex flex-col gap-1">
             <label className="min-w-0 text-sm font-medium">
               {t('identitySettings.avatar', { ns: 'profile' })}
             </label>
@@ -128,7 +128,7 @@ export function GalaxyEditorModal({
           </Surface>
         ) : null}
 
-        <Surface className="rounded-2xl border border-separator p-4 sm:p-5 bg-surface-secondary/50">
+        <Surface className="rounded-2xl border border-separator p-3 sm:p-5 bg-surface-secondary/50">
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="galaxy-name">{t('galaxyEditorModal.name')}</Label>
@@ -160,7 +160,7 @@ export function GalaxyEditorModal({
               value={draft.description}
               placeholder={t(galaxyEditorDescriptionKeys[draft.kind])}
               autoComplete="off"
-              className="min-h-48"
+              className="min-h-20 sm:min-h-24"
               onChange={(event) =>
                 setDraft({ ...draft, description: event.target.value })
               }

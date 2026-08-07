@@ -191,6 +191,10 @@ pub(crate) fn delete_galaxy_item(connection: &Connection, id: &str) -> CommandRe
     )?;
 
     if kind == "style" {
+        transaction.execute(
+            "UPDATE chats SET style_item_id = NULL WHERE style_item_id = ?1",
+            params![id],
+        )?;
         clear_character_style_references(&transaction, id)?;
     }
     if kind == "prompt-set" {

@@ -13,7 +13,7 @@ export function EditorSection({
   children: ReactNode;
 }) {
   return (
-    <Surface className="rounded-2xl border border-separator p-4 sm:p-5 bg-surface-secondary/50">
+    <Surface className="rounded-2xl border border-separator p-3 sm:p-5 bg-surface-secondary/50">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="text-sm font-semibold">{title}</h3>
@@ -23,7 +23,7 @@ export function EditorSection({
         </div>
         {action ? <div className="shrink-0">{action}</div> : null}
       </div>
-      <div className="mt-4 flex flex-col gap-3">{children}</div>
+      <div className="mt-3 flex flex-col gap-3 sm:mt-4">{children}</div>
     </Surface>
   );
 }

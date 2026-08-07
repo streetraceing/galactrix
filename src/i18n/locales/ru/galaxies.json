@@ -88,7 +88,7 @@
   "styleEditor.responseLengthToneActionFormatVocabularyEmojiFrequency": "Длина ответов, тон, формат действий, лексика, частота эмодзи...",
   "styleEditor.styleExample": "Пример стиля",
   "styleEditor.styleInstructions": "Инструкции стиля",
-  "styleEditor.thePresetCanBeSelectedInAnyCharacterSSettings": "Пресет можно выбрать в настройках любого персонажа.",
+  "styleEditor.thePresetCanBeSelectedInAnyCharacterSSettings": "Пресет можно использовать прямо в чате или выбрать в настройках персонажа.",
   "universeEditor.describeTheWorldSPhysicsEraFactionsConstraintsAndImportant": "Опишите физику мира, эпоху, фракции, ограничения и важные правила.",
   "universeEditor.universeRulesAndFacts": "Правила и факты вселенной",
   "worldbookEditor.addTheFirstWorldbookEntry": "Добавьте первую запись ворлдбука.",
@@ -180,5 +180,10 @@
   "count.libraryObject_other": "{{count}} объекта в библиотеке",
   "personaEditor.attributeValuePlaceholder": "Подробно опишите этот факт",
   "style.roleplayRich": "Глубокий роллплей",
-  "style.telegramHuman": "Как человек в Telegram"
+  "style.telegramHuman": "Как человек в Telegram",
+  "galaxiesScreen.search": "Поиск в текущей библиотеке…",
+  "galaxiesScreen.clearSearch": "Очистить поиск по галактикам",
+  "galaxiesScreen.noSearchResults": "По этому запросу ничего не найдено",
+  "galaxiesScreen.noSearchResultsDescription": "Попробуйте другое имя или описание.",
+  "personaEditor.pronounsPlaceholder": "Например: она/её, они/их"
 }

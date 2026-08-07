@@ -16,64 +16,51 @@ import type {
   WorldbookData,
   WorldbookEntry,
 } from '../../types';
-import { i18next } from '../../i18n';
+import type { TranslationKey } from '../../i18n';
+
+type StylePresetOption = {
+  id: CharacterData['stylePreset'];
+  labelKey: TranslationKey<'galaxies'>;
+};
 
 export const stylePresets = [
   {
     id: 'neutral',
-    get label() {
-      return i18next.t('style.neutral', { ns: 'galaxies' });
-    },
+    labelKey: 'style.neutral',
   },
   {
     id: 'warm',
-    get label() {
-      return i18next.t('style.warm', { ns: 'galaxies' });
-    },
+    labelKey: 'style.warm',
   },
   {
     id: 'concise',
-    get label() {
-      return i18next.t('style.concise', { ns: 'galaxies' });
-    },
+    labelKey: 'style.concise',
   },
   {
     id: 'casual-lowercase',
-    get label() {
-      return i18next.t('style.casualLowercase', { ns: 'galaxies' });
-    },
+    labelKey: 'style.casualLowercase',
   },
   {
     id: 'roleplay-rich',
-    get label() {
-      return i18next.t('style.roleplayRich', { ns: 'galaxies' });
-    },
+    labelKey: 'style.roleplayRich',
   },
   {
     id: 'telegram-human',
-    get label() {
-      return i18next.t('style.telegramHuman', { ns: 'galaxies' });
-    },
+    labelKey: 'style.telegramHuman',
   },
   {
     id: 'roleplay',
-    get label() {
-      return i18next.t('style.roleplay', { ns: 'galaxies' });
-    },
+    labelKey: 'style.roleplay',
   },
   {
     id: 'literary',
-    get label() {
-      return i18next.t('style.literary', { ns: 'galaxies' });
-    },
+    labelKey: 'style.literary',
   },
   {
     id: 'custom',
-    get label() {
-      return i18next.t('style.custom', { ns: 'galaxies' });
-    },
+    labelKey: 'style.custom',
   },
-] as const;
+] as const satisfies readonly StylePresetOption[];
 
 type StylePreset = CharacterData['stylePreset'];
 
@@ -147,7 +134,7 @@ export function normalizeData(
         avatar: imageValue(value.avatar),
         gender: personaGender,
         age: stringValue(value.age),
-        pronouns: pronounsForGender(personaGender),
+        pronouns: stringValue(value.pronouns),
         habits: stringValue(value.habits),
         preferences: stringValue(value.preferences),
         communicationNotes: stringValue(value.communicationNotes),
@@ -161,14 +148,19 @@ export function normalizeData(
         ),
       } satisfies PersonaData;
 
-    case 'character':
+    case 'character': {
+      const stylePreset = normalizeStylePreset(value.stylePreset);
       return {
         avatar: imageValue(value.avatar),
         definitionSections: normalizeSections(value.definitionSections),
-        stylePreset: normalizeStylePreset(value.stylePreset),
-        styleItemId: stringValue(value.styleItemId) || undefined,
+        stylePreset,
+        styleItemId:
+          stylePreset === 'custom'
+            ? stringValue(value.styleItemId) || undefined
+            : undefined,
         promptSetIds: stringArray(value.promptSetIds),
       } satisfies CharacterData;
+    }
 
     case 'universe':
       return {
@@ -276,16 +268,6 @@ function normalizeGender(value: unknown): PersonaData['gender'] {
   if (['male', 'мужской', 'мужчина'].includes(gender)) return 'male';
   if (['female', 'женский', 'женщина'].includes(gender)) return 'female';
   return 'unspecified';
-}
-
-export function pronounsForGender(gender: PersonaData['gender']) {
-  if (gender === 'male') {
-    return i18next.t('gender.pronouns.male', { ns: 'galaxies' });
-  }
-  if (gender === 'female') {
-    return i18next.t('gender.pronouns.female', { ns: 'galaxies' });
-  }
-  return '';
 }
 
 function normalizeRecentMessageLimit(value: unknown, fallback: number) {

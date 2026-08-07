@@ -34,6 +34,13 @@ pub fn build_system_prompt(
             "ASSISTANT CHARACTER",
             character_prompt(character, context.character_style.as_ref()),
         );
+    } else if let Some(style) = &context.character_style {
+        push_section(
+            &mut sections,
+            &priorities.character,
+            "RESPONSE STYLE",
+            style_prompt(style),
+        );
     }
     if let Some(universe) = &context.universe {
         push_section(
@@ -286,45 +293,49 @@ fn character_prompt(item: &GalaxyItem, custom_style: Option<&GalaxyItem>) -> Str
         }
     }
 
-    let preset = item
-        .data
-        .get("stylePreset")
-        .and_then(Value::as_str)
-        .unwrap_or("neutral");
-
-    if preset == "custom" {
-        if let Some(style) = custom_style {
-            lines.push(format!("Messaging style preset: {}", style.name));
-            push_field(
-                &mut lines,
-                "Style instructions",
-                style.data.get("instructions").and_then(Value::as_str),
-            );
-            push_field(
-                &mut lines,
-                "Style example",
-                style.data.get("example").and_then(Value::as_str),
-            );
-            if style
-                .data
-                .get("instructions")
-                .and_then(Value::as_str)
-                .map(str::trim)
-                .filter(|value| !value.is_empty())
-                .is_none()
-            {
-                push_field(&mut lines, "Style notes", Some(&style.description));
-            }
-        } else {
+    if let Some(style) = custom_style {
+        lines.push(style_prompt(style));
+    } else {
+        let preset = item
+            .data
+            .get("stylePreset")
+            .and_then(Value::as_str)
+            .unwrap_or("neutral");
+        if preset == "custom" {
             lines.push(
                 "Messaging style: use a natural, consistent style aligned with the character definition."
                     .into(),
             );
+        } else {
+            lines.push(format!("Messaging style: {}", built_in_style(preset)));
         }
-    } else {
-        lines.push(format!("Messaging style: {}", built_in_style(preset)));
     }
 
+    lines.join("\n")
+}
+
+fn style_prompt(style: &GalaxyItem) -> String {
+    let mut lines = vec![format!("Messaging style preset: {}", style.name)];
+    push_field(
+        &mut lines,
+        "Style instructions",
+        style.data.get("instructions").and_then(Value::as_str),
+    );
+    push_field(
+        &mut lines,
+        "Style example",
+        style.data.get("example").and_then(Value::as_str),
+    );
+    if style
+        .data
+        .get("instructions")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .is_none()
+    {
+        push_field(&mut lines, "Style notes", Some(&style.description));
+    }
     lines.join("\n")
 }
 
@@ -487,6 +498,68 @@ mod tests {
 
         assert!(prompt.contains("Reply as Assistant."));
         assert!(!prompt.contains("{{char}}"));
+    }
+
+    #[test]
+    fn direct_style_works_without_a_character() {
+        let context = ChatPromptContext {
+            persona: None,
+            character: None,
+            universe: None,
+            worldbooks: Vec::new(),
+            character_style: Some(GalaxyItem {
+                id: "style-1".into(),
+                kind: "style".into(),
+                name: "Clipped".into(),
+                description: String::new(),
+                data: serde_json::json!({"instructions": "Use short sentences.", "example": "Done."}),
+                badge: String::new(),
+                accent: String::new(),
+                updated_at: 0,
+            }),
+            prompt_sets: Vec::new(),
+            prompt_config: PromptConfig::default(),
+        };
+
+        let prompt = build_system_prompt(&context, &[], None).expect("prompt");
+        assert!(prompt.contains("[RESPONSE STYLE]"));
+        assert!(prompt.contains("Messaging style preset: Clipped"));
+        assert!(prompt.contains("Style instructions: Use short sentences."));
+    }
+
+    #[test]
+    fn direct_style_overrides_a_character_builtin_style() {
+        let context = ChatPromptContext {
+            persona: None,
+            character: Some(GalaxyItem {
+                id: "character-1".into(),
+                kind: "character".into(),
+                name: "Nova".into(),
+                description: String::new(),
+                data: serde_json::json!({"definitionSections": [], "stylePreset": "warm"}),
+                badge: String::new(),
+                accent: String::new(),
+                updated_at: 0,
+            }),
+            universe: None,
+            worldbooks: Vec::new(),
+            character_style: Some(GalaxyItem {
+                id: "style-1".into(),
+                kind: "style".into(),
+                name: "Clipped".into(),
+                description: String::new(),
+                data: serde_json::json!({"instructions": "Use short sentences.", "example": "Done."}),
+                badge: String::new(),
+                accent: String::new(),
+                updated_at: 0,
+            }),
+            prompt_sets: Vec::new(),
+            prompt_config: PromptConfig::default(),
+        };
+
+        let prompt = build_system_prompt(&context, &[], None).expect("prompt");
+        assert!(prompt.contains("Messaging style preset: Clipped"));
+        assert!(!prompt.contains("Write warmly and attentively."));
     }
 
     #[test]

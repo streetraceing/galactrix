@@ -20,6 +20,7 @@ fn create_test_chat(connection: &Connection, id: &str) {
             provider_id: None,
             persona_id: None,
             character_id: None,
+            style_item_id: None,
             universe_id: None,
             worldbook_ids: Vec::new(),
             prompt_config: PromptConfig::default(),
@@ -40,6 +41,7 @@ fn greeting_message_creates_the_initial_assistant_variant() {
             provider_id: None,
             persona_id: None,
             character_id: None,
+            style_item_id: None,
             universe_id: None,
             worldbook_ids: Vec::new(),
             prompt_config: PromptConfig::default(),
@@ -521,4 +523,89 @@ fn message_interaction_time_and_edited_marker_follow_the_active_content() {
         .expect("assistant message");
     assert!(!assistant.edited);
     assert_eq!(assistant.content, "regenerated");
+}
+
+
+#[test]
+fn chat_style_override_is_persisted_and_used_in_prompt_context() {
+    let connection = test_database();
+    upsert_galaxy_item(
+        &connection,
+        "style-chat",
+        &crate::models::GalaxyItemInput {
+            id: Some("style-chat".into()),
+            kind: "style".into(),
+            name: "Direct style".into(),
+            description: "Fallback notes".into(),
+            data: serde_json::json!({
+                "instructions": "Answer in clipped sentences.",
+                "example": "Understood. Moving now."
+            }),
+        },
+    )
+    .expect("style must save");
+
+    create_chat(
+        &connection,
+        "chat-style",
+        &ChatConfigInput {
+            title: "Styled chat".into(),
+            greeting_message: None,
+            provider_id: None,
+            persona_id: None,
+            character_id: None,
+            style_item_id: Some("style-chat".into()),
+            universe_id: None,
+            worldbook_ids: Vec::new(),
+            prompt_config: PromptConfig::default(),
+        },
+    )
+    .expect("chat must save");
+
+    let chat = get_chat(&connection, "chat-style").expect("chat must load");
+    assert_eq!(chat.style_item_id.as_deref(), Some("style-chat"));
+
+    let context = get_chat_prompt_context(&connection, "chat-style").expect("context must load");
+    assert_eq!(
+        context.character_style.as_ref().map(|style| style.id.as_str()),
+        Some("style-chat")
+    );
+}
+
+#[test]
+fn deleting_style_unlinks_direct_chat_override() {
+    let connection = test_database();
+    upsert_galaxy_item(
+        &connection,
+        "style-chat",
+        &crate::models::GalaxyItemInput {
+            id: Some("style-chat".into()),
+            kind: "style".into(),
+            name: "Direct style".into(),
+            description: String::new(),
+            data: serde_json::json!({"instructions": "Be concise.", "example": ""}),
+        },
+    )
+    .expect("style must save");
+
+    create_chat(
+        &connection,
+        "chat-style",
+        &ChatConfigInput {
+            title: "Styled chat".into(),
+            greeting_message: None,
+            provider_id: None,
+            persona_id: None,
+            character_id: None,
+            style_item_id: Some("style-chat".into()),
+            universe_id: None,
+            worldbook_ids: Vec::new(),
+            prompt_config: PromptConfig::default(),
+        },
+    )
+    .expect("chat must save");
+
+    delete_galaxy_item(&connection, "style-chat").expect("style must delete");
+    let chat = get_chat(&connection, "chat-style").expect("chat must load");
+    assert_eq!(chat.style_item_id, None);
 }

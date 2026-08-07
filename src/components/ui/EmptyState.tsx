@@ -1,8 +1,6 @@
 import { Button, Surface } from '@heroui/react';
 import type { ReactNode } from 'react';
-import { Icon } from '../Icon';
-
-type EmptyIcon = 'chats' | 'galaxies' | 'telescope' | 'profile';
+import { Icon, type IconName } from '../Icon';
 
 export function EmptyState({
   icon,
@@ -11,7 +9,7 @@ export function EmptyState({
   action,
   compact = false,
 }: {
-  icon: EmptyIcon;
+  icon: IconName;
   title: string;
   description: string;
   action?: { label: string; onPress: () => void; icon?: ReactNode };

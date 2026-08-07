@@ -23,15 +23,20 @@ pub async fn analyze_dialogue(
     retry: &RetrySettings,
 ) -> AnalysisOutcome {
     let local = dynamic_context::local_analysis(previous, batch);
-    if settings.mode == "local" || provider.is_none() {
+    if settings.mode == "local" {
         return AnalysisOutcome {
             state: local,
             usage: None,
             warning: None,
         };
     }
-
-    let provider = provider.expect("provider checked above");
+    let Some(provider) = provider else {
+        return AnalysisOutcome {
+            state: local,
+            usage: None,
+            warning: None,
+        };
+    };
     let mut analysis_provider = provider.clone();
     analysis_provider.temperature = 0.1;
     analysis_provider.top_p = 0.3;

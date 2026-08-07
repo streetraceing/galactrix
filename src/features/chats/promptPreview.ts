@@ -8,6 +8,7 @@ import type {
 } from '../../types';
 import { getLocale, i18next } from '../../i18n';
 import { clonePromptConfig, defaultPromptConfig } from './promptConfig';
+import { effectiveStyleItemId } from './chatConfig';
 
 function asInput(item: GalaxyItem): GalaxyItemInput {
   return {
@@ -53,7 +54,6 @@ export function promptPreviewFromChat(
   const persona = findInput(items, config.personaId, 'persona');
   const character = findInput(items, config.characterId, 'character');
   const universe = findInput(items, config.universeId, 'universe');
-  const characterData = character?.data as CharacterData | undefined;
 
   return {
     persona,
@@ -62,7 +62,11 @@ export function promptPreviewFromChat(
     worldbooks: config.worldbookIds
       .map((id) => findInput(items, id, 'worldbook'))
       .filter((item): item is GalaxyItemInput => Boolean(item)),
-    characterStyle: findInput(items, characterData?.styleItemId, 'style'),
+    characterStyle: findInput(
+      items,
+      effectiveStyleItemId(config, items),
+      'style',
+    ),
     promptSets: selectedPromptSets(
       items,
       config.promptConfig.setIds,

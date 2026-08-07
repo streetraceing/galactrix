@@ -3,7 +3,7 @@ import type { Key } from 'react';
 import { Icon } from '../../../../components/Icon';
 import { TooltipIconButton } from '../../../../components/ui/TooltipIconButton';
 import type { NamedValue, PersonaData } from '../../../../types';
-import { createId, pronounsForGender } from '../../model';
+import { createId } from '../../model';
 import { EditorSection } from './EditorSection';
 import { useTranslation } from 'react-i18next';
 
@@ -17,6 +17,12 @@ export function PersonaEditor({
   const { t } = useTranslation('galaxies');
   const patch = <K extends keyof PersonaData>(key: K, value: PersonaData[K]) =>
     onChange({ ...data, [key]: value });
+  const defaultPronouns = (gender: PersonaData['gender']) =>
+    gender === 'male'
+      ? t('gender.pronouns.male')
+      : gender === 'female'
+        ? t('gender.pronouns.female')
+        : '';
 
   const patchAttribute = (
     id: string,
@@ -49,10 +55,15 @@ export function PersonaEditor({
               onChange={(key: Key | Key[] | null) => {
                 if (key == null || Array.isArray(key)) return;
                 const gender = String(key) as PersonaData['gender'];
+                const previousDefault = defaultPronouns(data.gender);
+                const shouldUpdatePronouns =
+                  !data.pronouns.trim() || data.pronouns === previousDefault;
                 onChange({
                   ...data,
                   gender,
-                  pronouns: pronounsForGender(gender),
+                  pronouns: shouldUpdatePronouns
+                    ? defaultPronouns(gender)
+                    : data.pronouns,
                 });
               }}
             >
@@ -105,8 +116,9 @@ export function PersonaEditor({
               fullWidth
               variant="secondary"
               value={data.pronouns}
-              placeholder={t('personaEditor.derivedFromGender')}
-              readOnly
+              placeholder={t('personaEditor.pronounsPlaceholder')}
+              autoComplete="off"
+              onChange={(event) => patch('pronouns', event.target.value)}
             />
           </div>
         </div>

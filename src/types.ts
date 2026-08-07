@@ -10,6 +10,7 @@ export type Chat = {
   providerId?: string;
   personaId?: string;
   characterId?: string;
+  styleItemId?: string;
   universeId?: string;
   worldbookIds: string[];
   promptConfig: PromptConfig;
@@ -66,6 +67,7 @@ export type ChatConfigInput = {
   providerId?: string;
   personaId?: string;
   characterId?: string;
+  styleItemId?: string;
   universeId?: string;
   worldbookIds: string[];
   promptConfig: PromptConfig;

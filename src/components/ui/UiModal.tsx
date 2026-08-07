@@ -157,11 +157,13 @@ export function UiModal({
               <Modal.Header className="ui-modal-mobile-header shrink-0 border-b border-separator px-2 pb-3 pt-4 pr-12 sm:px-6 sm:pt-5">
                 <Modal.Heading>{title}</Modal.Heading>
                 {description ? (
-                  <p className="mt-1 text-sm text-muted">{description}</p>
+                  <p className="mt-1 line-clamp-2 text-xs leading-4 text-muted sm:line-clamp-none sm:text-sm sm:leading-5">
+                    {description}
+                  </p>
                 ) : null}
               </Modal.Header>
               <Modal.Body
-                className={`ui-modal-mobile-body scrollbar-thin min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-2 py-4 sm:px-6 scrollbar-gutter-stable ${bodyClassName ?? ''}`}
+                className={`ui-modal-mobile-body scrollbar-thin min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-2 py-3 sm:px-6 sm:py-4 scrollbar-gutter-stable ${bodyClassName ?? ''}`}
               >
                 {children}
               </Modal.Body>

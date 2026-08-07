@@ -59,9 +59,9 @@ export function CharacterEditor({
                     <ListBox.Item
                       key={preset.id}
                       id={preset.id}
-                      textValue={preset.label}
+                      textValue={t(preset.labelKey)}
                     >
-                      {preset.label}
+                      {t(preset.labelKey)}
                       <ListBox.ItemIndicator />
                     </ListBox.Item>
                   ))}
