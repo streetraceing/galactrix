@@ -35,7 +35,7 @@ export function WorldbookEditor({
       action={
         <Button
           size="sm"
-          variant="secondary"
+          variant="tertiary"
           onPress={() =>
             onChange({
               ...data,
@@ -127,7 +127,10 @@ export function WorldbookEditor({
                 variant="secondary"
                 rows={5}
                 value={entry.content}
-                placeholder={t('definitionSectionsEditor.entryContent')}
+                placeholder={t('definitionSectionsEditor.entryContent', {
+                  user: '{{user}}',
+                  char: '{{char}}',
+                })}
                 aria-label={t('definitionSectionsEditor.entryContentLabel', {
                   value1: index + 1,
                 })}

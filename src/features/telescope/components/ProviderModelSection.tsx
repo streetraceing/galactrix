@@ -37,7 +37,7 @@ export function ProviderModelSection({
               : t('providerModelSection.theListHasNotBeenLoadedYet')}
           </p>
         </div>
-        <Button variant="secondary" isPending={loading} onPress={onLoadModels}>
+        <Button variant="tertiary" isPending={loading} onPress={onLoadModels}>
           <Icon name="refresh" className="size-4" />{' '}
           {t('providerModelSection.loadModels')}
         </Button>

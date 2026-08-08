@@ -904,8 +904,9 @@ pub fn create_chat(
     connection: &Connection,
     id: &str,
     input: &ChatConfigInput,
-) -> CommandResult<()> {
-    validate_chat_links(connection, input)?;
+) -> CommandResult<String> {
+    validate_chat_links(connection, input, false)?;
+    let title = resolve_new_chat_title(connection, input)?;
     let prompt_config = prompt_config_json(&input.prompt_config)?;
     let module_overrides = module_overrides_json(&input.module_overrides)?;
     let greeting = input
@@ -922,7 +923,7 @@ pub fn create_chat(
          ) VALUES (?1, ?2, ?3, ?4, ?5, 0, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
         params![
             id,
-            input.title.trim(),
+            &title,
             greeting.unwrap_or(""),
             created_at,
             if greeting.is_some() { 1_i64 } else { 0_i64 },
@@ -958,7 +959,8 @@ pub fn create_chat(
         )?;
     }
 
-    transaction.commit().map_err(CommandError::internal)
+    transaction.commit().map_err(CommandError::internal)?;
+    Ok(title)
 }
 
 pub fn update_chat_config(
@@ -966,7 +968,7 @@ pub fn update_chat_config(
     chat_id: &str,
     input: &ChatConfigInput,
 ) -> CommandResult<()> {
-    validate_chat_links(connection, input)?;
+    validate_chat_links(connection, input, true)?;
     let prompt_config = prompt_config_json(&input.prompt_config)?;
     let module_overrides = module_overrides_json(&input.module_overrides)?;
     let transaction = connection.unchecked_transaction()?;
@@ -1018,9 +1020,77 @@ fn replace_chat_worldbooks(
     Ok(())
 }
 
-fn validate_chat_links(connection: &Connection, input: &ChatConfigInput) -> CommandResult<()> {
+fn resolve_new_chat_title(
+    connection: &Connection,
+    input: &ChatConfigInput,
+) -> CommandResult<String> {
+    let explicit = input.title.trim();
+    if !explicit.is_empty() {
+        return Ok(explicit.to_owned());
+    }
+
+    let (base_name, existing_count): (String, i64) =
+        if let Some(character_id) = input.character_id.as_deref() {
+            let character_name = connection.query_row(
+                "SELECT name FROM galaxy_items WHERE id = ?1 AND kind = 'character'",
+                params![character_id],
+                |row| row.get::<_, String>(0),
+            )?;
+            let count = connection.query_row(
+                "SELECT COUNT(*) FROM chats WHERE character_id = ?1",
+                params![character_id],
+                |row| row.get::<_, i64>(0),
+            )?;
+            (character_name, count)
+        } else {
+            let count = connection.query_row(
+                "SELECT COUNT(*) FROM chats WHERE character_id IS NULL",
+                [],
+                |row| row.get::<_, i64>(0),
+            )?;
+            ("Chat".to_owned(), count)
+        };
+
+    let mut sequence = existing_count + 1;
+    loop {
+        let suffix = format!(" #{sequence}");
+        let max_base_chars = 120usize.saturating_sub(suffix.chars().count());
+        let mut base = base_name
+            .trim()
+            .chars()
+            .take(max_base_chars)
+            .collect::<String>();
+        if base.is_empty() {
+            base = "Chat".chars().take(max_base_chars).collect();
+        }
+        let candidate = format!("{base}{suffix}");
+        let exists = if let Some(character_id) = input.character_id.as_deref() {
+            connection.query_row(
+                "SELECT EXISTS(SELECT 1 FROM chats WHERE title = ?1 AND character_id = ?2)",
+                params![&candidate, character_id],
+                |row| row.get::<_, bool>(0),
+            )?
+        } else {
+            connection.query_row(
+                "SELECT EXISTS(SELECT 1 FROM chats WHERE title = ?1 AND character_id IS NULL)",
+                params![&candidate],
+                |row| row.get::<_, bool>(0),
+            )?
+        };
+        if !exists {
+            return Ok(candidate);
+        }
+        sequence += 1;
+    }
+}
+
+fn validate_chat_links(
+    connection: &Connection,
+    input: &ChatConfigInput,
+    require_title: bool,
+) -> CommandResult<()> {
     let title = input.title.trim();
-    if title.is_empty() {
+    if require_title && title.is_empty() {
         return Err(CommandError::new(keys::CHAT_TITLE_REQUIRED));
     }
     if title.chars().count() > 120 {

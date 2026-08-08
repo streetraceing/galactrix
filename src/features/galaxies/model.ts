@@ -41,6 +41,16 @@ export const stylePresets = [
     descriptionKey: 'style.description.concise',
   },
   {
+    id: 'short-messages',
+    labelKey: 'style.shortMessages',
+    descriptionKey: 'style.description.shortMessages',
+  },
+  {
+    id: 'long-messages',
+    labelKey: 'style.longMessages',
+    descriptionKey: 'style.description.longMessages',
+  },
+  {
     id: 'casual-lowercase',
     labelKey: 'style.casualLowercase',
     descriptionKey: 'style.description.casualLowercase',

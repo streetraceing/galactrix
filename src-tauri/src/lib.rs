@@ -70,18 +70,10 @@ fn get_usage_history(state: State<'_, AppState>) -> CommandResult<Vec<UsagePoint
 
 #[tauri::command]
 fn create_chat(input: ChatConfigInput, state: State<'_, AppState>) -> CommandResult<CreatedChat> {
-    let title = input.title.trim();
-    if title.is_empty() {
-        return Err(CommandError::new(keys::CHAT_TITLE_REQUIRED));
-    }
-
     let id = Uuid::new_v4().to_string();
     let database = state.database.lock().map_err(CommandError::internal)?;
-    db::create_chat(&database, &id, &input)?;
-    Ok(CreatedChat {
-        id,
-        title: title.into(),
-    })
+    let title = db::create_chat(&database, &id, &input)?;
+    Ok(CreatedChat { id, title })
 }
 
 #[tauri::command]

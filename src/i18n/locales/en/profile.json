@@ -136,5 +136,14 @@
   "profilePreferences.bubblesLayout": "Bubbles",
   "profilePreferences.bubblesLayoutHint": "You on the right, assistant on the left",
   "profilePreferences.readingLayout": "Reading",
-  "profilePreferences.readingLayoutHint": "Both sides use a full-width reading flow"
+  "profilePreferences.readingLayoutHint": "Both sides use a full-width reading flow",
+  "usageTimeline.range.week": "7 days",
+  "usageTimeline.range.month": "30 days",
+  "usageTimeline.range.all": "All time",
+  "usageTimeline.daysShown": "Days shown: {{count}}",
+  "usageTimeline.previousDay": "Previous day",
+  "usageTimeline.nextDay": "Next day",
+  "usageTimeline.averagePerDay": "Daily average",
+  "usageTimeline.peak": "Peak",
+  "usageTimeline.activeDays": "Active days"
 }

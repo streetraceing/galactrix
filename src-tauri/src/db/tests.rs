@@ -663,3 +663,65 @@ fn chat_module_overrides_persist_update_and_clone() {
     let cloned = get_chat(&connection, "chat-modules-copy").expect("clone must load");
     assert_eq!(cloned.module_overrides, updated.module_overrides);
 }
+
+#[test]
+fn blank_new_chat_title_uses_character_name_and_sequence() {
+    let connection = test_database();
+    connection
+        .execute(
+            "INSERT INTO galaxy_items (id, kind, name, description, data_json, badge, accent, updated_at)\n             VALUES ('character-auto-title', 'character', 'Alice', '', '{}', '', 'violet', 1)",
+            [],
+        )
+        .expect("character must insert");
+
+    let input = ChatConfigInput {
+        title: String::new(),
+        greeting_message: None,
+        provider_id: None,
+        persona_id: None,
+        character_id: Some("character-auto-title".into()),
+        style_item_id: None,
+        universe_id: None,
+        worldbook_ids: Vec::new(),
+        prompt_config: PromptConfig::default(),
+        module_overrides: Default::default(),
+    };
+
+    let first = create_chat(&connection, "chat-auto-1", &input).expect("first chat must save");
+    let second = create_chat(&connection, "chat-auto-2", &input).expect("second chat must save");
+
+    assert_eq!(first, "Alice #1");
+    assert_eq!(second, "Alice #2");
+    assert_eq!(
+        get_chat(&connection, "chat-auto-2")
+            .expect("chat must load")
+            .title,
+        "Alice #2"
+    );
+}
+
+
+#[test]
+fn character_accepts_short_and_long_message_style_presets() {
+    let connection = test_database();
+
+    for preset in ["short-messages", "long-messages"] {
+        let id = format!("character-{preset}");
+        upsert_galaxy_item(
+            &connection,
+            &id,
+            &crate::models::GalaxyItemInput {
+                id: Some(id.clone()),
+                kind: "character".into(),
+                name: format!("Character {preset}"),
+                description: String::new(),
+                data: serde_json::json!({
+                    "definitionSections": [],
+                    "stylePreset": preset,
+                    "promptSetIds": []
+                }),
+            },
+        )
+        .expect("new built-in style preset must save");
+    }
+}

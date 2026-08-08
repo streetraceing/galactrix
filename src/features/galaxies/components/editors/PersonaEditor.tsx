@@ -172,7 +172,7 @@ export function PersonaEditor({
         action={
           <Button
             size="sm"
-            variant="secondary"
+            variant="tertiary"
             onPress={() =>
               patch('attributes', [
                 ...data.attributes,

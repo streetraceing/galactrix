@@ -85,21 +85,21 @@ export function ContextBudgetModuleSettings({
         <div className="mt-2 flex flex-wrap gap-2">
           <Button
             size="sm"
-            variant="secondary"
+            variant="tertiary"
             onPress={() => applyPreset(SAVINGS_PRESETS.balanced)}
           >
             {t('ai.contextBudget.presetBalanced')}
           </Button>
           <Button
             size="sm"
-            variant="secondary"
+            variant="tertiary"
             onPress={() => applyPreset(SAVINGS_PRESETS.aggressive)}
           >
             {t('ai.contextBudget.presetAggressive')}
           </Button>
           <Button
             size="sm"
-            variant="secondary"
+            variant="tertiary"
             onPress={() => applyPreset(SAVINGS_PRESETS.extreme)}
           >
             {t('ai.contextBudget.presetExtreme')}

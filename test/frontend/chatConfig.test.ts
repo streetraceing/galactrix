@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   activePromptSources,
+  automaticChatTitle,
   chatConfigFromChat,
   effectiveStyleItemId,
 } from '../../src/features/chats/chatConfig';
@@ -125,4 +126,39 @@ test('prompt bundle selection recognizes exact bundles and leaves manual mixes c
     null,
   );
   assert.equal(matchingPromptBundleId(['human', 'human']), null);
+});
+
+test('automatic chat names use the selected character and its chat count', () => {
+  const character = galaxyItem('character-1', 'character', {
+    definitionSections: [],
+    stylePreset: 'neutral',
+    promptSetIds: [],
+  });
+  character.name = 'Alice';
+  const chats: Chat[] = [
+    {
+      id: 'chat-1',
+      title: 'Anything',
+      preview: '',
+      updatedAt: 0,
+      messageCount: 0,
+      pinned: false,
+      characterId: character.id,
+      worldbookIds: [],
+      promptConfig: defaultPromptConfig,
+      moduleOverrides: {},
+    },
+  ];
+
+  assert.equal(
+    automaticChatTitle(character.id, chats, [character]),
+    'Alice #2',
+  );
+  assert.equal(automaticChatTitle(undefined, chats, [character]), 'Chat #1');
+
+  chats[0] = { ...chats[0], title: 'Alice #2' };
+  assert.equal(
+    automaticChatTitle(character.id, chats, [character]),
+    'Alice #3',
+  );
 });

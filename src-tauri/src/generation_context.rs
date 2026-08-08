@@ -268,6 +268,7 @@ pub(crate) async fn prepare(
         full_history,
         response_language,
         &context_budget,
+        Some(settings.profile_name.as_str()),
     );
     append_prompt_section(&mut system_prompt, dynamic_section);
     append_prompt_section(&mut system_prompt, semantic_section);
@@ -298,6 +299,7 @@ fn build_chat_system_prompt(
     activation_history: &[Message],
     response_language: Option<&str>,
     context_budget: &crate::models::ContextBudgetSettings,
+    fallback_user_name: Option<&str>,
 ) -> Option<String> {
     let options = prompt_builder::PromptBuildOptions::from_context_budget(context_budget);
     prompt_builder::build_system_prompt_with_histories(
@@ -307,7 +309,7 @@ fn build_chat_system_prompt(
         response_language,
         &options,
     )
-    .map(|prompt| prompt_builder::resolve_assistant_placeholders(prompt, context))
+    .map(|prompt| prompt_builder::resolve_placeholders(prompt, context, fallback_user_name))
 }
 
 fn append_prompt_section(base: &mut Option<String>, section: Option<String>) {

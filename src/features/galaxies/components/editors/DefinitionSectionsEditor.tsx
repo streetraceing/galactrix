@@ -36,7 +36,7 @@ export function DefinitionSectionsEditor({
       action={
         <Button
           size="sm"
-          variant="secondary"
+          variant="tertiary"
           onPress={() =>
             onChange([...sections, { id: createId(), title: '', content: '' }])
           }
@@ -90,7 +90,10 @@ export function DefinitionSectionsEditor({
                 className="mt-3"
                 rows={4}
                 value={section.content}
-                placeholder={t('definitionSectionsEditor.entryContent')}
+                placeholder={t('definitionSectionsEditor.entryContent', {
+                  user: '{{user}}',
+                  char: '{{char}}',
+                })}
                 aria-label={t('definitionSectionsEditor.entryContentLabel', {
                   value1: index + 1,
                 })}

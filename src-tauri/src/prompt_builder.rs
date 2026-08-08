@@ -377,15 +377,28 @@ fn fit_sections_to_budget(
     }
 }
 
-pub fn resolve_assistant_placeholders(prompt: String, context: &ChatPromptContext) -> String {
+pub fn resolve_placeholders(
+    prompt: String,
+    context: &ChatPromptContext,
+    fallback_user_name: Option<&str>,
+) -> String {
     let assistant_name = context
         .character
         .as_ref()
         .map(|item| item.name.trim())
         .filter(|name| !name.is_empty())
         .unwrap_or("Assistant");
+    let user_name = context
+        .persona
+        .as_ref()
+        .map(|item| item.name.trim())
+        .filter(|name| !name.is_empty())
+        .or_else(|| fallback_user_name.map(str::trim).filter(|name| !name.is_empty()))
+        .unwrap_or("User");
 
-    prompt.replace("{{char}}", assistant_name)
+    prompt
+        .replace("{{user}}", user_name)
+        .replace("{{char}}", assistant_name)
 }
 
 fn push_section(sections: &mut Vec<PromptSection>, priority: &str, title: &str, content: String) {
@@ -715,6 +728,12 @@ fn built_in_style(preset: &str) -> &'static str {
         "concise" => {
             "Write concise, direct replies. Avoid repetition, filler, and unnecessary exposition."
         }
+        "short-messages" => {
+            "Prefer short chat messages most of the time: usually one to three compact sentences or a few brief fragments. Keep the reply natural and complete, but avoid turning ordinary turns into long explanations unless the situation clearly needs detail."
+        }
+        "long-messages" => {
+            "Prefer substantial, detailed replies most of the time. Develop thoughts across several sentences or paragraphs, add useful nuance and scene/detail when relevant, and avoid cutting an answer short merely for brevity. Do not pad with repetition or filler."
+        }
         "casual-lowercase" => {
             "Write in a relaxed, natural chat style: start most ordinary sentences and fragments with lowercase letters, use fewer full stops, and often connect short thoughts with commas or brief line breaks. Keep personal names, place names, brands, acronyms, sentence-internal proper nouns, quoted text, code, URLs, and identifiers conventionally capitalized. Do not intentionally misspell words or reduce clarity."
         }
@@ -769,7 +788,7 @@ mod tests {
                 custom_blocks: vec![PromptBlock {
                     id: "identity".into(),
                     title: "Identity".into(),
-                    content: "Reply as {{char}}.".into(),
+                    content: "Reply as {{char}} to {{user}}.".into(),
                     priority: "normal".into(),
                     enabled: true,
                 }],
@@ -778,10 +797,11 @@ mod tests {
         };
 
         let prompt = build_system_prompt(&context, &[], None).expect("prompt");
-        let prompt = resolve_assistant_placeholders(prompt, &context);
+        let prompt = resolve_placeholders(prompt, &context, Some("Alex"));
 
-        assert!(prompt.contains("Reply as Assistant."));
+        assert!(prompt.contains("Reply as Assistant to Alex."));
         assert!(!prompt.contains("{{char}}"));
+        assert!(!prompt.contains("{{user}}"));
     }
 
     #[test]

@@ -138,6 +138,8 @@ export type CharacterData = {
     | 'neutral'
     | 'warm'
     | 'concise'
+    | 'short-messages'
+    | 'long-messages'
     | 'casual-lowercase'
     | 'roleplay-rich'
     | 'telegram-human'

@@ -7,13 +7,14 @@ const usageTimelinePath = new URL(
   import.meta.url,
 );
 
-test('desktop usage columns fill the available chart width', async () => {
+test('usage columns fill the available chart width for the selected range', async () => {
   const source = await readFile(usageTimelinePath, 'utf8');
 
   assert.match(source, /grid h-full min-w-full/);
   assert.match(
     source,
-    /gridTemplateColumns: `repeat\(\$\{usage\.length\}, minmax\(2\.75rem, 1fr\)\)`/,
+    /gridTemplateColumns: `repeat\(\$\{displayedUsage\.length\}, minmax\(2\.75rem, 1fr\)\)`/,
   );
+  assert.match(source, /usageTimeline\.range\.\$\{value\}/);
   assert.doesNotMatch(source, /w-12 shrink-0 snap-start/);
 });

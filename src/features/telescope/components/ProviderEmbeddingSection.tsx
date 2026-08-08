@@ -95,7 +95,7 @@ export function ProviderEmbeddingSection({
           </FormField>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <Button
-              variant="secondary"
+              variant="tertiary"
               isPending={testing}
               isDisabled={!form.embeddingModel?.trim()}
               onPress={onTest}

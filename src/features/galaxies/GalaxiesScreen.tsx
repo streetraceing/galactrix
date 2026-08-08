@@ -266,7 +266,7 @@ export function GalaxiesScreen({
           actions={
             <div className="flex w-full flex-wrap gap-2 sm:w-auto">
               <Button
-                variant="secondary"
+                variant="tertiary"
                 className="flex-1 sm:flex-none"
                 isDisabled={items.length === 0}
                 onPress={() => {
@@ -279,7 +279,7 @@ export function GalaxiesScreen({
                 {t('galaxiesScreen.export')}
               </Button>
               <Button
-                variant="secondary"
+                variant="tertiary"
                 className="flex-1 sm:flex-none"
                 isPending={importing}
                 onPress={() => void importItems()}

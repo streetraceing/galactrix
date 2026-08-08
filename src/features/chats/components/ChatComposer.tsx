@@ -1,4 +1,4 @@
-import { Surface, TextArea } from '@heroui/react';
+import { Button, Surface, TextArea } from '@heroui/react';
 import {
   memo,
   useCallback,
@@ -10,7 +10,17 @@ import {
 import type { ChangeEvent, KeyboardEvent } from 'react';
 import { Icon } from '../../../components/Icon';
 import { TooltipIconButton } from '../../../components/ui/TooltipIconButton';
+import { UiModal } from '../../../components/ui/UiModal';
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuLabel,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from '../../../components/ui/context-menu';
 import { backendErrorHasVariable } from '../../../lib/backend';
+import { isMobilePlatform } from '../../../lib/platform';
 import {
   readStorageItem,
   removeStorageItem,
@@ -18,6 +28,7 @@ import {
 } from '../../../lib/storage';
 import type { Provider } from '../../../types';
 import { useTranslation } from 'react-i18next';
+import { insertRoleplayAction } from '../composerTools';
 import { draftKey } from '../utils';
 
 function readDraft(chatId: string, saveDrafts: boolean) {
@@ -59,13 +70,18 @@ function ChatComposerComponent({
   onHeightChange?: (delta: number) => void;
 }) {
   const { t } = useTranslation('chats');
+  const isMobile = isMobilePlatform();
   const [draft, setDraft] = useState(() => readDraft(chatId, saveDrafts));
+  const [fullscreenOpen, setFullscreenOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
+  const fullscreenTextAreaRef = useRef<HTMLTextAreaElement>(null);
   const draftRef = useRef(draft);
   const submittingRef = useRef(false);
   const pendingFocusAfterSendRef = useRef(false);
   const previousFocusAfterActionRequestRef = useRef(focusAfterActionRequest);
+  const suppressSendUntilRef = useRef(0);
   const providerId = provider?.id;
 
   const focusComposer = useCallback(() => {
@@ -75,6 +91,39 @@ function ChatComposerComponent({
     textArea.focus({ preventScroll: true });
     textArea.setSelectionRange(textArea.value.length, textArea.value.length);
     return true;
+  }, []);
+
+  const setDraftValue = useCallback((value: string) => {
+    draftRef.current = value;
+    setDraft(value);
+  }, []);
+
+  const applyRoleplayAction = useCallback(
+    (target?: HTMLTextAreaElement | null) => {
+      const textArea = target ?? textAreaRef.current;
+      const start = textArea?.selectionStart ?? draftRef.current.length;
+      const end = textArea?.selectionEnd ?? start;
+      const insertion = insertRoleplayAction(draftRef.current, start, end);
+      setDraftValue(insertion.value);
+      window.requestAnimationFrame(() => {
+        const nextTarget =
+          fullscreenOpen && fullscreenTextAreaRef.current
+            ? fullscreenTextAreaRef.current
+            : textAreaRef.current;
+        if (!nextTarget || nextTarget.disabled) return;
+        nextTarget.focus({ preventScroll: true });
+        nextTarget.setSelectionRange(
+          insertion.selectionStart,
+          insertion.selectionEnd,
+        );
+      });
+    },
+    [fullscreenOpen, setDraftValue],
+  );
+
+  const openFullscreen = useCallback(() => {
+    setMobileMenuOpen(false);
+    setFullscreenOpen(true);
   }, []);
 
   useEffect(() => {
@@ -128,6 +177,18 @@ function ChatComposerComponent({
     textArea.style.height = 'auto';
     textArea.style.height = `${Math.min(textArea.scrollHeight, 192)}px`;
   }, [draft]);
+
+  useEffect(() => {
+    if (!fullscreenOpen) return;
+    const frame = window.requestAnimationFrame(() => {
+      const textArea = fullscreenTextAreaRef.current;
+      if (!textArea || textArea.disabled) return;
+      textArea.focus({ preventScroll: true });
+      const position = textArea.value.length;
+      textArea.setSelectionRange(position, position);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [fullscreenOpen]);
 
   useEffect(() => {
     if (!shouldAutoFocus || !providerId) return;
@@ -244,6 +305,8 @@ function ChatComposerComponent({
     setDraft('');
     try {
       await onSend(value);
+      setFullscreenOpen(false);
+      setMobileMenuOpen(false);
       if (draftRef.current) persistDraft(chatId, draftRef.current);
       else removeStorageItem(draftKey(chatId));
     } catch (error) {
@@ -264,86 +327,238 @@ function ChatComposerComponent({
     }
   };
 
-  return (
-    <div
-      ref={rootRef}
-      className="shrink-0 border-t border-separator bg-background px-3 py-2 sm:px-5 sm:py-4"
+  const handleComposerKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    const sendWithShortcut =
+      event.key === 'Enter' &&
+      !event.shiftKey &&
+      !event.altKey &&
+      !event.getModifierState('AltGraph') &&
+      !event.nativeEvent.isComposing &&
+      (sendOnEnter || event.ctrlKey || event.metaKey);
+    if (!sendWithShortcut) return;
+    event.preventDefault();
+    void submit();
+  };
+
+  const sendButton = isMobile ? (
+    <ContextMenu
+      open={mobileMenuOpen}
+      onOpenChange={(open) => {
+        setMobileMenuOpen(open);
+        if (open) suppressSendUntilRef.current = Date.now() + 900;
+      }}
     >
-      <div className={`mx-auto w-full ${wide ? 'max-w-5xl' : 'max-w-3xl'}`}>
-        <Surface className="rounded-2xl p-2 transition-shadow">
-          <div className="grid grid-cols-[minmax(0,1fr)_3rem] items-end gap-2">
-            <TextArea
-              autoComplete="off"
-              ref={textAreaRef}
-              fullWidth
-              variant="secondary"
-              rows={1}
-              value={draft}
-              onChange={(event: ChangeEvent<HTMLTextAreaElement>) => {
-                draftRef.current = event.target.value;
-                setDraft(event.target.value);
+      <ContextMenuTrigger className="flex size-12 items-center justify-center">
+        <Button
+          isIconOnly
+          size="lg"
+          variant="primary"
+          className={`size-12 min-w-12 p-0 ${draft.trim() ? '' : 'opacity-55'}`}
+          aria-label={t('chatComposer.sendMessage')}
+          aria-disabled={!draft.trim() || !provider}
+          isDisabled={!provider}
+          onPress={() => {
+            if (mobileMenuOpen || Date.now() < suppressSendUntilRef.current) {
+              return;
+            }
+            void submit();
+          }}
+        >
+          <Icon name="send" className="size-5" />
+        </Button>
+      </ContextMenuTrigger>
+      <ContextMenuContent
+        side="top"
+        align="end"
+        className="w-[min(17rem,calc(100dvw-1rem))]"
+      >
+        <ContextMenuLabel>{t('chatComposer.sendMenu')}</ContextMenuLabel>
+        <ContextMenuItem
+          onClick={() => {
+            setMobileMenuOpen(false);
+            applyRoleplayAction(textAreaRef.current);
+          }}
+        >
+          <Icon name="sparkles" className="size-4 text-accent" />
+          {t('chatComposer.insertRoleplayAction')}
+        </ContextMenuItem>
+        <ContextMenuItem onClick={openFullscreen}>
+          <Icon name="screen-full" className="size-4" />
+          {t('chatComposer.openFullscreen')}
+        </ContextMenuItem>
+        {draft ? (
+          <>
+            <ContextMenuSeparator />
+            <ContextMenuItem
+              onClick={() => {
+                setMobileMenuOpen(false);
+                setDraftValue('');
               }}
-              onKeyDown={(event: KeyboardEvent<HTMLTextAreaElement>) => {
-                const sendWithShortcut =
-                  event.key === 'Enter' &&
-                  !event.shiftKey &&
-                  !event.altKey &&
-                  !event.getModifierState('AltGraph') &&
-                  !event.nativeEvent.isComposing &&
-                  (sendOnEnter || event.ctrlKey || event.metaKey);
-                if (sendWithShortcut) {
-                  event.preventDefault();
-                  void submit();
+            >
+              <Icon name="clear" className="size-4" />
+              {t('chatComposer.clearDraft')}
+            </ContextMenuItem>
+          </>
+        ) : null}
+      </ContextMenuContent>
+    </ContextMenu>
+  ) : (
+    <TooltipIconButton
+      label={t('chatComposer.sendMessage')}
+      size="lg"
+      variant="primary"
+      className="size-12 min-w-12 p-0"
+      tooltipTriggerClassName="flex size-12 items-center justify-center leading-none"
+      isDisabled={!draft.trim() || !provider}
+      onPress={() => void submit()}
+    >
+      <Icon name="send" className="size-5" />
+    </TooltipIconButton>
+  );
+
+  return (
+    <>
+      <div
+        ref={rootRef}
+        className="shrink-0 border-t border-separator bg-background px-3 py-2 sm:px-5 sm:py-4"
+      >
+        <div className={`mx-auto w-full ${wide ? 'max-w-5xl' : 'max-w-3xl'}`}>
+          <Surface className="rounded-2xl p-2 transition-shadow">
+            <div className="flex min-w-0 items-end gap-2">
+              <TextArea
+                autoComplete="off"
+                ref={textAreaRef}
+                fullWidth
+                variant="secondary"
+                rows={1}
+                value={draft}
+                onChange={(event: ChangeEvent<HTMLTextAreaElement>) =>
+                  setDraftValue(event.target.value)
                 }
-              }}
-              enterKeyHint={sendOnEnter ? 'send' : 'enter'}
-              placeholder={t('chatComposer.placeholder')}
-              aria-label={t('chatComposer.label')}
-              disabled={!provider}
-              className="scrollbar-thin min-h-12 max-h-48 min-w-0 w-full resize-none overflow-y-auto transition-none ring-0"
-            />
-            <div className="flex size-12 self-end items-center justify-center">
-              {sending ? (
+                onKeyDown={handleComposerKeyDown}
+                enterKeyHint={sendOnEnter ? 'send' : 'enter'}
+                placeholder={t('chatComposer.placeholder')}
+                aria-label={t('chatComposer.label')}
+                disabled={!provider}
+                className="scrollbar-thin min-h-12 max-h-48 min-w-0 flex-1 resize-none overflow-y-auto transition-none ring-0"
+              />
+
+              <div className="hidden shrink-0 items-center gap-1 sm:flex">
                 <TooltipIconButton
-                  label={t('chatComposer.cancelGeneration')}
+                  label={t('chatComposer.insertRoleplayActionTooltip')}
                   size="lg"
-                  variant="ghost"
-                  className="size-12 min-w-12 p-0 text-danger"
-                  tooltipTriggerClassName="flex size-12 items-center justify-center leading-none"
-                  onPress={() => void onCancel()}
+                  variant="tertiary"
+                  className="size-10 min-w-10 p-0"
+                  isDisabled={!provider || sending}
+                  onPress={() => applyRoleplayAction(textAreaRef.current)}
                 >
-                  <Icon name="close" className="size-5" />
+                  <Icon name="sparkles" className="size-4" />
                 </TooltipIconButton>
-              ) : (
                 <TooltipIconButton
-                  label={t('chatComposer.sendMessage')}
+                  label={t('chatComposer.openFullscreenTooltip')}
                   size="lg"
-                  variant="primary"
-                  className="size-12 min-w-12 p-0"
-                  tooltipTriggerClassName="flex size-12 items-center justify-center leading-none"
-                  isDisabled={!draft.trim() || !provider}
-                  onPress={() => void submit()}
+                  variant="tertiary"
+                  className="size-10 min-w-10 p-0"
+                  isDisabled={!provider}
+                  onPress={openFullscreen}
                 >
-                  <Icon name="send" className="size-5" />
+                  <Icon name="screen-full" className="size-4" />
                 </TooltipIconButton>
-              )}
+              </div>
+
+              <div className="flex size-12 shrink-0 self-end items-center justify-center">
+                {sending ? (
+                  <TooltipIconButton
+                    label={t('chatComposer.cancelGeneration')}
+                    size="lg"
+                    variant="tertiary"
+                    className="size-12 min-w-12 p-0 text-danger"
+                    tooltipTriggerClassName="flex size-12 items-center justify-center leading-none"
+                    onPress={() => void onCancel()}
+                  >
+                    <Icon name="close" className="size-5" />
+                  </TooltipIconButton>
+                ) : (
+                  sendButton
+                )}
+              </div>
             </div>
-          </div>
-          <div className="hidden flex-wrap items-center justify-between gap-2 px-2 pb-1 pt-2 text-[0.7rem] text-muted sm:flex">
-            <span>
-              {provider
-                ? `${provider.model} · max ${provider.maxTokens}`
-                : t('chatComposer.usesConnectionSettings')}
-            </span>
-            <span>
-              {sendOnEnter
-                ? t('chatComposer.enterSend')
-                : t('chatComposer.ctrlEnterSend')}
-            </span>
-          </div>
-        </Surface>
+            <div className="hidden flex-wrap items-center justify-between gap-2 px-2 pb-1 pt-2 text-[0.7rem] text-muted sm:flex">
+              <span>
+                {provider
+                  ? `${provider.model} · max ${provider.maxTokens}`
+                  : t('chatComposer.usesConnectionSettings')}
+              </span>
+              <span>
+                {sendOnEnter
+                  ? t('chatComposer.enterSend')
+                  : t('chatComposer.ctrlEnterSend')}
+              </span>
+            </div>
+          </Surface>
+        </div>
       </div>
-    </div>
+
+      <UiModal
+        isOpen={fullscreenOpen}
+        onOpenChange={setFullscreenOpen}
+        title={t('chatComposer.fullscreenTitle')}
+        description={t('chatComposer.fullscreenDescription')}
+        size="full"
+        onConfirm={() => void submit()}
+        isConfirmDisabled={!draft.trim() || !provider || sending}
+        bodyClassName="flex min-h-0 flex-col"
+        footer={
+          <div className="flex w-full items-center gap-2">
+            <Button
+              variant="tertiary"
+              className="mr-auto"
+              isDisabled={!provider || sending}
+              onPress={() => applyRoleplayAction(fullscreenTextAreaRef.current)}
+            >
+              <Icon name="sparkles" className="size-4" />
+              {t('chatComposer.insertRoleplayAction')}
+            </Button>
+            <Button variant="tertiary" onPress={() => setFullscreenOpen(false)}>
+              {t('chatComposer.closeFullscreen')}
+            </Button>
+            <Button
+              variant="primary"
+              isDisabled={!draft.trim() || !provider || sending}
+              onPress={() => void submit()}
+            >
+              <Icon name="send" className="size-4" />
+              {t('chatComposer.send')}
+            </Button>
+          </div>
+        }
+      >
+        <div className="flex min-h-full min-w-0 flex-1 flex-col gap-3">
+          <TextArea
+            autoComplete="off"
+            ref={fullscreenTextAreaRef}
+            fullWidth
+            variant="secondary"
+            rows={16}
+            value={draft}
+            onChange={(event: ChangeEvent<HTMLTextAreaElement>) =>
+              setDraftValue(event.target.value)
+            }
+            onKeyDown={handleComposerKeyDown}
+            placeholder={t('chatComposer.fullscreenPlaceholder')}
+            aria-label={t('chatComposer.label')}
+            disabled={!provider}
+            className="scrollbar-thin min-h-[55dvh] flex-1 resize-none overflow-y-auto sm:min-h-[60dvh]"
+          />
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted">
+            <span>{t('chatComposer.fullscreenHint')}</span>
+            <span className="tabular-nums">
+              {t('chatComposer.characters', { count: draft.length })}
+            </span>
+          </div>
+        </div>
+      </UiModal>
+    </>
   );
 }
 

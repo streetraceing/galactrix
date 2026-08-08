@@ -16,7 +16,7 @@
   "definitionSectionsEditor.addTheFirstDefinitionEntry": "Add the first definition entry.",
   "definitionSectionsEditor.deleteEntry": "Delete entry",
   "definitionSectionsEditor.entry": "Entry",
-  "definitionSectionsEditor.entryContent": "Entry content",
+  "definitionSectionsEditor.entryContent": "Entry content. You can refer to {{user}} and {{char}}.",
   "definitionSectionsEditor.entryTitle": "Entry title",
   "definitionSectionsEditor.entryTitleLabel": "Entry {{value1}} title",
   "definitionSectionsEditor.entryContentLabel": "Entry {{value1}} content",
@@ -84,7 +84,7 @@
   "personaEditor.pronouns": "Pronouns",
   "personaEditor.stableInformationAboutUserThatMustPersistBetweenMessages": "Stable information about {{user}} that must persist between messages.",
   "personaEditor.value": "Value",
-  "styleEditor.optionalExampleMessageInThisStyle": "Optional example message in this style",
+  "styleEditor.optionalExampleMessageInThisStyle": "For example: {{char}}: *smiles* Good to see you, {{user}}.",
   "styleEditor.responseLengthToneActionFormatVocabularyEmojiFrequency": "Response length, tone, action format, vocabulary, emoji frequency…",
   "styleEditor.styleExample": "Style example",
   "styleEditor.styleInstructions": "Style instructions",
@@ -177,5 +177,12 @@
   "style.description.telegramHuman": "Natural short messages that feel like a real person texting.",
   "style.description.roleplay": "Balanced roleplay dialogue with actions and spoken lines.",
   "style.description.literary": "More vivid, literary wording with smoother narrative flow.",
-  "style.description.custom": "Use a saved Style object from the Galaxies library."
+  "style.description.custom": "Use a saved Style object from the Galaxies library.",
+  "style.shortMessages": "Prefer short messages",
+  "style.longMessages": "Prefer long messages",
+  "style.description.shortMessages": "Usually sends short, natural replies: a few compact sentences without unnecessary expansion.",
+  "style.description.longMessages": "Usually sends more substantial replies with detail and nuance, without repetition or artificial padding.",
+  "templateVariablesHint.prefix": "Descriptions, definitions, examples, and instructions can use",
+  "templateVariablesHint.and": "and",
+  "templateVariablesHint.description": "They are replaced with the user and selected character names during generation."
 }

@@ -104,6 +104,8 @@ fn validate_galaxy_data(connection: &Connection, input: &GalaxyItemInput) -> Com
                 | "casual-lowercase"
                 | "roleplay-rich"
                 | "telegram-human"
+                | "short-messages"
+                | "long-messages"
                 | "roleplay"
                 | "literary"
                 | "custom"

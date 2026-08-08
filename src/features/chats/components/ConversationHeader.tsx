@@ -187,7 +187,7 @@ function ConversationOverview({
           </div>
         </section>
 
-        <Button fullWidth size="sm" variant="secondary" onPress={onConfigure}>
+        <Button fullWidth size="sm" variant="tertiary" onPress={onConfigure}>
           <Icon name="settings" className="size-4" />
           {t('conversationHeader.openChatSettings')}
         </Button>

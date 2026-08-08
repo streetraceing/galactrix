@@ -32,14 +32,48 @@ export function chatConfigFromChat(chat: Chat): ChatConfigInput {
   };
 }
 
-export function isChatConfigValid(config: ChatConfigInput) {
+export function isChatConfigValid(
+  config: ChatConfigInput,
+  { allowEmptyTitle = false }: { allowEmptyTitle?: boolean } = {},
+) {
   return (
-    Boolean(config.title.trim()) &&
+    (allowEmptyTitle || Boolean(config.title.trim())) &&
     config.promptConfig.customBlocks.every(
       (block) =>
         !block.enabled || Boolean(block.title.trim() && block.content.trim()),
     )
   );
+}
+
+export function automaticChatTitle(
+  characterId: string | undefined,
+  chats: readonly Chat[],
+  galaxyItems: readonly GalaxyItem[],
+) {
+  const character = characterId
+    ? galaxyItems.find(
+        (item) => item.kind === 'character' && item.id === characterId,
+      )
+    : undefined;
+  const existingCount = chats.filter((chat) =>
+    characterId ? chat.characterId === characterId : !chat.characterId,
+  ).length;
+  const rawBase = character?.name.trim() || 'Chat';
+  let sequence = existingCount + 1;
+
+  while (true) {
+    const suffix = ` #${sequence}`;
+    const maxBaseCharacters = Math.max(0, 120 - [...suffix].length);
+    const base = [...rawBase].slice(0, maxBaseCharacters).join('') || 'Chat';
+    const title = `${base}${suffix}`;
+    const collides = chats.some(
+      (chat) =>
+        chat.title === title &&
+        (characterId ? chat.characterId === characterId : !chat.characterId),
+    );
+    if (!collides) return title;
+    sequence += 1;
+  }
 }
 
 export function activePromptSources(

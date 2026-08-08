@@ -295,5 +295,22 @@
   "promptBundle.roleplayProactive.label": "Proactive roleplay",
   "promptBundle.roleplayProactive.description": "Immersive roleplay where the character actively moves the scene forward without controlling the user.",
   "promptBundle.roleplayDialogue.label": "Dialogue roleplay",
-  "promptBundle.roleplayDialogue.description": "Character-faithful first-person roleplay through dialogue only, with user agency preserved."
+  "promptBundle.roleplayDialogue.description": "Character-faithful first-person roleplay through dialogue only, with user agency preserved.",
+  "chatComposer.sendMenu": "Message actions",
+  "chatComposer.insertRoleplayAction": "Insert action *…*",
+  "chatComposer.insertRoleplayActionTooltip": "Insert ** and place the cursor between the stars",
+  "chatComposer.openFullscreen": "Open fullscreen editor",
+  "chatComposer.openFullscreenTooltip": "Edit the message fullscreen",
+  "chatComposer.clearDraft": "Clear draft",
+  "chatComposer.fullscreenTitle": "Message editor",
+  "chatComposer.fullscreenDescription": "More room for a long message, roleplay text, or formatting.",
+  "chatComposer.closeFullscreen": "Close",
+  "chatComposer.send": "Send",
+  "chatComposer.fullscreenPlaceholder": "Write a message…",
+  "chatComposer.fullscreenHint": "Ctrl/⌘ + Enter — send · Shift + Enter — new line",
+  "chatComposer.characters": "{{count}} chars",
+  "chatSetupModal.useAutomaticTitle": "Auto name",
+  "chatSetupModal.automaticTitle": "Automatic name",
+  "chatSetupModal.setCustomTitle": "Use custom",
+  "chatSetupModal.automaticTitleDescription": "If you leave the name automatic, it is built from the character and chat number, for example “Alice #2”. Without a character it uses “Chat #N”."
 }

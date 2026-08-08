@@ -38,7 +38,8 @@ test('a chat without a character is represented as an assistant', async () => {
   assert.match(preview, /i18next\.t\('preview\.character'/);
   assert.equal(ruChats['preview.character'], 'Ассистент');
   assert.match(builder, /unwrap_or\("Assistant"\)/);
-  assert.match(builder, /prompt\.replace\("\{\{char\}\}", assistant_name\)/);
+  assert.match(builder, /replace\("\{\{user\}\}", user_name\)/);
+  assert.match(builder, /replace\("\{\{char\}\}", assistant_name\)/);
 });
 
 test('relaxed lowercase is a built-in character response style', async () => {

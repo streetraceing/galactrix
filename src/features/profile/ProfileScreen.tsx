@@ -1,5 +1,6 @@
 import { Tabs } from '@heroui/react';
 import { useState } from 'react';
+import { Icon } from '../../components/Icon';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { useSwipeableTabs } from '../../hooks/useSwipeableTabs';
 import type {
@@ -65,21 +66,25 @@ export function ProfileScreen({
           <Tabs.ListContainer className="w-full">
             <Tabs.List
               aria-label={t('profileScreen.profileSections')}
-              className="w-full *:min-w-0 *:flex-1 *:px-2 sm:*:px-4"
+              className="w-full *:min-w-0 *:flex-1 *:gap-1.5 *:px-2 sm:*:px-4"
             >
               <Tabs.Tab id="overview">
+                <Icon name="profile" className="size-4 shrink-0" />
                 {t('profileScreen.overview')}
                 <Tabs.Indicator />
               </Tabs.Tab>
               <Tabs.Tab id="tokens">
+                <Icon name="database" className="size-4 shrink-0" />
                 {t('profileScreen.tokens')}
                 <Tabs.Indicator />
               </Tabs.Tab>
               <Tabs.Tab id="requests">
+                <Icon name="send" className="size-4 shrink-0" />
                 {t('profileScreen.requests')}
                 <Tabs.Indicator />
               </Tabs.Tab>
               <Tabs.Tab id="identities">
+                <Icon name="user" className="size-4 shrink-0" />
                 {t('profileScreen.identities')}
                 <Tabs.Indicator />
               </Tabs.Tab>

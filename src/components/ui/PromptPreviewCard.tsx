@@ -123,7 +123,7 @@ export function PromptPreviewCard({
           </div>
           <Button
             size="sm"
-            variant="secondary"
+            variant="tertiary"
             className="w-full shrink-0 sm:w-auto"
             isDisabled={!result?.prompt || loading}
             onPress={() => setPreviewOpen(true)}

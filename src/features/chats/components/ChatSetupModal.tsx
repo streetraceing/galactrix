@@ -1,5 +1,6 @@
-import { Button, Input, Label, Tabs, TextArea } from '@heroui/react';
+import { Button, Input, Label, Surface, Tabs, TextArea } from '@heroui/react';
 import { useEffect, useState } from 'react';
+import { Icon } from '../../../components/Icon';
 import { UiModal } from '../../../components/ui/UiModal';
 import { PromptPreviewCard } from '../../../components/ui/PromptPreviewCard';
 import { RequiredMark } from '../../../components/ui/RequiredMark';
@@ -14,6 +15,7 @@ import type {
 } from '../../../types';
 import {
   activePromptSources,
+  automaticChatTitle,
   chatConfigFromChat,
   createChatConfig,
   inheritedPromptSetIds,
@@ -30,6 +32,7 @@ import { useTranslation } from 'react-i18next';
 export function ChatSetupModal({
   isOpen,
   chat,
+  chats,
   galaxyItems,
   aiModules,
   providers,
@@ -42,6 +45,7 @@ export function ChatSetupModal({
 }: {
   isOpen: boolean;
   chat: Chat | null;
+  chats: Chat[];
   galaxyItems: GalaxyItem[];
   aiModules: AiModuleSettings;
   providers: Provider[];
@@ -59,6 +63,7 @@ export function ChatSetupModal({
     createChatConfig(defaultTitle),
   );
   const [recentLimitDraft, setRecentLimitDraft] = useState('');
+  const [customTitle, setCustomTitle] = useState(Boolean(chat));
   const [section, setSection] = useState<
     'general' | 'context' | 'modules' | 'prompt'
   >('general');
@@ -69,17 +74,25 @@ export function ChatSetupModal({
       ? chatConfigFromChat(chat)
       : createChatConfig(defaultTitle);
     setForm(nextForm);
+    setCustomTitle(Boolean(chat));
     setSection('general');
     setRecentLimitDraft(String(nextForm.promptConfig.recentMessageLimit ?? 50));
   }, [chat, defaultTitle, isOpen]);
 
-  const canSubmit = isChatConfigValid(form) && !saving;
+  const usesAutomaticTitle = !chat && !customTitle;
+  const automaticTitle = automaticChatTitle(
+    form.characterId,
+    chats,
+    galaxyItems,
+  );
+  const canSubmit =
+    isChatConfigValid(form, { allowEmptyTitle: usesAutomaticTitle }) && !saving;
   const submit = () => {
     if (!canSubmit) return;
     const greetingMessage = form.greetingMessage?.trim();
     onSubmit({
       ...form,
-      title: form.title.trim(),
+      title: usesAutomaticTitle ? '' : form.title.trim(),
       greetingMessage: chat ? undefined : greetingMessage || undefined,
     });
   };
@@ -154,29 +167,73 @@ export function ChatSetupModal({
         <Tabs.Panel id="general" className="pt-4 sm:pt-5">
           <div className="min-w-0 space-y-3 sm:space-y-4">
             <div className="grid min-w-0 gap-3 sm:grid-cols-2 sm:gap-4">
-              <div className="flex min-w-0 flex-col gap-1.5">
-                <Label htmlFor="chat-title">
-                  {t('chatSetupModal.name')}
-                  <RequiredMark />
-                </Label>
-                <Input
-                  id="chat-title"
-                  required
-                  fullWidth
-                  variant="secondary"
-                  value={form.title}
-                  maxLength={120}
-                  autoFocus={autoFocus}
-                  autoComplete="off"
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      title: event.target.value,
-                    }))
-                  }
-                  className="min-h-10 flex items-center"
-                />
-              </div>
+              {chat || customTitle ? (
+                <div className="flex min-w-0 flex-col gap-1.5">
+                  <div className="flex items-center justify-between gap-3">
+                    <Label htmlFor="chat-title">
+                      {t('chatSetupModal.name')}
+                      <RequiredMark />
+                    </Label>
+                    {!chat ? (
+                      <Button
+                        size="sm"
+                        variant="tertiary"
+                        onPress={() => setCustomTitle(false)}
+                      >
+                        {t('chatSetupModal.useAutomaticTitle')}
+                      </Button>
+                    ) : null}
+                  </div>
+                  <Input
+                    id="chat-title"
+                    required
+                    fullWidth
+                    variant="secondary"
+                    value={form.title}
+                    maxLength={120}
+                    autoFocus={autoFocus}
+                    autoComplete="off"
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        title: event.target.value,
+                      }))
+                    }
+                    className="min-h-10 flex items-center"
+                  />
+                </div>
+              ) : (
+                <Surface className="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-separator bg-surface-secondary/50 px-3 py-2.5">
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-accent/10 text-accent">
+                      <Icon name="sparkles" className="size-4" />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-muted">
+                        {t('chatSetupModal.automaticTitle')}
+                      </p>
+                      <p className="truncate text-sm font-semibold">
+                        {automaticTitle}
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="tertiary"
+                    className="shrink-0"
+                    onPress={() => {
+                      setCustomTitle(true);
+                      setForm((current) => ({
+                        ...current,
+                        title:
+                          current.title === defaultTitle ? '' : current.title,
+                      }));
+                    }}
+                  >
+                    {t('chatSetupModal.setCustomTitle')}
+                  </Button>
+                </Surface>
+              )}
               <ChatProviderPicker
                 providers={providers}
                 value={form.providerId}
@@ -185,6 +242,11 @@ export function ChatSetupModal({
                 }
               />
             </div>
+            {usesAutomaticTitle ? (
+              <p className="text-xs leading-5 text-muted">
+                {t('chatSetupModal.automaticTitleDescription')}
+              </p>
+            ) : null}
 
             <div className="flex min-w-0 flex-col gap-1.5">
               <Label htmlFor="chat-recent-message-limit">

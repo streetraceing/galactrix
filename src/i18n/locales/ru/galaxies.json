@@ -16,7 +16,7 @@
   "definitionSectionsEditor.addTheFirstDefinitionEntry": "Добавьте первую запись определения.",
   "definitionSectionsEditor.deleteEntry": "Удалить запись",
   "definitionSectionsEditor.entry": "Запись",
-  "definitionSectionsEditor.entryContent": "Содержимое записи",
+  "definitionSectionsEditor.entryContent": "Содержимое записи. Можно ссылаться на {{user}} и {{char}}.",
   "definitionSectionsEditor.entryTitle": "Заголовок записи",
   "definitionSectionsEditor.entryTitleLabel": "Заголовок записи {{value1}}",
   "definitionSectionsEditor.entryContentLabel": "Содержимое записи {{value1}}",
@@ -84,7 +84,7 @@
   "personaEditor.pronouns": "Местоимения",
   "personaEditor.stableInformationAboutUserThatMustPersistBetweenMessages": "Стабильные сведения о {{user}}, которые не должны теряться между сообщениями.",
   "personaEditor.value": "Значение",
-  "styleEditor.optionalExampleMessageInThisStyle": "Необязательный пример сообщения в этом стиле",
+  "styleEditor.optionalExampleMessageInThisStyle": "Например: {{char}}: *улыбается* Рада тебя видеть, {{user}}.",
   "styleEditor.responseLengthToneActionFormatVocabularyEmojiFrequency": "Длина ответов, тон, формат действий, лексика, частота эмодзи...",
   "styleEditor.styleExample": "Пример стиля",
   "styleEditor.styleInstructions": "Инструкции стиля",
@@ -197,5 +197,12 @@
   "style.description.telegramHuman": "Естественная короткая переписка, похожая на сообщения живого человека.",
   "style.description.roleplay": "Сбалансированный ролевой диалог с действиями и репликами.",
   "style.description.literary": "Более образная и литературная подача с плавным повествованием.",
-  "style.description.custom": "Использовать сохранённый объект «Стиль» из библиотеки «Галактики»."
+  "style.description.custom": "Использовать сохранённый объект «Стиль» из библиотеки «Галактики».",
+  "style.shortMessages": "Чаще короткие сообщения",
+  "style.longMessages": "Чаще длинные сообщения",
+  "style.description.shortMessages": "Предпочитает короткие естественные ответы: обычно несколько компактных предложений без лишнего разворачивания.",
+  "style.description.longMessages": "Предпочитает более развёрнутые ответы с деталями и нюансами, но без повторов и искусственного наполнения.",
+  "templateVariablesHint.prefix": "В описаниях, определениях, примерах и инструкциях можно использовать",
+  "templateVariablesHint.and": "и",
+  "templateVariablesHint.description": "При генерации они подставятся как имя пользователя и выбранного персонажа."
 }

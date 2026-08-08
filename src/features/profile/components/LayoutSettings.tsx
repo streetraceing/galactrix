@@ -22,7 +22,7 @@ export function LayoutSettings({
       </div>
       <Button
         size="sm"
-        variant="secondary"
+        variant="tertiary"
         className="mt-5 self-start md:mt-auto"
         onPress={onReset}
       >

@@ -307,5 +307,22 @@
   "promptBundle.roleplayProactive.label": "Инициативный роллплей",
   "promptBundle.roleplayProactive.description": "Погружающий роллплей, где персонаж активнее двигает сцену вперёд, не управляя пользователем.",
   "promptBundle.roleplayDialogue.label": "Диалоговый роллплей",
-  "promptBundle.roleplayDialogue.description": "Роллплей от первого лица только через реплики, с сохранением характера и свободы пользователя."
+  "promptBundle.roleplayDialogue.description": "Роллплей от первого лица только через реплики, с сохранением характера и свободы пользователя.",
+  "chatComposer.sendMenu": "Действия с сообщением",
+  "chatComposer.insertRoleplayAction": "Вставить действие *…*",
+  "chatComposer.insertRoleplayActionTooltip": "Вставить ** и поставить курсор между звёздочками",
+  "chatComposer.openFullscreen": "Открыть редактор на весь экран",
+  "chatComposer.openFullscreenTooltip": "Редактировать сообщение на весь экран",
+  "chatComposer.clearDraft": "Очистить черновик",
+  "chatComposer.fullscreenTitle": "Редактор сообщения",
+  "chatComposer.fullscreenDescription": "Больше места для длинного сообщения, ролевого текста или форматирования.",
+  "chatComposer.closeFullscreen": "Закрыть",
+  "chatComposer.send": "Отправить",
+  "chatComposer.fullscreenPlaceholder": "Напишите сообщение…",
+  "chatComposer.fullscreenHint": "Ctrl/⌘ + Enter — отправить · Shift + Enter — новая строка",
+  "chatComposer.characters": "{{count}} симв.",
+  "chatSetupModal.useAutomaticTitle": "Автоназвание",
+  "chatSetupModal.automaticTitle": "Автоматическое название",
+  "chatSetupModal.setCustomTitle": "Задать своё",
+  "chatSetupModal.automaticTitleDescription": "Если название не задавать, оно будет создано из персонажа и номера чата, например «Алиса #2». Без персонажа используется «Chat #N»."
 }

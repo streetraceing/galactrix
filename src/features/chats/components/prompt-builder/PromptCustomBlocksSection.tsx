@@ -96,7 +96,7 @@ export function PromptCustomBlocksSection({
           <div className="mb-3 flex items-center justify-between gap-3">
             <Button
               size="sm"
-              variant="secondary"
+              variant="tertiary"
               isDisabled={value.customBlocks.length >= 16}
               onPress={() =>
                 onChange({

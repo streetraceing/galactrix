@@ -24,6 +24,7 @@ import {
   galaxyKindLabelKeys,
 } from '../catalog';
 import { CharacterEditor } from './editors/CharacterEditor';
+import { TemplateVariablesHint } from './editors/TemplateVariablesHint';
 import { PersonaEditor } from './editors/PersonaEditor';
 import { StyleEditor } from './editors/StyleEditor';
 import { UniverseEditor } from './editors/UniverseEditor';
@@ -172,6 +173,8 @@ export function GalaxyEditorModal({
             />
           </div>
         </Surface>
+
+        <TemplateVariablesHint />
 
         {draft.kind === 'persona' ? (
           <PersonaEditor

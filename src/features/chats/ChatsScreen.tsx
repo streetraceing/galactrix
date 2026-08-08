@@ -475,6 +475,7 @@ export function ChatsScreen({
       <ChatSetupModal
         isOpen={configTarget != null}
         chat={configTarget === 'new' ? null : configTarget}
+        chats={chats}
         galaxyItems={galaxyItems}
         aiModules={aiModules}
         providers={providers}

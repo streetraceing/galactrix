@@ -39,7 +39,10 @@ export function StyleEditor({
           variant="secondary"
           rows={3}
           value={data.example}
-          placeholder={t('styleEditor.optionalExampleMessageInThisStyle')}
+          placeholder={t('styleEditor.optionalExampleMessageInThisStyle', {
+            user: '{{user}}',
+            char: '{{char}}',
+          })}
           aria-label={t('styleEditor.styleExample')}
           onChange={(event) =>
             onChange({ ...data, example: event.target.value })

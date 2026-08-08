@@ -273,7 +273,7 @@ export function TelescopeScreen({
           actions={
             <div className="flex w-full flex-wrap gap-2 sm:w-auto">
               <Button
-                variant="secondary"
+                variant="tertiary"
                 className="flex-1 sm:flex-none"
                 isDisabled={providers.length === 0}
                 onPress={() => {
@@ -287,7 +287,7 @@ export function TelescopeScreen({
                 {t('telescopeScreen.export')}
               </Button>
               <Button
-                variant="secondary"
+                variant="tertiary"
                 className="flex-1 sm:flex-none"
                 isPending={transferring}
                 onPress={() => void importConnections()}
@@ -335,7 +335,7 @@ export function TelescopeScreen({
               providers.length > 0 ? (
                 <Button
                   size="sm"
-                  variant="secondary"
+                  variant="tertiary"
                   isPending={checkingAll}
                   onPress={() => void checkAll()}
                 >

@@ -9,20 +9,8 @@ use crate::prompt_builder::{self, PromptBuildOptions};
 
 pub(crate) fn build(input: PromptPreviewInput) -> PromptPreviewResult {
     let scope = input.scope.as_deref().unwrap_or("request");
-    let user_name = input
-        .user_name
-        .as_deref()
-        .map(str::trim)
-        .filter(|name| !name.is_empty())
-        .or_else(|| {
-            input
-                .persona
-                .as_ref()
-                .map(|item| item.name.trim())
-                .filter(|name| !name.is_empty())
-        })
-        .unwrap_or("{{user}}")
-        .to_owned();
+    let user_name =
+        preview_user_name(input.persona.as_ref(), input.user_name.as_deref()).to_owned();
     let character_name = input
         .character_name
         .as_deref()
@@ -138,6 +126,17 @@ pub(crate) fn build(input: PromptPreviewInput) -> PromptPreviewResult {
         characters: prompt.chars().count() as i64,
         runtime_variable_sections,
     }
+}
+
+fn preview_user_name<'a>(
+    persona: Option<&'a GalaxyItemInput>,
+    fallback: Option<&'a str>,
+) -> &'a str {
+    persona
+        .map(|item| item.name.trim())
+        .filter(|name| !name.is_empty())
+        .or_else(|| fallback.map(str::trim).filter(|name| !name.is_empty()))
+        .unwrap_or("{{user}}")
 }
 
 fn archived_remembered_messages(remembered: &[Message], active_history: &[Message]) -> Vec<Message> {
@@ -268,6 +267,26 @@ mod tests {
         let archived = archived_remembered_messages(&remembered, &active);
         assert_eq!(archived.len(), 1);
         assert_eq!(archived[0].id, "old");
+    }
+
+    #[test]
+    fn persona_name_wins_over_profile_fallback_in_preview() {
+        let persona = GalaxyItemInput {
+            id: None,
+            kind: "persona".into(),
+            name: "Persona name".into(),
+            description: String::new(),
+            data: serde_json::json!({}),
+        };
+
+        assert_eq!(
+            preview_user_name(Some(&persona), Some("Profile name")),
+            "Persona name"
+        );
+        assert_eq!(
+            preview_user_name(None, Some("Profile name")),
+            "Profile name"
+        );
     }
 
     #[test]

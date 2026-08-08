@@ -144,5 +144,14 @@
   "profilePreferences.bubblesLayout": "Пузыри",
   "profilePreferences.bubblesLayoutHint": "Пользователь справа, ассистент слева",
   "profilePreferences.readingLayout": "Чтение",
-  "profilePreferences.readingLayoutHint": "Обе стороны в полноширинной ленте"
+  "profilePreferences.readingLayoutHint": "Обе стороны в полноширинной ленте",
+  "usageTimeline.range.week": "7 дней",
+  "usageTimeline.range.month": "30 дней",
+  "usageTimeline.range.all": "Всё время",
+  "usageTimeline.daysShown": "Показано дней: {{count}}",
+  "usageTimeline.previousDay": "Предыдущий день",
+  "usageTimeline.nextDay": "Следующий день",
+  "usageTimeline.averagePerDay": "Среднее за день",
+  "usageTimeline.peak": "Пик",
+  "usageTimeline.activeDays": "Активных дней"
 }
