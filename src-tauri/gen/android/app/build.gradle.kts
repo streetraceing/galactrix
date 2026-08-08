@@ -1,5 +1,4 @@
 import java.util.Properties
-import java.io.FileInputStream
 
 plugins {
     id("com.android.application")
@@ -14,6 +13,35 @@ val tauriProperties = Properties().apply {
     }
 }
 
+val releaseKeystoreProperties = Properties().apply {
+    val propFile = rootProject.file("keystore.properties")
+    if (propFile.exists()) {
+        propFile.inputStream().use { load(it) }
+    }
+}
+
+val releaseStoreFile = System.getenv("ANDROID_KEYSTORE_PATH")
+    ?.takeIf { it.isNotBlank() }
+    ?.let { file(it) }
+    ?: releaseKeystoreProperties.getProperty("storeFile")
+        ?.takeIf { it.isNotBlank() }
+        ?.let { file(it) }
+val releaseKeyAlias = System.getenv("ANDROID_KEY_ALIAS")
+    ?.takeIf { it.isNotBlank() }
+    ?: releaseKeystoreProperties.getProperty("keyAlias")
+val releaseStorePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+    ?.takeIf { it.isNotBlank() }
+    ?: releaseKeystoreProperties.getProperty("storePassword")
+    ?: releaseKeystoreProperties.getProperty("password")
+val releaseKeyPassword = System.getenv("ANDROID_KEY_PASSWORD")
+    ?.takeIf { it.isNotBlank() }
+    ?: releaseKeystoreProperties.getProperty("keyPassword")
+    ?: releaseKeystoreProperties.getProperty("password")
+val hasReleaseSigning = releaseStoreFile?.exists() == true &&
+    !releaseKeyAlias.isNullOrBlank() &&
+    !releaseStorePassword.isNullOrBlank() &&
+    !releaseKeyPassword.isNullOrBlank()
+
 android {
     compileSdk = 36
     namespace = "ru.streetraceing.galactrix"
@@ -26,18 +54,13 @@ android {
         versionName = tauriProperties.getProperty("tauri.android.versionName", "1.0")
     }
     signingConfigs {
-        create("release") {
-            val keystorePropertiesFile = rootProject.file("keystore.properties")
-            val keystoreProperties = Properties()
-
-            if (keystorePropertiesFile.exists()) {
-                keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+        if (hasReleaseSigning) {
+            create("release") {
+                keyAlias = releaseKeyAlias!!
+                keyPassword = releaseKeyPassword!!
+                storeFile = releaseStoreFile!!
+                storePassword = releaseStorePassword!!
             }
-
-            keyAlias = keystoreProperties["keyAlias"] as String
-            keyPassword = keystoreProperties["password"] as String
-            storeFile = file(keystoreProperties["storeFile"] as String)
-            storePassword = keystoreProperties["password"] as String
         }
     }
     buildTypes {
@@ -56,7 +79,9 @@ android {
         getByName("release") {
             // Galactrix supports user-configured LAN/custom HTTP endpoints.
             manifestPlaceholders["usesCleartextTraffic"] = "true"
-            signingConfig = signingConfigs.getByName("release")
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
 
             isMinifyEnabled = true
             proguardFiles(
