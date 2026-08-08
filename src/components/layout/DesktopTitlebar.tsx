@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { MouseEvent } from 'react';
 import { navigationItems } from '../../app/navigation';
 import { isMobilePlatform } from '../../lib/platform';
+import { requestChatQuickCreate } from '../../lib/chatQuickCreate';
 import { requestGalaxyQuickCreate } from '../../lib/galaxyQuickCreate';
 import type { Chat, GalaxyKind, TabId } from '../../types';
 import { BrandMark } from '../BrandMark';
@@ -57,11 +58,8 @@ export function DesktopTitlebar({
         icon: 'plus',
         shortcut: 'Ctrl+N',
         run: () => {
+          requestChatQuickCreate();
           onNavigate('chats');
-          window.setTimeout(
-            () => window.dispatchEvent(new Event('galactrix:new-chat')),
-            0,
-          );
         },
       },
       ...navigationItems.map((item, index) => ({

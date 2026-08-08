@@ -1,8 +1,7 @@
-import { Chip, SearchField } from '@heroui/react';
+import { Button, Chip, Dropdown, Label, SearchField } from '@heroui/react';
 import { memo, useDeferredValue, useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { Icon } from '../../../components/Icon';
-import { TooltipIconButton } from '../../../components/ui/TooltipIconButton';
 import type { Chat, GalaxyItem } from '../../../types';
 import type { ChatAction } from '../types';
 import { ChatListItem } from './ChatListItem';
@@ -26,11 +25,15 @@ function ChatSidebarComponent({
   isVisibleMobile: boolean;
   isSinglePane: boolean;
   onSelect: (id: string) => void;
-  onNewChat: () => void;
+  onNewChat: (characterId?: string) => void;
   onAction: (action: ChatAction, chat: Chat) => void;
 }) {
   const { t } = useTranslation('chats');
   const [query, setQuery] = useState('');
+  const characters = useMemo(
+    () => galaxyItems.filter((item) => item.kind === 'character'),
+    [galaxyItems],
+  );
   const deferredQuery = useDeferredValue(query);
   const filteredChats = useMemo(() => {
     const normalized = deferredQuery.trim().toLowerCase();
@@ -61,14 +64,53 @@ function ChatSidebarComponent({
             {t('chatSidebar.conversationHistory')}
           </p>
         </div>
-        <TooltipIconButton
-          label={t('chatSetupModal.newChat')}
-          size="lg"
-          variant="primary"
-          onPress={onNewChat}
-        >
-          <Icon name="plus" className="size-5" />
-        </TooltipIconButton>
+        <Dropdown>
+          <Button
+            size="lg"
+            variant="primary"
+            className="shrink-0 px-3"
+            aria-label={t('chatSidebar.quickCreate')}
+          >
+            <Icon name="plus" className="size-5" />
+            <span className="hidden text-sm min-[390px]:inline">
+              {t('chatSidebar.create')}
+            </span>
+            <Icon name="chevron" className="size-3.5 rotate-90" />
+          </Button>
+          <Dropdown.Popover
+            placement="bottom end"
+            className="min-w-64 max-w-[min(22rem,calc(100vw-2rem))]"
+          >
+            <Dropdown.Menu
+              aria-label={t('chatSidebar.quickCreateDescription')}
+              onAction={(key) =>
+                onNewChat(String(key) === 'blank' ? undefined : String(key))
+              }
+            >
+              <Dropdown.Item id="blank" textValue={t('chatSetupModal.newChat')}>
+                <Icon name="chats" className="size-4" />
+                <Label>{t('chatSidebar.blankChat')}</Label>
+              </Dropdown.Item>
+              {characters.map((character) => (
+                <Dropdown.Item
+                  key={character.id}
+                  id={character.id}
+                  textValue={t('chatSidebar.chatWithCharacter', {
+                    name: character.name,
+                  })}
+                >
+                  <Icon name="brain" className="size-4" />
+                  <span className="min-w-0">
+                    <Label>{character.name}</Label>
+                    <span className="mt-0.5 block truncate text-xs text-muted">
+                      {t('chatSidebar.chatWithCharacterHint')}
+                    </span>
+                  </span>
+                </Dropdown.Item>
+              ))}
+            </Dropdown.Menu>
+          </Dropdown.Popover>
+        </Dropdown>
       </header>
 
       <div className="px-3 pb-3">

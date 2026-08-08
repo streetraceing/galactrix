@@ -312,5 +312,11 @@
   "chatSetupModal.useAutomaticTitle": "Auto name",
   "chatSetupModal.automaticTitle": "Automatic name",
   "chatSetupModal.setCustomTitle": "Use custom",
-  "chatSetupModal.automaticTitleDescription": "If you leave the name automatic, it is built from the character and chat number, for example “Alice #2”. Without a character it uses “Chat #N”."
+  "chatSetupModal.automaticTitleDescription": "If you leave the name automatic, it is built from the character and chat number, for example “Alice #2”. Without a character it uses “Chat #N”.",
+  "chatSidebar.quickCreate": "Quick create",
+  "chatSidebar.quickCreateDescription": "Create a new chat or start one preconfigured with a character.",
+  "chatSidebar.create": "Create",
+  "chatSidebar.blankChat": "New chat",
+  "chatSidebar.chatWithCharacter": "Chat with {{name}}",
+  "chatSidebar.chatWithCharacterHint": "Open a new chat setup with this character"
 }

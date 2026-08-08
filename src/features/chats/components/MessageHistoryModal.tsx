@@ -70,7 +70,7 @@ export function MessageHistoryModal({
                   )}
                 </span>
               </div>
-              <div className="selectable max-h-[min(28dvh,12rem)] overflow-y-auto overscroll-contain pr-1 text-sm">
+              <div className="selectable max-h-[min(50dvh,24rem)] overflow-y-auto overscroll-contain pr-1 text-sm">
                 <MarkdownContent>{variant.content}</MarkdownContent>
               </div>
               {!selected ? (

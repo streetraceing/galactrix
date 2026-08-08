@@ -28,6 +28,8 @@ The Rust backend keeps Tauri commands thin and separates infrastructure from dom
 - Prompt previews have two explicit scopes: Galaxy editors render only the item contribution (plus explicit inherited dependencies), while chat settings render the deterministic model request after recent-message and token-economy limits. Runtime-selected Dynamic Context and Semantic Memory are disclosed instead of fabricated.
 - Token economy must preserve semantics before saving size: remove duplicate rules/remembered messages, treat Worldbook keywords as local activation metadata, select relevant Worldbook entries from recent dialogue, compact only framework text, and drop lower-priority system sections before higher-priority ones. CRITICAL sections are never removed by the system prompt target.
 - A remembered message is promoted to `[REMEMBERED FACTS]` only after it falls out of the direct history sent to the provider; do not pay for the same message in both places.
+- Mobile back-history entries are layered: when nested overlays or interaction modes disappear together, retired entries are skipped before the underlying chat/page can consume Back.
+- Provider API-key pools use round-robin selection for normal requests and per-key cooldowns for 429/exhausted rate-limit responses; key rotation is transport behavior and must not depend on UI retry configuration.
 - Add a regression test whenever state reconciliation, persistence or a cross-layer contract changes.
 - Keep Tauri command names and serialized camelCase contracts stable; move implementation behind them instead of coupling domain modules to Tauri.
 - Keep SQLite transactions inside the storage domain that owns the invariant. Cross-domain orchestration belongs above `db`.

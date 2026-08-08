@@ -1121,7 +1121,7 @@
   }
 
   .page-container {
-    @apply flex min-w-0 flex-1 w-full max-w-full flex-col gap-5 overflow-x-clip xl:max-w-7xl px-2 py-5 sm:gap-6 sm:px-6 sm:py-6 lg:px-8;
+    @apply flex min-w-0 flex-1 w-full max-w-full flex-col gap-5 overflow-x-clip xl:max-w-7xl px-4 py-5 sm:gap-6 sm:px-6 sm:py-6 lg:px-8;
   }
 
   .page-title {
@@ -1552,6 +1552,28 @@
       both;
   }
 
+  .tab-swipe-host[data-tab-swipe-state='dragging'] .tabs__panel {
+    transform: translate3d(var(--tab-swipe-offset, 0px), 0, 0);
+    transition: none;
+    will-change: transform;
+  }
+
+  .tab-swipe-host[data-tab-swipe-state='settling'] .tabs__panel {
+    transform: translate3d(var(--tab-swipe-offset, 0px), 0, 0);
+    transition: transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    will-change: transform;
+  }
+
+  .tab-swipe-host[data-tab-swipe-commit='next'] .tabs__panel {
+    animation: galactrix-tab-swipe-next 220ms cubic-bezier(0.2, 0.8, 0.2, 1)
+      both;
+  }
+
+  .tab-swipe-host[data-tab-swipe-commit='previous'] .tabs__panel {
+    animation: galactrix-tab-swipe-previous 220ms cubic-bezier(0.2, 0.8, 0.2, 1)
+      both;
+  }
+
   .mobile-screen-enter {
     animation: galactrix-screen-enter var(--motion-standard) var(--motion-ease)
       both;
@@ -1583,7 +1605,8 @@
     @apply animate-none;
   }
 
-  .page-scroll[data-tab-swipe-state] > .page-container {
+  .page-scroll[data-tab-swipe-state] > .page-container,
+  .tab-swipe-host[data-tab-swipe-state] .tabs__panel {
     transition: none;
     transform: none;
   }

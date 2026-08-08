@@ -23,7 +23,7 @@
   "providerCredentials.additionalApiKey": "Дополнительный API-ключ",
   "providerCredentials.apiKey": "API-ключ",
   "providerCredentials.apiKeys": "API-ключи",
-  "providerCredentials.apiKeysHint": "Сохранённые ключи загружаются в отдельные поля пароля. Когда ключ достигает краткосрочного лимита, Galactrix временно использует следующий доступный ключ и возвращается к предыдущему после сброса лимита.",
+  "providerCredentials.apiKeysHint": "Ключи используются по кругу, чтобы распределять нагрузку. При 429 или исчерпанном rate-limit конкретный ключ временно уходит на cooldown, а запрос сразу переключается на следующий доступный. Переключение ключей работает даже при выключенном модуле Retry; Retry нужен после исчерпания доступных ключей и для других временных сбоев.",
   "providerCredentials.canBeAddedLater": "Можно добавить позже",
   "providerCredentials.leaveEmptyToKeepUnchanged": "Оставьте пустым, чтобы не менять",
   "providerCredentials.name": "Название",

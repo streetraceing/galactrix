@@ -176,7 +176,7 @@ test('mobile variant history is viewport bounded and does not use a side submenu
   ]);
 
   assert.match(messageSource, /max-h-\[calc\(100dvh-1rem\)\]/);
-  assert.match(modalSource, /max-h-\[min\(28dvh,12rem\)\]/);
+  assert.match(modalSource, /max-h-\[min\(50dvh,24rem\)\]/);
   assert.match(modalSource, /bodyClassName="max-h-full"/);
 });
 
@@ -189,11 +189,12 @@ test('chat title uses a full mobile modal and keeps desktop popover', async () =
   assert.match(source, /<Popover isOpen=\{overviewOpen\}/);
 });
 
-test('mobile modal transitions reuse the pending history entry', async () => {
+test('mobile modal transitions skip retired nested history entries', async () => {
   const source = await readFile(mobileBackPath, 'utf8');
 
-  assert.match(source, /pendingHistoryBack/);
-  assert.match(source, /window\.history\.replaceState/);
+  assert.match(source, /const activeEntries = new Map<string, \(\) => void>/);
+  assert.match(source, /const retiredEntries = new Set<string>/);
+  assert.match(source, /removeRetiredEntryIfNeeded/);
   assert.match(source, /scheduleHistoryEntryRemoval/);
   assert.match(source, /window\.setTimeout\([\s\S]*window\.history\.back\(\)/);
 });

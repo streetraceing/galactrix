@@ -1,7 +1,7 @@
 use super::{
     block_api_key, embedding_endpoint_saved, exponential_delay, first_available_key, is_empty_json,
     is_retryable_status, parse_api_keys, parse_embedding_response, parse_rate_limit_delay,
-    rate_limit_state_from_headers, send_with_retry, uses_ollama_embedding_api,
+    rate_limit_state_from_headers, select_available_key, send_with_retry, uses_ollama_embedding_api,
 };
 use reqwest::header::{HeaderMap, HeaderValue};
 use serde_json::json;
@@ -9,6 +9,75 @@ use std::collections::HashSet;
 use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+#[test]
+fn rate_limited_key_rotates_even_when_retry_module_is_disabled() {
+    tauri::async_runtime::block_on(async {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind test server");
+        let address = listener.local_addr().expect("test server address");
+        let seen = std::sync::Arc::new(std::sync::Mutex::new(Vec::<String>::new()));
+        let server_seen = seen.clone();
+        let server = std::thread::spawn(move || {
+            for index in 0..2 {
+                let (mut stream, _) = listener.accept().expect("accept request");
+                let mut request = [0_u8; 4096];
+                let bytes = stream.read(&mut request).expect("read request");
+                server_seen
+                    .lock()
+                    .expect("request log")
+                    .push(String::from_utf8_lossy(&request[..bytes]).to_lowercase());
+
+                let (status, retry_after, body) = if index == 0 {
+                    (
+                        "429 Too Many Requests",
+                        "Retry-After: 60\r\n",
+                        r#"{"error":{"message":"rate limited"}}"#,
+                    )
+                } else {
+                    ("200 OK", "", r#"{"ok":true}"#)
+                };
+                write!(
+                    stream,
+                    "HTTP/1.1 {status}\r\nContent-Type: application/json\r\n{retry_after}Content-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                    body.len(),
+                )
+                .expect("write response");
+            }
+        });
+
+        let client = reqwest::Client::new();
+        let url = format!("http://{address}/rotate");
+        let settings = crate::models::RetrySettings {
+            enabled: false,
+            max_attempts: 1,
+            initial_delay_ms: 100,
+            max_delay_ms: 100,
+        };
+        let pool = format!("disabled-retry-key-rotation-{}", std::process::id());
+
+        let response = send_with_retry(
+            &pool,
+            Some("alpha\nbeta"),
+            |selected_key| match selected_key {
+                Some(key) => client.get(&url).bearer_auth(key),
+                None => client.get(&url),
+            },
+            &settings,
+            crate::i18n::keys::PROVIDER_REQUEST_FAILED,
+        )
+        .await
+        .expect("second API key should recover the request");
+
+        assert_eq!(response.status, 200);
+        assert_eq!(response.value, json!({ "ok": true }));
+        server.join().expect("test server should stop");
+
+        let requests = seen.lock().expect("request log");
+        assert_eq!(requests.len(), 2);
+        assert!(requests[0].contains("authorization: bearer alpha"));
+        assert!(requests[1].contains("authorization: bearer beta"));
+    });
+}
 
 #[test]
 fn exponential_backoff_doubles_and_respects_the_cap() {
@@ -220,4 +289,20 @@ fn a_temporarily_limited_primary_key_yields_to_the_next_key() {
     assert_eq!(first_available_key(&pool, &keys, &excluded), Some(1));
     std::thread::sleep(Duration::from_millis(120));
     assert_eq!(first_available_key(&pool, &keys, &excluded), Some(0));
+}
+
+#[test]
+fn available_api_keys_rotate_instead_of_burning_the_first_key() {
+    let pool = format!("round-robin-pool-{}", std::process::id());
+    let keys = vec!["first".to_owned(), "second".to_owned(), "third".to_owned()];
+    let excluded = HashSet::new();
+
+    assert_eq!(select_available_key(&pool, &keys, &excluded), Some(0));
+    assert_eq!(select_available_key(&pool, &keys, &excluded), Some(1));
+    assert_eq!(select_available_key(&pool, &keys, &excluded), Some(2));
+    assert_eq!(select_available_key(&pool, &keys, &excluded), Some(0));
+
+    block_api_key(&pool, &keys[1], Duration::from_secs(1));
+    assert_eq!(select_available_key(&pool, &keys, &excluded), Some(2));
+    assert_eq!(select_available_key(&pool, &keys, &excluded), Some(0));
 }

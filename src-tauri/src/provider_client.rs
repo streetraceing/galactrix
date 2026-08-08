@@ -20,7 +20,7 @@ use retry::{provider_pool_id_input, send_with_retry, JsonResponse};
 #[cfg(test)]
 use retry::{
     block_api_key, exponential_delay, first_available_key, is_empty_json, is_retryable_status,
-    parse_api_keys, parse_rate_limit_delay, rate_limit_state_from_headers,
+    parse_api_keys, parse_rate_limit_delay, rate_limit_state_from_headers, select_available_key,
 };
 
 pub async fn list_models(

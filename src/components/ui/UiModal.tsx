@@ -154,7 +154,7 @@ export function UiModal({
           >
             <Modal.CloseTrigger />
             <div className="contents" onKeyDown={handleDialogKeyDown}>
-              <Modal.Header className="ui-modal-mobile-header shrink-0 border-b border-separator px-2 pb-3 pt-4 pr-12 sm:px-6 sm:pt-5">
+              <Modal.Header className="ui-modal-mobile-header shrink-0 border-b border-separator px-4 pb-4 pt-4 pr-14 sm:px-6 sm:pb-4 sm:pt-5">
                 <Modal.Heading>{title}</Modal.Heading>
                 {description ? (
                   <p className="mt-1 line-clamp-2 text-xs leading-4 text-muted sm:line-clamp-none sm:text-sm sm:leading-5">
@@ -163,12 +163,12 @@ export function UiModal({
                 ) : null}
               </Modal.Header>
               <Modal.Body
-                className={`ui-modal-mobile-body scrollbar-thin min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-2 py-3 sm:px-6 sm:py-4 scrollbar-gutter-stable ${bodyClassName ?? ''}`}
+                className={`ui-modal-mobile-body scrollbar-thin min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-4 py-4 sm:px-6 sm:py-5 scrollbar-gutter-stable ${bodyClassName ?? ''}`}
               >
                 {children}
               </Modal.Body>
               {footer ? (
-                <Modal.Footer className="ui-modal-mobile-footer shrink-0 gap-2 border-t border-separator px-2 py-3 [&>button]:min-h-11 [&>button]:flex-1 sm:px-6 sm:[&>button]:flex-none">
+                <Modal.Footer className="ui-modal-mobile-footer shrink-0 gap-2 border-t border-separator px-4 py-4 [&>button]:min-h-11 [&>button]:flex-1 sm:px-6 sm:[&>button]:flex-none">
                   {footer}
                 </Modal.Footer>
               ) : null}

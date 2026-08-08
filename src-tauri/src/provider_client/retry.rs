@@ -12,6 +12,7 @@ use crate::models::{ProviderInput, RetrySettings};
 #[derive(Default)]
 struct ApiKeyPoolState {
     blocked_until: HashMap<u64, Instant>,
+    next_index: usize,
 }
 
 static API_KEY_POOLS: OnceLock<Mutex<HashMap<String, ApiKeyPoolState>>> = OnceLock::new();
@@ -51,7 +52,7 @@ where
     loop {
         let selected_index = if keys.is_empty() {
             None
-        } else if let Some(index) = first_available_key(pool_id, &keys, &tried_keys) {
+        } else if let Some(index) = select_available_key(pool_id, &keys, &tried_keys) {
             Some(index)
         } else {
             let (index, wait) = earliest_key_release(pool_id, &keys).unwrap_or((0, Duration::ZERO));
@@ -203,6 +204,34 @@ fn api_key_fingerprint(key: &str) -> u64 {
 
 fn api_key_pools() -> &'static Mutex<HashMap<String, ApiKeyPoolState>> {
     API_KEY_POOLS.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+pub(super) fn select_available_key(
+    pool_id: &str,
+    keys: &[String],
+    excluded: &HashSet<usize>,
+) -> Option<usize> {
+    if keys.is_empty() {
+        return None;
+    }
+    let now = Instant::now();
+    let mut pools = api_key_pools().lock().ok()?;
+    let pool = pools.entry(pool_id.to_owned()).or_default();
+    pool.blocked_until.retain(|_, until| *until > now);
+    let start = pool.next_index % keys.len();
+    for offset in 0..keys.len() {
+        let index = (start + offset) % keys.len();
+        if excluded.contains(&index)
+            || pool
+                .blocked_until
+                .contains_key(&api_key_fingerprint(&keys[index]))
+        {
+            continue;
+        }
+        pool.next_index = (index + 1) % keys.len();
+        return Some(index);
+    }
+    None
 }
 
 pub(super) fn first_available_key(

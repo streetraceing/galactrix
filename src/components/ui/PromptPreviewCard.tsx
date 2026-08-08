@@ -96,8 +96,7 @@ export function PromptPreviewCard({
         </div>
 
         <div className="mt-3 flex min-w-0 flex-wrap gap-2 justify-between">
-          <div className="flex gap-2">
-            {' '}
+          <div className="flex min-w-0 flex-1 flex-wrap gap-2">
             <Chip size="sm" variant="soft" color="accent">
               {loading
                 ? t('promptPreviewCard.calculating')
@@ -109,15 +108,22 @@ export function PromptPreviewCard({
               {t('count.character', { count: result?.characters ?? 0 })}
             </Chip>
             {!contribution && (result?.savedApproximateTokens ?? 0) > 0 ? (
-              <Chip size="sm" variant="soft" color="success">
-                {t('promptPreviewCard.tokensSavedPercent', {
-                  count: result?.savedApproximateTokens ?? 0,
-                  percent: Math.round(
-                    ((result?.savedApproximateTokens ?? 0) /
-                      Math.max(result?.baselineApproximateTokens ?? 0, 1)) *
-                      100,
-                  ),
-                })}
+              <Chip
+                size="sm"
+                variant="soft"
+                color="success"
+                className="h-auto max-w-full whitespace-normal py-1"
+              >
+                <span className="max-w-full whitespace-normal text-center leading-4">
+                  {t('promptPreviewCard.tokensSavedPercent', {
+                    count: result?.savedApproximateTokens ?? 0,
+                    percent: Math.round(
+                      ((result?.savedApproximateTokens ?? 0) /
+                        Math.max(result?.baselineApproximateTokens ?? 0, 1)) *
+                        100,
+                    ),
+                  })}
+                </span>
               </Chip>
             ) : null}
           </div>

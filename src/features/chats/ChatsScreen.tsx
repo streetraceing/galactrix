@@ -6,6 +6,10 @@ import { useVisualViewportMetrics } from '../../hooks/useVisualViewportMetrics';
 import { toast } from '../../i18n/toast';
 import { galaxyItemAvatar } from '../../lib/avatar';
 import { errorMessage } from '../../lib/errors';
+import {
+  consumeChatQuickCreate,
+  subscribeChatQuickCreate,
+} from '../../lib/chatQuickCreate';
 import { isAndroidPlatform, isMobilePlatform } from '../../lib/platform';
 import { resolveProfileName } from '../../lib/profile';
 import { removeStorageItem } from '../../lib/storage';
@@ -88,6 +92,7 @@ export function ChatsScreen({
   const [renameTarget, setRenameTarget] = useState<Chat | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const [configTarget, setConfigTarget] = useState<Chat | 'new' | null>(null);
+  const [newChatCharacterId, setNewChatCharacterId] = useState<string>();
   const [confirmTarget, setConfirmTarget] = useState<{
     type: 'clear' | 'delete';
     chat: Chat;
@@ -156,14 +161,6 @@ export function ChatsScreen({
       }),
     [t],
   );
-
-  useEffect(() => {
-    const openNewChat = () => {
-      setConfigTarget('new');
-    };
-    window.addEventListener('galactrix:new-chat', openNewChat);
-    return () => window.removeEventListener('galactrix:new-chat', openNewChat);
-  }, []);
 
   const send = useCallback(
     async (value: string) => {
@@ -281,7 +278,20 @@ export function ChatsScreen({
     onChatMaximizedChange(!chatMaximized);
   }, [chatMaximized, onChatMaximizedChange]);
 
-  const openNewChat = useCallback(() => setConfigTarget('new'), []);
+  const openNewChat = useCallback((characterId?: string) => {
+    setNewChatCharacterId(characterId);
+    setConfigTarget('new');
+  }, []);
+
+  useEffect(() => {
+    const consumeRequest = () => {
+      const request = consumeChatQuickCreate();
+      if (!request) return;
+      openNewChat(request.characterId);
+    };
+    consumeRequest();
+    return subscribeChatQuickCreate(consumeRequest);
+  }, [openNewChat]);
 
   const handleConversationBack = useCallback(() => {
     if (messageSelectionActive) {
@@ -303,6 +313,7 @@ export function ChatsScreen({
         toast.success(t('chatsScreen.chatSettingsSaved'));
       }
       setConfigTarget(null);
+      setNewChatCharacterId(undefined);
     } catch (error) {
       showChatError(error);
     } finally {
@@ -483,7 +494,14 @@ export function ChatsScreen({
         responseLanguage={responseLanguage}
         messages={configMessages}
         saving={working}
-        onOpenChange={(open) => !open && setConfigTarget(null)}
+        initialCharacterId={
+          configTarget === 'new' ? newChatCharacterId : undefined
+        }
+        onOpenChange={(open) => {
+          if (open) return;
+          setConfigTarget(null);
+          setNewChatCharacterId(undefined);
+        }}
         onSubmit={(input) => void saveConfig(input)}
       />
 

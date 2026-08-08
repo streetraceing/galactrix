@@ -23,7 +23,7 @@
   "providerCredentials.additionalApiKey": "Additional API key",
   "providerCredentials.apiKey": "API key",
   "providerCredentials.apiKeys": "API keys",
-  "providerCredentials.apiKeysHint": "Stored keys are loaded into separate password fields. When a key reaches a short-term limit, Galactrix temporarily uses the next available key and returns to the earlier key after its reset time.",
+  "providerCredentials.apiKeysHint": "Keys are used round-robin to spread load. On HTTP 429 or exhausted rate-limit headers, that key enters a temporary cooldown and the request immediately switches to the next available key. Key rotation works even when the Retry module is disabled; Retry is only needed after available keys are exhausted or for other temporary failures.",
   "providerCredentials.canBeAddedLater": "Can be added later",
   "providerCredentials.leaveEmptyToKeepUnchanged": "Leave empty to keep unchanged",
   "providerCredentials.name": "Name",

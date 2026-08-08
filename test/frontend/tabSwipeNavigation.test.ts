@@ -27,6 +27,10 @@ const uiModalPath = new URL(
   '../../src/components/ui/UiModal.tsx',
   import.meta.url,
 );
+const chatSetupPath = new URL(
+  '../../src/features/chats/components/ChatSetupModal.tsx',
+  import.meta.url,
+);
 const appCssPath = new URL('../../src/App.css', import.meta.url);
 
 test('tab swipes require horizontal intent and move one adjacent section', () => {
@@ -78,11 +82,11 @@ test('phone page and modal gutters use compact responsive spacing', async () => 
 
   assert.match(
     cssSource,
-    /\.page-container\s*\{[\s\S]*?@apply[^;]*px-2[^;]*sm:px-6/,
+    /\.page-container\s*\{[\s\S]*?@apply[^;]*px-4[^;]*sm:px-6/,
   );
-  assert.match(modalSource, /ui-modal-mobile-header[^"']*px-2/);
-  assert.match(modalSource, /ui-modal-mobile-body[^`]*px-2/);
-  assert.match(modalSource, /ui-modal-mobile-footer[^"']*px-2/);
+  assert.match(modalSource, /ui-modal-mobile-header[^"']*px-4/);
+  assert.match(modalSource, /ui-modal-mobile-body[^`]*px-4/);
+  assert.match(modalSource, /ui-modal-mobile-footer[^"']*px-4/);
 });
 
 test('mobile tab panels align with the page gutter', async () => {
@@ -95,5 +99,25 @@ test('mobile tab panels align with the page gutter', async () => {
   assert.match(
     cssSource,
     /\.page-container > \.tabs > \.tabs__panel\s*\{[\s\S]*?@apply[^;]*px-0/,
+  );
+});
+
+test('chat settings tabs use the same mobile swipe gesture as full screens', async () => {
+  const [setup, cssSource] = await Promise.all([
+    readFile(chatSetupPath, 'utf8'),
+    readFile(appCssPath, 'utf8'),
+  ]);
+
+  assert.match(setup, /useSwipeableTabs\(\{/);
+  assert.match(setup, /keys: CHAT_SETUP_SECTIONS/);
+  assert.match(setup, /ref=\{swipeRef\}/);
+  assert.match(setup, /tab-swipe-host min-w-0 touch-pan-y/);
+  assert.match(
+    cssSource,
+    /\.tab-swipe-host\[data-tab-swipe-state='dragging'\]/,
+  );
+  assert.match(
+    cssSource,
+    /prefers-reduced-motion:[\s\S]*tab-swipe-host\[data-tab-swipe-state\]/,
   );
 });

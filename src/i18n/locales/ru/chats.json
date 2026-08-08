@@ -324,5 +324,11 @@
   "chatSetupModal.useAutomaticTitle": "Автоназвание",
   "chatSetupModal.automaticTitle": "Автоматическое название",
   "chatSetupModal.setCustomTitle": "Задать своё",
-  "chatSetupModal.automaticTitleDescription": "Если название не задавать, оно будет создано из персонажа и номера чата, например «Алиса #2». Без персонажа используется «Chat #N»."
+  "chatSetupModal.automaticTitleDescription": "Если название не задавать, оно будет создано из персонажа и номера чата, например «Алиса #2». Без персонажа используется «Chat #N».",
+  "chatSidebar.quickCreate": "Быстро создать",
+  "chatSidebar.quickCreateDescription": "Создать новый чат или сразу подготовить чат с выбранным персонажем.",
+  "chatSidebar.create": "Создать",
+  "chatSidebar.blankChat": "Новый чат",
+  "chatSidebar.chatWithCharacter": "Чат с {{name}}",
+  "chatSidebar.chatWithCharacterHint": "Открыть настройки нового чата с этим персонажем"
 }

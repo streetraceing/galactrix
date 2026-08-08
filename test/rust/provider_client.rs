@@ -1,7 +1,7 @@
 use super::{
     block_api_key, embedding_endpoint_saved, exponential_delay, first_available_key,
     is_retryable_status, parse_api_keys, parse_embedding_response, parse_rate_limit_delay,
-    rate_limit_state_from_headers,
+    rate_limit_state_from_headers, select_available_key,
     uses_ollama_embedding_api,
 };
 use reqwest::header::{HeaderMap, HeaderValue};
@@ -174,4 +174,20 @@ fn a_temporarily_limited_primary_key_yields_to_the_next_key() {
     assert_eq!(first_available_key(&pool, &keys, &excluded), Some(1));
     std::thread::sleep(Duration::from_millis(120));
     assert_eq!(first_available_key(&pool, &keys, &excluded), Some(0));
+}
+
+#[test]
+fn available_api_keys_rotate_instead_of_burning_the_first_key() {
+    let pool = format!("round-robin-pool-{}", std::process::id());
+    let keys = vec!["first".to_owned(), "second".to_owned(), "third".to_owned()];
+    let excluded = HashSet::new();
+
+    assert_eq!(select_available_key(&pool, &keys, &excluded), Some(0));
+    assert_eq!(select_available_key(&pool, &keys, &excluded), Some(1));
+    assert_eq!(select_available_key(&pool, &keys, &excluded), Some(2));
+    assert_eq!(select_available_key(&pool, &keys, &excluded), Some(0));
+
+    block_api_key(&pool, &keys[1], Duration::from_secs(1));
+    assert_eq!(select_available_key(&pool, &keys, &excluded), Some(2));
+    assert_eq!(select_available_key(&pool, &keys, &excluded), Some(0));
 }

@@ -2715,11 +2715,11 @@ function MessageListComponent({
           </>
         }
       >
-        <div className="max-h-48 space-y-2 overflow-y-auto overscroll-contain pr-1">
+        <div className="max-h-[min(55dvh,30rem)] space-y-2 overflow-y-auto overscroll-contain pr-1">
           {selectedMessages.map((message) => (
             <p
               key={message.id}
-              className="line-clamp-2 rounded-xl bg-default/60 px-3 py-2 text-sm leading-5 text-muted"
+              className="selectable whitespace-pre-wrap wrap-break-word rounded-xl bg-default/60 px-3 py-2.5 text-sm leading-5 text-muted"
             >
               {message.content}
             </p>
@@ -2756,9 +2756,9 @@ function MessageListComponent({
           </>
         }
       >
-        <p className="line-clamp-6 text-sm leading-6 text-muted">
+        <div className="selectable max-h-[min(55dvh,30rem)] overflow-y-auto overscroll-contain whitespace-pre-wrap wrap-break-word rounded-xl bg-default/45 px-3 py-3 text-sm leading-6 text-muted">
           {deleting?.content}
-        </p>
+        </div>
       </UiModal>
 
       <MessageHistoryModal
