@@ -1,7 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Galactrix",
-  "version": "1.0.0",
   "identifier": "ru.streetraceing.galactrix",
   "build": {
     "beforeDevCommand": "npm run dev",
