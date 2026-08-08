@@ -3,7 +3,6 @@ import type {
   PromptBlock,
   PromptConfig,
   PromptContextPriorities,
-  PromptPresetId,
   PromptPriority,
   PromptSetData,
 } from '../../../../types';
@@ -76,36 +75,6 @@ export const priorityFields: Array<{
       return promptText('source.rules.description');
     },
   },
-];
-
-export const livingDialogueBundle: PromptPresetId[] = [
-  'human',
-  'casual-brief',
-  'first-person',
-  'no-emoji',
-  'dialogue-only',
-  'continuity',
-];
-
-export const roleplayBundle: PromptPresetId[] = [
-  'human',
-  'first-person',
-  'roleplay-actions',
-  'no-user-control',
-  'character-consistency',
-  'immersive',
-  'initiative',
-  'scene-pacing',
-  'continuity',
-];
-
-export const telegramChatBundle: PromptPresetId[] = [
-  'human',
-  'casual-brief',
-  'strict-lowercase',
-  'telegram-chat',
-  'dialogue-only',
-  'continuity',
 ];
 
 export function createPromptBlock(): PromptBlock {

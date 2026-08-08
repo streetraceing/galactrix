@@ -51,7 +51,8 @@ struct PromptSection {
     content: String,
 }
 
-pub fn build_system_prompt(
+#[cfg(test)]
+fn build_system_prompt(
     context: &ChatPromptContext,
     history: &[Message],
     response_language: Option<&str>,
@@ -64,7 +65,8 @@ pub fn build_system_prompt(
     )
 }
 
-pub fn build_system_prompt_with_options(
+#[cfg(test)]
+fn build_system_prompt_with_options(
     context: &ChatPromptContext,
     history: &[Message],
     response_language: Option<&str>,

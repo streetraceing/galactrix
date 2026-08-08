@@ -6,20 +6,12 @@ const promptConfigPath = new URL(
   '../../src/features/chats/promptConfig.ts',
   import.meta.url,
 );
-const promptModelPath = new URL(
-  '../../src/features/chats/components/prompt-builder/promptBuilderModel.ts',
-  import.meta.url,
-);
-
 test('brief conversational style is built in and included in natural dialogue', async () => {
-  const [config, model] = await Promise.all([
-    readFile(promptConfigPath, 'utf8'),
-    readFile(promptModelPath, 'utf8'),
-  ]);
+  const config = await readFile(promptConfigPath, 'utf8');
 
   assert.match(config, /id: 'casual-brief'/);
   assert.match(config, /promptRule\.casualBrief\.label/);
-  assert.match(model, /livingDialogueBundle[\s\S]*'casual-brief'/);
+  assert.match(config, /id: 'natural-dialogue'[\s\S]*'casual-brief'/);
 });
 
 const promptPreviewPath = new URL(
@@ -92,36 +84,28 @@ test('lowercase chat rules are available in the prompt constructor', async () =>
   assert.match(responseRules, /Never ignore this rule/);
 });
 
-test('roleplay and Telegram bundles are available as built-in prompt sets', async () => {
-  const [
-    config,
-    model,
-    section,
-    builder,
-    responseRules,
-    ruChatsRaw,
-    ruGalaxiesRaw,
-  ] = await Promise.all([
-    readFile(promptConfigPath, 'utf8'),
-    readFile(promptModelPath, 'utf8'),
-    readFile(
-      new URL(
-        '../../src/features/chats/components/prompt-builder/PromptRulesSection.tsx',
-        import.meta.url,
+test('built-in prompt sets cover chat and roleplay workflows through one select', async () => {
+  const [config, section, builder, responseRules, ruChatsRaw, ruGalaxiesRaw] =
+    await Promise.all([
+      readFile(promptConfigPath, 'utf8'),
+      readFile(
+        new URL(
+          '../../src/features/chats/components/prompt-builder/PromptRulesSection.tsx',
+          import.meta.url,
+        ),
+        'utf8',
       ),
-      'utf8',
-    ),
-    readFile(promptBuilderPath, 'utf8'),
-    readFile(
-      new URL('../../src-tauri/src/response_rules.rs', import.meta.url),
-      'utf8',
-    ),
-    readFile(ruChatsPath, 'utf8'),
-    readFile(
-      new URL('../../src/i18n/locales/ru/galaxies.json', import.meta.url),
-      'utf8',
-    ),
-  ]);
+      readFile(promptBuilderPath, 'utf8'),
+      readFile(
+        new URL('../../src-tauri/src/response_rules.rs', import.meta.url),
+        'utf8',
+      ),
+      readFile(ruChatsPath, 'utf8'),
+      readFile(
+        new URL('../../src/i18n/locales/ru/galaxies.json', import.meta.url),
+        'utf8',
+      ),
+    ]);
   const ruChats = JSON.parse(ruChatsRaw) as Record<string, string>;
   const ruGalaxies = JSON.parse(ruGalaxiesRaw) as Record<string, string>;
 
@@ -134,10 +118,23 @@ test('roleplay and Telegram bundles are available as built-in prompt sets', asyn
   ]) {
     assert.match(config, new RegExp(`id: '${id}'`));
   }
-  assert.match(model, /roleplayBundle[\s\S]*'no-user-control'/);
-  assert.match(model, /telegramChatBundle[\s\S]*'telegram-chat'/);
-  assert.match(section, /promptRulesSection\.roleplaySet/);
-  assert.match(section, /promptRulesSection\.telegramSet/);
+  for (const bundleId of [
+    'natural-dialogue',
+    'focused-assistant',
+    'relaxed-chat',
+    'minimal-chat',
+    'telegram-chat',
+    'roleplay-balanced',
+    'roleplay-immersive',
+    'roleplay-proactive',
+    'roleplay-dialogue',
+  ]) {
+    assert.match(config, new RegExp(`id: '${bundleId}'`));
+  }
+  assert.match(config, /matchingPromptBundleId/);
+  assert.match(section, /<Select[\s\S]*promptRulesSection\.builtInSets/);
+  assert.match(section, /promptBundles\.map/);
+  assert.match(section, /presetIds: \[\.\.\.bundle\.presetIds\]/);
   assert.match(
     responseRules,
     /Never decide, narrate, or imply the user's actions/,
@@ -145,12 +142,12 @@ test('roleplay and Telegram bundles are available as built-in prompt sets', asyn
   assert.match(builder, /"roleplay-rich"/);
   assert.match(builder, /"telegram-human"/);
   assert.equal(
-    ruChats['promptRulesSection.roleplaySet'],
-    'Набор «Хороший роллплей»',
+    ruChats['promptBundle.roleplayImmersive.label'],
+    'Погружающий роллплей',
   );
   assert.equal(
-    ruChats['promptRulesSection.telegramSet'],
-    'Набор «Переписка в Telegram»',
+    ruChats['promptBundle.focusedAssistant.label'],
+    'Сфокусированный ассистент',
   );
   assert.equal(ruGalaxies['style.roleplayRich'], 'Глубокий роллплей');
   assert.equal(ruGalaxies['style.telegramHuman'], 'Как человек в Telegram');
@@ -186,4 +183,26 @@ test('chat setup exposes a bounded recent-message context limit', async () => {
     /history\[history\.len\(\) - recent_message_limit\.\.\]/,
   );
   assert.match(previewBackend, /apply_recent_message_limit/);
+});
+
+test('prompt builder keeps convenience wrappers test-only while production uses histories API', async () => {
+  const [builder, generationContext, previewBackend] = await Promise.all([
+    readFile(promptBuilderPath, 'utf8'),
+    readFile(
+      new URL('../../src-tauri/src/generation_context.rs', import.meta.url),
+      'utf8',
+    ),
+    readFile(
+      new URL('../../src-tauri/src/prompt_preview.rs', import.meta.url),
+      'utf8',
+    ),
+  ]);
+
+  assert.match(builder, /#\[cfg\(test\)\]\nfn build_system_prompt\(/);
+  assert.match(
+    builder,
+    /#\[cfg\(test\)\]\nfn build_system_prompt_with_options\(/,
+  );
+  assert.match(generationContext, /build_system_prompt_with_histories\(/);
+  assert.match(previewBackend, /build_system_prompt_with_histories\(/);
 });

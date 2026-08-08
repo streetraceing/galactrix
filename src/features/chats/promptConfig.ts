@@ -7,6 +7,13 @@ type PromptPresetOption = {
   descriptionKey: TranslationKey<'chats'>;
 };
 
+type PromptBundleOption = {
+  id: string;
+  labelKey: TranslationKey<'chats'>;
+  descriptionKey: TranslationKey<'chats'>;
+  presetIds: readonly PromptPresetId[];
+};
+
 type PromptPriorityOption = {
   id: PromptPriority;
   labelKey: TranslationKey<'chats'>;
@@ -95,6 +102,135 @@ export const promptPresets = [
     descriptionKey: 'promptRule.strictContinuity.description',
   },
 ] as const satisfies readonly PromptPresetOption[];
+
+export const promptBundles = [
+  {
+    id: 'natural-dialogue',
+    labelKey: 'promptBundle.naturalDialogue.label',
+    descriptionKey: 'promptBundle.naturalDialogue.description',
+    presetIds: [
+      'human',
+      'casual-brief',
+      'first-person',
+      'no-emoji',
+      'dialogue-only',
+      'continuity',
+    ],
+  },
+  {
+    id: 'focused-assistant',
+    labelKey: 'promptBundle.focusedAssistant.label',
+    descriptionKey: 'promptBundle.focusedAssistant.description',
+    presetIds: ['human', 'concise', 'continuity', 'no-emoji'],
+  },
+  {
+    id: 'relaxed-chat',
+    labelKey: 'promptBundle.relaxedChat.label',
+    descriptionKey: 'promptBundle.relaxedChat.description',
+    presetIds: [
+      'human',
+      'casual-brief',
+      'casual-lowercase',
+      'dialogue-only',
+      'continuity',
+    ],
+  },
+  {
+    id: 'minimal-chat',
+    labelKey: 'promptBundle.minimalChat.label',
+    descriptionKey: 'promptBundle.minimalChat.description',
+    presetIds: [
+      'casual-brief',
+      'concise',
+      'dialogue-only',
+      'no-emoji',
+      'continuity',
+    ],
+  },
+  {
+    id: 'telegram-chat',
+    labelKey: 'promptBundle.telegramChat.label',
+    descriptionKey: 'promptBundle.telegramChat.description',
+    presetIds: [
+      'human',
+      'casual-brief',
+      'strict-lowercase',
+      'telegram-chat',
+      'dialogue-only',
+      'continuity',
+    ],
+  },
+  {
+    id: 'roleplay-balanced',
+    labelKey: 'promptBundle.roleplayBalanced.label',
+    descriptionKey: 'promptBundle.roleplayBalanced.description',
+    presetIds: [
+      'human',
+      'first-person',
+      'roleplay-actions',
+      'no-user-control',
+      'character-consistency',
+      'scene-pacing',
+      'continuity',
+    ],
+  },
+  {
+    id: 'roleplay-immersive',
+    labelKey: 'promptBundle.roleplayImmersive.label',
+    descriptionKey: 'promptBundle.roleplayImmersive.description',
+    presetIds: [
+      'human',
+      'first-person',
+      'roleplay-actions',
+      'no-user-control',
+      'character-consistency',
+      'immersive',
+      'scene-pacing',
+      'continuity',
+    ],
+  },
+  {
+    id: 'roleplay-proactive',
+    labelKey: 'promptBundle.roleplayProactive.label',
+    descriptionKey: 'promptBundle.roleplayProactive.description',
+    presetIds: [
+      'human',
+      'first-person',
+      'roleplay-actions',
+      'no-user-control',
+      'character-consistency',
+      'immersive',
+      'initiative',
+      'scene-pacing',
+      'continuity',
+    ],
+  },
+  {
+    id: 'roleplay-dialogue',
+    labelKey: 'promptBundle.roleplayDialogue.label',
+    descriptionKey: 'promptBundle.roleplayDialogue.description',
+    presetIds: [
+      'human',
+      'first-person',
+      'no-user-control',
+      'character-consistency',
+      'dialogue-only',
+      'continuity',
+    ],
+  },
+] as const satisfies readonly PromptBundleOption[];
+
+export function matchingPromptBundleId(
+  presetIds: readonly PromptPresetId[],
+): string | null {
+  const selected = new Set(presetIds);
+  const match = promptBundles.find(
+    (bundle) =>
+      bundle.presetIds.length === presetIds.length &&
+      bundle.presetIds.every((presetId) => selected.has(presetId)),
+  );
+  return match?.id ?? null;
+}
 
 export const promptPriorities = [
   {

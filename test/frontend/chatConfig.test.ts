@@ -5,7 +5,11 @@ import {
   chatConfigFromChat,
   effectiveStyleItemId,
 } from '../../src/features/chats/chatConfig';
-import { defaultPromptConfig } from '../../src/features/chats/promptConfig';
+import {
+  defaultPromptConfig,
+  matchingPromptBundleId,
+  promptBundles,
+} from '../../src/features/chats/promptConfig';
 import { normalizeData } from '../../src/features/galaxies/model';
 import type { Chat, GalaxyItem } from '../../src/types';
 
@@ -108,4 +112,17 @@ test('persona normalization preserves explicit pronouns', () => {
   });
 
   assert.equal('pronouns' in normalized && normalized.pronouns, 'they/them');
+});
+
+test('prompt bundle selection recognizes exact bundles and leaves manual mixes custom', () => {
+  const focused = promptBundles.find(
+    (bundle) => bundle.id === 'focused-assistant',
+  );
+  assert.ok(focused);
+  assert.equal(matchingPromptBundleId(focused.presetIds), 'focused-assistant');
+  assert.equal(
+    matchingPromptBundleId([...focused.presetIds, 'first-person']),
+    null,
+  );
+  assert.equal(matchingPromptBundleId(['human', 'human']), null);
 });
