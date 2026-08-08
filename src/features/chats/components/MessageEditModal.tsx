@@ -1,7 +1,8 @@
-import { Button, TextArea } from '@heroui/react';
+import { Button, Label, TextArea } from '@heroui/react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { UiModal } from '../../../components/ui/UiModal';
+import { RequiredMark } from '../../../components/ui/RequiredMark';
 import { toast } from '../../../i18n/toast';
 import { errorMessage } from '../../../lib/errors';
 import { isMobilePlatform } from '../../../lib/platform';
@@ -71,15 +72,22 @@ export function MessageEditModal({
         </>
       }
     >
-      <TextArea
-        autoComplete="off"
-        fullWidth
-        variant="secondary"
-        value={value}
-        className="[&_textarea]:min-h-72 h-full"
-        aria-label={t('messageList.messageText')}
-        onChange={(event) => setValue(event.target.value)}
-      />
+      <div className="flex h-full min-h-0 flex-col gap-1.5">
+        <Label htmlFor="message-edit-content">
+          {t('messageList.messageText')}
+          <RequiredMark />
+        </Label>
+        <TextArea
+          id="message-edit-content"
+          required
+          autoComplete="off"
+          fullWidth
+          variant="secondary"
+          value={value}
+          className="[&_textarea]:min-h-72 h-full"
+          onChange={(event) => setValue(event.target.value)}
+        />
+      </div>
     </UiModal>
   );
 }

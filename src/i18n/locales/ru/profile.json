@@ -140,5 +140,9 @@
   "theme.variant.rosePine": "Rosé Pine",
   "theme.variant.gruvbox": "Gruvbox",
   "theme.variant.solarized": "Solarized",
-  "theme.variant.monochrome": "Монохромная"
+  "theme.variant.monochrome": "Монохромная",
+  "profilePreferences.bubblesLayout": "Пузыри",
+  "profilePreferences.bubblesLayoutHint": "Пользователь справа, ассистент слева",
+  "profilePreferences.readingLayout": "Чтение",
+  "profilePreferences.readingLayoutHint": "Обе стороны в полноширинной ленте"
 }

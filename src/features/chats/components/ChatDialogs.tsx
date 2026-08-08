@@ -1,6 +1,7 @@
-import { Button, Input } from '@heroui/react';
+import { Button, Input, Label } from '@heroui/react';
 import type { ChangeEvent } from 'react';
 import { UiModal } from '../../../components/ui/UiModal';
+import { RequiredMark } from '../../../components/ui/RequiredMark';
 import { isMobilePlatform } from '../../../lib/platform';
 import type { Chat } from '../../../types';
 import { useTranslation } from 'react-i18next';
@@ -57,18 +58,25 @@ export function ChatDialogs({
           </>
         }
       >
-        <Input
-          autoComplete="off"
-          fullWidth
-          variant="secondary"
-          value={renameValue}
-          maxLength={120}
-          autoFocus={autoFocus}
-          onChange={(event: ChangeEvent<HTMLInputElement>) =>
-            onRenameValueChange(event.target.value)
-          }
-          aria-label={t('chatDialogs.newChatName')}
-        />
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="rename-chat-name">
+            {t('chatDialogs.newChatName')}
+            <RequiredMark />
+          </Label>
+          <Input
+            id="rename-chat-name"
+            required
+            autoComplete="off"
+            fullWidth
+            variant="secondary"
+            value={renameValue}
+            maxLength={120}
+            autoFocus={autoFocus}
+            onChange={(event: ChangeEvent<HTMLInputElement>) =>
+              onRenameValueChange(event.target.value)
+            }
+          />
+        </div>
       </UiModal>
 
       <UiModal

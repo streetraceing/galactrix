@@ -360,7 +360,7 @@ export type AppSettings = {
   sendOnEnter: boolean;
   focusComposerAfterSend: boolean;
   saveDrafts: boolean;
-  chatViewMode: 'conversation' | 'messenger';
+  chatViewMode: 'conversation' | 'bubbles' | 'messenger' | 'reading';
   showMessageAvatars: boolean;
   showMessageTimestamps: boolean;
   responseLanguage: 'app' | 'auto';

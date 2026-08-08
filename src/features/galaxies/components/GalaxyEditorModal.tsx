@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { AvatarPicker } from '../../../components/ui/AvatarPicker';
 import { UiModal } from '../../../components/ui/UiModal';
 import { PromptPreviewCard } from '../../../components/ui/PromptPreviewCard';
+import { RequiredMark } from '../../../components/ui/RequiredMark';
 import { PromptBuilder } from '../../chats/components/PromptBuilder';
 import { promptPreviewFromDraft } from '../../chats/promptPreview';
 import { galaxyInputAvatar, withAvatar } from '../../../lib/avatar';
@@ -131,9 +132,13 @@ export function GalaxyEditorModal({
         <Surface className="rounded-2xl border border-separator p-3 sm:p-5 bg-surface-secondary/50">
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="galaxy-name">{t('galaxyEditorModal.name')}</Label>
+              <Label htmlFor="galaxy-name">
+                {t('galaxyEditorModal.name')}
+                <RequiredMark />
+              </Label>
               <Input
                 id="galaxy-name"
+                required
                 fullWidth
                 variant="secondary"
                 value={draft.name}

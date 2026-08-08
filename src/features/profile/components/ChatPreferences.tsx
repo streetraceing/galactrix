@@ -43,10 +43,15 @@ export function ChatPreferences({
           disallowEmptySelection
           selectionMode="single"
           selectedKeys={new Set([settings.chatViewMode])}
-          className="mt-3 flex flex-col gap-2 sm:flex-row"
+          className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2"
           onSelectionChange={(keys) => {
             const value = [...keys][0];
-            if (value === 'conversation' || value === 'messenger') {
+            if (
+              value === 'conversation' ||
+              value === 'bubbles' ||
+              value === 'messenger' ||
+              value === 'reading'
+            ) {
               onChange('chatViewMode', value);
             }
           }}
@@ -54,30 +59,60 @@ export function ChatPreferences({
           <ToggleButton
             id="conversation"
             variant="default"
-            className="h-auto w-full min-w-0 justify-start gap-3 rounded-xl px-3 py-2.5 text-left"
+            className="h-auto w-full min-w-0 justify-start gap-3 rounded-xl px-3 py-3 text-left"
           >
-            <Icon name="chats" className="size-4 shrink-0" />
+            <Icon name="layout-conversation" className="size-5 shrink-0" />
             <span className="min-w-0">
               <strong className="block truncate text-sm">
                 {t('profilePreferences.conversationLayout')}
               </strong>
-              <span className="block truncate text-xs opacity-70">
+              <span className="block text-xs leading-4 opacity-70">
                 {t('profilePreferences.conversationLayoutHint')}
+              </span>
+            </span>
+          </ToggleButton>
+          <ToggleButton
+            id="bubbles"
+            variant="default"
+            className="h-auto w-full min-w-0 justify-start gap-3 rounded-xl px-3 py-3 text-left"
+          >
+            <Icon name="layout-bubbles" className="size-5 shrink-0" />
+            <span className="min-w-0">
+              <strong className="block truncate text-sm">
+                {t('profilePreferences.bubblesLayout')}
+              </strong>
+              <span className="block text-xs leading-4 opacity-70">
+                {t('profilePreferences.bubblesLayoutHint')}
               </span>
             </span>
           </ToggleButton>
           <ToggleButton
             id="messenger"
             variant="default"
-            className="h-auto w-full min-w-0 justify-start gap-3 rounded-xl px-3 py-2.5 text-left"
+            className="h-auto w-full min-w-0 justify-start gap-3 rounded-xl px-3 py-3 text-left"
           >
-            <Icon name="message_box" className="size-4 shrink-0" />
+            <Icon name="layout-left" className="size-5 shrink-0" />
             <span className="min-w-0">
               <strong className="block truncate text-sm">
                 {t('profilePreferences.messengerLayout')}
               </strong>
-              <span className="block truncate text-xs opacity-70">
+              <span className="block text-xs leading-4 opacity-70">
                 {t('profilePreferences.messengerLayoutHint')}
+              </span>
+            </span>
+          </ToggleButton>
+          <ToggleButton
+            id="reading"
+            variant="default"
+            className="h-auto w-full min-w-0 justify-start gap-3 rounded-xl px-3 py-3 text-left"
+          >
+            <Icon name="layout-reading" className="size-5 shrink-0" />
+            <span className="min-w-0">
+              <strong className="block truncate text-sm">
+                {t('profilePreferences.readingLayout')}
+              </strong>
+              <span className="block text-xs leading-4 opacity-70">
+                {t('profilePreferences.readingLayoutHint')}
               </span>
             </span>
           </ToggleButton>

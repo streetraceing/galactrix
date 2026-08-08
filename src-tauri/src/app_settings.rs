@@ -57,7 +57,7 @@ pub(crate) fn normalize(
     }
     if !matches!(
         settings.chat_view_mode.as_str(),
-        "conversation" | "messenger"
+        "conversation" | "bubbles" | "messenger" | "reading"
     ) {
         settings.chat_view_mode = "conversation".into();
     }
@@ -177,6 +177,18 @@ mod tests {
             normalized.ai_modules.repetition_guard.max_characters_per_message,
             120
         );
+    }
+
+    #[test]
+    fn supported_chat_layouts_survive_normalization() {
+        for mode in ["conversation", "bubbles", "messenger", "reading"] {
+            let settings = AppSettings {
+                chat_view_mode: mode.into(),
+                ..AppSettings::default()
+            };
+            let normalized = normalize(settings, &HashSet::new()).expect("normalize settings");
+            assert_eq!(normalized.chat_view_mode, mode);
+        }
     }
 
     #[test]

@@ -37,6 +37,10 @@ const SWIPE_IGNORE_SELECTOR = [
   '.tabs__list-container__scroller',
 ].join(',');
 
+const TAB_SWIPE_VISUAL_MAX_PX = 34;
+const TAB_SWIPE_EDGE_RESISTANCE = 0.35;
+const TAB_SWIPE_COMMIT_ANIMATION_MS = 220;
+
 type SwipeGesture = {
   touchId: number;
   startX: number;
@@ -66,6 +70,31 @@ function shouldIgnoreSwipeStart(target: EventTarget | null, boundary: Element) {
   }
 
   return false;
+}
+
+function visualSwipeOffset(dx: number, atBoundary: boolean) {
+  const resistance = atBoundary ? TAB_SWIPE_EDGE_RESISTANCE : 1;
+  const resisted = dx * resistance;
+  return Math.max(
+    -TAB_SWIPE_VISUAL_MAX_PX,
+    Math.min(TAB_SWIPE_VISUAL_MAX_PX, resisted),
+  );
+}
+
+function setSwipeVisual(container: HTMLElement, offset: number) {
+  container.dataset.tabSwipeState = 'dragging';
+  container.style.setProperty('--tab-swipe-offset', `${offset}px`);
+}
+
+function releaseSwipeVisual(container: HTMLElement) {
+  container.dataset.tabSwipeState = 'settling';
+  container.style.setProperty('--tab-swipe-offset', '0px');
+}
+
+function clearSwipeVisual(container: HTMLElement) {
+  delete container.dataset.tabSwipeState;
+  delete container.dataset.tabSwipeCommit;
+  container.style.removeProperty('--tab-swipe-offset');
 }
 
 function findTouch(touches: TouchList, touchId: number) {
@@ -99,9 +128,19 @@ export function useSwipeableTabs<T extends string>({
     if (!container || !isMobilePlatform()) return;
 
     let gesture: SwipeGesture | undefined;
+    let commitTimer: number | undefined;
 
-    const clearGesture = () => {
+    const clearGesture = (releaseVisual = false) => {
       gesture = undefined;
+      if (releaseVisual) releaseSwipeVisual(container);
+    };
+
+    const finishVisual = () => {
+      if (commitTimer !== undefined) window.clearTimeout(commitTimer);
+      commitTimer = window.setTimeout(() => {
+        clearSwipeVisual(container);
+        commitTimer = undefined;
+      }, TAB_SWIPE_COMMIT_ANIMATION_MS);
     };
 
     const onTouchStart = (event: TouchEvent) => {
@@ -110,6 +149,7 @@ export function useSwipeableTabs<T extends string>({
         shouldIgnoreSwipeStart(event.target, container)
       ) {
         clearGesture();
+        clearSwipeVisual(container);
         return;
       }
 
@@ -127,13 +167,17 @@ export function useSwipeableTabs<T extends string>({
 
     const onTouchMove = (event: TouchEvent) => {
       if (!gesture || event.touches.length !== 1) {
-        clearGesture();
+        if (gesture) {
+          clearGesture(true);
+          finishVisual();
+        }
         return;
       }
 
       const touch = findTouch(event.touches, gesture.touchId);
       if (!touch) {
-        clearGesture();
+        clearGesture(true);
+        finishVisual();
         return;
       }
 
@@ -154,8 +198,14 @@ export function useSwipeableTabs<T extends string>({
         gesture.direction = 'horizontal';
       }
 
-      if (gesture.direction === 'horizontal' && event.cancelable) {
-        event.preventDefault();
+      if (gesture.direction === 'horizontal') {
+        const currentKey = selectedKeyRef.current;
+        const candidate = tabKeyAfterSwipe(keysRef.current, currentKey, dx);
+        setSwipeVisual(
+          container,
+          visualSwipeOffset(dx, candidate === currentKey),
+        );
+        if (event.cancelable) event.preventDefault();
       }
     };
 
@@ -163,32 +213,52 @@ export function useSwipeableTabs<T extends string>({
       if (!gesture) return;
 
       const finishedGesture = gesture;
-      clearGesture();
+      gesture = undefined;
       if (finishedGesture.direction === 'vertical') return;
 
       const touch = findTouch(event.changedTouches, finishedGesture.touchId);
-      if (!touch) return;
+      if (!touch) {
+        releaseSwipeVisual(container);
+        finishVisual();
+        return;
+      }
 
       const dx = touch.clientX - finishedGesture.startX;
       const dy = touch.clientY - finishedGesture.startY;
       const elapsedMs = performance.now() - finishedGesture.startedAt;
-      if (!shouldCommitTabSwipe(dx, dy, elapsedMs)) return;
-
       const currentKey = selectedKeyRef.current;
       const nextKey = tabKeyAfterSwipe(keysRef.current, currentKey, dx);
-      if (nextKey !== currentKey) onSelectionChangeRef.current(nextKey);
+
+      if (shouldCommitTabSwipe(dx, dy, elapsedMs) && nextKey !== currentKey) {
+        delete container.dataset.tabSwipeState;
+        container.style.removeProperty('--tab-swipe-offset');
+        container.dataset.tabSwipeCommit = dx < 0 ? 'next' : 'previous';
+        onSelectionChangeRef.current(nextKey);
+        finishVisual();
+        return;
+      }
+
+      releaseSwipeVisual(container);
+      finishVisual();
     };
 
     container.addEventListener('touchstart', onTouchStart, { passive: true });
     container.addEventListener('touchmove', onTouchMove, { passive: false });
     container.addEventListener('touchend', onTouchEnd, { passive: true });
-    container.addEventListener('touchcancel', clearGesture, { passive: true });
+    const onTouchCancel = () => {
+      clearGesture(true);
+      finishVisual();
+    };
+
+    container.addEventListener('touchcancel', onTouchCancel, { passive: true });
 
     return () => {
       container.removeEventListener('touchstart', onTouchStart);
       container.removeEventListener('touchmove', onTouchMove);
       container.removeEventListener('touchend', onTouchEnd);
-      container.removeEventListener('touchcancel', clearGesture);
+      container.removeEventListener('touchcancel', onTouchCancel);
+      if (commitTimer !== undefined) window.clearTimeout(commitTimer);
+      clearSwipeVisual(container);
     };
   }, []);
 

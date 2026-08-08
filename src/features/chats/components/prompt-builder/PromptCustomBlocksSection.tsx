@@ -11,6 +11,7 @@ import { useState } from 'react';
 import type { DragEvent } from 'react';
 import { Icon } from '../../../../components/Icon';
 import { TooltipIconButton } from '../../../../components/ui/TooltipIconButton';
+import { RequiredMark } from '../../../../components/ui/RequiredMark';
 import { formatNumber } from '../../../../i18n';
 import type { PromptBlock, PromptConfig } from '../../../../types';
 import { createPromptBlock } from './promptBuilderModel';
@@ -220,9 +221,11 @@ export function PromptCustomBlocksSection({
                     <div className="flex flex-col gap-1.5">
                       <Label htmlFor={`prompt-title-${block.id}`}>
                         {t('chatSetupModal.name')}
+                        {block.enabled ? <RequiredMark /> : null}
                       </Label>
                       <Input
                         id={`prompt-title-${block.id}`}
+                        required={block.enabled}
                         fullWidth
                         variant="secondary"
                         value={block.title}
@@ -251,9 +254,11 @@ export function PromptCustomBlocksSection({
                   <div className="mt-3 flex flex-col gap-1.5">
                     <Label htmlFor={`prompt-content-${block.id}`}>
                       {t('promptCustomBlocksSection.instruction')}
+                      {block.enabled ? <RequiredMark /> : null}
                     </Label>
                     <TextArea
                       id={`prompt-content-${block.id}`}
+                      required={block.enabled}
                       fullWidth
                       variant="secondary"
                       rows={5}

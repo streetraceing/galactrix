@@ -63,7 +63,7 @@ test('mobile settings constrain intrinsic widths', async () => {
     /\.page-container\s*\{[\s\S]*?min-w-0[\s\S]*?max-w-full[\s\S]*?overflow-x-clip/,
   );
   assert.match(cardSource, /w-full min-w-0 max-w-full overflow-hidden/);
-  assert.match(chatSource, /flex flex-col gap-2 sm:flex-row/);
+  assert.match(chatSource, /grid grid-cols-1 gap-2 sm:grid-cols-2/);
   assert.match(
     chatSource,
     /className="min-w-0 max-w-full"|className="w-full min-w-0 max-w-full"/,

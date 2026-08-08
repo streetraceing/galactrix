@@ -132,5 +132,9 @@
   "theme.variant.rosePine": "Rosé Pine",
   "theme.variant.gruvbox": "Gruvbox",
   "theme.variant.solarized": "Solarized",
-  "theme.variant.monochrome": "Monochrome"
+  "theme.variant.monochrome": "Monochrome",
+  "profilePreferences.bubblesLayout": "Bubbles",
+  "profilePreferences.bubblesLayoutHint": "You on the right, assistant on the left",
+  "profilePreferences.readingLayout": "Reading",
+  "profilePreferences.readingLayoutHint": "Both sides use a full-width reading flow"
 }

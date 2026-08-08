@@ -1,6 +1,7 @@
 import { Label, ListBox, Select } from '@heroui/react';
 import type { Key } from 'react';
 import type { CharacterData, GalaxyItem } from '../../../../types';
+import { RequiredMark } from '../../../../components/ui/RequiredMark';
 import { stylePresets } from '../../model';
 import { DefinitionSectionsEditor } from './DefinitionSectionsEditor';
 import { EditorSection } from './EditorSection';
@@ -86,7 +87,10 @@ export function CharacterEditor({
           {data.stylePreset === 'custom' ? (
             <div className="flex flex-col gap-1.5 rounded-xl border border-separator bg-background/25 p-3 sm:p-4">
               <div>
-                <Label>{t('characterEditor.savedStyle')}</Label>
+                <Label>
+                  {t('characterEditor.savedStyle')}
+                  <RequiredMark />
+                </Label>
                 <p className="mt-1 text-xs leading-5 text-muted">
                   {t('characterEditor.savedStyleDescription')}
                 </p>

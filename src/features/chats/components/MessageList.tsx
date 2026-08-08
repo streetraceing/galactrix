@@ -33,7 +33,7 @@ import { UiModal } from '../../../components/ui/UiModal';
 import { errorMessage } from '../../../lib/errors';
 import { isMobilePlatform } from '../../../lib/platform';
 import { useMobileBackEntry } from '../../../hooks/useMobileBackEntry';
-import type { Message, Provider } from '../../../types';
+import type { AppSettings, Message, Provider } from '../../../types';
 import { MessageHistoryModal } from './MessageHistoryModal';
 import { MessageEditModal } from './MessageEditModal';
 import { useTranslation } from 'react-i18next';
@@ -958,7 +958,7 @@ function MessageListComponent({
   userAvatar?: string;
   sending: boolean;
   viewActive: boolean;
-  viewMode: 'conversation' | 'messenger';
+  viewMode: AppSettings['chatViewMode'];
   showAvatars: boolean;
   showTimestamps: boolean;
   providersAvailable: boolean;
@@ -1072,6 +1072,9 @@ function MessageListComponent({
     Record<string, VariantDirection>
   >({});
   const messengerMode = viewMode === 'messenger';
+  const bubblesMode = viewMode === 'bubbles';
+  const readingMode = viewMode === 'reading';
+  const userOnRight = viewMode === 'conversation' || bubblesMode;
   const virtualizationEnabled =
     messages.length > MESSAGE_VIRTUALIZATION_THRESHOLD;
   const virtualBufferReady = virtualBufferReadyChatId === virtualLayoutKey;
@@ -2441,7 +2444,7 @@ function MessageListComponent({
                         >
                           <article
                             className={`chat-message-row group flex items-start gap-2.5 sm:gap-3 ${
-                              isUser && !messengerMode ? 'flex-row-reverse' : ''
+                              isUser && userOnRight ? 'flex-row-reverse' : ''
                             }`}
                           >
                             {showAvatars ? (
@@ -2454,16 +2457,20 @@ function MessageListComponent({
                             ) : null}
                             <div
                               className={`flex min-w-0 flex-col ${
-                                messengerMode
+                                messengerMode || readingMode
                                   ? 'items-start w-full'
-                                  : isUser
-                                    ? 'max-w-[min(91%,44rem)] items-end sm:max-w-[min(88%,44rem)]'
-                                    : 'w-full items-start'
+                                  : bubblesMode
+                                    ? isUser
+                                      ? 'max-w-[min(91%,44rem)] items-end sm:max-w-[min(82%,40rem)]'
+                                      : 'max-w-[min(91%,44rem)] items-start sm:max-w-[min(82%,40rem)]'
+                                    : isUser
+                                      ? 'max-w-[min(91%,44rem)] items-end sm:max-w-[min(88%,44rem)]'
+                                      : 'w-full items-start'
                               }`}
                             >
                               <div
                                 className={`mb-1 flex min-w-0 items-center gap-2 text-xs text-muted ${
-                                  isUser && !messengerMode
+                                  isUser && userOnRight
                                     ? 'flex-row-reverse'
                                     : ''
                                 }`}
@@ -2511,7 +2518,7 @@ function MessageListComponent({
                                   showsTypingBubble
                                     ? 'grid size-11 shrink-0 place-items-center p-0'
                                     : 'px-4 py-3'
-                                } ${messengerMode && !showsTypingBubble ? 'w-fit' : ''} ${isSelected ? (isUser ? 'bg-accent/15' : 'bg-default/85') : isUser ? 'bg-accent/10' : ''}`}
+                                } ${(messengerMode || bubblesMode) && !showsTypingBubble ? 'w-fit' : ''} ${readingMode && !showsTypingBubble ? 'w-full rounded-xl border border-separator/70 bg-surface-secondary/35 shadow-none' : ''} ${isSelected ? (isUser ? 'bg-accent/15' : 'bg-default/85') : isUser ? 'bg-accent/10' : ''}`}
                               >
                                 {showsTypingBubble ? (
                                   <div

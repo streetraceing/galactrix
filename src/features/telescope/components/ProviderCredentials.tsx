@@ -37,9 +37,10 @@ export function ProviderCredentials({
   };
   return (
     <div className="flex flex-col gap-4">
-      <FormField label={t('providerCredentials.name')}>
+      <FormField label={t('providerCredentials.name')} required>
         <Input
           fullWidth
+          required
           variant="secondary"
           value={form.name}
           autoComplete="off"

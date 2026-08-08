@@ -72,10 +72,11 @@ export function ProviderModelSection({
       ) : null}
 
       <div className="mt-4">
-        <FormField label={t('providerModelSection.modelId')}>
+        <FormField label={t('providerModelSection.modelId')} required>
           <Input
             autoComplete="off"
             fullWidth
+            required
             variant="secondary"
             value={form.model}
             onChange={(event: ChangeEvent<HTMLInputElement>) =>

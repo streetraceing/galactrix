@@ -3,6 +3,10 @@ import type { ReactNode, SVGProps } from 'react';
 
 export type IconName =
   | 'message_box'
+  | 'layout-conversation'
+  | 'layout-bubbles'
+  | 'layout-left'
+  | 'layout-reading'
   | 'chats'
   | 'galaxies'
   | 'telescope'
@@ -73,6 +77,36 @@ function createIconPaths(): Record<IconName, ReactNode> {
         <path d="M8 12h.01" />
         <path d="M12 12h.01" />
         <path d="M16 12h.01" />
+      </>
+    ),
+    'layout-conversation': (
+      <>
+        <path d="M4 5.5h10a3 3 0 0 1 3 3v1.5" />
+        <path d="M7 18.5h10a3 3 0 0 0 3-3V14" />
+        <rect x="3" y="3" width="11" height="5" rx="2" />
+        <rect x="10" y="13" width="11" height="5" rx="2" />
+      </>
+    ),
+    'layout-bubbles': (
+      <>
+        <rect x="3" y="4" width="10" height="6" rx="2.5" />
+        <path d="m6 10-1.5 2.5L8 10" />
+        <rect x="11" y="14" width="10" height="6" rx="2.5" />
+        <path d="m18 20 1.5 2-3-2" />
+      </>
+    ),
+    'layout-left': (
+      <>
+        <rect x="3" y="4" width="14" height="5" rx="2" />
+        <rect x="3" y="11" width="10" height="5" rx="2" />
+        <rect x="3" y="18" width="16" height="3" rx="1.5" />
+      </>
+    ),
+    'layout-reading': (
+      <>
+        <path d="M4 5h16M4 9h12M4 14h16M4 18h13" />
+        <circle cx="4" cy="5" r="1" />
+        <circle cx="4" cy="14" r="1" />
       </>
     ),
     telescope: (

@@ -1,5 +1,6 @@
 import { Button, ListBox, Select, Surface } from '@heroui/react';
 import { TooltipIconButton } from '../../../components/ui/TooltipIconButton';
+import { Icon } from '../../../components/Icon';
 import { useTranslation } from 'react-i18next';
 
 const scales = [0.8, 0.9, 1, 1.1, 1.25, 1.4, 1.5];
@@ -39,8 +40,8 @@ export function ScaleSettings({
 
   return (
     <Surface className="h-full w-full min-w-0 max-w-full overflow-hidden rounded-2xl border border-separator p-4 sm:p-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
           <h2 className="section-title">{t('scaleSettings.interfaceScale')}</h2>
           <p className="section-description">
             {t('scaleSettings.currentScale')}
@@ -52,8 +53,10 @@ export function ScaleSettings({
           size="sm"
           variant="ghost"
           isDisabled={value === 1}
+          className="shrink-0 whitespace-nowrap"
           onPress={() => onChange(1)}
         >
+          <Icon name="refresh" className="size-3.5" />
           {t('scaleSettings.reset')}
         </Button>
       </div>

@@ -2,6 +2,7 @@ import { Button, Input, Label, Tabs, TextArea } from '@heroui/react';
 import { useEffect, useState } from 'react';
 import { UiModal } from '../../../components/ui/UiModal';
 import { PromptPreviewCard } from '../../../components/ui/PromptPreviewCard';
+import { RequiredMark } from '../../../components/ui/RequiredMark';
 import { isMobilePlatform } from '../../../lib/platform';
 import type {
   AiModuleSettings,
@@ -154,9 +155,13 @@ export function ChatSetupModal({
           <div className="min-w-0 space-y-3 sm:space-y-4">
             <div className="grid min-w-0 gap-3 sm:grid-cols-2 sm:gap-4">
               <div className="flex min-w-0 flex-col gap-1.5">
-                <Label htmlFor="chat-title">{t('chatSetupModal.name')}</Label>
+                <Label htmlFor="chat-title">
+                  {t('chatSetupModal.name')}
+                  <RequiredMark />
+                </Label>
                 <Input
                   id="chat-title"
+                  required
                   fullWidth
                   variant="secondary"
                   value={form.title}
