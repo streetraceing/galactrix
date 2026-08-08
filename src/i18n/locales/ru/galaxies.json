@@ -1,5 +1,5 @@
 {
-  "characterEditor.aBuiltInStyleOrACustomPresetFromThe": "Встроенный стиль или собственный пресет из библиотеки «Галактики».",
+  "characterEditor.aBuiltInStyleOrACustomPresetFromThe": "Выберите готовый стиль общения или подключите собственный объект «Стиль» из библиотеки «Галактики».",
   "characterEditor.characterDefinition": "Определение персонажа",
   "characterEditor.connectedSets": "Подключённые наборы",
   "characterEditor.createASetInPromptSetsToConnectItHere": "Создайте набор во вкладке «Наборы промптов», чтобы подключить его здесь.",
@@ -7,7 +7,7 @@
   "characterEditor.messagingStyle": "Стиль переписки",
   "characterEditor.noPromptSetsSelected": "Наборы не выбраны",
   "characterEditor.noStyleSelected": "Стиль не выбран",
-  "characterEditor.preset": "Пресет",
+  "characterEditor.preset": "Режим стиля",
   "characterEditor.promptSets": "Наборы промптов",
   "characterEditor.reusableRulesAreConnectedToEveryChatWithThisCharacter": "Переиспользуемые правила подключаются ко всем чатам с этим персонажем.",
   "characterEditor.savedStyle": "Сохранённый стиль",
@@ -124,7 +124,7 @@
   "style.casualLowercase": "Разговорный строчными",
   "style.roleplay": "Ролевой",
   "style.literary": "Литературный",
-  "style.custom": "Свой пресет",
+  "style.custom": "Свой стиль из «Галактики»",
   "gender.pronouns.male": "он/его",
   "gender.pronouns.female": "она/её",
   "summary.primaryField_one": "{{count}} основное поле",
@@ -187,5 +187,15 @@
   "galaxiesScreen.noSearchResultsDescription": "Попробуйте другой запрос или выберите раздел, где есть совпадения.",
   "personaEditor.pronounsPlaceholder": "Например: она/её, они/их",
   "galaxiesScreen.quickCreate": "Быстро создать",
-  "galaxiesScreen.quickCreateDescription": "Создать любой объект Галактики"
+  "galaxiesScreen.quickCreateDescription": "Создать любой объект Галактики",
+  "characterEditor.savedStyleDescription": "Этот объект полностью заменит встроенный стиль персонажа в чатах, где не задан отдельный стиль чата.",
+  "style.description.neutral": "Спокойный универсальный тон без выраженной стилизации.",
+  "style.description.warm": "Дружелюбные, мягкие и более эмоциональные ответы.",
+  "style.description.concise": "Короткие ответы по существу, минимум лишних пояснений.",
+  "style.description.casualLowercase": "Неформальная переписка строчными буквами и без канцелярита.",
+  "style.description.roleplayRich": "Выразительный роллплей с деталями, атмосферой и действиями.",
+  "style.description.telegramHuman": "Естественная короткая переписка, похожая на сообщения живого человека.",
+  "style.description.roleplay": "Сбалансированный ролевой диалог с действиями и репликами.",
+  "style.description.literary": "Более образная и литературная подача с плавным повествованием.",
+  "style.description.custom": "Использовать сохранённый объект «Стиль» из библиотеки «Галактики»."
 }

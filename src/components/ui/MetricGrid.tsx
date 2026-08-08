@@ -12,7 +12,7 @@ export function MetricGrid({ metrics }: { metrics: Metric[] }) {
       {metrics.map((metric, index) => (
         <div
           key={metric.label}
-          className={`metric-enter min-w-0 p-4 sm:p-5 ${index % 2 === 1 ? 'border-l border-default' : ''} ${index >= 2 ? 'border-t border-default md:border-t-0' : ''} ${index > 0 ? 'md:border-l md:border-default' : ''}`}
+          className={`metric-enter min-w-0 px-4 pt-4 pb-5 sm:p-5 ${index % 2 === 1 ? 'border-l border-default' : ''} ${index >= 2 ? 'border-t border-default md:border-t-0' : ''} ${index > 0 ? 'md:border-l md:border-default' : ''}`}
           style={{ animationDelay: `${index * 45}ms` }}
         >
           <span className="block text-xs font-medium leading-5 text-muted">

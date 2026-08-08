@@ -20,6 +20,9 @@ export function CharacterEditor({
   onChange: (data: CharacterData) => void;
 }) {
   const { t } = useTranslation('galaxies');
+  const selectedStylePreset =
+    stylePresets.find((preset) => preset.id === data.stylePreset) ??
+    stylePresets[0];
   const patch = <K extends keyof CharacterData>(
     key: K,
     value: CharacterData[K],
@@ -31,7 +34,7 @@ export function CharacterEditor({
         title={t('characterEditor.messagingStyle')}
         description={t('characterEditor.aBuiltInStyleOrACustomPresetFromThe')}
       >
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
             <Label>{t('characterEditor.preset')}</Label>
             <Select
@@ -61,18 +64,33 @@ export function CharacterEditor({
                       id={preset.id}
                       textValue={t(preset.labelKey)}
                     >
-                      {t(preset.labelKey)}
+                      <span className="min-w-0 flex-1">
+                        <strong className="block text-sm font-medium">
+                          {t(preset.labelKey)}
+                        </strong>
+                        <span className="mt-0.5 block text-xs leading-4 text-muted">
+                          {t(preset.descriptionKey)}
+                        </span>
+                      </span>
                       <ListBox.ItemIndicator />
                     </ListBox.Item>
                   ))}
                 </ListBox>
               </Select.Popover>
             </Select>
+            <p className="text-xs leading-5 text-muted">
+              {t(selectedStylePreset.descriptionKey)}
+            </p>
           </div>
 
           {data.stylePreset === 'custom' ? (
-            <div className="flex flex-col gap-1.5">
-              <Label>{t('characterEditor.savedStyle')}</Label>
+            <div className="flex flex-col gap-1.5 rounded-xl border border-separator bg-background/25 p-3 sm:p-4">
+              <div>
+                <Label>{t('characterEditor.savedStyle')}</Label>
+                <p className="mt-1 text-xs leading-5 text-muted">
+                  {t('characterEditor.savedStyleDescription')}
+                </p>
+              </div>
               <Select
                 fullWidth
                 variant="secondary"
@@ -105,22 +123,30 @@ export function CharacterEditor({
                         id={style.id}
                         textValue={style.name}
                       >
-                        {style.name}
+                        <span className="min-w-0 flex-1">
+                          <strong className="block truncate text-sm font-medium">
+                            {style.name}
+                          </strong>
+                          {style.description ? (
+                            <span className="mt-0.5 block truncate text-xs text-muted">
+                              {style.description}
+                            </span>
+                          ) : null}
+                        </span>
                         <ListBox.ItemIndicator />
                       </ListBox.Item>
                     ))}
                   </ListBox>
                 </Select.Popover>
               </Select>
+              {styles.length === 0 ? (
+                <p className="text-xs leading-5 text-muted">
+                  {t('characterEditor.firstCreateAStyleObjectInTheLibrary')}
+                </p>
+              ) : null}
             </div>
           ) : null}
         </div>
-
-        {data.stylePreset === 'custom' && styles.length === 0 ? (
-          <p className="mt-3 text-xs leading-5 text-muted">
-            {t('characterEditor.firstCreateAStyleObjectInTheLibrary')}
-          </p>
-        ) : null}
       </EditorSection>
 
       <EditorSection

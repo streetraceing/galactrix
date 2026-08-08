@@ -1,5 +1,5 @@
 {
-  "characterEditor.aBuiltInStyleOrACustomPresetFromThe": "A built-in style or a custom preset from the Galaxies library.",
+  "characterEditor.aBuiltInStyleOrACustomPresetFromThe": "Choose a ready-made communication style or connect your own Style object from the Galaxies library.",
   "characterEditor.characterDefinition": "Character definition",
   "characterEditor.connectedSets": "Connected sets",
   "characterEditor.createASetInPromptSetsToConnectItHere": "Create a set in Prompt sets to connect it here.",
@@ -7,7 +7,7 @@
   "characterEditor.messagingStyle": "Messaging style",
   "characterEditor.noPromptSetsSelected": "No prompt sets selected",
   "characterEditor.noStyleSelected": "No style selected",
-  "characterEditor.preset": "Preset",
+  "characterEditor.preset": "Style mode",
   "characterEditor.promptSets": "Prompt sets",
   "characterEditor.reusableRulesAreConnectedToEveryChatWithThisCharacter": "Reusable rules are connected to every chat with this character.",
   "characterEditor.savedStyle": "Saved style",
@@ -124,7 +124,7 @@
   "style.casualLowercase": "Relaxed lowercase",
   "style.roleplay": "Roleplay",
   "style.literary": "Literary",
-  "style.custom": "Custom preset",
+  "style.custom": "Custom style from Galaxies",
   "gender.pronouns.male": "he/him",
   "gender.pronouns.female": "she/her",
   "summary.primaryField_one": "{{count}} primary field",
@@ -167,5 +167,15 @@
   "galaxiesScreen.noSearchResultsDescription": "Try another query or choose a section with matching results.",
   "personaEditor.pronounsPlaceholder": "For example: she/her, they/them",
   "galaxiesScreen.quickCreate": "Quick create",
-  "galaxiesScreen.quickCreateDescription": "Create any Galaxy object"
+  "galaxiesScreen.quickCreateDescription": "Create any Galaxy object",
+  "characterEditor.savedStyleDescription": "This object replaces the built-in character style in chats that do not have a separate chat style override.",
+  "style.description.neutral": "A calm general-purpose tone without strong stylization.",
+  "style.description.warm": "Friendly, softer, and more emotionally expressive replies.",
+  "style.description.concise": "Short, direct replies with minimal extra explanation.",
+  "style.description.casualLowercase": "Informal lowercase messaging without formal phrasing.",
+  "style.description.roleplayRich": "Expressive roleplay with richer detail, atmosphere, and actions.",
+  "style.description.telegramHuman": "Natural short messages that feel like a real person texting.",
+  "style.description.roleplay": "Balanced roleplay dialogue with actions and spoken lines.",
+  "style.description.literary": "More vivid, literary wording with smoother narrative flow.",
+  "style.description.custom": "Use a saved Style object from the Galaxies library."
 }

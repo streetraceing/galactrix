@@ -21,44 +21,54 @@ import type { TranslationKey } from '../../i18n';
 type StylePresetOption = {
   id: CharacterData['stylePreset'];
   labelKey: TranslationKey<'galaxies'>;
+  descriptionKey: TranslationKey<'galaxies'>;
 };
 
 export const stylePresets = [
   {
     id: 'neutral',
     labelKey: 'style.neutral',
+    descriptionKey: 'style.description.neutral',
   },
   {
     id: 'warm',
     labelKey: 'style.warm',
+    descriptionKey: 'style.description.warm',
   },
   {
     id: 'concise',
     labelKey: 'style.concise',
+    descriptionKey: 'style.description.concise',
   },
   {
     id: 'casual-lowercase',
     labelKey: 'style.casualLowercase',
+    descriptionKey: 'style.description.casualLowercase',
   },
   {
     id: 'roleplay-rich',
     labelKey: 'style.roleplayRich',
+    descriptionKey: 'style.description.roleplayRich',
   },
   {
     id: 'telegram-human',
     labelKey: 'style.telegramHuman',
+    descriptionKey: 'style.description.telegramHuman',
   },
   {
     id: 'roleplay',
     labelKey: 'style.roleplay',
+    descriptionKey: 'style.description.roleplay',
   },
   {
     id: 'literary',
     labelKey: 'style.literary',
+    descriptionKey: 'style.description.literary',
   },
   {
     id: 'custom',
     labelKey: 'style.custom',
+    descriptionKey: 'style.description.custom',
   },
 ] as const satisfies readonly StylePresetOption[];
 

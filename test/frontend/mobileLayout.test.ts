@@ -173,3 +173,39 @@ test('chat recent-message limit keeps an editable text draft', async () => {
   assert.match(source, /if \(rawValue\.trim\(\) === ''\) return/);
   assert.match(source, /onBlur=\{\(\) =>/);
 });
+
+test('character style settings stay vertical and explain each preset', async () => {
+  const [editorSource, modelSource] = await Promise.all([
+    readFile(
+      new URL(
+        '../../src/features/galaxies/components/editors/CharacterEditor.tsx',
+        import.meta.url,
+      ),
+      'utf8',
+    ),
+    readFile(
+      new URL('../../src/features/galaxies/model.ts', import.meta.url),
+      'utf8',
+    ),
+  ]);
+
+  assert.match(editorSource, /<div className="flex flex-col gap-3">/);
+  assert.doesNotMatch(editorSource, /grid gap-4 sm:grid-cols-2/);
+  assert.match(editorSource, /preset\.descriptionKey/);
+  assert.match(editorSource, /selectedStylePreset\.descriptionKey/);
+  assert.match(editorSource, /savedStyleDescription/);
+  assert.match(
+    modelSource,
+    /descriptionKey: 'style\.description\.telegramHuman'/,
+  );
+  assert.match(modelSource, /descriptionKey: 'style\.description\.custom'/);
+});
+
+test('metric cards reserve a little more bottom space on phones', async () => {
+  const source = await readFile(
+    new URL('../../src/components/ui/MetricGrid.tsx', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(source, /px-4 pt-4 pb-5 sm:p-5/);
+});

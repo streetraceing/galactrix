@@ -77,7 +77,7 @@ export function PromptPreviewCard({
   return (
     <>
       <Surface className="rounded-2xl border border-separator bg-surface-secondary/50 p-4 sm:p-5">
-        <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="flex min-w-0 flex-col gap-3">
           <div className="flex min-w-0 items-start gap-3 sm:flex-1">
             <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-accent/10 text-accent">
               <Icon name="database" className="size-4" />
@@ -93,6 +93,34 @@ export function PromptPreviewCard({
               </span>
             </span>
           </div>
+        </div>
+
+        <div className="mt-3 flex min-w-0 flex-wrap gap-2 justify-between">
+          <div className="flex gap-2">
+            {' '}
+            <Chip size="sm" variant="soft" color="accent">
+              {loading
+                ? t('promptPreviewCard.calculating')
+                : `≈ ${t('count.token', {
+                    count: result?.approximateTokens ?? 0,
+                  })}`}
+            </Chip>
+            <Chip size="sm" variant="soft">
+              {t('count.character', { count: result?.characters ?? 0 })}
+            </Chip>
+            {!contribution && (result?.savedApproximateTokens ?? 0) > 0 ? (
+              <Chip size="sm" variant="soft" color="success">
+                {t('promptPreviewCard.tokensSavedPercent', {
+                  count: result?.savedApproximateTokens ?? 0,
+                  percent: Math.round(
+                    ((result?.savedApproximateTokens ?? 0) /
+                      Math.max(result?.baselineApproximateTokens ?? 0, 1)) *
+                      100,
+                  ),
+                })}
+              </Chip>
+            ) : null}
+          </div>
           <Button
             size="sm"
             variant="secondary"
@@ -107,31 +135,6 @@ export function PromptPreviewCard({
                 : 'promptPreviewCard.viewRequest',
             )}
           </Button>
-        </div>
-
-        <div className="mt-3 flex min-w-0 flex-wrap gap-2">
-          <Chip size="sm" variant="soft" color="accent">
-            {loading
-              ? t('promptPreviewCard.calculating')
-              : `≈ ${t('count.token', {
-                  count: result?.approximateTokens ?? 0,
-                })}`}
-          </Chip>
-          <Chip size="sm" variant="soft">
-            {t('count.character', { count: result?.characters ?? 0 })}
-          </Chip>
-          {!contribution && (result?.savedApproximateTokens ?? 0) > 0 ? (
-            <Chip size="sm" variant="soft" color="success">
-              {t('promptPreviewCard.tokensSavedPercent', {
-                count: result?.savedApproximateTokens ?? 0,
-                percent: Math.round(
-                  ((result?.savedApproximateTokens ?? 0) /
-                    Math.max(result?.baselineApproximateTokens ?? 0, 1)) *
-                    100,
-                ),
-              })}
-            </Chip>
-          ) : null}
         </div>
         {!contribution && (result?.runtimeVariableSections.length ?? 0) > 0 ? (
           <p className="mt-3 text-xs leading-5 text-muted">
