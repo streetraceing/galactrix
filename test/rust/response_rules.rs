@@ -1,7 +1,6 @@
 use super::{
     continuation_instruction, instruction, normalize_response, normalize_response_with_cleanup,
-    regeneration_instruction,
-    regeneration_mode, RegenerationMode,
+    regeneration_instruction, regeneration_mode, RegenerationMode,
 };
 use crate::models::ResponseCleanupSettings;
 

@@ -116,6 +116,17 @@ fn set_chat_pinned(chat_id: String, pinned: bool, state: State<'_, AppState>) ->
 }
 
 #[tauri::command]
+fn set_chat_archived(
+    chat_id: String,
+    archived: bool,
+    state: State<'_, AppState>,
+) -> CommandResult<()> {
+    let database = state.database.lock().map_err(CommandError::internal)?;
+    db::set_chat_archived(&database, &chat_id, archived)?;
+    Ok(())
+}
+
+#[tauri::command]
 fn clear_chat(chat_id: String, state: State<'_, AppState>) -> CommandResult<()> {
     let database = state.database.lock().map_err(CommandError::internal)?;
     db::clear_chat(&database, &chat_id)?;
@@ -216,6 +227,13 @@ fn delete_messages(message_ids: Vec<String>, state: State<'_, AppState>) -> Comm
 }
 
 #[tauri::command]
+fn rewind_chat_to_message(message_id: String, state: State<'_, AppState>) -> CommandResult<()> {
+    let database = state.database.lock().map_err(CommandError::internal)?;
+    db::rewind_chat_to_message(&database, &message_id)?;
+    Ok(())
+}
+
+#[tauri::command]
 fn set_message_remembered(
     message_id: String,
     remembered: bool,
@@ -251,6 +269,7 @@ async fn regenerate_message(
 ) -> CommandResult<()> {
     let (chat_id, provider, full_history, regeneration_mode) = {
         let database = state.database.lock().map_err(CommandError::internal)?;
+        db::ensure_message_chat_mutable(&database, &message_id)?;
         let (chat_id, history) = db::messages_before_message(&database, &message_id)?;
         let regeneration_mode =
             response_rules::regeneration_mode(history.last().map(|message| message.role.as_str()))
@@ -349,6 +368,7 @@ async fn continue_message(
 ) -> CommandResult<()> {
     let (chat_id, provider, full_history) = {
         let database = state.database.lock().map_err(CommandError::internal)?;
+        db::ensure_message_chat_mutable(&database, &message_id)?;
         let (chat_id, history) = db::messages_through_message(&database, &message_id)?;
         let provider_id = db::chat_provider_id(&database, &chat_id)?;
         (chat_id, db::get_provider(&database, &provider_id)?, history)
@@ -928,12 +948,14 @@ pub fn run() {
             rename_chat,
             delete_chat,
             set_chat_pinned,
+            set_chat_archived,
             clear_chat,
             clone_chat,
             branch_chat,
             edit_message,
             delete_message,
             delete_messages,
+            rewind_chat_to_message,
             set_message_remembered,
             select_message_variant,
             preview_prompt,

@@ -14,6 +14,8 @@ export type ChatAction =
   | 'duplicate-with-messages'
   | 'rename'
   | 'pin'
+  | 'archive'
+  | 'unarchive'
   | 'clear'
   | 'delete';
 
@@ -39,6 +41,7 @@ export type ChatsScreenProps = {
   onRenameChat: (chatId: string, title: string) => Promise<void>;
   onDeleteChat: (chatId: string) => Promise<void>;
   onSetPinned: (chatId: string, pinned: boolean) => Promise<void>;
+  onSetArchived: (chatId: string, archived: boolean) => Promise<void>;
   onClearChat: (chatId: string) => Promise<void>;
   onCloneChat: (
     chatId: string,
@@ -49,6 +52,7 @@ export type ChatsScreenProps = {
   onEditMessage: (messageId: string, content: string) => Promise<void>;
   onDeleteMessage: (messageId: string) => Promise<void>;
   onDeleteMessages: (messageIds: string[]) => Promise<void>;
+  onRewindMessage: (messageId: string) => Promise<void>;
   onRememberMessage: (messageId: string, remembered: boolean) => Promise<void>;
   onRegenerateMessage: (messageId: string) => Promise<void>;
   onContinueMessage: (messageId: string) => Promise<void>;

@@ -8,9 +8,11 @@ import {
 } from '@heroui/react';
 import { useEffect, useMemo, useState } from 'react';
 import { Icon } from '../../components/Icon';
+import { ContextSelectionToolbar } from '../../components/ui/ContextSelectionToolbar';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { toast } from '../../i18n/toast';
 import { errorMessage } from '../../lib/errors';
+import { MOTION_STAGGER_MS } from '../../lib/motion';
 import {
   consumeGalaxyQuickCreate,
   subscribeGalaxyQuickCreate,
@@ -21,6 +23,7 @@ import {
 } from '../../components/ui/ExportOptions';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { UiModal } from '../../components/ui/UiModal';
+import { useContextSelection } from '../../hooks/useContextSelection';
 import { useSwipeableTabs } from '../../hooks/useSwipeableTabs';
 import {
   datedJsonName,
@@ -77,6 +80,9 @@ export function GalaxiesScreen({
   );
   const [importing, setImporting] = useState(false);
   const [error, setError] = useState('');
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const itemIds = useMemo(() => items.map((item) => item.id), [items]);
+  const selection = useContextSelection(itemIds);
   const swipeRef = useSwipeableTabs({
     keys: galaxySectionKeys,
     selectedKey: section,
@@ -174,6 +180,7 @@ export function GalaxiesScreen({
   };
 
   const openCreate = (kind: GalaxyKind = 'persona') => {
+    selection.clear();
     setSection(kind);
     setEditing(null);
     setDraft(createGalaxyDraft(kind));
@@ -192,6 +199,7 @@ export function GalaxiesScreen({
   }, [section]);
 
   const openEdit = (item: GalaxyItem) => {
+    selection.clear();
     setEditing(item);
     setDraft(draftFromItem(item));
     setError('');
@@ -199,6 +207,7 @@ export function GalaxiesScreen({
   };
 
   const duplicate = (item: GalaxyItem) => {
+    selection.clear();
     const copy = draftFromItem(item);
     setEditing(null);
     setDraft({
@@ -255,8 +264,33 @@ export function GalaxiesScreen({
     }
   };
 
+  const exportSelected = () => {
+    const ids = includeExportDependencies([...selection.selectedIds]);
+    if (ids.length === 0) return;
+    setExportIds(ids);
+    setExportDestination(defaultExportDestination());
+    setExportOpen(true);
+  };
+
+  const removeSelected = async () => {
+    if (selection.selectedIds.size === 0 || saving) return;
+    const ids = [...selection.selectedIds];
+    setSaving(true);
+    setError('');
+    try {
+      for (const id of ids) await onDelete(id);
+      selection.clear();
+      setBulkDeleteOpen(false);
+      toast.success(t('selection.deletedCount', { count: ids.length }));
+    } catch (caught) {
+      setError(errorMessage(caught));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
-    <div ref={swipeRef} className="page-scroll mobile-screen-enter flex-1">
+    <div ref={swipeRef} className="page-scroll app-screen-enter flex-1">
       <div className="page-container">
         <PageHeader
           title={t('galaxiesScreen.galaxies')}
@@ -342,6 +376,37 @@ export function GalaxiesScreen({
           </SearchField.Group>
         </SearchField>
 
+        <ContextSelectionToolbar
+          count={selection.selectedIds.size}
+          total={items.length}
+          selectedLabel={t('selection.selectedCount', {
+            count: selection.selectedIds.size,
+          })}
+          clearLabel={t('selection.clear')}
+          selectAllLabel={t('selection.selectAll')}
+          onClear={selection.clear}
+          onSelectAll={selection.selectAll}
+          className="mb-3 sm:mb-4"
+          actions={[
+            {
+              key: 'export',
+              label: t('selection.export'),
+              icon: 'download',
+              onPress: exportSelected,
+            },
+            {
+              key: 'delete',
+              label: t('selection.delete'),
+              icon: 'trash',
+              danger: true,
+              onPress: () => {
+                setError('');
+                setBulkDeleteOpen(true);
+              },
+            },
+          ]}
+        />
+
         <Tabs
           selectedKey={section}
           onSelectionChange={(key) => setSection(String(key) as GalaxyKind)}
@@ -389,11 +454,17 @@ export function GalaxiesScreen({
                     {sectionItems.map((item, index) => (
                       <div
                         key={item.id}
-                        className="mobile-card-enter"
-                        style={{ animationDelay: `${index * 45}ms` }}
+                        className="collection-item-enter"
+                        style={{
+                          animationDelay: `${index * MOTION_STAGGER_MS}ms`,
+                        }}
                       >
                         <GalaxyCard
                           item={item}
+                          selectionActive={selection.active}
+                          selected={selection.selectedIds.has(item.id)}
+                          onToggleSelection={() => selection.toggle(item.id)}
+                          onStartSelection={() => selection.start(item.id)}
                           onEdit={() => openEdit(item)}
                           onDuplicate={() => duplicate(item)}
                           onDelete={() => setDeleteTarget(item)}
@@ -497,6 +568,54 @@ export function GalaxiesScreen({
             onChange={setExportDestination}
           />
         </div>
+      </UiModal>
+
+      <UiModal
+        isOpen={bulkDeleteOpen}
+        onOpenChange={(open) => !open && !saving && setBulkDeleteOpen(false)}
+        onConfirm={() => void removeSelected()}
+        isConfirmDisabled={selection.selectedIds.size === 0 || saving}
+        title={t('selection.deleteSelectedTitle', {
+          count: selection.selectedIds.size,
+        })}
+        description={t('selection.deleteSelectedDescription')}
+        footer={
+          <>
+            <Button
+              variant="ghost"
+              isDisabled={saving}
+              onPress={() => setBulkDeleteOpen(false)}
+            >
+              {t('galaxyEditorModal.cancel')}
+            </Button>
+            <Button
+              variant="danger"
+              isPending={saving}
+              onPress={() => void removeSelected()}
+            >
+              {t('galaxyCard.delete')}
+            </Button>
+          </>
+        }
+      >
+        <div className="max-h-[min(50dvh,24rem)] space-y-2 overflow-y-auto overscroll-contain">
+          {items
+            .filter((item) => selection.selectedIds.has(item.id))
+            .map((item) => (
+              <div
+                key={item.id}
+                className="rounded-xl bg-default/45 px-3 py-2 text-sm"
+              >
+                <span className="font-medium">{item.name}</span>
+                <span className="ml-2 text-xs text-muted">
+                  {t(galaxyKindLabelKeys[item.kind], { ns: 'common' })}
+                </span>
+              </div>
+            ))}
+        </div>
+        {error ? (
+          <p className="selectable mt-3 text-sm text-danger">{error}</p>
+        ) : null}
       </UiModal>
 
       <UiModal

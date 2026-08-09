@@ -72,5 +72,6 @@
   "backend.provider.topPRange": "Top P must be between 0 and 1",
   "backend.provider.unknownKind": "Unknown provider type: {{kind}}",
   "backend.secureStorage.unavailable": "Secure storage is unavailable: {{detail}}",
-  "backend.chat.recentMessageLimitRange": "The recent message context limit must be between 0 and 500"
+  "backend.chat.recentMessageLimitRange": "The recent message context limit must be between 0 and 500",
+  "backend.chat.archivedReadOnly": "This chat is archived and read-only."
 }

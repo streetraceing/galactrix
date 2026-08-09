@@ -167,7 +167,7 @@ test('composer focus after send is configurable and independent from mobile open
   );
 });
 
-test('only newly appended message containers receive an entrance animation', async () => {
+test('message lifecycle uses entrance, edit and exit presence animations', async () => {
   const [source, css] = await Promise.all([
     readFile(messageListPath, 'utf8'),
     readFile(new URL('../../src/App.css', import.meta.url), 'utf8'),
@@ -182,8 +182,15 @@ test('only newly appended message containers receive an entrance animation', asy
     /@keyframes galactrix-message-enter \{[\s\S]*?\n\}/,
   )?.[0];
   assert.ok(keyframes);
-  assert.doesNotMatch(keyframes, /transform:/);
-  assert.match(css, /\.message-enter \{[\s\S]*will-change: opacity/);
+  assert.match(keyframes, /transform: translate3d/);
+  assert.match(css, /\.message-enter \{[\s\S]*will-change: opacity, transform/);
+  assert.match(source, /const variantChanged =/);
+  assert.match(source, /MOTION_EASING\.enter/);
+  assert.match(source, /stageMessageExit/);
+  assert.match(source, /await stageMessageExit\(\[messageId\]\)/);
+  assert.match(source, /data-exiting=/);
+  assert.match(css, /\.message-presence\[data-exiting='true'\]/);
+  assert.match(css, /grid-template-rows: 0fr/);
 });
 
 test('new chats can start with an assistant greeting', async () => {

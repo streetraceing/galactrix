@@ -121,6 +121,11 @@ export async function setChatPinned(chatId: string, pinned: boolean) {
   return invokeBackend<void>('set_chat_pinned', { chatId, pinned });
 }
 
+export async function setChatArchived(chatId: string, archived: boolean) {
+  requireTauri();
+  return invokeBackend<void>('set_chat_archived', { chatId, archived });
+}
+
 export async function clearChat(chatId: string) {
   requireTauri();
   return invokeBackend<void>('clear_chat', { chatId });
@@ -181,6 +186,11 @@ export async function deleteMessage(messageId: string) {
 export async function deleteMessages(messageIds: string[]) {
   requireTauri();
   return invokeBackend<void>('delete_messages', { messageIds });
+}
+
+export async function rewindChatToMessage(messageId: string) {
+  requireTauri();
+  return invokeBackend<void>('rewind_chat_to_message', { messageId });
 }
 
 export async function setMessageRemembered(

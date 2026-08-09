@@ -82,7 +82,8 @@ test('mobile swipe is easy to acquire and uses one bounded release transition', 
   assert.match(source, /mobileSwipeDragOffset\(dx, hasTarget\)/);
   assert.match(source, /setOffset\(direction \* 104\)/);
   assert.match(source, /setOffset\(-direction \* 52\)/);
-  assert.match(source, /duration: 180/);
+  assert.match(source, /duration: MOTION_DURATION_MS\.standard/);
+  assert.match(source, /easing: MOTION_EASING\.enter/);
   assert.doesNotMatch(source, /motion\.animate\(/);
   assert.match(
     source,

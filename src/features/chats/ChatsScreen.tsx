@@ -1,6 +1,10 @@
+import { Button } from '@heroui/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Icon } from '../../components/Icon';
 import { ResizeHandle } from '../../components/ResizeHandle';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { UiModal } from '../../components/ui/UiModal';
+import { useContextSelection } from '../../hooks/useContextSelection';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { useVisualViewportMetrics } from '../../hooks/useVisualViewportMetrics';
 import { toast } from '../../i18n/toast';
@@ -52,12 +56,14 @@ export function ChatsScreen({
   onRenameChat,
   onDeleteChat,
   onSetPinned,
+  onSetArchived,
   onClearChat,
   onCloneChat,
   onBranchMessage,
   onEditMessage,
   onDeleteMessage,
   onDeleteMessages,
+  onRewindMessage,
   onRememberMessage,
   onRegenerateMessage,
   onContinueMessage,
@@ -82,6 +88,16 @@ export function ChatsScreen({
     isMobile && isSinglePane && isChatOpen,
   );
   const [working, setWorking] = useState(false);
+  const [archiveMode, setArchiveMode] = useState(false);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const archiveScopeIds = useMemo(
+    () =>
+      chats
+        .filter((chat) => Boolean(chat.archived) === archiveMode)
+        .map((chat) => chat.id),
+    [archiveMode, chats],
+  );
+  const chatSelection = useContextSelection(archiveScopeIds);
   const [scrollToBottomRequest, setScrollToBottomRequest] = useState(0);
   const [messageSelectionActive, setMessageSelectionActive] = useState(false);
   const [clearMessageSelectionRequest, setClearMessageSelectionRequest] =
@@ -148,6 +164,7 @@ export function ChatsScreen({
     canvasCharacter?.name ?? t('chatsScreen.assistant');
   const canvasUserName = canvasPersona?.name || displayProfileName;
   const shouldAutoFocusComposer =
+    !activeChat?.archived &&
     !isMobile &&
     (!isSinglePane || isChatOpen) &&
     configTarget == null &&
@@ -166,6 +183,7 @@ export function ChatsScreen({
     async (value: string) => {
       if (
         !activeChat ||
+        activeChat.archived ||
         !activeProvider ||
         sending ||
         sendInFlightRef.current
@@ -259,9 +277,25 @@ export function ChatsScreen({
           .finally(() => setWorking(false));
         return;
       }
+      if (action === 'archive' || action === 'unarchive') {
+        const archived = action === 'archive';
+        setWorking(true);
+        void onSetArchived(chat.id, archived)
+          .then(() =>
+            toast.success(
+              archived
+                ? t('chatsScreen.chatArchived')
+                : t('chatsScreen.chatUnarchived'),
+            ),
+          )
+          .catch(showChatError)
+          .finally(() => setWorking(false));
+        return;
+      }
+      if (chat.archived && action !== 'delete') return;
       setConfirmTarget({ type: action, chat });
     },
-    [onCloneChat, onSetPinned, showChatError, t],
+    [onCloneChat, onSetArchived, onSetPinned, showChatError, t],
   );
   const selectChat = useCallback(
     (chatId: string) => {
@@ -278,10 +312,15 @@ export function ChatsScreen({
     onChatMaximizedChange(!chatMaximized);
   }, [chatMaximized, onChatMaximizedChange]);
 
-  const openNewChat = useCallback((characterId?: string) => {
-    setNewChatCharacterId(characterId);
-    setConfigTarget('new');
-  }, []);
+  const openNewChat = useCallback(
+    (characterId?: string) => {
+      setArchiveMode(false);
+      chatSelection.clear();
+      setNewChatCharacterId(characterId);
+      setConfigTarget('new');
+    },
+    [chatSelection.clear],
+  );
 
   useEffect(() => {
     const consumeRequest = () => {
@@ -292,6 +331,71 @@ export function ChatsScreen({
     consumeRequest();
     return subscribeChatQuickCreate(consumeRequest);
   }, [openNewChat]);
+
+  useEffect(() => {
+    if (isSinglePane && isChatOpen) chatSelection.clear();
+  }, [chatSelection.clear, isChatOpen, isSinglePane]);
+
+  const changeArchiveMode = useCallback(
+    (next: boolean) => {
+      chatSelection.clear();
+      setArchiveMode(next);
+    },
+    [chatSelection.clear],
+  );
+
+  const archiveSelectedChats = useCallback(async () => {
+    if (chatSelection.selectedIds.size === 0 || working) return;
+    const ids = [...chatSelection.selectedIds];
+    setWorking(true);
+    try {
+      for (const chatId of ids) await onSetArchived(chatId, !archiveMode);
+      chatSelection.clear();
+      toast.success(
+        archiveMode
+          ? t('selection.chatsUnarchived', { count: ids.length })
+          : t('selection.chatsArchived', { count: ids.length }),
+      );
+    } catch (error) {
+      showChatError(error);
+    } finally {
+      setWorking(false);
+    }
+  }, [
+    archiveMode,
+    chatSelection.clear,
+    chatSelection.selectedIds,
+    onSetArchived,
+    showChatError,
+    t,
+    working,
+  ]);
+
+  const deleteSelectedChats = useCallback(async () => {
+    if (chatSelection.selectedIds.size === 0 || working) return;
+    const ids = [...chatSelection.selectedIds];
+    setWorking(true);
+    try {
+      for (const chatId of ids) {
+        removeStorageItem(draftKey(chatId));
+        await onDeleteChat(chatId);
+      }
+      chatSelection.clear();
+      setBulkDeleteOpen(false);
+      toast.success(t('selection.chatsDeleted', { count: ids.length }));
+    } catch (error) {
+      showChatError(error);
+    } finally {
+      setWorking(false);
+    }
+  }, [
+    chatSelection.clear,
+    chatSelection.selectedIds,
+    onDeleteChat,
+    showChatError,
+    t,
+    working,
+  ]);
 
   const handleConversationBack = useCallback(() => {
     if (messageSelectionActive) {
@@ -366,9 +470,20 @@ export function ChatsScreen({
           width={chatSidebarWidth}
           isVisibleMobile={!isChatOpen}
           isSinglePane={isSinglePane}
+          archiveMode={archiveMode}
+          archivedCount={chats.filter((chat) => chat.archived).length}
+          selectedIds={chatSelection.selectedIds}
+          selectionActive={chatSelection.active}
           onSelect={selectChat}
           onNewChat={openNewChat}
           onAction={handleAction}
+          onToggleSelection={chatSelection.toggle}
+          onStartSelection={chatSelection.start}
+          onClearSelection={chatSelection.clear}
+          onSelectAll={chatSelection.selectAll}
+          onArchiveSelected={() => void archiveSelectedChats()}
+          onDeleteSelected={() => setBulkDeleteOpen(true)}
+          onArchiveModeChange={changeArchiveMode}
         />
       ) : null}
 
@@ -406,8 +521,10 @@ export function ChatsScreen({
               onBack={handleConversationBack}
               onToggleMaximized={toggleChatMaximized}
               onAction={handleAction}
-              canUseResponseActions={latestAssistantMessage != null}
-              responseActionsBusy={sending}
+              canUseResponseActions={
+                !activeChat.archived && latestAssistantMessage != null
+              }
+              responseActionsBusy={sending || activeChat.archived}
               onRegenerateLast={() => requestLatestResponseAction('regenerate')}
               onContinueLast={() => requestLatestResponseAction('continue')}
             />
@@ -437,7 +554,9 @@ export function ChatsScreen({
                     responseActionRequest={responseActionRequest}
                     onGenerationComplete={requestComposerFocusAfterGeneration}
                     onSelectionActiveChange={setMessageSelectionActive}
+                    readOnly={canvasChat.archived}
                     onBranch={onBranchMessage}
+                    onRewind={onRewindMessage}
                     onEdit={onEditMessage}
                     onDelete={onDeleteMessage}
                     onDeleteMany={onDeleteMessages}
@@ -451,22 +570,45 @@ export function ChatsScreen({
             </div>
             {canvasChat ? (
               <div className="shrink-0">
-                <ChatComposer
-                  key={canvasChat.id}
-                  chatId={canvasChat.id}
-                  provider={canvasProvider}
-                  sending={sending && canvasChat.id === activeChat.id}
-                  sendOnEnter={sendOnEnter}
-                  focusAfterSend={focusComposerAfterSend}
-                  focusAfterActionRequest={focusComposerRequest}
-                  saveDrafts={saveDrafts}
-                  shouldAutoFocus={shouldAutoFocusComposer}
-                  focusKey={`${canvasChat.id}:${isChatOpen}`}
-                  wide={chatMaximized}
-                  onSend={send}
-                  onCancel={cancelGeneration}
-                  onHeightChange={keepBottomPinnedAfterComposerResize}
-                />
+                {canvasChat.archived ? (
+                  <div className="border-t border-separator bg-background px-4 py-3 sm:px-6">
+                    <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 rounded-2xl bg-default/45 px-4 py-3">
+                      <span className="flex min-w-0 items-center gap-2 text-sm text-muted">
+                        <Icon
+                          name="archive"
+                          className="size-4 shrink-0 text-accent"
+                        />
+                        {t('chatsScreen.archivedReadOnly')}
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="tertiary"
+                        isDisabled={working}
+                        onPress={() => handleAction('unarchive', canvasChat)}
+                      >
+                        <Icon name="unarchive" className="size-4" />
+                        {t('chatActions.unarchive')}
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <ChatComposer
+                    key={canvasChat.id}
+                    chatId={canvasChat.id}
+                    provider={canvasProvider}
+                    sending={sending && canvasChat.id === activeChat.id}
+                    sendOnEnter={sendOnEnter}
+                    focusAfterSend={focusComposerAfterSend}
+                    focusAfterActionRequest={focusComposerRequest}
+                    saveDrafts={saveDrafts}
+                    shouldAutoFocus={shouldAutoFocusComposer}
+                    focusKey={`${canvasChat.id}:${isChatOpen}`}
+                    wide={chatMaximized}
+                    onSend={send}
+                    onCancel={cancelGeneration}
+                    onHeightChange={keepBottomPinnedAfterComposerResize}
+                  />
+                )}
               </div>
             ) : null}
           </>
@@ -504,6 +646,48 @@ export function ChatsScreen({
         }}
         onSubmit={(input) => void saveConfig(input)}
       />
+
+      <UiModal
+        isOpen={bulkDeleteOpen}
+        onOpenChange={(open) => !open && !working && setBulkDeleteOpen(false)}
+        onConfirm={() => void deleteSelectedChats()}
+        isConfirmDisabled={chatSelection.selectedIds.size === 0 || working}
+        title={t('selection.deleteSelectedChats', {
+          count: chatSelection.selectedIds.size,
+        })}
+        description={t('selection.deleteSelectedChatsDescription')}
+        footer={
+          <>
+            <Button
+              variant="ghost"
+              isDisabled={working}
+              onPress={() => setBulkDeleteOpen(false)}
+            >
+              {t('chatDialogs.cancel')}
+            </Button>
+            <Button
+              variant="danger"
+              isPending={working}
+              onPress={() => void deleteSelectedChats()}
+            >
+              {t('chatDialogs.delete')}
+            </Button>
+          </>
+        }
+      >
+        <div className="max-h-[min(50dvh,24rem)] space-y-2 overflow-y-auto overscroll-contain">
+          {chats
+            .filter((chat) => chatSelection.selectedIds.has(chat.id))
+            .map((chat) => (
+              <div
+                key={chat.id}
+                className="rounded-xl bg-default/45 px-3 py-2 text-sm"
+              >
+                {chat.title}
+              </div>
+            ))}
+        </div>
+      </UiModal>
 
       <ChatDialogs
         renameTarget={renameTarget}

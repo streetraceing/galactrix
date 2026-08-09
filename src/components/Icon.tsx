@@ -45,6 +45,9 @@ export type IconName =
   | 'screen-full'
   | 'screen-normal'
   | 'history'
+  | 'archive'
+  | 'unarchive'
+  | 'rewind'
   | 'regenerate'
   | 'grip'
   | 'download'
@@ -294,6 +297,26 @@ function createIconPaths(): Record<IconName, ReactNode> {
       <>
         <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
         <path d="M3 3v5h5M12 7v5l3 2" />
+      </>
+    ),
+    archive: (
+      <>
+        <rect x="3" y="5" width="18" height="4" rx="1.5" />
+        <path d="M5 9v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9M9 13h6" />
+      </>
+    ),
+    unarchive: (
+      <>
+        <rect x="3" y="5" width="18" height="4" rx="1.5" />
+        <path d="M5 9v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9" />
+        <path d="m9 16 3-3 3 3M12 13v6" />
+      </>
+    ),
+    rewind: (
+      <>
+        <path d="M4 12a8 8 0 1 0 2.3-5.7L4 8" />
+        <path d="M4 3v5h5" />
+        <path d="M12 8v4l-3 2" />
       </>
     ),
     regenerate: (

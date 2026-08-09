@@ -70,7 +70,7 @@ test('every screen using HeroUI tabs enables full-screen mobile swiping', async 
   for (const source of sources) {
     assert.match(source, /useSwipeableTabs\(\{/);
     assert.match(source, /ref=\{swipeRef\}/);
-    assert.match(source, /className="page-scroll mobile-screen-enter flex-1"/);
+    assert.match(source, /className="page-scroll app-screen-enter flex-1"/);
   }
 });
 

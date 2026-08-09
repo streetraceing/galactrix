@@ -54,6 +54,7 @@ function ConversationOverview({
   relativeUpdatedAt,
   showIdentityHeader,
   onConfigure,
+  readOnly,
 }: {
   chat: Chat;
   provider?: Provider;
@@ -64,6 +65,7 @@ function ConversationOverview({
   relativeUpdatedAt: string;
   showIdentityHeader: boolean;
   onConfigure: () => void;
+  readOnly: boolean;
 }) {
   const { t } = useTranslation('chats');
 
@@ -187,10 +189,17 @@ function ConversationOverview({
           </div>
         </section>
 
-        <Button fullWidth size="sm" variant="tertiary" onPress={onConfigure}>
-          <Icon name="settings" className="size-4" />
-          {t('conversationHeader.openChatSettings')}
-        </Button>
+        {readOnly ? (
+          <div className="flex items-center gap-2 rounded-xl bg-accent/8 px-3 py-2.5 text-sm text-muted">
+            <Icon name="archive" className="size-4 shrink-0 text-accent" />
+            {t('conversationHeader.archivedReadOnly')}
+          </div>
+        ) : (
+          <Button fullWidth size="sm" variant="tertiary" onPress={onConfigure}>
+            <Icon name="settings" className="size-4" />
+            {t('conversationHeader.openChatSettings')}
+          </Button>
+        )}
       </div>
     </div>
   );
@@ -259,7 +268,12 @@ function ConversationHeaderComponent({
     <div className="min-w-0 py-0.5">
       <div className="flex min-w-0 items-center gap-2">
         <h2 className="truncate text-base font-semibold">{chat.title}</h2>
-        {contextNames.length > 0 ? (
+        {chat.archived ? (
+          <Chip size="sm" variant="soft" className="bg-accent/10 text-accent">
+            <Icon name="archive" className="size-3" />
+            {t('conversationHeader.archived')}
+          </Chip>
+        ) : contextNames.length > 0 ? (
           <Chip size="sm" variant="soft" className="bg-transparent">
             {contextNames.length}
           </Chip>
@@ -328,6 +342,7 @@ function ConversationHeaderComponent({
                     worldbooks={worldbooks}
                     relativeUpdatedAt={relativeUpdatedAt}
                     showIdentityHeader
+                    readOnly={chat.archived}
                     onConfigure={configure}
                   />
                 </Popover.Dialog>
@@ -335,15 +350,27 @@ function ConversationHeaderComponent({
             </Popover>
           )}
 
-          <TooltipIconButton
-            label={t('chatSetupModal.chatSettings')}
-            size="sm"
-            variant="ghost"
-            className="ml-auto shrink-0"
-            onPress={() => onAction('configure', chat)}
-          >
-            <Icon name="settings" className="size-5" />
-          </TooltipIconButton>
+          {chat.archived ? (
+            <TooltipIconButton
+              label={t('chatActions.unarchive')}
+              size="sm"
+              variant="tertiary"
+              className="ml-auto shrink-0 text-accent"
+              onPress={() => onAction('unarchive', chat)}
+            >
+              <Icon name="unarchive" className="size-5" />
+            </TooltipIconButton>
+          ) : (
+            <TooltipIconButton
+              label={t('chatSetupModal.chatSettings')}
+              size="sm"
+              variant="ghost"
+              className="ml-auto shrink-0"
+              onPress={() => onAction('configure', chat)}
+            >
+              <Icon name="settings" className="size-5" />
+            </TooltipIconButton>
+          )}
           {!isMobile ? (
             <TooltipIconButton
               label={
@@ -363,14 +390,16 @@ function ConversationHeaderComponent({
               />
             </TooltipIconButton>
           ) : null}
-          <ChatActionsButton
-            chat={chat}
-            onAction={onAction}
-            canUseResponseActions={canUseResponseActions}
-            responseActionsBusy={responseActionsBusy}
-            onRegenerateLast={onRegenerateLast}
-            onContinueLast={onContinueLast}
-          />
+          {!chat.archived ? (
+            <ChatActionsButton
+              chat={chat}
+              onAction={onAction}
+              canUseResponseActions={canUseResponseActions}
+              responseActionsBusy={responseActionsBusy}
+              onRegenerateLast={onRegenerateLast}
+              onContinueLast={onContinueLast}
+            />
+          ) : null}
         </div>
       </header>
 
@@ -391,6 +420,7 @@ function ConversationHeaderComponent({
             worldbooks={worldbooks}
             relativeUpdatedAt={relativeUpdatedAt}
             showIdentityHeader={false}
+            readOnly={chat.archived}
             onConfigure={configure}
           />
         </UiModal>

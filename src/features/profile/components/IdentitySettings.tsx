@@ -5,6 +5,7 @@ import { AppAvatar } from '../../../components/ui/AppAvatar';
 import { AvatarPicker } from '../../../components/ui/AvatarPicker';
 import { toast } from '../../../i18n/toast';
 import { galaxyItemAvatar, withAvatar } from '../../../lib/avatar';
+import { MOTION_STAGGER_MS } from '../../../lib/motion';
 import { resolveProfileName } from '../../../lib/profile';
 import type { AppSettings, GalaxyItem, GalaxyItemInput } from '../../../types';
 import { galaxyKindLabelKeys } from '../../galaxies/catalog';
@@ -196,7 +197,9 @@ export function IdentitySettings({
                 <Surface
                   key={item.id}
                   className="mobile-card-enter flex min-w-0 items-start gap-3 rounded-2xl border border-separator bg-surface p-3 shadow-surface ring-1 ring-inset ring-foreground/5 sm:p-4"
-                  style={{ animationDelay: `${index * 45}ms` }}
+                  style={{
+                    animationDelay: `${index * MOTION_STAGGER_MS}ms`,
+                  }}
                 >
                   <AppAvatar
                     src={avatar}

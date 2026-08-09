@@ -118,8 +118,7 @@ fn normalize_ai_settings(settings: &mut AppSettings, provider_ids: &HashSet<Stri
 
     let repetition = &mut settings.ai_modules.repetition_guard;
     repetition.recent_assistant_messages = repetition.recent_assistant_messages.clamp(1, 12);
-    repetition.max_characters_per_message =
-        repetition.max_characters_per_message.clamp(120, 4_000);
+    repetition.max_characters_per_message = repetition.max_characters_per_message.clamp(120, 4_000);
 }
 
 fn valid_provider_id(
@@ -151,8 +150,14 @@ mod tests {
         settings.ai_modules.context_budget.worldbook_scan_messages = 999;
         settings.ai_modules.context_budget.max_worldbook_entries = 999;
         settings.ai_modules.context_budget.max_system_characters = 1;
-        settings.ai_modules.repetition_guard.recent_assistant_messages = 99;
-        settings.ai_modules.repetition_guard.max_characters_per_message = 1;
+        settings
+            .ai_modules
+            .repetition_guard
+            .recent_assistant_messages = 99;
+        settings
+            .ai_modules
+            .repetition_guard
+            .max_characters_per_message = 1;
 
         let normalized = normalize(settings, &HashSet::new()).expect("normalize settings");
 
@@ -163,18 +168,36 @@ mod tests {
         assert_eq!(normalized.ai_modules.retry.max_attempts, 8);
         assert_eq!(normalized.ai_modules.context_budget.max_characters, 4_000);
         assert_eq!(
-            normalized.ai_modules.context_budget.preserve_recent_messages,
+            normalized
+                .ai_modules
+                .context_budget
+                .preserve_recent_messages,
             100
         );
-        assert_eq!(normalized.ai_modules.context_budget.worldbook_scan_messages, 50);
-        assert_eq!(normalized.ai_modules.context_budget.max_worldbook_entries, 100);
-        assert_eq!(normalized.ai_modules.context_budget.max_system_characters, 4_000);
         assert_eq!(
-            normalized.ai_modules.repetition_guard.recent_assistant_messages,
+            normalized.ai_modules.context_budget.worldbook_scan_messages,
+            50
+        );
+        assert_eq!(
+            normalized.ai_modules.context_budget.max_worldbook_entries,
+            100
+        );
+        assert_eq!(
+            normalized.ai_modules.context_budget.max_system_characters,
+            4_000
+        );
+        assert_eq!(
+            normalized
+                .ai_modules
+                .repetition_guard
+                .recent_assistant_messages,
             12
         );
         assert_eq!(
-            normalized.ai_modules.repetition_guard.max_characters_per_message,
+            normalized
+                .ai_modules
+                .repetition_guard
+                .max_characters_per_message,
             120
         );
     }

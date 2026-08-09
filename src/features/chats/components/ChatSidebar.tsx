@@ -2,6 +2,8 @@ import { Button, Chip, Dropdown, Label, SearchField } from '@heroui/react';
 import { memo, useDeferredValue, useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { Icon } from '../../../components/Icon';
+import { ContextSelectionToolbar } from '../../../components/ui/ContextSelectionToolbar';
+import { TooltipIconButton } from '../../../components/ui/TooltipIconButton';
 import type { Chat, GalaxyItem } from '../../../types';
 import type { ChatAction } from '../types';
 import { ChatListItem } from './ChatListItem';
@@ -14,9 +16,20 @@ function ChatSidebarComponent({
   width,
   isVisibleMobile,
   isSinglePane,
+  archiveMode,
+  archivedCount,
+  selectedIds,
+  selectionActive,
   onSelect,
   onNewChat,
   onAction,
+  onToggleSelection,
+  onStartSelection,
+  onClearSelection,
+  onSelectAll,
+  onArchiveSelected,
+  onDeleteSelected,
+  onArchiveModeChange,
 }: {
   chats: Chat[];
   galaxyItems: GalaxyItem[];
@@ -24,9 +37,20 @@ function ChatSidebarComponent({
   width: number;
   isVisibleMobile: boolean;
   isSinglePane: boolean;
+  archiveMode: boolean;
+  archivedCount: number;
+  selectedIds: Set<string>;
+  selectionActive: boolean;
   onSelect: (id: string) => void;
   onNewChat: (characterId?: string) => void;
   onAction: (action: ChatAction, chat: Chat) => void;
+  onToggleSelection: (id: string) => void;
+  onStartSelection: (id: string) => void;
+  onClearSelection: () => void;
+  onSelectAll: () => void;
+  onArchiveSelected: () => void;
+  onDeleteSelected: () => void;
+  onArchiveModeChange: (archived: boolean) => void;
 }) {
   const { t } = useTranslation('chats');
   const [query, setQuery] = useState('');
@@ -34,83 +58,113 @@ function ChatSidebarComponent({
     () => galaxyItems.filter((item) => item.kind === 'character'),
     [galaxyItems],
   );
+  const scopedChats = useMemo(
+    () => chats.filter((chat) => Boolean(chat.archived) === archiveMode),
+    [archiveMode, chats],
+  );
   const deferredQuery = useDeferredValue(query);
   const filteredChats = useMemo(() => {
     const normalized = deferredQuery.trim().toLowerCase();
-    if (!normalized) return chats;
-    return chats.filter((chat) =>
+    if (!normalized) return scopedChats;
+    return scopedChats.filter((chat) =>
       `${chat.title} ${chat.preview}`.toLowerCase().includes(normalized),
     );
-  }, [chats, deferredQuery]);
+  }, [deferredQuery, scopedChats]);
 
   return (
     <aside
-      className={`${isSinglePane ? (isVisibleMobile ? 'mobile-screen-enter flex w-full' : 'hidden') : 'flex w-[min(var(--chat-sidebar-width),36vw)] min-[1300px]:w-(--chat-sidebar-width)'} h-full shrink-0 flex-col border-separator bg-background border-r`}
+      className={`${isSinglePane ? (isVisibleMobile ? 'app-screen-enter flex w-full' : 'hidden') : 'flex w-[min(var(--chat-sidebar-width),36vw)] min-[1300px]:w-(--chat-sidebar-width)'} h-full shrink-0 flex-col border-separator bg-background border-r`}
       style={{ '--chat-sidebar-width': `${width}px` } as CSSProperties}
     >
-      <header className="flex items-start gap-3 px-4 pb-3 pt-4">
+      <header className="flex items-start gap-2 px-4 pb-3 pt-4">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-semibold tracking-tight">
-              {t('chatSidebar.chats')}
+              {archiveMode ? t('chatSidebar.archive') : t('chatSidebar.chats')}
             </h1>
-            {filteredChats.length > 0 ? (
+            {scopedChats.length > 0 ? (
               <Chip size="sm" variant="secondary" className="bg-transparent">
-                {filteredChats.length}
+                {scopedChats.length}
               </Chip>
             ) : null}
           </div>
           <p className="mt-1 text-xs text-muted">
-            {t('chatSidebar.conversationHistory')}
+            {archiveMode
+              ? t('chatSidebar.archiveDescription')
+              : t('chatSidebar.conversationHistory')}
           </p>
         </div>
-        <Dropdown>
-          <Button
-            size="lg"
-            variant="primary"
-            className="shrink-0 px-3"
-            aria-label={t('chatSidebar.quickCreate')}
-          >
-            <Icon name="plus" className="size-5" />
-            <span className="hidden text-sm min-[390px]:inline">
-              {t('chatSidebar.create')}
-            </span>
-            <Icon name="chevron" className="size-3.5 rotate-90" />
-          </Button>
-          <Dropdown.Popover
-            placement="bottom end"
-            className="min-w-64 max-w-[min(22rem,calc(100vw-2rem))]"
-          >
-            <Dropdown.Menu
-              aria-label={t('chatSidebar.quickCreateDescription')}
-              onAction={(key) =>
-                onNewChat(String(key) === 'blank' ? undefined : String(key))
-              }
+
+        <TooltipIconButton
+          label={
+            archiveMode
+              ? t('chatSidebar.backToActiveChats')
+              : t('chatSidebar.openArchive', { count: archivedCount })
+          }
+          size="lg"
+          variant="tertiary"
+          className={`shrink-0 ${archiveMode ? 'text-accent' : ''}`}
+          tooltipPlacement="bottom"
+          onPress={() => onArchiveModeChange(!archiveMode)}
+        >
+          <Icon
+            name={archiveMode ? 'unarchive' : 'archive'}
+            className="size-5"
+          />
+        </TooltipIconButton>
+
+        {!archiveMode ? (
+          <Dropdown>
+            <Button
+              size="lg"
+              variant="primary"
+              className="shrink-0 px-3"
+              aria-label={t('chatSidebar.quickCreate')}
             >
-              <Dropdown.Item id="blank" textValue={t('chatSetupModal.newChat')}>
-                <Icon name="chats" className="size-4" />
-                <Label>{t('chatSidebar.blankChat')}</Label>
-              </Dropdown.Item>
-              {characters.map((character) => (
+              <Icon name="plus" className="size-5" />
+              <span className="hidden text-sm min-[390px]:inline">
+                {t('chatSidebar.create')}
+              </span>
+              <Icon name="chevron" className="size-3.5 rotate-90" />
+            </Button>
+            <Dropdown.Popover
+              placement="bottom end"
+              className="min-w-64 max-w-[min(22rem,calc(100vw-2rem))]"
+            >
+              <Dropdown.Menu
+                aria-label={t('chatSidebar.quickCreateDescription')}
+                onAction={(key) =>
+                  onNewChat(String(key) === 'blank' ? undefined : String(key))
+                }
+              >
                 <Dropdown.Item
-                  key={character.id}
-                  id={character.id}
-                  textValue={t('chatSidebar.chatWithCharacter', {
-                    name: character.name,
-                  })}
+                  id="blank"
+                  textValue={t('chatSetupModal.newChat')}
                 >
-                  <Icon name="brain" className="size-4" />
-                  <span className="min-w-0">
-                    <Label>{character.name}</Label>
-                    <span className="mt-0.5 block truncate text-xs text-muted">
-                      {t('chatSidebar.chatWithCharacterHint')}
-                    </span>
-                  </span>
+                  <Icon name="chats" className="size-4" />
+                  <Label>{t('chatSidebar.blankChat')}</Label>
                 </Dropdown.Item>
-              ))}
-            </Dropdown.Menu>
-          </Dropdown.Popover>
-        </Dropdown>
+                {characters.map((character) => (
+                  <Dropdown.Item
+                    key={character.id}
+                    id={character.id}
+                    textValue={t('chatSidebar.chatWithCharacter', {
+                      name: character.name,
+                    })}
+                  >
+                    <Icon name="brain" className="size-4" />
+                    <span className="min-w-0">
+                      <Label>{character.name}</Label>
+                      <span className="mt-0.5 block truncate text-xs text-muted">
+                        {t('chatSidebar.chatWithCharacterHint')}
+                      </span>
+                    </span>
+                  </Dropdown.Item>
+                ))}
+              </Dropdown.Menu>
+            </Dropdown.Popover>
+          </Dropdown>
+        ) : null}
       </header>
 
       <div className="px-3 pb-3">
@@ -124,10 +178,23 @@ function ChatSidebarComponent({
             <SearchField.SearchIcon />
             <SearchField.Input
               autoComplete="off"
-              placeholder={t('chatSidebar.searchChats')}
-              aria-label={t('chatSidebar.searchChats')}
+              placeholder={
+                archiveMode
+                  ? t('chatSidebar.searchArchive')
+                  : t('chatSidebar.searchChats')
+              }
+              aria-label={
+                archiveMode
+                  ? t('chatSidebar.searchArchive')
+                  : t('chatSidebar.searchChats')
+              }
               onKeyDown={(event) => {
-                if (event.key !== 'Enter' || !filteredChats[0]) return;
+                if (
+                  event.key !== 'Enter' ||
+                  !filteredChats[0] ||
+                  selectionActive
+                )
+                  return;
                 event.preventDefault();
                 onSelect(filteredChats[0].id);
               }}
@@ -139,6 +206,36 @@ function ChatSidebarComponent({
         </SearchField>
       </div>
 
+      <ContextSelectionToolbar
+        count={selectedIds.size}
+        total={scopedChats.length}
+        selectedLabel={t('selection.selectedCount', {
+          count: selectedIds.size,
+        })}
+        clearLabel={t('selection.clear')}
+        selectAllLabel={t('selection.selectAll')}
+        onClear={onClearSelection}
+        onSelectAll={onSelectAll}
+        className="shrink-0 px-2 pb-2"
+        actions={[
+          {
+            key: archiveMode ? 'unarchive' : 'archive',
+            label: archiveMode
+              ? t('selection.unarchiveChats')
+              : t('selection.archiveChats'),
+            icon: archiveMode ? 'unarchive' : 'archive',
+            onPress: onArchiveSelected,
+          },
+          {
+            key: 'delete',
+            label: t('selection.deleteChats'),
+            icon: 'trash',
+            danger: true,
+            onPress: onDeleteSelected,
+          },
+        ]}
+      />
+
       <div className="scrollbar-thin flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-2 pb-3">
         {filteredChats.map((chat) => (
           <ChatListItem
@@ -146,18 +243,26 @@ function ChatSidebarComponent({
             chat={chat}
             galaxyItems={galaxyItems}
             isActive={chat.id === activeChatId}
+            selectionActive={selectionActive}
+            selected={selectedIds.has(chat.id)}
             onSelect={onSelect}
             onAction={onAction}
+            onToggleSelection={onToggleSelection}
+            onStartSelection={onStartSelection}
           />
         ))}
         {filteredChats.length === 0 ? (
           <div className="grid flex-1 place-items-center px-4 text-center">
             <div>
               <p className="text-sm font-medium">
-                {t('chatSidebar.noChatsFound')}
+                {archiveMode
+                  ? t('chatSidebar.archiveEmpty')
+                  : t('chatSidebar.noChatsFound')}
               </p>
               <p className="mt-1 text-xs leading-5 text-muted">
-                {t('chatSidebar.changeTheQueryOrCreateANewChat')}
+                {archiveMode
+                  ? t('chatSidebar.archiveEmptyDescription')
+                  : t('chatSidebar.changeTheQueryOrCreateANewChat')}
               </p>
             </div>
           </div>

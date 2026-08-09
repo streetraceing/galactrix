@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { isMobilePlatform } from '../lib/platform';
+import { MOTION_DURATION_MS } from '../lib/motion';
 import {
   TAB_SWIPE_ACTIVATION_PX,
   isHorizontalTabSwipeIntent,
@@ -39,7 +40,7 @@ const SWIPE_IGNORE_SELECTOR = [
 
 const TAB_SWIPE_VISUAL_MAX_PX = 34;
 const TAB_SWIPE_EDGE_RESISTANCE = 0.35;
-const TAB_SWIPE_COMMIT_ANIMATION_MS = 220;
+const TAB_SWIPE_COMMIT_ANIMATION_MS = MOTION_DURATION_MS.standard;
 
 type SwipeGesture = {
   touchId: number;

@@ -111,5 +111,18 @@
   "telescopeScreen.theFileWillContainKeysAsPlainTextTreatIt": "Файл будет содержать ключи открытым текстом. Храните его как пароль и не отправляйте посторонним.",
   "telescopeScreen.theJsonFileCanBeImportedIntoGalactrixOnAnother": "JSON можно импортировать в Galactrix на другом устройстве.",
   "telescopeScreen.thisActionCannotBeUndone": "Это действие нельзя отменить.",
-  "toast.connectionSaved": "«{{name}}» сохранено"
+  "toast.connectionSaved": "«{{name}}» сохранено",
+  "selection.select": "Выделить",
+  "selection.remove": "Снять выделение",
+  "selection.selectedCount": "Выбрано: {{count}}",
+  "selection.clear": "Снять всё выделение",
+  "selection.selectAll": "Выбрать все подключения",
+  "selection.check": "Проверить выбранные",
+  "selection.export": "Экспортировать выбранные",
+  "selection.delete": "Удалить выбранные",
+  "selection.checkedCount": "Проверено подключений: {{count}}",
+  "selection.checkSummary": "Доступно: {{value1}}, с ошибками: {{value2}}",
+  "selection.deleteSelectedTitle": "Удалить выбранные подключения ({{count}})?",
+  "selection.deleteSelectedDescription": "Подключения будут удалены. Сохранённые для них ключи также перестанут использоваться.",
+  "selection.deletedCount": "Удалено подключений: {{count}}"
 }

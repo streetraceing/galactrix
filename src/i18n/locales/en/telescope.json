@@ -111,5 +111,18 @@
   "telescopeScreen.theFileWillContainKeysAsPlainTextTreatIt": "The file will contain keys as plain text. Treat it like a password and do not share it.",
   "telescopeScreen.theJsonFileCanBeImportedIntoGalactrixOnAnother": "The JSON file can be imported into Galactrix on another device.",
   "telescopeScreen.thisActionCannotBeUndone": "This action cannot be undone.",
-  "toast.connectionSaved": "“{{name}}” saved"
+  "toast.connectionSaved": "“{{name}}” saved",
+  "selection.select": "Select",
+  "selection.remove": "Deselect",
+  "selection.selectedCount": "Selected: {{count}}",
+  "selection.clear": "Clear selection",
+  "selection.selectAll": "Select all connections",
+  "selection.check": "Check selected",
+  "selection.export": "Export selected",
+  "selection.delete": "Delete selected",
+  "selection.checkedCount": "Connections checked: {{count}}",
+  "selection.checkSummary": "Available: {{value1}}, failed: {{value2}}",
+  "selection.deleteSelectedTitle": "Delete selected connections ({{count}})?",
+  "selection.deleteSelectedDescription": "The selected connections will be deleted. Their saved keys will no longer be used.",
+  "selection.deletedCount": "Connections deleted: {{count}}"
 }

@@ -11,11 +11,12 @@ import type { QueuedToast } from 'react-aria-components/Toast';
 import { useTranslation } from 'react-i18next';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { isMobilePlatform } from '../../lib/platform';
+import { MOTION_DURATION_MS } from '../../lib/motion';
 import { Icon } from '../Icon';
 import { shouldDismissToastSwipe, toastSwipeOpacity } from './toastSwipe';
 
 const SWIPE_AXIS_THRESHOLD = 7;
-const SWIPE_EXIT_MS = 160;
+const SWIPE_EXIT_MS = MOTION_DURATION_MS.fast;
 
 type ToastSwipeGesture = {
   pointerId: number;

@@ -184,5 +184,15 @@
   "style.description.longMessages": "Prefers developed replies: several sentences or 2–5 paragraphs with relevant detail and nuance, without repetition or artificial padding.",
   "templateVariablesHint.prefix": "Descriptions, definitions, examples, and instructions can use",
   "templateVariablesHint.and": "and",
-  "templateVariablesHint.description": "They are replaced with the user and selected character names during generation."
+  "templateVariablesHint.description": "They are replaced with the user and selected character names during generation.",
+  "selection.select": "Select",
+  "selection.remove": "Deselect",
+  "selection.selectedCount": "Selected: {{count}}",
+  "selection.clear": "Clear selection",
+  "selection.selectAll": "Select all objects",
+  "selection.export": "Export selected",
+  "selection.delete": "Delete selected",
+  "selection.deleteSelectedTitle": "Delete selected objects ({{count}})?",
+  "selection.deleteSelectedDescription": "The selected objects will be deleted. Linked chats may lose part of their context.",
+  "selection.deletedCount": "Objects deleted: {{count}}"
 }

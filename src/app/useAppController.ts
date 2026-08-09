@@ -29,10 +29,12 @@ import {
   loadUsageHistory,
   regenerateMessage,
   renameChat,
+  rewindChatToMessage,
   saveProvider,
   selectMessageVariant,
   sendChatMessage,
   setMessageRemembered,
+  setChatArchived,
   setChatPinned,
   testProviderEmbeddings,
   updateChatConfig,
@@ -250,7 +252,8 @@ export function useAppController() {
   const removeChat = useCallback(
     async (chatId: string) => {
       const nextChatId =
-        snapshot.chats.find((chat) => chat.id !== chatId)?.id ?? '';
+        snapshot.chats.find((chat) => chat.id !== chatId && !chat.archived)
+          ?.id ?? '';
       if (chatId === activeChatId) closeChat();
       await deleteChat(chatId);
       forgetChatNavigationState(chatId);
@@ -276,6 +279,15 @@ export function useAppController() {
     [haptic, refreshChat],
   );
 
+  const archiveChat = useCallback(
+    async (chatId: string, archived: boolean) => {
+      await setChatArchived(chatId, archived);
+      await refreshChat(chatId);
+      haptic();
+    },
+    [haptic, refreshChat],
+  );
+
   const clearExistingChat = useCallback(
     async (chatId: string) => {
       await clearChat(chatId);
@@ -289,6 +301,10 @@ export function useAppController() {
   const sendMessage = useCallback(
     async (content: string) => {
       if (!activeChatId || activeGenerationRef.current) return;
+      const activeChat = snapshot.chats.find(
+        (chat) => chat.id === activeChatId,
+      );
+      if (!activeChat || activeChat.archived) return;
       const chatId = activeChatId;
       const generationId = createRuntimeId();
       const userMessageId = createRuntimeId();
@@ -368,6 +384,7 @@ export function useAppController() {
       haptic,
       refreshChat,
       refreshUsage,
+      snapshot.chats,
       snapshot.settings.responseLanguage,
     ],
   );
@@ -461,6 +478,19 @@ export function useAppController() {
       );
       await deleteMessages(messageIds);
       await Promise.all([...chatIds].map((chatId) => refreshChat(chatId)));
+      haptic();
+    },
+    [haptic, refreshChat, snapshot.messages],
+  );
+
+  const rewindToMessage = useCallback(
+    async (messageId: string) => {
+      const chatId = findMessageChatId(snapshot.messages, messageId);
+      await rewindChatToMessage(messageId);
+      if (chatId) {
+        forgetChatNavigationState(chatId);
+        await refreshChat(chatId);
+      }
       haptic();
     },
     [haptic, refreshChat, snapshot.messages],
@@ -662,6 +692,7 @@ export function useAppController() {
     renameExistingChat,
     removeChat,
     pinChat,
+    archiveChat,
     clearExistingChat,
     sendMessage,
     cancelCurrentGeneration,
@@ -670,6 +701,7 @@ export function useAppController() {
     editExistingMessage,
     removeMessage,
     removeMessages,
+    rewindToMessage,
     rememberMessage,
     regenerateExistingMessage,
     continueExistingMessage,

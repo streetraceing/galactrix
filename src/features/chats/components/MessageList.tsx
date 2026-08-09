@@ -31,6 +31,15 @@ import {
 import { MarkdownContent } from '../../../components/ui/MarkdownContent';
 import { UiModal } from '../../../components/ui/UiModal';
 import { errorMessage } from '../../../lib/errors';
+import {
+  animationsEnabled,
+  finishMotion,
+  MOTION_DURATION_MS,
+  MOTION_EASING,
+  nextMotionFrame,
+  TYPING_DOT_STAGGER_MS,
+  waitForMotion,
+} from '../../../lib/motion';
 import { isMobilePlatform } from '../../../lib/platform';
 import { useMobileBackEntry } from '../../../hooks/useMobileBackEntry';
 import type { AppSettings, Message, Provider } from '../../../types';
@@ -88,7 +97,7 @@ export type MessageResponseActionRequest = {
 const MESSAGE_SELECTION_DRAG_THRESHOLD = 6;
 const MESSAGE_SELECTION_RETURN_THRESHOLD = 28;
 const TOUCH_SELECTION_MOVE_THRESHOLD = 10;
-const MESSAGE_ENTRY_ANIMATION_MS = 240;
+const MESSAGE_ENTRY_ANIMATION_MS = MOTION_DURATION_MS.standard;
 const SCROLL_TO_BOTTOM_RELEASE_MS = 1_400;
 const CHAT_LAYOUT_BOTTOM_LOCK_MS = 420;
 
@@ -134,12 +143,16 @@ function MessageMenu({
   onContinue,
   onSelectVariant,
   onSelectMessage,
+  onRewindRequest,
   onHistoryRequest,
   onError,
+  readOnly,
 }: MessageActionProps & {
   children: ReactNode;
   viewActive: boolean;
   onSelectMessage: (messageId: string) => void;
+  onRewindRequest: () => void;
+  readOnly: boolean;
 }) {
   const { t } = useTranslation('chats');
   const isMobile = isMobilePlatform();
@@ -155,6 +168,9 @@ function MessageMenu({
   const isAssistant = message.role === 'assistant';
 
   if (isMobile && !viewActive) {
+    return <div className="block min-w-0">{children}</div>;
+  }
+  if (readOnly) {
     return <div className="block min-w-0">{children}</div>;
   }
 
@@ -249,6 +265,10 @@ function MessageMenu({
           <Icon name="branch" className="size-4" />
           {t('messageList.branchFromHere')}
         </ContextMenuItem>
+        <ContextMenuItem onClick={onRewindRequest}>
+          <Icon name="rewind" className="size-4" />
+          {t('messageList.rewindHere')}
+        </ContextMenuItem>
         <ContextMenuItem
           onClick={() => run(() => copyChatText(message.content))}
         >
@@ -330,24 +350,35 @@ function AnimatedVariantContent({
     if (
       !enabled ||
       !element ||
-      document.documentElement.dataset.animations === 'off' ||
+      !animationsEnabled() ||
       typeof element.animate !== 'function'
     ) {
       return;
     }
 
-    const offset = directionRef.current === 'previous' ? -6 : 6;
+    const variantChanged = previous.index !== message.activeVariantIndex;
+    const offset = directionRef.current === 'previous' ? -8 : 8;
     const animation = element.animate(
-      [
-        {
-          opacity: 0.58,
-          transform: `translate3d(${offset}px, 0, 0)`,
-        },
-        { opacity: 1, transform: 'translate3d(0, 0, 0)' },
-      ],
+      variantChanged
+        ? [
+            {
+              opacity: 0.42,
+              transform: `translate3d(${offset}px, 0, 0)`,
+            },
+            { opacity: 1, transform: 'translate3d(0, 0, 0)' },
+          ]
+        : [
+            {
+              opacity: 0.45,
+              transform: 'translate3d(0, 0.25rem, 0) scale(0.995)',
+            },
+            { opacity: 1, transform: 'translate3d(0, 0, 0) scale(1)' },
+          ],
       {
-        duration: 150,
-        easing: 'cubic-bezier(0.2, 0, 0, 1)',
+        duration: variantChanged
+          ? MOTION_DURATION_MS.fast
+          : MOTION_DURATION_MS.standard,
+        easing: MOTION_EASING.enter,
       },
     );
     animationRef.current = animation;
@@ -481,8 +512,9 @@ function DesktopMessageActions({
   onContinue,
   onSelectVariant,
   onHistoryRequest,
+  onRewindRequest,
   onError,
-}: MessageActionProps) {
+}: MessageActionProps & { onRewindRequest: () => void }) {
   const { t } = useTranslation('chats');
   const run = (action: () => Promise<void>) => {
     void action().catch((error) => onError(errorMessage(error)));
@@ -511,6 +543,11 @@ function DesktopMessageActions({
       label: t('messageList.branchChatFromThisMessage'),
       icon: 'branch' as const,
       onPress: () => run(() => onBranch(message.id)),
+    },
+    {
+      label: t('messageList.rewindHere'),
+      icon: 'rewind' as const,
+      onPress: onRewindRequest,
     },
     {
       label: t('messageList.copyMessage'),
@@ -566,27 +603,6 @@ function DesktopMessageActions({
       />
     </div>
   );
-}
-
-function nextAnimationFrame() {
-  return new Promise<void>((resolve) => {
-    window.requestAnimationFrame(() => resolve());
-  });
-}
-
-function waitForMotion(duration: number) {
-  return new Promise<void>((resolve) => {
-    window.setTimeout(resolve, duration);
-  });
-}
-
-async function finishAnimation(animation: Animation | null) {
-  if (!animation) return;
-  try {
-    await animation.finished;
-  } catch {
-    // A newer render or a closed chat can cancel the height animation.
-  }
 }
 
 type SwipeMotionPhase =
@@ -649,9 +665,9 @@ function SwipeableMessage({
       return;
     }
     setMotionPhase('settling');
-    await nextAnimationFrame();
+    await nextMotionFrame();
     setOffset(0);
-    await waitForMotion(150);
+    await waitForMotion(MOTION_DURATION_MS.fast);
     setMotionPhase('idle');
   };
 
@@ -731,8 +747,7 @@ function SwipeableMessage({
     const container = containerRef.current;
     const motion = motionRef.current;
     const oldHeight = container?.getBoundingClientRect().height ?? 0;
-    const animationsEnabled =
-      document.documentElement.dataset.animations !== 'off';
+    const shouldAnimate = animationsEnabled();
 
     selectingVariant.current = true;
     if (container && oldHeight > 0) {
@@ -740,11 +755,11 @@ function SwipeableMessage({
       container.style.overflow = 'clip';
     }
 
-    if (animationsEnabled) {
+    if (shouldAnimate) {
       setMotionPhase('exiting');
-      await nextAnimationFrame();
+      await nextMotionFrame();
       setOffset(direction * 104);
-      await waitForMotion(120);
+      await waitForMotion(MOTION_DURATION_MS.fast);
     }
 
     const resultPromise = action().then(
@@ -753,12 +768,12 @@ function SwipeableMessage({
     );
     let result: { ok: true } | { ok: false; error: unknown } | undefined;
     if (waitForResultBeforeEntry) result = await resultPromise;
-    await nextAnimationFrame();
+    await nextMotionFrame();
 
-    if (animationsEnabled) {
+    if (shouldAnimate) {
       setMotionPhase('preparing');
       setOffset(-direction * 52);
-      await nextAnimationFrame();
+      await nextMotionFrame();
 
       const nextHeight = motion?.scrollHeight ?? oldHeight;
       const heightAnimation =
@@ -766,8 +781,8 @@ function SwipeableMessage({
           ? container.animate(
               [{ height: `${oldHeight}px` }, { height: `${nextHeight}px` }],
               {
-                duration: 180,
-                easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
+                duration: MOTION_DURATION_MS.standard,
+                easing: MOTION_EASING.enter,
                 fill: 'forwards',
               },
             )
@@ -775,9 +790,12 @@ function SwipeableMessage({
       heightAnimationRef.current = heightAnimation;
 
       setMotionPhase('entering');
-      await nextAnimationFrame();
+      await nextMotionFrame();
       setOffset(0);
-      await Promise.all([waitForMotion(180), finishAnimation(heightAnimation)]);
+      await Promise.all([
+        waitForMotion(MOTION_DURATION_MS.standard),
+        finishMotion(heightAnimation),
+      ]);
     } else {
       setOffset(0);
     }
@@ -845,11 +863,11 @@ function SwipeableMessage({
   const revealProgress = Math.min(Math.abs(dragOffset) / 56, 1);
   const motionTransition =
     motionPhase === 'settling'
-      ? 'transform 150ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 150ms ease-out'
+      ? `transform ${MOTION_DURATION_MS.fast}ms ${MOTION_EASING.standard}, opacity ${MOTION_DURATION_MS.fast}ms linear`
       : motionPhase === 'exiting'
-        ? 'transform 120ms cubic-bezier(0.4, 0, 1, 1), opacity 120ms ease-in'
+        ? `transform ${MOTION_DURATION_MS.fast}ms ${MOTION_EASING.exit}, opacity ${MOTION_DURATION_MS.fast}ms linear`
         : motionPhase === 'entering'
-          ? 'transform 180ms cubic-bezier(0.16, 1, 0.3, 1), opacity 180ms ease-out'
+          ? `transform ${MOTION_DURATION_MS.standard}ms ${MOTION_EASING.enter}, opacity ${MOTION_DURATION_MS.standard}ms linear`
           : 'none';
   const motionOpacity =
     motionPhase === 'exiting'
@@ -917,7 +935,7 @@ function SwipeableMessage({
   );
 }
 
-const VARIANT_SELECTION_LOCK_MS = 180;
+const VARIANT_SELECTION_LOCK_MS = MOTION_DURATION_MS.fast;
 
 function MessageListComponent({
   chatId,
@@ -940,7 +958,9 @@ function MessageListComponent({
   responseActionRequest,
   onGenerationComplete,
   onSelectionActiveChange,
+  readOnly,
   onBranch,
+  onRewind,
   onEdit,
   onDelete,
   onDeleteMany,
@@ -969,7 +989,9 @@ function MessageListComponent({
   responseActionRequest: MessageResponseActionRequest | null;
   onGenerationComplete: () => void;
   onSelectionActiveChange: (active: boolean) => void;
+  readOnly: boolean;
   onBranch: (messageId: string) => Promise<void>;
+  onRewind: (messageId: string) => Promise<void>;
   onEdit: (messageId: string, content: string) => Promise<void>;
   onDelete: (messageId: string) => Promise<void>;
   onDeleteMany: (messageIds: string[]) => Promise<void>;
@@ -982,6 +1004,7 @@ function MessageListComponent({
   const isMobile = isMobilePlatform();
   const [editing, setEditing] = useState<Message | null>(null);
   const [deleting, setDeleting] = useState<Message | null>(null);
+  const [rewinding, setRewinding] = useState<Message | null>(null);
   const [deletingSelection, setDeletingSelection] = useState(false);
   const [historyMessageId, setHistoryMessageId] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
@@ -990,6 +1013,9 @@ function MessageListComponent({
     () => new Set(),
   );
   const [enteringMessageIds, setEnteringMessageIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [exitingMessageIds, setExitingMessageIds] = useState<Set<string>>(
     () => new Set(),
   );
   const [messageGeneration, setMessageGeneration] = useState<{
@@ -1221,6 +1247,15 @@ function MessageListComponent({
   }, [clearMessageSelection, viewActive]);
 
   useEffect(() => {
+    if (!readOnly) return;
+    clearMessageSelection();
+    setEditing(null);
+    setDeleting(null);
+    setRewinding(null);
+    setHistoryMessageId(null);
+  }, [clearMessageSelection, readOnly]);
+
+  useEffect(() => {
     if (previousClearSelectionRequestRef.current === clearSelectionRequest) {
       return;
     }
@@ -1371,6 +1406,12 @@ function MessageListComponent({
   useEffect(() => {
     const availableIds = new Set(messages.map((message) => message.id));
     setSelectedMessageIds((current) => {
+      const next = new Set(
+        [...current].filter((messageId) => availableIds.has(messageId)),
+      );
+      return next.size === current.size ? current : next;
+    });
+    setExitingMessageIds((current) => {
       const next = new Set(
         [...current].filter((messageId) => availableIds.has(messageId)),
       );
@@ -1863,7 +1904,7 @@ function MessageListComponent({
       for (const entry of entries) {
         const element = entry.target as HTMLElement;
         const messageId = element.dataset.virtualMessageId;
-        if (!messageId) continue;
+        if (!messageId || element.dataset.exiting === 'true') continue;
 
         const borderBox = entry.borderBoxSize[0];
         const measuredHeight = Math.max(
@@ -2077,6 +2118,28 @@ function MessageListComponent({
     setEditing(message);
   };
 
+  const stageMessageExit = useCallback(async (messageIds: string[]) => {
+    if (messageIds.length === 0) return;
+    setExitingMessageIds((current) => {
+      const next = new Set(current);
+      for (const messageId of messageIds) next.add(messageId);
+      return next;
+    });
+    await nextMotionFrame();
+    await waitForMotion(MOTION_DURATION_MS.standard);
+  }, []);
+
+  const restoreExitedMessages = useCallback((messageIds: string[]) => {
+    setExitingMessageIds((current) => {
+      if (!messageIds.some((messageId) => current.has(messageId))) {
+        return current;
+      }
+      const next = new Set(current);
+      for (const messageId of messageIds) next.delete(messageId);
+      return next;
+    });
+  }, []);
+
   const reportError = useCallback(
     (error: unknown) => {
       const description = errorMessage(error);
@@ -2116,11 +2179,14 @@ function MessageListComponent({
 
   const commitDelete = async () => {
     if (!deleting || working) return;
+    const messageId = deleting.id;
     setWorking(true);
+    setDeleting(null);
     try {
-      await onDelete(deleting.id);
-      setDeleting(null);
+      await stageMessageExit([messageId]);
+      await onDelete(messageId);
     } catch (nextError) {
+      restoreExitedMessages([messageId]);
       reportError(nextError);
     } finally {
       setWorking(false);
@@ -2129,11 +2195,16 @@ function MessageListComponent({
 
   const commitDeleteSelection = async () => {
     if (selectedMessages.length === 0 || working) return;
+    const messageIds = selectedMessages.map((message) => message.id);
     setWorking(true);
+    setDeletingSelection(false);
+    clearMessageSelection();
     try {
-      await onDeleteMany(selectedMessages.map((message) => message.id));
-      clearMessageSelection();
+      await stageMessageExit(messageIds);
+      await onDeleteMany(messageIds);
     } catch (nextError) {
+      restoreExitedMessages(messageIds);
+      setSelectedMessageIds(new Set(messageIds));
       reportError(nextError);
     } finally {
       setWorking(false);
@@ -2239,6 +2310,37 @@ function MessageListComponent({
     }
   };
 
+  const commitRewind = async () => {
+    if (!rewinding || working || readOnly) return;
+    const rewindTarget = rewinding;
+    const rewindIndex = messages.findIndex(
+      (message) => message.id === rewindTarget.id,
+    );
+    const removedMessageIds =
+      rewindIndex >= 0
+        ? messages.slice(rewindIndex + 1).map((message) => message.id)
+        : [];
+    setWorking(true);
+    setRewinding(null);
+    clearMessageSelection();
+    try {
+      await stageMessageExit(removedMessageIds);
+      await onRewind(rewindTarget.id);
+      toast.success(t('messageList.rewoundToMessage'));
+    } catch (error) {
+      restoreExitedMessages(removedMessageIds);
+      reportError(error);
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  const rewindMessageIndex = rewinding
+    ? messages.findIndex((message) => message.id === rewinding.id)
+    : -1;
+  const rewindRemovedCount =
+    rewindMessageIndex >= 0 ? messages.length - rewindMessageIndex - 1 : 0;
+
   const selectAllMessages = useCallback(() => {
     setSelectedMessageIds(new Set(messages.map((message) => message.id)));
   }, [messages]);
@@ -2250,10 +2352,10 @@ function MessageListComponent({
   return (
     <>
       <div className="relative flex min-h-0 flex-1">
-        {selectedMessageIds.size > 0 ? (
+        {!readOnly && selectedMessageIds.size > 0 ? (
           <div
             data-message-selection-toolbar
-            className="pointer-events-none absolute inset-x-0 top-2 z-30 flex flex-wrap items-center justify-center gap-2 px-4"
+            className="motion-floating-enter pointer-events-none absolute inset-x-0 top-2 z-30 flex flex-wrap items-center justify-center gap-2 px-4"
           >
             <Surface className="pointer-events-auto flex h-10 items-center gap-2 rounded-full bg-overlay/95 py-1.5 pl-3 pr-1.5 shadow-overlay backdrop-blur-xl">
               <Icon name="check" className="size-4 text-accent" />
@@ -2343,10 +2445,10 @@ function MessageListComponent({
             selectedMessageIds.size > 0 ? 'select-none' : ''
           }`}
           onScroll={handleMessageScroll}
-          onPointerDown={handleSelectionPointerDown}
-          onPointerMove={handleSelectionPointerMove}
-          onPointerUp={handleSelectionPointerUp}
-          onPointerCancel={handleSelectionPointerCancel}
+          onPointerDown={readOnly ? undefined : handleSelectionPointerDown}
+          onPointerMove={readOnly ? undefined : handleSelectionPointerMove}
+          onPointerUp={readOnly ? undefined : handleSelectionPointerUp}
+          onPointerCancel={readOnly ? undefined : handleSelectionPointerCancel}
           onContextMenuCapture={(event) => {
             if (
               selectionGestureRef.current?.active ||
@@ -2408,6 +2510,7 @@ function MessageListComponent({
                   const remove = () => {
                     setDeleting(message);
                   };
+                  const rewind = () => setRewinding(message);
                   const history = () => setHistoryMessageId(message.id);
                   const isGenerating =
                     messageGeneration?.messageId === message.id;
@@ -2437,10 +2540,12 @@ function MessageListComponent({
                           onContinue={continueResponse}
                           onSelectVariant={selectVariant}
                           onSelectMessage={selectMessage}
+                          onRewindRequest={rewind}
                           onEditRequest={edit}
                           onDeleteRequest={remove}
                           onHistoryRequest={history}
                           onError={reportError}
+                          readOnly={readOnly}
                         >
                           <article
                             className={`chat-message-row group flex items-start gap-2.5 sm:gap-3 ${
@@ -2489,13 +2594,13 @@ function MessageListComponent({
                                   </span>
                                 ) : null}
                                 {message.remembered ? (
-                                  <span className="inline-flex shrink-0 items-center gap-1 text-accent">
+                                  <span className="motion-status-enter inline-flex shrink-0 items-center gap-1 text-accent">
                                     <Icon name="memory" className="size-3" />
                                     {t('messageList.remembered')}
                                   </span>
                                 ) : null}
                                 {message.edited ? (
-                                  <span className="inline-flex shrink-0 items-center gap-1 text-muted">
+                                  <span className="motion-status-enter inline-flex shrink-0 items-center gap-1 text-muted">
                                     <Icon name="edit" className="size-3" />
                                     {t('messageList.edited')}
                                   </span>
@@ -2503,6 +2608,7 @@ function MessageListComponent({
                               </div>
                               <Surface
                                 variant={isUser ? 'tertiary' : 'default'}
+                                data-typing={showsTypingBubble || undefined}
                                 style={
                                   showsTypingBubble
                                     ? {
@@ -2514,7 +2620,7 @@ function MessageListComponent({
                                       }
                                     : undefined
                                 }
-                                className={`${isMobile || selectedMessageIds.size > 0 ? 'select-none' : 'selectable'} min-w-0 max-w-full overflow-hidden rounded-2xl shadow-xs transition-colors ${
+                                className={`message-surface ${isMobile || selectedMessageIds.size > 0 ? 'select-none' : 'selectable'} min-w-0 max-w-full overflow-hidden rounded-2xl shadow-xs ${
                                   showsTypingBubble
                                     ? 'grid size-11 shrink-0 place-items-center p-0'
                                     : 'px-4 py-3'
@@ -2531,7 +2637,7 @@ function MessageListComponent({
                                         key={index}
                                         className="typing-dot size-1.5 rounded-full bg-accent"
                                         style={{
-                                          animationDelay: `${index * 140}ms`,
+                                          animationDelay: `${index * TYPING_DOT_STAGGER_MS}ms`,
                                         }}
                                       />
                                     ))}
@@ -2548,7 +2654,7 @@ function MessageListComponent({
                                   </>
                                 )}
                               </Surface>
-                              {!isPendingAssistant && !isMobile ? (
+                              {!readOnly && !isPendingAssistant && !isMobile ? (
                                 <DesktopMessageActions
                                   message={message}
                                   onBranch={onBranch}
@@ -2558,10 +2664,11 @@ function MessageListComponent({
                                   onSelectVariant={selectVariant}
                                   onEditRequest={edit}
                                   onDeleteRequest={remove}
+                                  onRewindRequest={rewind}
                                   onHistoryRequest={history}
                                   onError={reportError}
                                 />
-                              ) : !isPendingAssistant ? (
+                              ) : !readOnly && !isPendingAssistant ? (
                                 <VariantNavigator
                                   message={message}
                                   compact
@@ -2585,26 +2692,33 @@ function MessageListComponent({
                       key={message.id}
                       ref={virtualMessageRefFor(message.id)}
                       data-virtual-message-id={message.id}
-                      className={`chat-message-virtual-slot shrink-0 ${
+                      data-exiting={
+                        exitingMessageIds.has(message.id) ? 'true' : undefined
+                      }
+                      className={`message-presence chat-message-virtual-slot shrink-0 ${
+                        virtualizationEnabled ? 'message-presence-virtual' : ''
+                      } ${
                         enteringMessageIds.has(message.id)
                           ? 'message-enter'
                           : ''
                       } ${isLastVisualMessage ? 'pb-0' : 'pb-3 sm:pb-4'}`}
                     >
-                      {isMobile ? (
-                        <SwipeableMessage
-                          message={message}
-                          onSelectVariant={selectVariant}
-                          onRegenerate={regenerate}
-                          onError={reportError}
-                          isSelectionGesture={isSelectionGesture}
-                          selectionActive={selectedMessageIds.size > 0}
-                        >
-                          {content}
-                        </SwipeableMessage>
-                      ) : (
-                        content
-                      )}
+                      <div className="message-presence-inner">
+                        {isMobile && !readOnly ? (
+                          <SwipeableMessage
+                            message={message}
+                            onSelectVariant={selectVariant}
+                            onRegenerate={regenerate}
+                            onError={reportError}
+                            isSelectionGesture={isSelectionGesture}
+                            selectionActive={selectedMessageIds.size > 0}
+                          >
+                            {content}
+                          </SwipeableMessage>
+                        ) : (
+                          content
+                        )}
+                      </div>
                     </div>
                   );
                 })}
@@ -2631,7 +2745,9 @@ function MessageListComponent({
                         <span
                           key={index}
                           className="typing-dot size-1.5 rounded-full bg-accent"
-                          style={{ animationDelay: `${index * 140}ms` }}
+                          style={{
+                            animationDelay: `${index * TYPING_DOT_STAGGER_MS}ms`,
+                          }}
                         />
                       ))}
                     </span>
@@ -2668,7 +2784,7 @@ function MessageListComponent({
             isIconOnly
             size="lg"
             variant="secondary"
-            className="absolute bottom-3 right-4 z-20 size-11 min-w-11 rounded-full bg-overlay/95 shadow-overlay backdrop-blur-xl sm:bottom-4 sm:right-6"
+            className="motion-floating-enter absolute bottom-3 right-4 z-20 size-11 min-w-11 rounded-full bg-overlay/95 shadow-overlay backdrop-blur-xl sm:bottom-4 sm:right-6"
             aria-label={t('messageList.scrollToBottom')}
             onPress={scrollToBottom}
           >
@@ -2683,6 +2799,41 @@ function MessageListComponent({
         onClose={() => setEditing(null)}
         onEdit={onEdit}
       />
+
+      <UiModal
+        isOpen={Boolean(rewinding)}
+        onOpenChange={(open) => !open && !working && setRewinding(null)}
+        onConfirm={() => void commitRewind()}
+        isConfirmDisabled={!rewinding || working || rewindRemovedCount === 0}
+        title={t('messageList.rewindHere')}
+        description={t('messageList.rewindDescription', {
+          count: rewindRemovedCount,
+        })}
+        footer={
+          <>
+            <Button
+              variant="ghost"
+              isDisabled={working}
+              onPress={() => setRewinding(null)}
+            >
+              {t('chatDialogs.cancel')}
+            </Button>
+            <Button
+              variant="danger"
+              isPending={working}
+              isDisabled={rewindRemovedCount === 0}
+              onPress={() => void commitRewind()}
+            >
+              <Icon name="rewind" className="size-4" />
+              {t('messageList.rewind')}
+            </Button>
+          </>
+        }
+      >
+        <div className="max-h-[min(45dvh,22rem)] overflow-y-auto rounded-xl bg-default/45 px-3 py-3 text-sm leading-6 text-muted">
+          {rewinding?.content}
+        </div>
+      </UiModal>
 
       <UiModal
         isOpen={deletingSelection}

@@ -204,5 +204,15 @@
   "style.description.longMessages": "Предпочитает развёрнутые ответы: несколько предложений или 2–5 абзацев с уместными деталями и нюансами, без повторов и искусственного наполнения.",
   "templateVariablesHint.prefix": "В описаниях, определениях, примерах и инструкциях можно использовать",
   "templateVariablesHint.and": "и",
-  "templateVariablesHint.description": "При генерации они подставятся как имя пользователя и выбранного персонажа."
+  "templateVariablesHint.description": "При генерации они подставятся как имя пользователя и выбранного персонажа.",
+  "selection.select": "Выделить",
+  "selection.remove": "Снять выделение",
+  "selection.selectedCount": "Выбрано: {{count}}",
+  "selection.clear": "Снять всё выделение",
+  "selection.selectAll": "Выбрать все объекты",
+  "selection.export": "Экспортировать выбранное",
+  "selection.delete": "Удалить выбранное",
+  "selection.deleteSelectedTitle": "Удалить выбранные объекты ({{count}})?",
+  "selection.deleteSelectedDescription": "Выбранные объекты будут удалены. Связанные чаты могут потерять часть контекста.",
+  "selection.deletedCount": "Удалено объектов: {{count}}"
 }

@@ -25,11 +25,11 @@ type SidebarButtonProps = {
 };
 
 const sidebarButtonClass =
-  'h-10 w-full min-w-0 shrink-0 justify-start gap-3 overflow-hidden px-3 transition-[gap,padding,background-color,color] duration-[280ms] ease-[var(--motion-ease)] motion-reduce:transition-none group-data-[collapsed=true]/sidebar:gap-0 group-data-[collapsed=true]/sidebar:px-2 ring-0! ring-transparent!';
+  'h-10 w-full min-w-0 shrink-0 justify-start gap-3 overflow-hidden px-3 transition-[gap,padding,background-color,color] duration-(--motion-standard) ease-(--motion-ease) motion-reduce:transition-none group-data-[collapsed=true]/sidebar:gap-0 group-data-[collapsed=true]/sidebar:px-2 ring-0! ring-transparent!';
 
 function SidebarText({ children }: { children: ReactNode }) {
   return (
-    <span className="max-w-[16rem] min-w-0 flex-1 truncate translate-x-0 overflow-hidden whitespace-nowrap text-left text-sm font-medium opacity-100 transition-[max-width,opacity,transform] duration-240 ease-(--motion-ease) group-data-[collapsed=true]/sidebar:max-w-0 group-data-[collapsed=true]/sidebar:-translate-x-1 group-data-[collapsed=true]/sidebar:opacity-0 group-data-[collapsed=false]/sidebar:delay-75">
+    <span className="max-w-[16rem] min-w-0 flex-1 truncate translate-x-0 overflow-hidden whitespace-nowrap text-left text-sm font-medium opacity-100 transition-[max-width,opacity,transform] duration-(--motion-standard) ease-(--motion-ease) group-data-[collapsed=true]/sidebar:max-w-0 group-data-[collapsed=true]/sidebar:-translate-x-1 group-data-[collapsed=true]/sidebar:opacity-0 group-data-[collapsed=false]/sidebar:delay-(--motion-instant)">
       {children}
     </span>
   );
@@ -71,7 +71,7 @@ function SidebarButton({
         <Chip
           size="sm"
           variant="soft"
-          className="max-w-14 ml-auto shrink-0 overflow-hidden bg-transparent opacity-100 transition-[max-width,opacity,transform] duration-220 ease-(--motion-ease) group-data-[collapsed=true]/sidebar:max-w-0 group-data-[collapsed=true]/sidebar:translate-x-1 group-data-[collapsed=true]/sidebar:opacity-0 group-data-[collapsed=false]/sidebar:delay-75"
+          className="max-w-14 ml-auto shrink-0 overflow-hidden bg-transparent opacity-100 transition-[max-width,opacity,transform] duration-(--motion-standard) ease-(--motion-ease) group-data-[collapsed=true]/sidebar:max-w-0 group-data-[collapsed=true]/sidebar:translate-x-1 group-data-[collapsed=true]/sidebar:opacity-0 group-data-[collapsed=false]/sidebar:delay-(--motion-instant)"
         >
           {count}
         </Chip>
@@ -126,7 +126,7 @@ export function DesktopSidebar({
     <aside
       className={`desktop-sidebar group/sidebar relative isolate flex h-full shrink-0 transform-gpu flex-col overflow-hidden bg-background contain-[layout_paint] after:pointer-events-none after:absolute after:inset-y-0 after:right-0 after:w-px after:bg-separator motion-reduce:transition-none ${
         animateWidth
-          ? 'transition-[width] duration-320 ease-(--motion-ease)'
+          ? 'transition-[width] duration-(--motion-slow) ease-(--motion-ease)'
           : 'transition-none'
       } ${compact ? 'w-14' : ''}`}
       style={compact ? undefined : ({ width: `${width}px` } as CSSProperties)}

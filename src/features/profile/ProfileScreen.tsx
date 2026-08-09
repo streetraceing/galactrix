@@ -51,7 +51,7 @@ export function ProfileScreen({
   });
 
   return (
-    <div ref={swipeRef} className="page-scroll mobile-screen-enter flex-1">
+    <div ref={swipeRef} className="page-scroll app-screen-enter flex-1">
       <div className="page-container">
         <PageHeader
           title={t('profileScreen.profile')}

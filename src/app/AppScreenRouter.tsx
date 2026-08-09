@@ -50,12 +50,14 @@ export function AppScreenRouter({
         onRenameChat={controller.renameExistingChat}
         onDeleteChat={controller.removeChat}
         onSetPinned={controller.pinChat}
+        onSetArchived={controller.archiveChat}
         onClearChat={controller.clearExistingChat}
         onCloneChat={controller.cloneExistingChat}
         onBranchMessage={controller.branchFromMessage}
         onEditMessage={controller.editExistingMessage}
         onDeleteMessage={controller.removeMessage}
         onDeleteMessages={controller.removeMessages}
+        onRewindMessage={controller.rewindToMessage}
         onRememberMessage={controller.rememberMessage}
         onRegenerateMessage={controller.regenerateExistingMessage}
         onContinueMessage={controller.continueExistingMessage}

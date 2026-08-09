@@ -16,12 +16,20 @@ function ChatListItemComponent({
   isActive,
   onSelect,
   onAction,
+  selectionActive,
+  selected,
+  onToggleSelection,
+  onStartSelection,
 }: {
   chat: Chat;
   galaxyItems: GalaxyItem[];
   isActive: boolean;
   onSelect: (id: string) => void;
   onAction: (action: ChatAction, chat: Chat) => void;
+  selectionActive: boolean;
+  selected: boolean;
+  onToggleSelection: (id: string) => void;
+  onStartSelection: (id: string) => void;
 }) {
   const { t } = useTranslation('chats');
   const relativeUpdatedAt = useRelativeTime(chat.updatedAt);
@@ -37,20 +45,44 @@ function ChatListItemComponent({
     !normalizedTitle.includes(normalizedCharacterName);
 
   return (
-    <ChatActions chat={chat} onAction={onAction}>
+    <ChatActions
+      chat={chat}
+      onAction={onAction}
+      selected={selected}
+      onStartSelection={() =>
+        selected ? onToggleSelection(chat.id) : onStartSelection(chat.id)
+      }
+    >
       <Surface
         variant={isActive ? 'default' : 'transparent'}
-        className={`group relative min-w-0 overflow-hidden rounded-xl transition-colors before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-full ${
-          isActive
-            ? 'md:before:bg-accent bg-transparent md:bg-surface'
-            : 'before:bg-transparent hover:bg-surface'
+        className={`collection-item-enter group relative min-w-0 overflow-hidden rounded-xl transition-[color,background-color,box-shadow] duration-(--motion-fast) ease-(--motion-ease) before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-full before:transition-colors before:duration-(--motion-fast) ${
+          selected
+            ? 'bg-accent/10 ring-1 ring-inset ring-accent/45 before:bg-accent'
+            : isActive
+              ? 'md:before:bg-accent bg-transparent md:bg-surface'
+              : 'before:bg-transparent hover:bg-surface'
         }`}
       >
         <button
           type="button"
           className="flex w-full min-w-0 cursor-pointer items-center gap-3 rounded-xl px-3 py-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus"
-          onClick={() => onSelect(chat.id)}
+          aria-pressed={selectionActive ? selected : undefined}
+          onClick={() =>
+            selectionActive ? onToggleSelection(chat.id) : onSelect(chat.id)
+          }
         >
+          {selectionActive ? (
+            <span
+              className={`motion-status-enter grid size-5 shrink-0 place-items-center rounded-full border text-xs transition-[color,background-color,border-color,transform] duration-(--motion-fast) ease-(--motion-ease) ${
+                selected
+                  ? 'border-accent bg-accent text-accent-foreground'
+                  : 'border-separator text-transparent'
+              }`}
+              aria-hidden="true"
+            >
+              <Icon name="check" className="size-3" />
+            </span>
+          ) : null}
           <AppAvatar
             src={galaxyItemAvatar(character)}
             name={character?.name ?? chat.title}

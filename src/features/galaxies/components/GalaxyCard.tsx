@@ -21,11 +21,19 @@ export function GalaxyCard({
   onEdit,
   onDuplicate,
   onDelete,
+  selectionActive,
+  selected,
+  onToggleSelection,
+  onStartSelection,
 }: {
   item: GalaxyItem;
   onEdit: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
+  selectionActive: boolean;
+  selected: boolean;
+  onToggleSelection: () => void;
+  onStartSelection: () => void;
 }) {
   const { t } = useTranslation(['galaxies', 'common']);
   const relativeUpdatedAt = useRelativeTime(item.updatedAt);
@@ -37,13 +45,32 @@ export function GalaxyCard({
   return (
     <ContextMenu>
       <ContextMenuTrigger className="block">
-        <Surface className="interactive-card group overflow-hidden rounded-2xl border border-separator hover:bg-surface-secondary">
+        <Surface
+          className={`interactive-card group overflow-hidden rounded-2xl border ${
+            selected
+              ? 'border-accent/55 bg-accent/8 ring-1 ring-inset ring-accent/25'
+              : 'border-separator hover:bg-surface-secondary'
+          }`}
+        >
           <button
             type="button"
             className="flex w-full min-w-0 flex-col gap-4 p-4 text-left outline-none sm:flex-row sm:items-start sm:gap-5 sm:p-5"
-            onClick={onEdit}
+            aria-pressed={selectionActive ? selected : undefined}
+            onClick={selectionActive ? onToggleSelection : onEdit}
           >
             <span className="flex min-w-0 flex-1 items-start gap-3.5 sm:gap-4">
+              {selectionActive ? (
+                <span
+                  className={`motion-status-enter grid size-5 shrink-0 place-items-center rounded-full border transition-[color,background-color,border-color,transform] duration-(--motion-fast) ease-(--motion-ease) ${
+                    selected
+                      ? 'border-accent bg-accent text-accent-foreground'
+                      : 'border-separator text-transparent'
+                  }`}
+                  aria-hidden="true"
+                >
+                  <Icon name="check" className="size-3" />
+                </span>
+              ) : null}
               {hasIdentityAvatar ? (
                 <AppAvatar
                   src={avatar}
@@ -100,7 +127,7 @@ export function GalaxyCard({
               </span>
               <Icon
                 name="chevron"
-                className="size-4 shrink-0 transition-transform group-hover:translate-x-0.5"
+                className="size-4 shrink-0 transition-transform duration-(--motion-fast) ease-(--motion-ease) group-hover:translate-x-0.5"
               />
             </span>
           </button>
@@ -108,6 +135,13 @@ export function GalaxyCard({
       </ContextMenuTrigger>
       <ContextMenuContent className="w-56">
         <ContextMenuLabel>{item.name}</ContextMenuLabel>
+        <ContextMenuItem
+          onClick={selected ? onToggleSelection : onStartSelection}
+        >
+          <Icon name="check" className="size-4 text-accent" />
+          {selected ? t('selection.remove') : t('selection.select')}
+        </ContextMenuItem>
+        <ContextMenuSeparator />
         <ContextMenuItem onClick={onEdit}>
           <Icon name="edit" className="size-4" /> {t('galaxyCard.edit')}
         </ContextMenuItem>

@@ -7,6 +7,7 @@ export type Chat = {
   updatedAt: number;
   messageCount: number;
   pinned: boolean;
+  archived: boolean;
   providerId?: string;
   personaId?: string;
   characterId?: string;

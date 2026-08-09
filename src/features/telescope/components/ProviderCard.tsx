@@ -20,12 +20,20 @@ export function ProviderCard({
   onCheck,
   onEdit,
   onDelete,
+  selectionActive,
+  selected,
+  onToggleSelection,
+  onStartSelection,
 }: {
   provider: Provider;
   checking: boolean;
   onCheck: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  selectionActive: boolean;
+  selected: boolean;
+  onToggleSelection: () => void;
+  onStartSelection: () => void;
 }) {
   const { t } = useTranslation('telescope');
   const catalog = providerCatalog.find((entry) => entry.kind === provider.kind);
@@ -33,15 +41,32 @@ export function ProviderCard({
     <ContextMenu>
       <ContextMenuTrigger className="block">
         <Surface
-          className="interactive-card group overflow-hidden rounded-2xl border border-separator hover:bg-surface-secondary"
+          className={`collection-item-enter interactive-card group overflow-hidden rounded-2xl border ${
+            selected
+              ? 'border-accent/55 bg-accent/8 ring-1 ring-inset ring-accent/25'
+              : 'border-separator hover:bg-surface-secondary'
+          }`}
           aria-busy={checking}
         >
           <button
             type="button"
             className="flex w-full min-w-0 flex-col gap-4 p-4 text-left outline-none sm:flex-row sm:items-start sm:gap-5 sm:p-5"
-            onClick={onEdit}
+            aria-pressed={selectionActive ? selected : undefined}
+            onClick={selectionActive ? onToggleSelection : onEdit}
           >
             <span className="flex min-w-0 flex-1 items-start gap-3.5 sm:gap-4">
+              {selectionActive ? (
+                <span
+                  className={`motion-status-enter grid size-5 shrink-0 place-items-center rounded-full border transition-[color,background-color,border-color,transform] duration-(--motion-fast) ease-(--motion-ease) ${
+                    selected
+                      ? 'border-accent bg-accent text-accent-foreground'
+                      : 'border-separator text-transparent'
+                  }`}
+                  aria-hidden="true"
+                >
+                  <Icon name="check" className="size-3" />
+                </span>
+              ) : null}
               <ProviderLogo kind={provider.kind} name={provider.name} />
               <span className="min-w-0 flex-1">
                 <span className="flex min-w-0 flex-wrap items-center gap-2">
@@ -49,8 +74,10 @@ export function ProviderCard({
                     {provider.name}
                   </strong>
                   <Chip
+                    key={`${provider.status}:${checking}`}
                     size="sm"
                     variant="soft"
+                    className="motion-status-enter"
                     color={
                       provider.status === 'connected'
                         ? 'success'
@@ -111,7 +138,7 @@ export function ProviderCard({
               </span>
               <Icon
                 name="chevron"
-                className="size-4 shrink-0 transition-transform group-hover:translate-x-0.5"
+                className="size-4 shrink-0 transition-transform duration-(--motion-fast) ease-(--motion-ease) group-hover:translate-x-0.5"
               />
             </span>
           </button>
@@ -119,6 +146,13 @@ export function ProviderCard({
       </ContextMenuTrigger>
       <ContextMenuContent className="w-56">
         <ContextMenuLabel>{provider.name}</ContextMenuLabel>
+        <ContextMenuItem
+          onClick={selected ? onToggleSelection : onStartSelection}
+        >
+          <Icon name="check" className="size-4 text-accent" />
+          {selected ? t('selection.remove') : t('selection.select')}
+        </ContextMenuItem>
+        <ContextMenuSeparator />
         <ContextMenuItem onClick={onCheck}>
           <Icon name="refresh" className="size-4" />{' '}
           {t('providerCard.checkApi')}

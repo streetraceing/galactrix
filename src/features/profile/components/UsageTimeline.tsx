@@ -258,7 +258,7 @@ export function UsageTimeline({
                 type="button"
                 key={point.day}
                 data-usage-day={point.day}
-                className="group flex h-full min-w-11 snap-start flex-col items-center gap-2 rounded-xl px-1 outline-none transition-[background-color,transform] duration-200 hover:bg-default/50 active:scale-95 focus-visible:ring-2 focus-visible:ring-focus"
+                className="group flex h-full min-w-11 snap-start flex-col items-center gap-2 rounded-xl px-1 outline-none transition-[background-color,transform] duration-(--motion-fast) ease-(--motion-ease) hover:bg-default/50 active:scale-95 focus-visible:ring-2 focus-visible:ring-focus"
                 aria-label={`${fullDate(point.day)}: ${formattedValue(value, metric)}`}
                 aria-pressed={isSelected}
                 onClick={() => setSelectedDay(point.day)}
@@ -277,7 +277,7 @@ export function UsageTimeline({
                 >
                   {metric === 'tokens' ? (
                     <span
-                      className={`usage-bar absolute inset-x-0 bottom-0 rounded-lg transition-[height,filter,opacity] duration-500 ${
+                      className={`usage-bar absolute inset-x-0 bottom-0 rounded-lg transition-[height,filter,opacity] duration-(--motion-slow) ease-(--motion-ease) ${
                         isSelected
                           ? 'bg-accent opacity-100'
                           : 'bg-accent/65 opacity-80 group-hover:opacity-100'
@@ -285,7 +285,7 @@ export function UsageTimeline({
                       style={{ height: `${inputHeight}%` }}
                     >
                       <span
-                        className={`absolute inset-x-0 top-0 rounded-t-lg transition-[height] duration-500 ${
+                        className={`absolute inset-x-0 top-0 rounded-t-lg transition-[height] duration-(--motion-slow) ease-(--motion-ease) ${
                           isSelected ? 'bg-success' : 'bg-success/70'
                         }`}
                         style={{
@@ -298,7 +298,7 @@ export function UsageTimeline({
                     </span>
                   ) : (
                     <span
-                      className={`usage-bar absolute inset-x-0 bottom-0 rounded-lg transition-[height,filter,opacity] duration-500 ${
+                      className={`usage-bar absolute inset-x-0 bottom-0 rounded-lg transition-[height,filter,opacity] duration-(--motion-slow) ease-(--motion-ease) ${
                         isSelected
                           ? 'bg-accent opacity-100'
                           : 'bg-accent/65 opacity-80 group-hover:opacity-100'

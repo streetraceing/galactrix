@@ -18,10 +18,14 @@ export function ChatActions({
   chat,
   children,
   onAction,
+  onStartSelection,
+  selected = false,
 }: {
   chat: Chat;
   children: ReactNode;
   onAction: (action: ChatAction, chat: Chat) => void;
+  onStartSelection: () => void;
+  selected?: boolean;
 }) {
   const { t } = useTranslation('chats');
   return (
@@ -31,43 +35,70 @@ export function ChatActions({
       </ContextMenuTrigger>
       <ContextMenuContent className="max-w-fit">
         <ContextMenuLabel>{chat.title}</ContextMenuLabel>
-        <ContextMenuItem onClick={() => onAction('configure', chat)}>
-          <Icon name="settings" className="size-4 text-accent" />
-          {t('chatActions.configureContext')}
-        </ContextMenuItem>
-        <ContextMenuItem onClick={() => onAction('duplicate', chat)}>
-          <Icon name="copy" className="size-4" />
-          {t('chatActions.copyWithoutMessages')}
-        </ContextMenuItem>
-        <ContextMenuItem
-          onClick={() => onAction('duplicate-with-messages', chat)}
-        >
-          <Icon name="branch" className="size-4" />
-          {t('chatActions.copyWithMessages')}
-        </ContextMenuItem>
-        <ContextMenuItem onClick={() => onAction('rename', chat)}>
-          <Icon name="edit" className="size-4" />
-          {t('chatActions.rename')}
-        </ContextMenuItem>
-        <ContextMenuItem onClick={() => onAction('pin', chat)}>
-          <Icon name="pin" className="size-4" />
-          {chat.pinned ? t('chatActions.unpin') : t('chatActions.pin')}
+        <ContextMenuItem onClick={onStartSelection}>
+          <Icon name="check" className="size-4 text-accent" />
+          {selected ? t('selection.remove') : t('selection.select')}
         </ContextMenuItem>
         <ContextMenuSeparator />
-        <ContextMenuItem
-          className="text-warning data-highlighted:bg-warning/10 data-highlighted:text-warning"
-          onClick={() => onAction('clear', chat)}
-        >
-          <Icon name="clear" className="size-4" />
-          {t('chatActions.clearHistory')}
-        </ContextMenuItem>
-        <ContextMenuItem
-          variant="destructive"
-          onClick={() => onAction('delete', chat)}
-        >
-          <Icon name="trash" className="size-4" />
-          {t('chatActions.deleteChat')}
-        </ContextMenuItem>
+        {chat.archived ? (
+          <>
+            <ContextMenuItem onClick={() => onAction('unarchive', chat)}>
+              <Icon name="unarchive" className="size-4 text-accent" />
+              {t('chatActions.unarchive')}
+            </ContextMenuItem>
+            <ContextMenuItem
+              variant="destructive"
+              onClick={() => onAction('delete', chat)}
+            >
+              <Icon name="trash" className="size-4" />
+              {t('chatActions.deleteChat')}
+            </ContextMenuItem>
+          </>
+        ) : (
+          <>
+            <ContextMenuItem onClick={() => onAction('configure', chat)}>
+              <Icon name="settings" className="size-4 text-accent" />
+              {t('chatActions.configureContext')}
+            </ContextMenuItem>
+            <ContextMenuItem onClick={() => onAction('duplicate', chat)}>
+              <Icon name="copy" className="size-4" />
+              {t('chatActions.copyWithoutMessages')}
+            </ContextMenuItem>
+            <ContextMenuItem
+              onClick={() => onAction('duplicate-with-messages', chat)}
+            >
+              <Icon name="branch" className="size-4" />
+              {t('chatActions.copyWithMessages')}
+            </ContextMenuItem>
+            <ContextMenuItem onClick={() => onAction('rename', chat)}>
+              <Icon name="edit" className="size-4" />
+              {t('chatActions.rename')}
+            </ContextMenuItem>
+            <ContextMenuItem onClick={() => onAction('pin', chat)}>
+              <Icon name="pin" className="size-4" />
+              {chat.pinned ? t('chatActions.unpin') : t('chatActions.pin')}
+            </ContextMenuItem>
+            <ContextMenuItem onClick={() => onAction('archive', chat)}>
+              <Icon name="archive" className="size-4" />
+              {t('chatActions.archive')}
+            </ContextMenuItem>
+            <ContextMenuSeparator />
+            <ContextMenuItem
+              className="text-warning data-highlighted:bg-warning/10 data-highlighted:text-warning"
+              onClick={() => onAction('clear', chat)}
+            >
+              <Icon name="clear" className="size-4" />
+              {t('chatActions.clearHistory')}
+            </ContextMenuItem>
+            <ContextMenuItem
+              variant="destructive"
+              onClick={() => onAction('delete', chat)}
+            >
+              <Icon name="trash" className="size-4" />
+              {t('chatActions.deleteChat')}
+            </ContextMenuItem>
+          </>
+        )}
       </ContextMenuContent>
     </ContextMenu>
   );
@@ -176,6 +207,15 @@ export function ChatActionsButton({
             >
               <Icon name="pin" className="size-4" />
               {chat.pinned ? t('chatActions.unpin') : t('chatActions.pin')}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="justify-start"
+              onPress={() => run('archive')}
+            >
+              <Icon name="archive" className="size-4" />
+              {t('chatActions.archive')}
             </Button>
             <div className="my-1 h-px bg-separator" />
             <Button

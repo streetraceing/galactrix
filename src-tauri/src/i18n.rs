@@ -10,6 +10,7 @@ pub mod keys {
     pub const CHAT_GREETING_TOO_LONG: &str = "backend.chat.greetingTooLong";
     pub const CHAT_RECENT_MESSAGE_LIMIT_RANGE: &str = "backend.chat.recentMessageLimitRange";
     pub const CHAT_NOT_FOUND: &str = "backend.chat.notFound";
+    pub const CHAT_ARCHIVED_READ_ONLY: &str = "backend.chat.archivedReadOnly";
 
     pub const MESSAGE_NOT_FOUND: &str = "backend.message.notFound";
     pub const MESSAGE_EMPTY: &str = "backend.message.empty";

@@ -74,8 +74,7 @@ pub(crate) async fn prepare(
     retry.enabled = module_overrides.retry_enabled(retry.enabled);
 
     let mut dynamic_settings = settings.ai_modules.dynamic_context.clone();
-    dynamic_settings.enabled =
-        module_overrides.dynamic_context_enabled(dynamic_settings.enabled);
+    dynamic_settings.enabled = module_overrides.dynamic_context_enabled(dynamic_settings.enabled);
     if dynamic_settings.enabled {
         let batch =
             dynamic_context::pending_batch(full_history, context.as_ref(), &dynamic_settings);
@@ -126,8 +125,7 @@ pub(crate) async fn prepare(
     };
 
     let mut semantic_settings = settings.ai_modules.semantic_memory.clone();
-    semantic_settings.enabled =
-        module_overrides.semantic_memory_enabled(semantic_settings.enabled);
+    semantic_settings.enabled = module_overrides.semantic_memory_enabled(semantic_settings.enabled);
     let mut semantic_section = None;
     if semantic_settings.enabled {
         if let Some(provider) = embedding_provider.as_ref() {
@@ -218,7 +216,8 @@ pub(crate) async fn prepare(
                                     semantic_settings.top_k,
                                     semantic_settings.similarity_threshold,
                                 );
-                                semantic_section = semantic_memory::render_memory_section(&selected);
+                                semantic_section =
+                                    semantic_memory::render_memory_section(&selected);
                             }
                         }
                         Err(error) => {
@@ -282,8 +281,7 @@ pub(crate) async fn prepare(
     );
 
     let mut response_cleanup = settings.ai_modules.response_cleanup.clone();
-    response_cleanup.enabled =
-        module_overrides.response_cleanup_enabled(response_cleanup.enabled);
+    response_cleanup.enabled = module_overrides.response_cleanup_enabled(response_cleanup.enabled);
 
     Ok(PreparedGeneration {
         history,

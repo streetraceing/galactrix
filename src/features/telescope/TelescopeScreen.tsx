@@ -1,14 +1,16 @@
 import { Button, Checkbox, Surface } from '@heroui/react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Icon } from '../../components/Icon';
 import { toast } from '../../i18n/toast';
 import { errorMessage } from '../../lib/errors';
+import { ContextSelectionToolbar } from '../../components/ui/ContextSelectionToolbar';
 import { EmptyState } from '../../components/ui/EmptyState';
 import {
   ExportDestinationPicker,
   ExportSelectionList,
 } from '../../components/ui/ExportOptions';
 import { MetricGrid } from '../../components/ui/MetricGrid';
+import { useContextSelection } from '../../hooks/useContextSelection';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { SectionHeader } from '../../components/ui/SectionHeader';
 import { UiModal } from '../../components/ui/UiModal';
@@ -70,6 +72,12 @@ export function TelescopeScreen({
   );
   const [includeSecrets, setIncludeSecrets] = useState(false);
   const [transferring, setTransferring] = useState(false);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const providerIds = useMemo(
+    () => providers.map((provider) => provider.id),
+    [providers],
+  );
+  const selection = useContextSelection(providerIds);
   const editor = useProviderEditor({
     onFetchModels,
     onTestEmbeddings,
@@ -82,11 +90,14 @@ export function TelescopeScreen({
   ).length;
 
   useEffect(() => {
-    const openProviderEditor = () => editor.openCreate();
+    const openProviderEditor = () => {
+      selection.clear();
+      editor.openCreate();
+    };
     window.addEventListener('galactrix:new-provider', openProviderEditor);
     return () =>
       window.removeEventListener('galactrix:new-provider', openProviderEditor);
-  }, [editor]);
+  }, [editor, selection.clear]);
 
   const checkOne = async (id: string) => {
     const providerName =
@@ -201,6 +212,59 @@ export function TelescopeScreen({
     }
   };
 
+  const exportSelected = () => {
+    if (selection.selectedIds.size === 0) return;
+    setIncludeSecrets(false);
+    setExportIds([...selection.selectedIds]);
+    setExportDestination(defaultExportDestination());
+    setExportOpen(true);
+  };
+
+  const checkSelected = async () => {
+    if (selection.selectedIds.size === 0 || checkingAll) return;
+    const ids = [...selection.selectedIds];
+    setCheckingAll(true);
+    let connected = 0;
+    let failed = 0;
+    for (const id of ids) {
+      try {
+        const checked = await onCheck(id);
+        if (checked.status === 'connected') connected += 1;
+        else failed += 1;
+      } catch {
+        failed += 1;
+      }
+    }
+    setCheckingAll(false);
+    if (failed === 0) {
+      toast.success(t('selection.checkedCount', { count: connected }));
+    } else {
+      toast.warning(
+        t('selection.checkSummary', {
+          value1: connected,
+          value2: failed,
+        }),
+      );
+    }
+  };
+
+  const removeSelected = async () => {
+    if (selection.selectedIds.size === 0 || deleting) return;
+    const ids = [...selection.selectedIds];
+    setDeleting(true);
+    setDeleteError('');
+    try {
+      for (const id of ids) await onDelete(id);
+      selection.clear();
+      setBulkDeleteOpen(false);
+      toast.success(t('selection.deletedCount', { count: ids.length }));
+    } catch (error) {
+      setDeleteError(errorMessage(error));
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const exportConnections = async () => {
     if (transferring || exportIds.length === 0) return;
     const selectedProviders = providers.filter((provider) =>
@@ -263,7 +327,7 @@ export function TelescopeScreen({
   };
 
   return (
-    <div className="page-scroll mobile-screen-enter flex-1">
+    <div className="page-scroll app-screen-enter flex-1">
       <div className="page-container">
         <PageHeader
           title={t('telescopeScreen.telescope')}
@@ -298,7 +362,10 @@ export function TelescopeScreen({
               <Button
                 variant="primary"
                 className="w-full sm:w-auto"
-                onPress={editor.openCreate}
+                onPress={() => {
+                  selection.clear();
+                  editor.openCreate();
+                }}
               >
                 <Icon name="plus" className="size-4" />{' '}
                 {t('telescopeScreen.add')}
@@ -346,6 +413,43 @@ export function TelescopeScreen({
             }
           />
 
+          <ContextSelectionToolbar
+            count={selection.selectedIds.size}
+            total={providers.length}
+            selectedLabel={t('selection.selectedCount', {
+              count: selection.selectedIds.size,
+            })}
+            clearLabel={t('selection.clear')}
+            selectAllLabel={t('selection.selectAll')}
+            onClear={selection.clear}
+            onSelectAll={selection.selectAll}
+            actions={[
+              {
+                key: 'check',
+                label: t('selection.check'),
+                icon: 'refresh',
+                disabled: checkingAll,
+                onPress: () => void checkSelected(),
+              },
+              {
+                key: 'export',
+                label: t('selection.export'),
+                icon: 'download',
+                onPress: exportSelected,
+              },
+              {
+                key: 'delete',
+                label: t('selection.delete'),
+                icon: 'trash',
+                danger: true,
+                onPress: () => {
+                  setDeleteError('');
+                  setBulkDeleteOpen(true);
+                },
+              },
+            ]}
+          />
+
           {providers.length > 0 ? (
             <div className="flex flex-col gap-3">
               {providers.map((provider) => (
@@ -353,8 +457,15 @@ export function TelescopeScreen({
                   key={provider.id}
                   provider={provider}
                   checking={checkingId === provider.id}
+                  selectionActive={selection.active}
+                  selected={selection.selectedIds.has(provider.id)}
+                  onToggleSelection={() => selection.toggle(provider.id)}
+                  onStartSelection={() => selection.start(provider.id)}
                   onCheck={() => void checkOne(provider.id)}
-                  onEdit={() => void editor.openEdit(provider)}
+                  onEdit={() => {
+                    selection.clear();
+                    void editor.openEdit(provider);
+                  }}
                   onDelete={() => setDeleteTarget(provider)}
                 />
               ))}
@@ -474,6 +585,54 @@ export function TelescopeScreen({
             onChange={setExportDestination}
           />
         </div>
+      </UiModal>
+
+      <UiModal
+        isOpen={bulkDeleteOpen}
+        onOpenChange={(open) => !open && !deleting && setBulkDeleteOpen(false)}
+        onConfirm={() => void removeSelected()}
+        isConfirmDisabled={selection.selectedIds.size === 0 || deleting}
+        title={t('selection.deleteSelectedTitle', {
+          count: selection.selectedIds.size,
+        })}
+        description={t('selection.deleteSelectedDescription')}
+        footer={
+          <>
+            <Button
+              variant="ghost"
+              isDisabled={deleting}
+              onPress={() => setBulkDeleteOpen(false)}
+            >
+              {t('telescopeScreen.cancel')}
+            </Button>
+            <Button
+              variant="danger"
+              isPending={deleting}
+              onPress={() => void removeSelected()}
+            >
+              {t('providerCard.delete')}
+            </Button>
+          </>
+        }
+      >
+        <div className="max-h-[min(50dvh,24rem)] space-y-2 overflow-y-auto overscroll-contain">
+          {providers
+            .filter((provider) => selection.selectedIds.has(provider.id))
+            .map((provider) => (
+              <div
+                key={provider.id}
+                className="rounded-xl bg-default/45 px-3 py-2 text-sm"
+              >
+                <span className="font-medium">{provider.name}</span>
+                <span className="ml-2 text-xs text-muted">
+                  {provider.model || t('providerCard.noModelSelected')}
+                </span>
+              </div>
+            ))}
+        </div>
+        {deleteError ? (
+          <p className="selectable mt-3 text-sm text-danger">{deleteError}</p>
+        ) : null}
       </UiModal>
 
       <UiModal

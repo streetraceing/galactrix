@@ -1,7 +1,8 @@
 use super::{
     block_api_key, embedding_endpoint_saved, exponential_delay, first_available_key, is_empty_json,
     is_retryable_status, parse_api_keys, parse_embedding_response, parse_rate_limit_delay,
-    rate_limit_state_from_headers, select_available_key, send_with_retry, uses_ollama_embedding_api,
+    rate_limit_state_from_headers, select_available_key, send_with_retry,
+    uses_ollama_embedding_api,
 };
 use reqwest::header::{HeaderMap, HeaderValue};
 use serde_json::json;

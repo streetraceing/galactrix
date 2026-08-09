@@ -10,6 +10,8 @@ pub struct Chat {
     pub updated_at: i64,
     pub message_count: i64,
     pub pinned: bool,
+    #[serde(default)]
+    pub archived: bool,
     pub provider_id: Option<String>,
     pub persona_id: Option<String>,
     pub character_id: Option<String>,

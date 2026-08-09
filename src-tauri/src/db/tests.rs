@@ -527,7 +527,6 @@ fn message_interaction_time_and_edited_marker_follow_the_active_content() {
     assert_eq!(assistant.content, "regenerated");
 }
 
-
 #[test]
 fn chat_style_override_is_persisted_and_used_in_prompt_context() {
     let connection = test_database();
@@ -570,7 +569,10 @@ fn chat_style_override_is_persisted_and_used_in_prompt_context() {
 
     let context = get_chat_prompt_context(&connection, "chat-style").expect("context must load");
     assert_eq!(
-        context.character_style.as_ref().map(|style| style.id.as_str()),
+        context
+            .character_style
+            .as_ref()
+            .map(|style| style.id.as_str()),
         Some("style-chat")
     );
 }
@@ -750,7 +752,6 @@ fn blank_new_chat_title_uses_character_name_and_sequence() {
     );
 }
 
-
 #[test]
 fn character_accepts_short_and_long_message_style_presets() {
     let connection = test_database();
@@ -774,4 +775,71 @@ fn character_accepts_short_and_long_message_style_presets() {
         )
         .expect("new built-in style preset must save");
     }
+}
+
+#[test]
+fn archived_chat_is_read_only_until_restored() {
+    let connection = test_database();
+    create_test_chat(&connection, "chat-archive");
+    add_user_message(&connection, "chat-archive", "archive-user-1", "hello")
+        .expect("initial message must persist");
+    set_chat_pinned(&connection, "chat-archive", true).expect("chat must pin");
+
+    set_chat_archived(&connection, "chat-archive", true).expect("chat must archive");
+    let archived = get_chat(&connection, "chat-archive").expect("chat must load");
+    assert!(archived.archived);
+    assert!(!archived.pinned);
+
+    let error = add_user_message(
+        &connection,
+        "chat-archive",
+        "archive-user-2",
+        "must not be added",
+    )
+    .expect_err("archived chat must reject mutations");
+    assert_eq!(error.key, keys::CHAT_ARCHIVED_READ_ONLY);
+
+    let edit_error = edit_message(
+        &connection,
+        "archive-user-1",
+        "unused-archive-variant",
+        "edited",
+    )
+    .expect_err("archived messages must be read-only");
+    assert_eq!(edit_error.key, keys::CHAT_ARCHIVED_READ_ONLY);
+
+    set_chat_archived(&connection, "chat-archive", false).expect("chat must restore");
+    add_user_message(&connection, "chat-archive", "archive-user-2", "works again")
+        .expect("restored chat must accept messages");
+    assert!(
+        !get_chat(&connection, "chat-archive")
+            .expect("restored chat must load")
+            .archived
+    );
+}
+
+#[test]
+fn rewind_chat_keeps_target_and_removes_only_later_messages() {
+    let connection = test_database();
+    create_test_chat(&connection, "chat-rewind");
+    add_user_message(&connection, "chat-rewind", "rewind-1", "first")
+        .expect("first message must persist");
+    add_assistant_message(&connection, "chat-rewind", "rewind-2", "second")
+        .expect("second message must persist");
+    add_user_message(&connection, "chat-rewind", "rewind-3", "third")
+        .expect("third message must persist");
+    add_assistant_message(&connection, "chat-rewind", "rewind-4", "fourth")
+        .expect("fourth message must persist");
+
+    rewind_chat_to_message(&connection, "rewind-2").expect("chat must rewind");
+
+    let state = chat_state(&connection, "chat-rewind").expect("chat state must load");
+    let ids = state
+        .messages
+        .iter()
+        .map(|message| message.id.as_str())
+        .collect::<Vec<_>>();
+    assert_eq!(ids, vec!["rewind-1", "rewind-2"]);
+    assert_eq!(state.chat.message_count, 2);
+    assert_eq!(state.chat.preview, "second");
 }

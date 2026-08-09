@@ -12,8 +12,8 @@ use serde_json::Value;
 
 use crate::i18n::{keys, CommandError, CommandResult};
 use crate::models::{
-    AppSnapshot, Chat, ChatConfigInput, ChatModuleOverrides, ChatPromptContext, ChatState, GalaxyItem, Message,
-    MessageVariant, PromptConfig, Provider,
+    AppSnapshot, Chat, ChatConfigInput, ChatModuleOverrides, ChatPromptContext, ChatState,
+    GalaxyItem, Message, MessageVariant, PromptConfig, Provider,
 };
 
 use ai_memory::clear_chat_ai_context;
@@ -45,6 +45,7 @@ fn migrate(connection: &Connection) -> CommandResult<()> {
                 updated_at INTEGER NOT NULL,
                 message_count INTEGER NOT NULL DEFAULT 0,
                 pinned INTEGER NOT NULL DEFAULT 0,
+                archived INTEGER NOT NULL DEFAULT 0,
                 provider_id TEXT,
                 persona_id TEXT,
                 character_id TEXT,
@@ -197,6 +198,12 @@ fn migrate(connection: &Connection) -> CommandResult<()> {
     )?;
 
     ensure_column(connection, "chats", "provider_id", "TEXT")?;
+    ensure_column(
+        connection,
+        "chats",
+        "archived",
+        "INTEGER NOT NULL DEFAULT 0",
+    )?;
     ensure_column(connection, "chats", "persona_id", "TEXT")?;
     ensure_column(connection, "chats", "character_id", "TEXT")?;
     ensure_column(connection, "chats", "style_item_id", "TEXT")?;
@@ -530,9 +537,9 @@ fn worldbook_ids_by_chat(connection: &Connection) -> CommandResult<HashMap<Strin
 fn list_chats(connection: &Connection) -> CommandResult<Vec<Chat>> {
     let mut worldbooks = worldbook_ids_by_chat(connection)?;
     let mut statement = connection.prepare(
-        "SELECT id, title, preview, updated_at, message_count, pinned, provider_id,
+        "SELECT id, title, preview, updated_at, message_count, pinned, archived, provider_id,
                 persona_id, character_id, style_item_id, universe_id, prompt_config_json, module_overrides_json, response_preset
-         FROM chats ORDER BY pinned DESC, updated_at DESC",
+         FROM chats ORDER BY archived ASC, pinned DESC, updated_at DESC",
     )?;
     let rows = statement
         .query_map([], |row| {
@@ -543,14 +550,15 @@ fn list_chats(connection: &Connection) -> CommandResult<Vec<Chat>> {
                 row.get::<_, i64>(3)?,
                 row.get::<_, i64>(4)?,
                 row.get::<_, i64>(5)? != 0,
-                row.get::<_, Option<String>>(6)?,
+                row.get::<_, i64>(6)? != 0,
                 row.get::<_, Option<String>>(7)?,
                 row.get::<_, Option<String>>(8)?,
                 row.get::<_, Option<String>>(9)?,
                 row.get::<_, Option<String>>(10)?,
-                row.get::<_, String>(11)?,
+                row.get::<_, Option<String>>(11)?,
                 row.get::<_, String>(12)?,
                 row.get::<_, String>(13)?,
+                row.get::<_, String>(14)?,
             ))
         })?
         .collect::<Result<Vec<_>, _>>()?;
@@ -565,6 +573,7 @@ fn list_chats(connection: &Connection) -> CommandResult<Vec<Chat>> {
                 updated_at,
                 message_count,
                 pinned,
+                archived,
                 provider_id,
                 persona_id,
                 character_id,
@@ -581,6 +590,7 @@ fn list_chats(connection: &Connection) -> CommandResult<Vec<Chat>> {
                 updated_at,
                 message_count,
                 pinned,
+                archived,
                 provider_id,
                 persona_id,
                 character_id,
@@ -607,7 +617,7 @@ fn worldbook_ids_for_chat(connection: &Connection, chat_id: &str) -> CommandResu
 pub fn get_chat(connection: &Connection, chat_id: &str) -> CommandResult<Chat> {
     let row = connection
         .query_row(
-            "SELECT id, title, preview, updated_at, message_count, pinned, provider_id,
+            "SELECT id, title, preview, updated_at, message_count, pinned, archived, provider_id,
                     persona_id, character_id, style_item_id, universe_id, prompt_config_json, module_overrides_json, response_preset
              FROM chats WHERE id = ?1",
             params![chat_id],
@@ -619,14 +629,15 @@ pub fn get_chat(connection: &Connection, chat_id: &str) -> CommandResult<Chat> {
                     row.get::<_, i64>(3)?,
                     row.get::<_, i64>(4)?,
                     row.get::<_, i64>(5)? != 0,
-                    row.get::<_, Option<String>>(6)?,
+                    row.get::<_, i64>(6)? != 0,
                     row.get::<_, Option<String>>(7)?,
                     row.get::<_, Option<String>>(8)?,
                     row.get::<_, Option<String>>(9)?,
                     row.get::<_, Option<String>>(10)?,
-                    row.get::<_, String>(11)?,
+                    row.get::<_, Option<String>>(11)?,
                     row.get::<_, String>(12)?,
                     row.get::<_, String>(13)?,
+                    row.get::<_, String>(14)?,
                 ))
             },
         )
@@ -639,13 +650,14 @@ pub fn get_chat(connection: &Connection, chat_id: &str) -> CommandResult<Chat> {
         updated_at: row.3,
         message_count: row.4,
         pinned: row.5,
-        provider_id: row.6,
-        persona_id: row.7,
-        character_id: row.8,
-        style_item_id: row.9,
-        universe_id: row.10,
-        prompt_config: parse_prompt_config(&row.11, &row.13),
-        module_overrides: parse_module_overrides(&row.12),
+        archived: row.6,
+        provider_id: row.7,
+        persona_id: row.8,
+        character_id: row.9,
+        style_item_id: row.10,
+        universe_id: row.11,
+        prompt_config: parse_prompt_config(&row.12, &row.14),
+        module_overrides: parse_module_overrides(&row.13),
         worldbook_ids: worldbook_ids_for_chat(connection, &row.0)?,
     })
 }
@@ -968,6 +980,7 @@ pub fn update_chat_config(
     chat_id: &str,
     input: &ChatConfigInput,
 ) -> CommandResult<()> {
+    ensure_chat_mutable(connection, chat_id)?;
     validate_chat_links(connection, input, true)?;
     let prompt_config = prompt_config_json(&input.prompt_config)?;
     let module_overrides = module_overrides_json(&input.module_overrides)?;
@@ -1122,7 +1135,10 @@ fn validate_prompt_config(config: &PromptConfig) -> CommandResult<()> {
     if config.recent_message_limit > 500 {
         return Err(CommandError::new(keys::CHAT_RECENT_MESSAGE_LIMIT_RANGE));
     }
-    if !matches!(config.response_length.as_str(), "auto" | "micro" | "short" | "long") {
+    if !matches!(
+        config.response_length.as_str(),
+        "auto" | "micro" | "short" | "long"
+    ) {
         return Err(CommandError::new(keys::PROMPT_RULE_UNKNOWN));
     }
     const PRESETS: [&str; 16] = [
@@ -1259,7 +1275,59 @@ fn validate_optional_galaxy(
     Ok(())
 }
 
+pub fn chat_is_archived(connection: &Connection, chat_id: &str) -> CommandResult<bool> {
+    connection
+        .query_row(
+            "SELECT archived FROM chats WHERE id = ?1",
+            params![chat_id],
+            |row| Ok(row.get::<_, i64>(0)? != 0),
+        )
+        .optional()?
+        .ok_or_else(|| CommandError::new(keys::CHAT_NOT_FOUND))
+}
+
+pub fn ensure_chat_mutable(connection: &Connection, chat_id: &str) -> CommandResult<()> {
+    if chat_is_archived(connection, chat_id)? {
+        return Err(CommandError::new(keys::CHAT_ARCHIVED_READ_ONLY));
+    }
+    Ok(())
+}
+
+pub fn ensure_message_chat_mutable(
+    connection: &Connection,
+    message_id: &str,
+) -> CommandResult<String> {
+    let chat_id = connection
+        .query_row(
+            "SELECT chat_id FROM messages WHERE id = ?1",
+            params![message_id],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()?
+        .ok_or_else(|| CommandError::new(keys::MESSAGE_NOT_FOUND))?;
+    ensure_chat_mutable(connection, &chat_id)?;
+    Ok(chat_id)
+}
+
+pub fn set_chat_archived(
+    connection: &Connection,
+    chat_id: &str,
+    archived: bool,
+) -> CommandResult<()> {
+    let changed = connection.execute(
+        "UPDATE chats
+         SET archived = ?1, pinned = CASE WHEN ?1 = 1 THEN 0 ELSE pinned END, updated_at = ?2
+         WHERE id = ?3",
+        params![archived as i64, now_unix(), chat_id],
+    )?;
+    if changed == 0 {
+        return Err(CommandError::new(keys::CHAT_NOT_FOUND));
+    }
+    Ok(())
+}
+
 pub fn rename_chat(connection: &Connection, chat_id: &str, title: &str) -> CommandResult<()> {
+    ensure_chat_mutable(connection, chat_id)?;
     let changed = connection.execute(
         "UPDATE chats SET title = ?1, updated_at = ?2 WHERE id = ?3",
         params![title, now_unix(), chat_id],
@@ -1279,6 +1347,7 @@ pub fn delete_chat(connection: &Connection, chat_id: &str) -> CommandResult<()> 
 }
 
 pub fn set_chat_pinned(connection: &Connection, chat_id: &str, pinned: bool) -> CommandResult<()> {
+    ensure_chat_mutable(connection, chat_id)?;
     let changed = connection.execute(
         "UPDATE chats SET pinned = ?1, updated_at = ?2 WHERE id = ?3",
         params![pinned as i64, now_unix(), chat_id],
@@ -1290,6 +1359,7 @@ pub fn set_chat_pinned(connection: &Connection, chat_id: &str, pinned: bool) -> 
 }
 
 pub fn clear_chat(connection: &Connection, chat_id: &str) -> CommandResult<()> {
+    ensure_chat_mutable(connection, chat_id)?;
     let transaction = connection.unchecked_transaction()?;
     let exists: bool = transaction.query_row(
         "SELECT EXISTS(SELECT 1 FROM chats WHERE id = ?1)",
@@ -1454,6 +1524,7 @@ pub fn add_user_message(
     message_id: &str,
     content: &str,
 ) -> CommandResult<()> {
+    ensure_chat_mutable(connection, chat_id)?;
     let transaction = connection.unchecked_transaction()?;
     let created_at = next_message_timestamp(&transaction, chat_id)?;
     transaction.execute(
@@ -1476,6 +1547,7 @@ pub fn add_assistant_message(
     message_id: &str,
     content: &str,
 ) -> CommandResult<()> {
+    ensure_chat_mutable(connection, chat_id)?;
     let transaction = connection.unchecked_transaction()?;
     let created_at = next_message_timestamp(&transaction, chat_id)?;
     transaction.execute(
@@ -1511,6 +1583,7 @@ pub fn append_message_variant(
     content: &str,
     edited: bool,
 ) -> CommandResult<i64> {
+    ensure_message_chat_mutable(connection, message_id)?;
     let transaction = connection.unchecked_transaction()?;
     let (chat_id, role) = transaction
         .query_row(
@@ -1573,6 +1646,7 @@ pub fn select_message_variant(
     message_id: &str,
     variant_index: i64,
 ) -> CommandResult<()> {
+    ensure_message_chat_mutable(connection, message_id)?;
     let transaction = connection.unchecked_transaction()?;
     let (chat_id, content, edited) = transaction
         .query_row(
@@ -1635,6 +1709,7 @@ pub fn clone_chat(
     include_messages: bool,
     through_message_id: Option<&str>,
 ) -> CommandResult<String> {
+    ensure_chat_mutable(connection, source_chat_id)?;
     let source = connection
         .query_row(
             "SELECT provider_id, persona_id, character_id, style_item_id, universe_id, prompt_config_json, module_overrides_json
@@ -1809,6 +1884,7 @@ pub fn edit_message(
     variant_id: &str,
     content: &str,
 ) -> CommandResult<()> {
+    ensure_message_chat_mutable(connection, message_id)?;
     let (chat_id, role) = connection
         .query_row(
             "SELECT chat_id, role FROM messages WHERE id = ?1",
@@ -1835,6 +1911,7 @@ pub fn edit_message(
 }
 
 pub fn delete_message(connection: &Connection, message_id: &str) -> CommandResult<()> {
+    ensure_message_chat_mutable(connection, message_id)?;
     let chat_id = connection
         .query_row(
             "SELECT chat_id FROM messages WHERE id = ?1",
@@ -1857,14 +1934,7 @@ pub fn delete_messages(connection: &Connection, message_ids: &[String]) -> Comma
     let mut chat_ids = HashSet::new();
 
     for message_id in message_ids {
-        let chat_id = transaction
-            .query_row(
-                "SELECT chat_id FROM messages WHERE id = ?1",
-                params![message_id],
-                |row| row.get::<_, String>(0),
-            )
-            .optional()?
-            .ok_or_else(|| CommandError::new(keys::MESSAGE_NOT_FOUND))?;
+        let chat_id = ensure_message_chat_mutable(&transaction, message_id)?;
         transaction.execute("DELETE FROM messages WHERE id = ?1", params![message_id])?;
         chat_ids.insert(chat_id);
     }
@@ -1878,11 +1948,33 @@ pub fn delete_messages(connection: &Connection, message_ids: &[String]) -> Comma
     Ok(())
 }
 
+pub fn rewind_chat_to_message(connection: &Connection, message_id: &str) -> CommandResult<()> {
+    let chat_id = ensure_message_chat_mutable(connection, message_id)?;
+    let created_at = connection
+        .query_row(
+            "SELECT created_at FROM messages WHERE id = ?1 AND chat_id = ?2",
+            params![message_id, &chat_id],
+            |row| row.get::<_, i64>(0),
+        )
+        .optional()?
+        .ok_or_else(|| CommandError::new(keys::MESSAGE_NOT_FOUND))?;
+    let transaction = connection.unchecked_transaction()?;
+    transaction.execute(
+        "DELETE FROM messages WHERE chat_id = ?1 AND created_at > ?2",
+        params![&chat_id, created_at],
+    )?;
+    refresh_chat_summary(&transaction, &chat_id)?;
+    clear_chat_ai_context(&transaction, &chat_id)?;
+    transaction.commit()?;
+    Ok(())
+}
+
 pub fn set_message_remembered(
     connection: &Connection,
     message_id: &str,
     remembered: bool,
 ) -> CommandResult<()> {
+    ensure_message_chat_mutable(connection, message_id)?;
     let chat_id = connection
         .query_row(
             "SELECT chat_id FROM messages WHERE id = ?1",

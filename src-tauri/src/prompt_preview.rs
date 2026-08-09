@@ -2,8 +2,8 @@ use uuid::Uuid;
 
 use crate::generation_modules;
 use crate::models::{
-    ChatPromptContext, GalaxyItem, GalaxyItemInput, Message,
-    PromptPreviewInput, PromptPreviewResult, RepetitionGuardSettings,
+    ChatPromptContext, GalaxyItem, GalaxyItemInput, Message, PromptPreviewInput,
+    PromptPreviewResult, RepetitionGuardSettings,
 };
 use crate::prompt_builder::{self, PromptBuildOptions};
 
@@ -44,10 +44,11 @@ pub(crate) fn build(input: PromptPreviewInput) -> PromptPreviewResult {
     };
 
     if scope == "contribution" {
-        let prompt = prompt_builder::build_contribution_prompt(&context, &input.remembered_messages)
-            .unwrap_or_default()
-            .replace("{{user}}", &user_name)
-            .replace("{{char}}", &character_name);
+        let prompt =
+            prompt_builder::build_contribution_prompt(&context, &input.remembered_messages)
+                .unwrap_or_default()
+                .replace("{{user}}", &user_name)
+                .replace("{{char}}", &character_name);
         let approximate_tokens = approximate_token_count(&prompt);
         return PromptPreviewResult {
             prompt: prompt.clone(),
@@ -67,10 +68,8 @@ pub(crate) fn build(input: PromptPreviewInput) -> PromptPreviewResult {
     );
     let optimized_history =
         generation_modules::trim_history_for_budget(&recent_history, &context_budget);
-    let optimized_remembered = archived_remembered_messages(
-        &input.remembered_messages,
-        &optimized_history,
-    );
+    let optimized_remembered =
+        archived_remembered_messages(&input.remembered_messages, &optimized_history);
     let baseline_remembered =
         archived_remembered_messages(&input.remembered_messages, &recent_history);
 
@@ -139,7 +138,10 @@ fn preview_user_name<'a>(
         .unwrap_or("{{user}}")
 }
 
-fn archived_remembered_messages(remembered: &[Message], active_history: &[Message]) -> Vec<Message> {
+fn archived_remembered_messages(
+    remembered: &[Message],
+    active_history: &[Message],
+) -> Vec<Message> {
     let active_ids = active_history
         .iter()
         .map(|message| message.id.as_str())

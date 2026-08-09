@@ -1,4 +1,5 @@
 import { Surface } from '@heroui/react';
+import { MOTION_STAGGER_MS } from '../../lib/motion';
 
 export type Metric = {
   label: string;
@@ -13,7 +14,7 @@ export function MetricGrid({ metrics }: { metrics: Metric[] }) {
         <div
           key={metric.label}
           className={`metric-enter min-w-0 p-5 ${index % 2 === 1 ? 'border-l border-default' : ''} ${index >= 2 ? 'border-t border-default md:border-t-0' : ''} ${index > 0 ? 'md:border-l md:border-default' : ''}`}
-          style={{ animationDelay: `${index * 45}ms` }}
+          style={{ animationDelay: `${index * MOTION_STAGGER_MS}ms` }}
         >
           <span className="block text-xs font-medium leading-5 text-muted">
             {metric.label}

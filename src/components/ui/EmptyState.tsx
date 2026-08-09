@@ -17,7 +17,7 @@ export function EmptyState({
 }) {
   return (
     <Surface
-      className={`flex w-full flex-col items-center justify-center rounded-2xl border border-separator text-center ${compact ? 'min-h-52 p-6' : 'min-h-88 p-8'}`}
+      className={`motion-empty-enter flex w-full flex-col items-center justify-center rounded-2xl border border-separator text-center ${compact ? 'min-h-52 p-6' : 'min-h-88 p-8'}`}
     >
       <span className="grid size-12 place-items-center rounded-2xl bg-accent/10 text-accent">
         <Icon name={icon} className="size-6" />

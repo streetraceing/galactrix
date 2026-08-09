@@ -72,13 +72,7 @@ fn build_system_prompt_with_options(
     response_language: Option<&str>,
     options: &PromptBuildOptions,
 ) -> Option<String> {
-    build_system_prompt_with_histories(
-        context,
-        history,
-        history,
-        response_language,
-        options,
-    )
+    build_system_prompt_with_histories(context, history, history, response_language, options)
 }
 
 pub fn build_system_prompt_with_histories(
@@ -108,12 +102,7 @@ pub fn build_contribution_prompt(
     context: &ChatPromptContext,
     history: &[Message],
 ) -> Option<String> {
-    let mut sections = collect_sections(
-        context,
-        history,
-        history,
-        &PromptBuildOptions::default(),
-    );
+    let mut sections = collect_sections(context, history, history, &PromptBuildOptions::default());
     if sections.is_empty() {
         return None;
     }
@@ -194,10 +183,8 @@ fn collect_sections(
             .preset_ids
             .iter()
             .filter(|preset| {
-                claimed_presets.insert((
-                    (*preset).clone(),
-                    config.context_priorities.presets.clone(),
-                ))
+                claimed_presets
+                    .insert(((*preset).clone(), config.context_priorities.presets.clone()))
             })
             .cloned()
             .collect::<Vec<_>>();
@@ -302,7 +289,11 @@ fn language_contract(response_language: Option<&str>, compact: bool) -> String {
     }
 }
 
-fn render_system_prompt(sections: &[PromptSection], language_contract: &str, compact: bool) -> String {
+fn render_system_prompt(
+    sections: &[PromptSection],
+    language_contract: &str,
+    compact: bool,
+) -> String {
     let body = render_prompt_sections(sections, compact);
     if compact {
         let mut core = String::from(
@@ -402,7 +393,11 @@ pub fn resolve_placeholders(
         .as_ref()
         .map(|item| item.name.trim())
         .filter(|name| !name.is_empty())
-        .or_else(|| fallback_user_name.map(str::trim).filter(|name| !name.is_empty()))
+        .or_else(|| {
+            fallback_user_name
+                .map(str::trim)
+                .filter(|name| !name.is_empty())
+        })
         .unwrap_or("User");
 
     prompt
@@ -655,12 +650,7 @@ fn select_worldbook_entries<'a>(
         *score = 100 + matches;
         true
     });
-    candidates.sort_by(|left, right| {
-        right
-            .2
-            .cmp(&left.2)
-            .then_with(|| left.0.cmp(&right.0))
-    });
+    candidates.sort_by(|left, right| right.2.cmp(&left.2).then_with(|| left.0.cmp(&right.0)));
     candidates.truncate(options.max_worldbook_entries.max(1));
     candidates.sort_by_key(|(index, _, _)| *index);
     candidates.into_iter().map(|(_, entry, _)| entry).collect()
@@ -890,7 +880,6 @@ mod tests {
         assert!(!prompt.contains("Write warmly and attentively."));
     }
 
-
     fn galaxy(kind: &str, name: &str, description: &str, data: Value) -> GalaxyItem {
         GalaxyItem {
             id: format!("{kind}-{name}"),
@@ -972,8 +961,8 @@ mod tests {
             ..PromptBuildOptions::default()
         };
 
-        let prompt = build_system_prompt_with_options(&context, &history, None, &options)
-            .expect("prompt");
+        let prompt =
+            build_system_prompt_with_options(&context, &history, None, &options).expect("prompt");
         assert!(prompt.contains("Mars colony facts"));
         assert!(prompt.contains("Universal setting fact"));
         assert!(!prompt.contains("Venus colony facts"));
