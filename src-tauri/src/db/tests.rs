@@ -667,8 +667,10 @@ fn chat_module_overrides_persist_update_and_clone() {
 #[test]
 fn chat_response_length_override_persists_updates_and_clones() {
     let connection = test_database();
-    let mut prompt_config = PromptConfig::default();
-    prompt_config.response_length = "micro".into();
+    let prompt_config = PromptConfig {
+        response_length: "micro".into(),
+        ..Default::default()
+    };
     let mut input = ChatConfigInput {
         title: "Length chat".into(),
         greeting_message: None,
