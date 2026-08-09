@@ -1,21 +1,26 @@
-import fs from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
+
+type TranslationResource = Record<string, unknown>;
 
 const localeRoot = path.join(process.cwd(), 'src', 'i18n', 'locales');
 const referenceLocale = 'en';
-const locales = fs
-  .readdirSync(localeRoot, { withFileTypes: true })
+const locales = readdirSync(localeRoot, { withFileTypes: true })
   .filter((entry) => entry.isDirectory())
   .map((entry) => entry.name)
   .sort();
-const errors = [];
+const errors: string[] = [];
 
-function readNamespace(locale, fileName) {
+function readNamespace(locale: string, fileName: string): TranslationResource {
   const filePath = path.join(localeRoot, locale, fileName);
-  return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  const resource: unknown = JSON.parse(readFileSync(filePath, 'utf8'));
+  if (!resource || typeof resource !== 'object' || Array.isArray(resource)) {
+    throw new Error(`${locale}/${fileName}: namespace must be an object`);
+  }
+  return resource as TranslationResource;
 }
 
-function variables(message) {
+function variables(message: unknown) {
   if (typeof message !== 'string') return [];
   return [...message.matchAll(/\{\{\s*-?\s*(\w+)\s*\}\}/gu)]
     .map((match) => match[1])
@@ -24,12 +29,12 @@ function variables(message) {
 
 const pluralSuffix = /_(zero|one|two|few|many|other)$/u;
 
-function canonicalKey(key) {
+function canonicalKey(key: string) {
   return key.replace(pluralSuffix, '');
 }
 
-function groupKeys(keys) {
-  const groups = new Map();
+function groupKeys(keys: string[]) {
+  const groups = new Map<string, string[]>();
   for (const key of keys) {
     const canonical = canonicalKey(key);
     groups.set(canonical, [...(groups.get(canonical) ?? []), key]);
@@ -37,7 +42,7 @@ function groupKeys(keys) {
   return groups;
 }
 
-function resourceHasKey(namespace, key) {
+function resourceHasKey(namespace: string, key: string) {
   const resource = referenceResources[namespace];
   if (!resource) return false;
   const canonical = canonicalKey(key);
@@ -46,7 +51,7 @@ function resourceHasKey(namespace, key) {
   );
 }
 
-function translationNamespaces(source) {
+function translationNamespaces(source: string) {
   const match = source.match(/useTranslation\(\s*([^)]*)\)/u);
   if (!match) return [];
   const argument = match[1].trim();
@@ -56,21 +61,22 @@ function translationNamespaces(source) {
   );
 }
 
-function callNamespace(options, fallbackNamespaces) {
+function callNamespace(options: string, fallbackNamespaces: string[]) {
   const explicit = options.match(/\bns\s*:\s*['"]([^'"]+)['"]/u)?.[1];
   return explicit ? [explicit] : fallbackNamespaces;
 }
 
-const referenceFiles = fs
-  .readdirSync(path.join(localeRoot, referenceLocale))
+const referenceFiles = readdirSync(path.join(localeRoot, referenceLocale))
   .filter((fileName) => fileName.endsWith('.json'))
   .sort();
-const referenceResources = Object.fromEntries(
-  referenceFiles.map((fileName) => [
-    fileName.replace(/\.json$/u, ''),
-    readNamespace(referenceLocale, fileName),
-  ]),
-);
+const referenceResources: Record<string, TranslationResource> =
+  Object.fromEntries(
+    referenceFiles.map((fileName) => [
+      fileName.replace(/\.json$/u, ''),
+      readNamespace(referenceLocale, fileName),
+    ]),
+  );
+
 for (const [namespace, resource] of Object.entries(referenceResources)) {
   if (Object.keys(resource).length === 0) {
     errors.push(`${referenceLocale}/${namespace}: namespace is empty`);
@@ -85,8 +91,7 @@ for (const [namespace, resource] of Object.entries(referenceResources)) {
 }
 
 for (const locale of locales) {
-  const localeFiles = fs
-    .readdirSync(path.join(localeRoot, locale))
+  const localeFiles = readdirSync(path.join(localeRoot, locale))
     .filter((fileName) => fileName.endsWith('.json'))
     .sort();
 
@@ -105,10 +110,8 @@ for (const locale of locales) {
     if (!localeFiles.includes(fileName)) continue;
     const reference = readNamespace(referenceLocale, fileName);
     const resource = readNamespace(locale, fileName);
-    const referenceKeys = Object.keys(reference).sort();
-    const resourceKeys = Object.keys(resource).sort();
-    const referenceGroups = groupKeys(referenceKeys);
-    const resourceGroups = groupKeys(resourceKeys);
+    const referenceGroups = groupKeys(Object.keys(reference).sort());
+    const resourceGroups = groupKeys(Object.keys(resource).sort());
 
     for (const [key, message] of Object.entries(resource)) {
       if (typeof message !== 'string') {
@@ -163,15 +166,14 @@ for (const locale of locales) {
 for (const fileName of referenceFiles) {
   const resource = readNamespace(referenceLocale, fileName);
   for (const [key, message] of Object.entries(resource)) {
-    if (typeof message !== 'string') continue;
-    if (/[А-Яа-яЁё]/u.test(message)) {
+    if (typeof message === 'string' && /[\u0400-\u04ff]/u.test(message)) {
       errors.push(`${referenceLocale}/${fileName}:${key}: contains Cyrillic`);
     }
   }
 }
 
-function walk(directory) {
-  return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+function walk(directory: string): string[] {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const entryPath = path.join(directory, entry.name);
     return entry.isDirectory() ? walk(entryPath) : [entryPath];
   });
@@ -182,8 +184,8 @@ const sourceFiles = walk(path.join(process.cwd(), 'src')).filter((filePath) =>
 );
 
 for (const filePath of sourceFiles) {
-  const source = fs.readFileSync(filePath, 'utf8');
-  if (filePath.endsWith('.tsx') && /[А-Яа-яЁё]/u.test(source)) {
+  const source = readFileSync(filePath, 'utf8');
+  if (filePath.endsWith('.tsx') && /[\u0400-\u04ff]/u.test(source)) {
     errors.push(
       `${path.relative(process.cwd(), filePath)}: contains untranslated Cyrillic UI text`,
     );
@@ -229,8 +231,8 @@ for (const filePath of sourceFiles) {
 }
 
 const rustI18nPath = path.join(process.cwd(), 'src-tauri', 'src', 'i18n.rs');
-if (fs.existsSync(rustI18nPath)) {
-  const rustI18n = fs.readFileSync(rustI18nPath, 'utf8');
+if (existsSync(rustI18nPath)) {
+  const rustI18n = readFileSync(rustI18nPath, 'utf8');
   const backendKeys = new Set(
     Object.keys(referenceResources.backend ?? {}).map(canonicalKey),
   );
@@ -251,7 +253,7 @@ if (fs.existsSync(rustI18nPath)) {
   ];
   for (const fileName of keyedBackendFiles) {
     const filePath = path.join(process.cwd(), 'src-tauri', 'src', fileName);
-    const source = fs.readFileSync(filePath, 'utf8');
+    const source = readFileSync(filePath, 'utf8');
     if (/\bErr\(\s*"/gu.test(source)) {
       errors.push(
         `src-tauri/src/${fileName}: contains a direct string error instead of CommandError key`,

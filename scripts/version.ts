@@ -1,11 +1,29 @@
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { readFile, writeFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 
 const SEMVER =
   /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z.-]+))?(?:\+([0-9A-Za-z.-]+))?$/;
 
-export function parseVersion(value) {
+type ReleaseType = 'major' | 'minor' | 'patch';
+
+type ParsedVersion = {
+  major: number;
+  minor: number;
+  patch: number;
+  prerelease: string;
+  build: string;
+};
+
+type VersionedJson = {
+  version?: string;
+};
+
+type PackageLockJson = VersionedJson & {
+  packages?: Record<string, VersionedJson>;
+};
+
+export function parseVersion(value: string): ParsedVersion {
   const match = SEMVER.exec(value);
   if (!match) throw new Error(`Invalid SemVer version: ${value}`);
   return {
@@ -17,28 +35,36 @@ export function parseVersion(value) {
   };
 }
 
-export function bumpVersion(value, release) {
+export function bumpVersion(value: string, release: ReleaseType) {
   const current = parseVersion(value);
   if (release === 'major') return `${current.major + 1}.0.0`;
   if (release === 'minor') return `${current.major}.${current.minor + 1}.0`;
-  if (release === 'patch')
-    return `${current.major}.${current.minor}.${current.patch + 1}`;
-  throw new Error(`Unknown release type: ${release}`);
+  return `${current.major}.${current.minor}.${current.patch + 1}`;
 }
 
-function replaceCargoPackageVersion(source, packageName, version) {
+function parseJson<T>(source: string): T {
+  return JSON.parse(source) as T;
+}
+
+function replaceCargoPackageVersion(
+  source: string,
+  packageName: string,
+  version: string,
+) {
   const packageBlock = new RegExp(
     `(\\[\\[?package\\]?\\][\\s\\S]*?\\nname\\s*=\\s*"${packageName}"[\\s\\S]*?\\nversion\\s*=\\s*")([^"]+)(")`,
   );
   if (source.includes('[[package]]')) {
-    if (!packageBlock.test(source))
+    if (!packageBlock.test(source)) {
       throw new Error(`Package ${packageName} not found in Cargo.lock`);
+    }
     return source.replace(packageBlock, `$1${version}$3`);
   }
 
   const packageSection = /(\[package\][\s\S]*?\nversion\s*=\s*")([^"]+)(")/;
-  if (!packageSection.test(source))
+  if (!packageSection.test(source)) {
     throw new Error('[package] version not found in Cargo.toml');
+  }
   return source.replace(packageSection, `$1${version}$3`);
 }
 
@@ -52,9 +78,9 @@ async function readState() {
       readFile('src-tauri/tauri.conf.json', 'utf8'),
     ]);
 
-  const packageJson = JSON.parse(packageText);
-  const packageLock = JSON.parse(lockText);
-  const tauriConfig = JSON.parse(tauriText);
+  const packageJson = parseJson<VersionedJson>(packageText);
+  const packageLock = parseJson<PackageLockJson>(lockText);
+  const tauriConfig = parseJson<VersionedJson>(tauriText);
   const cargoTomlVersion = /\[package\][\s\S]*?\nversion\s*=\s*"([^"]+)"/.exec(
     cargoToml,
   )?.[1];
@@ -64,11 +90,8 @@ async function readState() {
     )?.[1];
 
   return {
-    packageText,
-    lockText,
     cargoToml,
     cargoLock,
-    tauriText,
     packageJson,
     packageLock,
     tauriConfig,
@@ -83,14 +106,15 @@ async function readState() {
   };
 }
 
-async function writeVersion(version) {
+async function writeVersion(version: string) {
   parseVersion(version);
   const state = await readState();
 
   state.packageJson.version = version;
   state.packageLock.version = version;
-  if (state.packageLock.packages?.[''])
+  if (state.packageLock.packages?.['']) {
     state.packageLock.packages[''].version = version;
+  }
   state.tauriConfig.version = version;
 
   await Promise.all([
@@ -119,7 +143,7 @@ async function writeVersion(version) {
   console.log(`Synced Galactrix version to ${version}`);
 }
 
-async function checkVersions() {
+export async function checkVersions() {
   const { versions } = await readState();
   const entries = Object.entries(versions);
   for (const [name, value] of entries) {
@@ -127,6 +151,7 @@ async function checkVersions() {
     parseVersion(value);
   }
   const expected = versions.packageJson;
+  if (!expected) throw new Error('Version is missing in packageJson');
   const mismatches = entries.filter(([, value]) => value !== expected);
   if (mismatches.length) {
     const details = entries
@@ -140,33 +165,67 @@ async function checkVersions() {
   return expected;
 }
 
-function createReleaseTag(version) {
+function assertReleaseTagAvailable(version: string) {
   const tag = `v${version}`;
-  const dirty = execFileSync('git', ['status', '--porcelain'], {
+  const result = spawnSync(
+    'git',
+    ['rev-parse', '--verify', '--quiet', `refs/tags/${tag}`],
+    { stdio: 'ignore' },
+  );
+  if (result.error) throw result.error;
+  if (result.status === 0) throw new Error(`Tag ${tag} already exists.`);
+}
+
+function workingTreeStatus() {
+  return execFileSync('git', ['status', '--porcelain'], {
     encoding: 'utf8',
   }).trim();
-  if (dirty) {
+}
+
+function headVersion() {
+  const packageText = execFileSync('git', ['show', 'HEAD:package.json'], {
+    encoding: 'utf8',
+  });
+  const version = parseJson<VersionedJson>(packageText).version;
+  if (!version) throw new Error('Version is missing in HEAD:package.json');
+  parseVersion(version);
+  return version;
+}
+
+export function releaseCommitMessage(version: string) {
+  parseVersion(version);
+  return version;
+}
+
+function createReleaseCommit(version: string) {
+  const previousVersion = headVersion();
+  if (previousVersion === version) {
+    throw new Error(
+      `Version ${version} is already committed. Run release:prepare:patch, release:prepare:minor or release:prepare:major first.`,
+    );
+  }
+  if (!workingTreeStatus()) {
+    throw new Error(
+      'Working tree is clean; there is no prepared release to commit.',
+    );
+  }
+  assertReleaseTagAvailable(version);
+
+  execFileSync('git', ['add', '--all'], { stdio: 'inherit' });
+  execFileSync('git', ['commit', '-m', releaseCommitMessage(version)], {
+    stdio: 'inherit',
+  });
+  console.log(`Created release commit ${version}.`);
+}
+
+function createReleaseTag(version: string) {
+  const tag = `v${version}`;
+  if (workingTreeStatus()) {
     throw new Error(
       'Working tree is not clean. Commit the version bump before creating a release tag.',
     );
   }
-
-  try {
-    execFileSync(
-      'git',
-      ['rev-parse', '--verify', '--quiet', `refs/tags/${tag}`],
-      {
-        stdio: 'ignore',
-      },
-    );
-    throw new Error(`Tag ${tag} already exists.`);
-  } catch (error) {
-    if (
-      error instanceof Error &&
-      error.message === `Tag ${tag} already exists.`
-    )
-      throw error;
-  }
+  assertReleaseTagAvailable(version);
 
   execFileSync('git', ['tag', '-a', tag, '-m', `Galactrix ${tag}`], {
     stdio: 'inherit',
@@ -176,19 +235,28 @@ function createReleaseTag(version) {
 
 async function main() {
   const command = process.argv[2] ?? 'check';
-  const current = JSON.parse(await readFile('package.json', 'utf8')).version;
+  const packageJson = parseJson<VersionedJson>(
+    await readFile('package.json', 'utf8'),
+  );
+  const current = packageJson.version;
+  if (!current) throw new Error('Version is missing in package.json');
+
   if (command === 'check') return checkVersions();
   if (command === 'sync') return writeVersion(current);
   if (command === 'tag') {
     const version = await checkVersions();
     return createReleaseTag(version);
   }
+  if (command === 'commit') {
+    const version = await checkVersions();
+    return createReleaseCommit(version);
+  }
   if (command === 'set') {
     const version = process.argv[3];
     if (!version) throw new Error('Usage: npm run version:set -- <version>');
     return writeVersion(version);
   }
-  if (['patch', 'minor', 'major'].includes(command)) {
+  if (command === 'patch' || command === 'minor' || command === 'major') {
     return writeVersion(bumpVersion(current, command));
   }
   throw new Error(`Unknown command: ${command}`);
@@ -198,7 +266,7 @@ if (
   process.argv[1] &&
   import.meta.url === pathToFileURL(process.argv[1]).href
 ) {
-  main().catch((error) => {
+  main().catch((error: unknown) => {
     console.error(error instanceof Error ? error.message : error);
     process.exitCode = 1;
   });

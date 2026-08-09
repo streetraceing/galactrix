@@ -14,10 +14,13 @@ npm run version:major
 npm run release:prepare:patch
 npm run release:prepare:minor
 npm run release:prepare:major
+npm run release:push
 npm run release:tag
 ```
 
 The `release:prepare:*` shortcuts bump the requested part and immediately run the normal project checks. `version:check` is also part of CI and the release workflow. The explicit `tauri.conf.json` version is intentional: Tauri recommends it as the app version source and Android derives `versionCode` from it.
+
+After a successful `release:prepare:patch`, `release:prepare:minor` or `release:prepare:major`, run `npm run release:push`. It verifies that the synchronized version differs from `HEAD`, stages the prepared tree, creates a commit whose message is exactly the version (for example `1.2.3`), and then runs `release:tag`. It deliberately does not push to a remote.
 
 ## Local builds
 
@@ -33,7 +36,7 @@ npm run release:build:local
 
 ## GitHub Release
 
-After committing the version bump, run `npm run release:tag`. It refuses to tag a dirty working tree and creates the matching annotated `vX.Y.Z` tag. Then publish it explicitly with `git push origin vX.Y.Z`. Pushing that tag runs `.github/workflows/release.yml`. The workflow builds Linux, Windows, macOS and a signed Android APK/AAB, then uploads them to one GitHub Release. It can also be started manually; in that case the release tag is derived from `package.json`.
+The normal path is `release:prepare:*` followed by `release:push`. If the release commit already exists, `npm run release:tag` remains available separately: it refuses to tag a dirty working tree and creates the matching annotated `vX.Y.Z` tag. Publish the resulting commit and tag explicitly with `git push origin HEAD vX.Y.Z`. Pushing that tag runs `.github/workflows/release.yml`. The workflow builds Linux, Windows, macOS and a signed Android APK/AAB, then uploads them to one GitHub Release. It can also be started manually; in that case the release tag is derived from `package.json`.
 
 Android release signing uses these GitHub Actions secrets:
 

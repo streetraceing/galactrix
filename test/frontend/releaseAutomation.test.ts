@@ -1,9 +1,13 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { promisify } from 'node:util';
 import test from 'node:test';
-import { bumpVersion, parseVersion } from '../../scripts/version.mjs';
+import {
+  bumpVersion,
+  parseVersion,
+  releaseCommitMessage,
+} from '../../scripts/version.ts';
 
 const execFileAsync = promisify(execFile);
 const root = new URL('../../', import.meta.url);
@@ -19,12 +23,13 @@ test('version helpers increment semantic versions predictably', () => {
   assert.equal(bumpVersion('1.2.3', 'patch'), '1.2.4');
   assert.equal(bumpVersion('1.2.3', 'minor'), '1.3.0');
   assert.equal(bumpVersion('1.2.3', 'major'), '2.0.0');
+  assert.equal(releaseCommitMessage('1.2.3'), '1.2.3');
 });
 
 test('project versions stay synchronized', async () => {
   const { stdout } = await execFileAsync(
     process.execPath,
-    ['scripts/version.mjs', 'check'],
+    ['--import', 'tsx', 'scripts/version.ts', 'check'],
     {
       cwd: root,
     },
@@ -49,7 +54,7 @@ test('release helpers expose combined local builds and a safe annotated tag comm
     await readFile(new URL('../../package.json', import.meta.url), 'utf8'),
   );
   const versionScript = await readFile(
-    new URL('../../scripts/version.mjs', import.meta.url),
+    new URL('../../scripts/version.ts', import.meta.url),
     'utf8',
   );
   assert.equal(
@@ -58,10 +63,58 @@ test('release helpers expose combined local builds and a safe annotated tag comm
   );
   assert.equal(
     packageJson.scripts['release:tag'],
-    'node scripts/version.mjs tag',
+    'tsx scripts/version.ts tag',
+  );
+  assert.equal(
+    packageJson.scripts['release:push'],
+    'tsx scripts/version.ts commit && npm run release:tag',
   );
   assert.match(versionScript, /git', \['status', '--porcelain'\]/);
+  assert.match(versionScript, /git', \['add', '--all'\]/);
+  assert.match(versionScript, /git', \['commit', '-m'/);
+  assert.match(versionScript, /previousVersion === version/);
   assert.match(versionScript, /git', \['tag', '-a'/);
+});
+
+test('project-owned automation uses TypeScript entrypoints through tsx', async () => {
+  const packageJson = JSON.parse(
+    await readFile(new URL('../../package.json', import.meta.url), 'utf8'),
+  );
+  const scriptFiles = await readdir(new URL('../../scripts/', import.meta.url));
+
+  assert.deepEqual(scriptFiles.sort(), [
+    'android-dev.ts',
+    'check-i18n.ts',
+    'version.ts',
+  ]);
+
+  for (const scriptName of [
+    'i18n:check',
+    'tauri:dev:android',
+    'version:check',
+    'version:sync',
+    'version:set',
+    'version:patch',
+    'version:minor',
+    'version:major',
+    'release:tag',
+    'release:push',
+  ]) {
+    assert.match(
+      packageJson.scripts[scriptName],
+      /^tsx scripts\/.+\.ts(?: |$)/,
+    );
+  }
+
+  const androidScript = await readFile(
+    new URL('../../scripts/android-dev.ts', import.meta.url),
+    'utf8',
+  );
+  assert.match(
+    androidScript,
+    /require\.resolve\('@tauri-apps\/cli\/tauri\.js'\)/,
+  );
+  assert.match(androidScript, /ANDROID_HOME/);
 });
 
 test('release workflow builds desktop and signed Android artifacts', async () => {
