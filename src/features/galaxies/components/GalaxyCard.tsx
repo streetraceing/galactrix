@@ -36,55 +36,72 @@ export function GalaxyCard({
 
   return (
     <ContextMenu>
-      <ContextMenuTrigger className="block h-full">
-        <Surface className="interactive-card group h-full rounded-2xl border border-separator hover:bg-surface-secondary">
+      <ContextMenuTrigger className="block">
+        <Surface className="interactive-card group overflow-hidden rounded-2xl border border-separator hover:bg-surface-secondary">
           <button
             type="button"
-            className="flex h-full w-full gap-3.5 p-4 text-left outline-none sm:p-5"
+            className="flex w-full min-w-0 flex-col gap-4 p-4 text-left outline-none sm:flex-row sm:items-start sm:gap-5 sm:p-5"
             onClick={onEdit}
           >
-            {hasIdentityAvatar ? (
-              <AppAvatar
-                src={avatar}
-                name={item.name}
-                className="size-11"
-                square
-              />
-            ) : (
-              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent/10 text-accent">
-                <Icon name={galaxyKindIcons[item.kind]} className="size-5" />
-              </span>
-            )}
-            <span className="flex min-w-0 flex-1 flex-col">
-              <span className="flex min-w-0 items-start gap-2">
-                <strong className="min-w-0 flex-1 truncate text-base font-semibold">
-                  {item.name}
-                </strong>
-                <Chip size="sm" variant="soft" className="bg-transparent">
-                  {t(galaxyKindLabelKeys[item.kind], { ns: 'common' })}
-                </Chip>
-              </span>
-              <span className="mt-1.5 line-clamp-3 text-sm leading-6 text-muted">
-                {item.description || t('galaxyCard.noDescriptionYet')}
-              </span>
-
-              {details.length > 0 ? (
-                <span className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted">
-                  {details.map((detail) => (
-                    <span key={detail}>{detail}</span>
-                  ))}
-                </span>
-              ) : null}
-
-              <span className="mt-auto flex items-center justify-between gap-3 pt-4 text-xs text-muted">
-                <span>
-                  {`${t('galaxyCard.modified')} ${relativeUpdatedAt}`}
-                </span>
-                <Icon
-                  name="chevron"
-                  className="size-4 transition-transform group-hover:translate-x-0.5"
+            <span className="flex min-w-0 flex-1 items-start gap-3.5 sm:gap-4">
+              {hasIdentityAvatar ? (
+                <AppAvatar
+                  src={avatar}
+                  name={item.name}
+                  className="size-12 shrink-0 sm:size-14"
+                  square
                 />
+              ) : (
+                <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-accent/10 text-accent sm:size-14">
+                  <Icon
+                    name={galaxyKindIcons[item.kind]}
+                    className="size-5 sm:size-6"
+                  />
+                </span>
+              )}
+
+              <span className="min-w-0 flex-1">
+                <span className="flex min-w-0 flex-wrap items-center gap-2">
+                  <strong className="min-w-0 text-base font-semibold sm:text-lg">
+                    {item.name}
+                  </strong>
+                  <Chip size="sm" variant="soft">
+                    {t(galaxyKindLabelKeys[item.kind], { ns: 'common' })}
+                  </Chip>
+                </span>
+
+                <span className="mt-1.5 block max-w-4xl text-sm leading-6 text-muted">
+                  {item.description || t('galaxyCard.noDescriptionYet')}
+                </span>
+
+                {details.length > 0 ? (
+                  <span className="mt-3 flex flex-wrap gap-2">
+                    {details.map((detail) => (
+                      <Chip
+                        key={detail}
+                        size="sm"
+                        variant="soft"
+                        className="bg-default/55"
+                      >
+                        {detail}
+                      </Chip>
+                    ))}
+                  </span>
+                ) : null}
               </span>
+            </span>
+
+            <span className="flex shrink-0 items-center justify-between gap-4 border-t border-separator pt-3 text-xs text-muted sm:min-w-44 sm:justify-end sm:border-l sm:border-t-0 sm:py-1 sm:pl-5 sm:pt-0">
+              <span className="sm:text-right">
+                <span className="block font-medium text-foreground/80">
+                  {t('galaxyCard.modified')}
+                </span>
+                <span className="mt-1 block">{relativeUpdatedAt}</span>
+              </span>
+              <Icon
+                name="chevron"
+                className="size-4 shrink-0 transition-transform group-hover:translate-x-0.5"
+              />
             </span>
           </button>
         </Surface>

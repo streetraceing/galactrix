@@ -132,6 +132,7 @@ export function UsageTimeline({
     (point) => point.day === selected.day,
   );
   const peakValue = summary.peak ? usageValue(summary.peak, metric) : 0;
+  const isWeeklyRange = range === 'week';
 
   return (
     <Surface className="overflow-hidden rounded-2xl border border-separator bg-surface shadow-surface ring-1 ring-inset ring-foreground/5">
@@ -221,7 +222,9 @@ export function UsageTimeline({
 
       <div
         ref={scrollerRef}
-        className="scrollbar-thin usage-timeline h-64 overflow-x-auto px-3 pb-4 pt-6 sm:h-72 sm:px-5 sm:pb-5"
+        className={`scrollbar-thin usage-timeline h-64 overflow-x-auto px-3 pb-4 pt-6 sm:h-72 sm:px-5 sm:pb-5 ${
+          isWeeklyRange ? 'lg:overflow-x-hidden lg:px-8' : ''
+        }`}
         aria-label={
           metric === 'tokens'
             ? t('usageTimeline.dailyTokenUsage')
@@ -229,7 +232,11 @@ export function UsageTimeline({
         }
       >
         <div
-          className="grid h-full min-w-full snap-x snap-mandatory items-end gap-1"
+          className={`grid h-full snap-x snap-mandatory items-end ${
+            isWeeklyRange
+              ? 'min-w-full gap-2 lg:mx-auto lg:w-full lg:max-w-4xl lg:min-w-0 lg:gap-4'
+              : 'min-w-full gap-1'
+          }`}
           style={{
             gridTemplateColumns: `repeat(${displayedUsage.length}, minmax(2.75rem, 1fr))`,
           }}
@@ -263,7 +270,11 @@ export function UsageTimeline({
                 >
                   {value > 0 ? formattedValue(value, metric) : '-'}
                 </span>
-                <span className="relative min-h-0 w-7 flex-1 overflow-hidden rounded-lg bg-default/60">
+                <span
+                  className={`relative min-h-0 flex-1 overflow-hidden rounded-lg bg-default/60 ${
+                    isWeeklyRange ? 'w-8 sm:w-9 lg:w-10' : 'w-7'
+                  }`}
+                >
                   {metric === 'tokens' ? (
                     <span
                       className={`usage-bar absolute inset-x-0 bottom-0 rounded-lg transition-[height,filter,opacity] duration-500 ${

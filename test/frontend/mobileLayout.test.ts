@@ -207,5 +207,5 @@ test('metric cards reserve a little more bottom space on phones', async () => {
     'utf8',
   );
 
-  assert.match(source, /px-4 pt-4 pb-5 sm:p-5/);
+  assert.match(source, /className={`metric-enter min-w-0 p-5/);
 });

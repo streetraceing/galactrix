@@ -347,7 +347,7 @@ export function TelescopeScreen({
           />
 
           {providers.length > 0 ? (
-            <div className="grid gap-3 md:grid-cols-2">
+            <div className="flex flex-col gap-3">
               {providers.map((provider) => (
                 <ProviderCard
                   key={provider.id}

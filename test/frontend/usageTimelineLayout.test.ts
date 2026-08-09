@@ -7,10 +7,12 @@ const usageTimelinePath = new URL(
   import.meta.url,
 );
 
-test('usage columns fill the available chart width for the selected range', async () => {
+test('usage columns stay dense for a week and remain scrollable for longer ranges', async () => {
   const source = await readFile(usageTimelinePath, 'utf8');
 
-  assert.match(source, /grid h-full min-w-full/);
+  assert.match(source, /isWeeklyRange/);
+  assert.match(source, /lg:max-w-4xl/);
+  assert.match(source, /lg:w-10/);
   assert.match(
     source,
     /gridTemplateColumns: `repeat\(\$\{displayedUsage\.length\}, minmax\(2\.75rem, 1fr\)\)`/,

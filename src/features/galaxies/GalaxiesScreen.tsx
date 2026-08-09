@@ -385,7 +385,7 @@ export function GalaxiesScreen({
                 </div>
 
                 {sectionItems.length > 0 ? (
-                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  <div className="flex flex-col gap-3">
                     {sectionItems.map((item, index) => (
                       <div
                         key={item.id}

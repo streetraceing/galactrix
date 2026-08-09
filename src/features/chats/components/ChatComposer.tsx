@@ -616,21 +616,7 @@ function ChatComposerComponent({
         isConfirmDisabled={!draft.trim() || !provider || sending}
         bodyClassName="flex min-h-0 flex-col"
         footer={
-          <div className="flex w-full items-center gap-2">
-            <Button
-              variant="tertiary"
-              className="mr-auto"
-              isDisabled={!provider || sending}
-              onPress={() =>
-                applyInsertion(
-                  insertRoleplayAction,
-                  fullscreenTextAreaRef.current,
-                )
-              }
-            >
-              <Icon name="sparkles" className="size-4" />
-              {t('chatComposer.insertRoleplayAction')}
-            </Button>
+          <div className="flex w-full items-center justify-end gap-2">
             <Button variant="tertiary" onPress={() => setFullscreenOpen(false)}>
               {t('chatComposer.closeFullscreen')}
             </Button>
@@ -646,6 +632,77 @@ function ChatComposerComponent({
         }
       >
         <div className="flex min-h-full min-w-0 flex-1 flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-separator bg-default/30 p-2">
+            <Button
+              size="sm"
+              variant="tertiary"
+              isDisabled={!provider || sending}
+              onPress={() =>
+                runToolAction('roleplay', fullscreenTextAreaRef.current)
+              }
+            >
+              <Icon name="sparkles" className="size-4 text-accent" />
+              {t('chatComposer.insertRoleplayAction')}
+            </Button>
+            <Button
+              size="sm"
+              variant="tertiary"
+              isDisabled={!provider || sending}
+              onPress={() =>
+                runToolAction('bold', fullscreenTextAreaRef.current)
+              }
+            >
+              <Icon name="edit" className="size-4" />
+              {t('chatComposer.insertBold')}
+            </Button>
+            <Button
+              size="sm"
+              variant="tertiary"
+              isDisabled={!provider || sending}
+              onPress={() =>
+                runToolAction('quote', fullscreenTextAreaRef.current)
+              }
+            >
+              <Icon name="message_box" className="size-4" />
+              {t('chatComposer.insertQuote')}
+            </Button>
+            <Button
+              size="sm"
+              variant="tertiary"
+              isDisabled={!provider || sending}
+              onPress={() =>
+                runToolAction('ooc', fullscreenTextAreaRef.current)
+              }
+            >
+              <Icon name="info" className="size-4" />
+              {t('chatComposer.insertOoc')}
+            </Button>
+            {draft ? (
+              <>
+                <span
+                  className="hidden h-6 w-px bg-separator sm:block"
+                  aria-hidden
+                />
+                <Button
+                  size="sm"
+                  variant="tertiary"
+                  onPress={() => runToolAction('copy')}
+                >
+                  <Icon name="copy" className="size-4" />
+                  {t('chatComposer.copyDraft')}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="tertiary"
+                  className="text-danger"
+                  onPress={() => runToolAction('clear')}
+                >
+                  <Icon name="clear" className="size-4" />
+                  {t('chatComposer.clearDraft')}
+                </Button>
+              </>
+            ) : null}
+          </div>
           <TextArea
             autoComplete="off"
             ref={fullscreenTextAreaRef}
