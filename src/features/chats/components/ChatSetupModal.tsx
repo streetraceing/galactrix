@@ -1,4 +1,13 @@
-import { Button, Input, Label, Surface, Tabs, TextArea } from '@heroui/react';
+import {
+  Button,
+  Input,
+  Label,
+  ListBox,
+  Select,
+  Surface,
+  Tabs,
+  TextArea,
+} from '@heroui/react';
 import { useEffect, useState } from 'react';
 import { Icon } from '../../../components/Icon';
 import { UiModal } from '../../../components/ui/UiModal';
@@ -23,6 +32,7 @@ import {
   isChatConfigValid,
   normalizeRecentMessageLimit,
 } from '../chatConfig';
+import { responseLengthModes } from '../promptConfig';
 import { promptPreviewFromChat } from '../promptPreview';
 import { ChatContextPicker } from './ChatContextPicker';
 import { ChatModuleOverridesPanel } from './ChatModuleOverrides';
@@ -263,6 +273,57 @@ export function ChatSetupModal({
                   {t('chatSetupModal.automaticTitleDescription')}
                 </p>
               ) : null}
+
+              <div className="flex min-w-0 flex-col gap-1.5">
+                <Select
+                  fullWidth
+                  variant="secondary"
+                  value={form.promptConfig.responseLength ?? 'auto'}
+                  onChange={(key) => {
+                    const selected = Array.isArray(key) ? key[0] : key;
+                    if (selected == null) return;
+                    const responseLength = String(selected) as
+                      'auto' | 'micro' | 'short' | 'long';
+                    setForm((current) => ({
+                      ...current,
+                      promptConfig: {
+                        ...current.promptConfig,
+                        responseLength,
+                      },
+                    }));
+                  }}
+                >
+                  <Label>{t('chatSetupModal.responseLength')}</Label>
+                  <Select.Trigger>
+                    <Select.Value />
+                    <Select.Indicator />
+                  </Select.Trigger>
+                  <Select.Popover>
+                    <ListBox>
+                      {responseLengthModes.map((option) => (
+                        <ListBox.Item
+                          key={option.id}
+                          id={option.id}
+                          textValue={t(option.labelKey)}
+                        >
+                          <span className="min-w-0 flex-1">
+                            <strong className="block text-sm">
+                              {t(option.labelKey)}
+                            </strong>
+                            <span className="mt-0.5 block text-xs leading-5 text-muted">
+                              {t(option.descriptionKey)}
+                            </span>
+                          </span>
+                          <ListBox.ItemIndicator />
+                        </ListBox.Item>
+                      ))}
+                    </ListBox>
+                  </Select.Popover>
+                </Select>
+                <p className="text-xs leading-5 text-muted">
+                  {t('chatSetupModal.responseLengthDescription')}
+                </p>
+              </div>
 
               <div className="flex min-w-0 flex-col gap-1.5">
                 <Label htmlFor="chat-recent-message-limit">

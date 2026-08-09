@@ -1,4 +1,4 @@
-import { Button, Surface, TextArea } from '@heroui/react';
+import { Button, Dropdown, Label, Surface, TextArea } from '@heroui/react';
 import {
   memo,
   useCallback,
@@ -27,8 +27,15 @@ import {
   writeStorageItem,
 } from '../../../lib/storage';
 import type { Provider } from '../../../types';
+import { copyChatText } from '../chatClipboard';
 import { useTranslation } from 'react-i18next';
-import { insertRoleplayAction } from '../composerTools';
+import {
+  insertBoldText,
+  insertDialogueQuote,
+  insertOocAside,
+  insertRoleplayAction,
+  type ComposerInsertion,
+} from '../composerTools';
 import { draftKey } from '../utils';
 
 function readDraft(chatId: string, saveDrafts: boolean) {
@@ -39,6 +46,9 @@ function persistDraft(chatId: string, value: string) {
   if (value) writeStorageItem(draftKey(chatId), value);
   else removeStorageItem(draftKey(chatId));
 }
+
+type ComposerToolAction =
+  'roleplay' | 'bold' | 'quote' | 'ooc' | 'fullscreen' | 'copy' | 'clear';
 
 function ChatComposerComponent({
   chatId,
@@ -98,12 +108,19 @@ function ChatComposerComponent({
     setDraft(value);
   }, []);
 
-  const applyRoleplayAction = useCallback(
-    (target?: HTMLTextAreaElement | null) => {
+  const applyInsertion = useCallback(
+    (
+      insert: (
+        value: string,
+        selectionStart: number,
+        selectionEnd: number,
+      ) => ComposerInsertion,
+      target?: HTMLTextAreaElement | null,
+    ) => {
       const textArea = target ?? textAreaRef.current;
       const start = textArea?.selectionStart ?? draftRef.current.length;
       const end = textArea?.selectionEnd ?? start;
-      const insertion = insertRoleplayAction(draftRef.current, start, end);
+      const insertion = insert(draftRef.current, start, end);
       setDraftValue(insertion.value);
       window.requestAnimationFrame(() => {
         const nextTarget =
@@ -125,6 +142,36 @@ function ChatComposerComponent({
     setMobileMenuOpen(false);
     setFullscreenOpen(true);
   }, []);
+
+  const runToolAction = useCallback(
+    (action: ComposerToolAction, target?: HTMLTextAreaElement | null) => {
+      setMobileMenuOpen(false);
+      switch (action) {
+        case 'roleplay':
+          applyInsertion(insertRoleplayAction, target);
+          break;
+        case 'bold':
+          applyInsertion(insertBoldText, target);
+          break;
+        case 'quote':
+          applyInsertion(insertDialogueQuote, target);
+          break;
+        case 'ooc':
+          applyInsertion(insertOocAside, target);
+          break;
+        case 'fullscreen':
+          openFullscreen();
+          break;
+        case 'copy':
+          if (draftRef.current) void copyChatText(draftRef.current);
+          break;
+        case 'clear':
+          setDraftValue('');
+          break;
+      }
+    },
+    [applyInsertion, openFullscreen, setDraftValue],
+  );
 
   useEffect(() => {
     draftRef.current = draft;
@@ -340,6 +387,73 @@ function ChatComposerComponent({
     void submit();
   };
 
+  const desktopToolsButton = !isMobile ? (
+    <Dropdown>
+      <Button
+        isIconOnly
+        size="lg"
+        variant="tertiary"
+        className="size-12 min-w-12 shrink-0 p-0"
+        aria-label={t('chatComposer.tools')}
+      >
+        <Icon name="magic-wand" className="size-5" />
+      </Button>
+      <Dropdown.Popover
+        placement="top end"
+        className="min-w-64 max-w-[min(20rem,calc(100vw-2rem))]"
+      >
+        <Dropdown.Menu
+          aria-label={t('chatComposer.toolsDescription')}
+          onAction={(key) =>
+            runToolAction(
+              String(key) as ComposerToolAction,
+              textAreaRef.current,
+            )
+          }
+        >
+          <Dropdown.Item
+            id="roleplay"
+            textValue={t('chatComposer.insertRoleplayAction')}
+          >
+            <Icon name="sparkles" className="size-4 text-accent" />
+            <Label>{t('chatComposer.insertRoleplayAction')}</Label>
+          </Dropdown.Item>
+          <Dropdown.Item id="bold" textValue={t('chatComposer.insertBold')}>
+            <Icon name="edit" className="size-4" />
+            <Label>{t('chatComposer.insertBold')}</Label>
+          </Dropdown.Item>
+          <Dropdown.Item id="quote" textValue={t('chatComposer.insertQuote')}>
+            <Icon name="message_box" className="size-4" />
+            <Label>{t('chatComposer.insertQuote')}</Label>
+          </Dropdown.Item>
+          <Dropdown.Item id="ooc" textValue={t('chatComposer.insertOoc')}>
+            <Icon name="info" className="size-4" />
+            <Label>{t('chatComposer.insertOoc')}</Label>
+          </Dropdown.Item>
+          <Dropdown.Item
+            id="fullscreen"
+            textValue={t('chatComposer.openFullscreen')}
+          >
+            <Icon name="screen-full" className="size-4" />
+            <Label>{t('chatComposer.openFullscreen')}</Label>
+          </Dropdown.Item>
+          {draft ? (
+            <Dropdown.Item id="copy" textValue={t('chatComposer.copyDraft')}>
+              <Icon name="copy" className="size-4" />
+              <Label>{t('chatComposer.copyDraft')}</Label>
+            </Dropdown.Item>
+          ) : null}
+          {draft ? (
+            <Dropdown.Item id="clear" textValue={t('chatComposer.clearDraft')}>
+              <Icon name="clear" className="size-4" />
+              <Label>{t('chatComposer.clearDraft')}</Label>
+            </Dropdown.Item>
+          ) : null}
+        </Dropdown.Menu>
+      </Dropdown.Popover>
+    </Dropdown>
+  ) : null;
+
   const sendButton = isMobile ? (
     <ContextMenu
       open={mobileMenuOpen}
@@ -372,29 +486,43 @@ function ChatComposerComponent({
         align="end"
         className="w-[min(17rem,calc(100dvw-1rem))]"
       >
-        <ContextMenuLabel>{t('chatComposer.sendMenu')}</ContextMenuLabel>
+        <ContextMenuLabel>{t('chatComposer.tools')}</ContextMenuLabel>
         <ContextMenuItem
-          onClick={() => {
-            setMobileMenuOpen(false);
-            applyRoleplayAction(textAreaRef.current);
-          }}
+          onClick={() => runToolAction('roleplay', textAreaRef.current)}
         >
           <Icon name="sparkles" className="size-4 text-accent" />
           {t('chatComposer.insertRoleplayAction')}
         </ContextMenuItem>
-        <ContextMenuItem onClick={openFullscreen}>
+        <ContextMenuItem
+          onClick={() => runToolAction('bold', textAreaRef.current)}
+        >
+          <Icon name="edit" className="size-4" />
+          {t('chatComposer.insertBold')}
+        </ContextMenuItem>
+        <ContextMenuItem
+          onClick={() => runToolAction('quote', textAreaRef.current)}
+        >
+          <Icon name="message_box" className="size-4" />
+          {t('chatComposer.insertQuote')}
+        </ContextMenuItem>
+        <ContextMenuItem
+          onClick={() => runToolAction('ooc', textAreaRef.current)}
+        >
+          <Icon name="info" className="size-4" />
+          {t('chatComposer.insertOoc')}
+        </ContextMenuItem>
+        <ContextMenuItem onClick={() => runToolAction('fullscreen')}>
           <Icon name="screen-full" className="size-4" />
           {t('chatComposer.openFullscreen')}
         </ContextMenuItem>
         {draft ? (
           <>
             <ContextMenuSeparator />
-            <ContextMenuItem
-              onClick={() => {
-                setMobileMenuOpen(false);
-                setDraftValue('');
-              }}
-            >
+            <ContextMenuItem onClick={() => runToolAction('copy')}>
+              <Icon name="copy" className="size-4" />
+              {t('chatComposer.copyDraft')}
+            </ContextMenuItem>
+            <ContextMenuItem onClick={() => runToolAction('clear')}>
               <Icon name="clear" className="size-4" />
               {t('chatComposer.clearDraft')}
             </ContextMenuItem>
@@ -443,28 +571,7 @@ function ChatComposerComponent({
                 className="scrollbar-thin min-h-12 max-h-48 min-w-0 flex-1 resize-none overflow-y-auto transition-none ring-0"
               />
 
-              <div className="hidden shrink-0 items-center gap-1 sm:flex">
-                <TooltipIconButton
-                  label={t('chatComposer.insertRoleplayActionTooltip')}
-                  size="lg"
-                  variant="tertiary"
-                  className="size-10 min-w-10 p-0"
-                  isDisabled={!provider || sending}
-                  onPress={() => applyRoleplayAction(textAreaRef.current)}
-                >
-                  <Icon name="sparkles" className="size-4" />
-                </TooltipIconButton>
-                <TooltipIconButton
-                  label={t('chatComposer.openFullscreenTooltip')}
-                  size="lg"
-                  variant="tertiary"
-                  className="size-10 min-w-10 p-0"
-                  isDisabled={!provider}
-                  onPress={openFullscreen}
-                >
-                  <Icon name="screen-full" className="size-4" />
-                </TooltipIconButton>
-              </div>
+              {desktopToolsButton}
 
               <div className="flex size-12 shrink-0 self-end items-center justify-center">
                 {sending ? (
@@ -514,7 +621,12 @@ function ChatComposerComponent({
               variant="tertiary"
               className="mr-auto"
               isDisabled={!provider || sending}
-              onPress={() => applyRoleplayAction(fullscreenTextAreaRef.current)}
+              onPress={() =>
+                applyInsertion(
+                  insertRoleplayAction,
+                  fullscreenTextAreaRef.current,
+                )
+              }
             >
               <Icon name="sparkles" className="size-4" />
               {t('chatComposer.insertRoleplayAction')}

@@ -5,7 +5,7 @@ export function TemplateVariablesHint() {
   const { t } = useTranslation('galaxies');
 
   return (
-    <div className="flex items-start gap-2 rounded-xl border border-separator bg-accent/5 px-3 py-2.5 text-xs leading-5 text-muted sm:px-4">
+    <div className="flex items-start gap-2 rounded-xl border border-separator bg-surface px-3 py-2.5 text-xs leading-5 text-muted sm:px-4">
       <Icon name="sparkles" className="mt-0.5 size-4 shrink-0 text-accent" />
       <p>
         {t('templateVariablesHint.prefix')}{' '}

@@ -1122,6 +1122,9 @@ fn validate_prompt_config(config: &PromptConfig) -> CommandResult<()> {
     if config.recent_message_limit > 500 {
         return Err(CommandError::new(keys::CHAT_RECENT_MESSAGE_LIMIT_RANGE));
     }
+    if !matches!(config.response_length.as_str(), "auto" | "micro" | "short" | "long") {
+        return Err(CommandError::new(keys::PROMPT_RULE_UNKNOWN));
+    }
     const PRESETS: [&str; 16] = [
         "human",
         "casual-brief",

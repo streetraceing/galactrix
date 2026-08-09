@@ -215,6 +215,7 @@ export function normalizeData(
 export function defaultPromptSet(): PromptConfig {
   return {
     recentMessageLimit: 50,
+    responseLength: 'auto',
     setIds: [],
     presetIds: [],
     contextPriorities: {
@@ -238,6 +239,7 @@ function normalizePromptSet(value: Record<string, unknown>): PromptConfig {
       ? (value.contextPriorities as Record<string, unknown>)
       : {};
   return {
+    responseLength: 'auto',
     recentMessageLimit: normalizeRecentMessageLimit(
       value.recentMessageLimit,
       defaults.recentMessageLimit,

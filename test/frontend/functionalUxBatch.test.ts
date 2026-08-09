@@ -5,14 +5,19 @@ import test from 'node:test';
 const root = new URL('../../', import.meta.url);
 const read = (path: string) => readFile(new URL(path, root), 'utf8');
 
-test('composer exposes desktop tools and a mobile long-press send menu', async () => {
+test('composer exposes one desktop tools menu and the same mobile long-press actions', async () => {
   const source = await read('src/features/chats/components/ChatComposer.tsx');
-  assert.match(source, /insertRoleplayActionTooltip/);
-  assert.match(source, /openFullscreenTooltip/);
+  assert.match(source, /desktopToolsButton/);
+  assert.match(source, /<Dropdown>[\s\S]*?magic-wand/);
   assert.match(source, /<ContextMenu[\s\S]*?<ContextMenuTrigger/);
-  assert.match(source, /sendMenu/);
+  for (const action of ['roleplay', 'bold', 'quote', 'ooc', 'fullscreen']) {
+    assert.match(source, new RegExp(`runToolAction\\('${action}'`));
+  }
+  assert.match(source, /copyDraft/);
+  assert.match(source, /clearDraft/);
   assert.match(source, /fullscreenTitle/);
   assert.match(source, /variant="tertiary"/);
+  assert.doesNotMatch(source, /title=\{t\('chatComposer\.tools'\)\}/);
 });
 
 test('galaxy editors advertise real template variables', async () => {

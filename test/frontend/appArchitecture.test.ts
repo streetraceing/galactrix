@@ -21,6 +21,7 @@ import type { Chat, Message, PromptConfig } from '../../src/types';
 
 const promptConfig: PromptConfig = {
   recentMessageLimit: 24,
+  responseLength: 'auto',
   setIds: [],
   presetIds: [],
   contextPriorities: {

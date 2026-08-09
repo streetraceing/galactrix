@@ -665,6 +665,54 @@ fn chat_module_overrides_persist_update_and_clone() {
 }
 
 #[test]
+fn chat_response_length_override_persists_updates_and_clones() {
+    let connection = test_database();
+    let mut prompt_config = PromptConfig::default();
+    prompt_config.response_length = "micro".into();
+    let mut input = ChatConfigInput {
+        title: "Length chat".into(),
+        greeting_message: None,
+        provider_id: None,
+        persona_id: None,
+        character_id: None,
+        style_item_id: None,
+        universe_id: None,
+        worldbook_ids: Vec::new(),
+        prompt_config,
+        module_overrides: Default::default(),
+    };
+
+    create_chat(&connection, "chat-length", &input).expect("chat must save");
+    assert_eq!(
+        get_chat(&connection, "chat-length")
+            .expect("chat must load")
+            .prompt_config
+            .response_length,
+        "micro"
+    );
+
+    input.prompt_config.response_length = "long".into();
+    update_chat_config(&connection, "chat-length", &input).expect("chat must update");
+    clone_chat(
+        &connection,
+        "chat-length",
+        "chat-length-copy",
+        "Length chat copy",
+        false,
+        None,
+    )
+    .expect("chat must clone");
+
+    assert_eq!(
+        get_chat(&connection, "chat-length-copy")
+            .expect("clone must load")
+            .prompt_config
+            .response_length,
+        "long"
+    );
+}
+
+#[test]
 fn blank_new_chat_title_uses_character_name_and_sequence() {
     let connection = test_database();
     connection

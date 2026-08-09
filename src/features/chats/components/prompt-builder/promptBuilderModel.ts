@@ -6,7 +6,7 @@ import type {
   PromptPriority,
   PromptSetData,
 } from '../../../../types';
-import { promptPriorities } from '../../promptConfig';
+import { promptPriorities, responseLengthModes } from '../../promptConfig';
 import { translate, type TranslationKey } from '../../../../i18n';
 
 function promptText(
@@ -145,6 +145,21 @@ export function getPromptOrderPreview(
     return entries;
   });
   const ownOrder = priorityFields.length + selectedSets.length * 20;
+  const responseLength = responseLengthModes.find(
+    (option) => option.id === (value.responseLength ?? 'auto'),
+  );
+  const responseLengthEntry =
+    responseLength && responseLength.id !== 'auto'
+      ? [
+          {
+            id: 'response-length',
+            title: promptText('responseLength.sourceTitle'),
+            description: promptText(responseLength.descriptionKey),
+            priority: 'critical' as const,
+            order: ownOrder + value.customBlocks.length + 1,
+          },
+        ]
+      : [];
 
   return [
     ...(includeContext
@@ -171,6 +186,7 @@ export function getPromptOrderPreview(
         priority: block.priority,
         order: ownOrder + order,
       })),
+    ...responseLengthEntry,
   ].sort((left, right) => {
     const leftPriority = promptPriorities.findIndex(
       (priority) => priority.id === left.priority,

@@ -1,5 +1,10 @@
 import type { TranslationKey } from '../../i18n';
-import type { PromptConfig, PromptPresetId, PromptPriority } from '../../types';
+import type {
+  PromptConfig,
+  PromptPresetId,
+  PromptPriority,
+  ResponseLengthMode,
+} from '../../types';
 
 type PromptPresetOption = {
   id: PromptPresetId;
@@ -14,11 +19,40 @@ type PromptBundleOption = {
   presetIds: readonly PromptPresetId[];
 };
 
+type ResponseLengthOption = {
+  id: ResponseLengthMode;
+  labelKey: TranslationKey<'chats'>;
+  descriptionKey: TranslationKey<'chats'>;
+};
+
 type PromptPriorityOption = {
   id: PromptPriority;
   labelKey: TranslationKey<'chats'>;
   descriptionKey: TranslationKey<'chats'>;
 };
+
+export const responseLengthModes = [
+  {
+    id: 'auto',
+    labelKey: 'responseLength.auto.label',
+    descriptionKey: 'responseLength.auto.description',
+  },
+  {
+    id: 'micro',
+    labelKey: 'responseLength.micro.label',
+    descriptionKey: 'responseLength.micro.description',
+  },
+  {
+    id: 'short',
+    labelKey: 'responseLength.short.label',
+    descriptionKey: 'responseLength.short.description',
+  },
+  {
+    id: 'long',
+    labelKey: 'responseLength.long.label',
+    descriptionKey: 'responseLength.long.description',
+  },
+] as const satisfies readonly ResponseLengthOption[];
 
 export const promptPresets = [
   {
@@ -257,6 +291,7 @@ export const promptPriorities = [
 
 export const defaultPromptConfig: PromptConfig = {
   recentMessageLimit: 50,
+  responseLength: 'auto',
   setIds: [],
   presetIds: [],
   contextPriorities: {
@@ -272,6 +307,7 @@ export const defaultPromptConfig: PromptConfig = {
 
 export function clonePromptConfig(config: PromptConfig): PromptConfig {
   return {
+    responseLength: config.responseLength ?? 'auto',
     recentMessageLimit: Math.max(
       0,
       Math.floor(config.recentMessageLimit ?? 50),

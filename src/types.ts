@@ -37,6 +37,8 @@ export type PromptPresetId =
 
 export type PromptPriority = 'low' | 'normal' | 'high' | 'critical';
 
+export type ResponseLengthMode = 'auto' | 'micro' | 'short' | 'long';
+
 export type PromptContextPriorities = {
   persona: PromptPriority;
   character: PromptPriority;
@@ -56,6 +58,7 @@ export type PromptBlock = {
 
 export type PromptConfig = {
   recentMessageLimit: number;
+  responseLength: ResponseLengthMode;
   setIds: string[];
   presetIds: PromptPresetId[];
   contextPriorities: PromptContextPriorities;

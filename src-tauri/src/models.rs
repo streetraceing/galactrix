@@ -67,11 +67,17 @@ fn default_recent_message_limit() -> usize {
     50
 }
 
+fn default_response_length() -> String {
+    "auto".to_owned()
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PromptConfig {
     #[serde(default = "default_recent_message_limit")]
     pub recent_message_limit: usize,
+    #[serde(default = "default_response_length")]
+    pub response_length: String,
     #[serde(default)]
     pub set_ids: Vec<String>,
     #[serde(default)]
@@ -86,6 +92,7 @@ impl Default for PromptConfig {
     fn default() -> Self {
         Self {
             recent_message_limit: default_recent_message_limit(),
+            response_length: default_response_length(),
             set_ids: Vec::new(),
             preset_ids: Vec::new(),
             context_priorities: PromptContextPriorities::default(),

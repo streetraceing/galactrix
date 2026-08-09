@@ -15,6 +15,7 @@ export type IconName =
   | 'search'
   | 'send'
   | 'sparkles'
+  | 'magic-wand'
   | 'settings'
   | 'shield'
   | 'database'
@@ -142,6 +143,14 @@ function createIconPaths(): Record<IconName, ReactNode> {
       <>
         <path d="m12 3 1.2 3.8L17 8l-3.8 1.2L12 13l-1.2-3.8L7 8l3.8-1.2Z" />
         <path d="m18 14 .7 2.3L21 17l-2.3.7L18 20l-.7-2.3L15 17l2.3-.7Z" />
+      </>
+    ),
+    'magic-wand': (
+      <>
+        <path d="m4 20 10.8-10.8" />
+        <path d="m13 5 1-3 1 3 3 1-3 1-1 3-1-3-3-1Z" />
+        <path d="m18 12 .7-2 .8 2 2 .8-2 .7-.8 2-.7-2-2-.7Z" />
+        <path d="m3 17 4 4" />
       </>
     ),
     settings: (

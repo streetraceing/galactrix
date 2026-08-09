@@ -237,6 +237,15 @@ fn collect_sections(
         );
     }
 
+    if let Some(instruction) = response_length_instruction(&context.prompt_config.response_length) {
+        push_section(
+            &mut sections,
+            "critical",
+            "CHAT RESPONSE LENGTH",
+            instruction.to_owned(),
+        );
+    }
+
     let remembered = remembered_history
         .iter()
         .filter(|message| message.remembered)
@@ -720,6 +729,21 @@ fn render_sections(sections: &[Value]) -> Vec<String> {
         .collect()
 }
 
+fn response_length_instruction(mode: &str) -> Option<&'static str> {
+    match mode {
+        "micro" => Some(
+            "Chat-level override: keep ordinary replies very short and message-like. Usually send one compact sentence or natural fragment, roughly 2-14 words. Prefer a single thought per turn. Do not evade the limit by writing one long multi-clause sentence. Use two short sentences only when needed. Exceed this only when the user explicitly asks for detail or correctness/safety genuinely requires it. This instruction overrides character or style preferences about reply length.",
+        ),
+        "short" => Some(
+            "Chat-level override: keep ordinary replies short. Usually use 1-2 genuinely short sentences, roughly 10-45 words total. Avoid paragraph-length replies, long multi-clause sentences, repetition, and explanatory padding unless the user explicitly requests detail or the task requires it. This instruction overrides character or style preferences about reply length.",
+        ),
+        "long" => Some(
+            "Chat-level override: prefer developed, substantial replies when the context supports them. Usually expand useful thoughts across multiple sentences or 2-5 paragraphs, with concrete detail and nuance rather than filler. Do not cut a reply short merely to imitate chat brevity. This instruction overrides character or style preferences about reply length.",
+        ),
+        _ => None,
+    }
+}
+
 fn built_in_style(preset: &str) -> &'static str {
     match preset {
         "warm" => {
@@ -729,10 +753,10 @@ fn built_in_style(preset: &str) -> &'static str {
             "Write concise, direct replies. Avoid repetition, filler, and unnecessary exposition."
         }
         "short-messages" => {
-            "Prefer short chat messages most of the time: usually one to three compact sentences or a few brief fragments. Keep the reply natural and complete, but avoid turning ordinary turns into long explanations unless the situation clearly needs detail."
+            "Prefer genuinely short, lively chat replies. For ordinary turns, usually send one short sentence or fragment (roughly 2-18 words); sometimes use two short sentences. Do not turn the limit into one oversized multi-clause sentence, and do not default to three sentences. Only expand when the user explicitly asks or the situation truly needs detail."
         }
         "long-messages" => {
-            "Prefer substantial, detailed replies most of the time. Develop thoughts across several sentences or paragraphs, add useful nuance and scene/detail when relevant, and avoid cutting an answer short merely for brevity. Do not pad with repetition or filler."
+            "Prefer substantial, developed replies most of the time. When context supports it, use multiple sentences or 2-5 paragraphs with concrete detail, nuance, scene texture, or reasoning. Do not cut a reply short merely for chat brevity, but never pad with repetition or filler."
         }
         "casual-lowercase" => {
             "Write in a relaxed, natural chat style: start most ordinary sentences and fragments with lowercase letters, use fewer full stops, and often connect short thoughts with commas or brief line breaks. Keep personal names, place names, brands, acronyms, sentence-internal proper nouns, quoted text, code, URLs, and identifiers conventionally capitalized. Do not intentionally misspell words or reduce clarity."
@@ -1082,6 +1106,36 @@ mod tests {
 
         assert!(prompt.contains("KEEP_CRITICAL"));
         assert!(!prompt.contains("DROP_LOW"));
+    }
+
+    #[test]
+    fn chat_response_length_override_is_critical_and_explicit() {
+        let context = ChatPromptContext {
+            persona: None,
+            character: None,
+            universe: None,
+            worldbooks: Vec::new(),
+            character_style: None,
+            prompt_sets: Vec::new(),
+            prompt_config: PromptConfig {
+                response_length: "micro".into(),
+                ..PromptConfig::default()
+            },
+        };
+
+        let prompt = build_system_prompt(&context, &[], None).expect("prompt");
+        assert!(prompt.contains("[CHAT RESPONSE LENGTH]"));
+        assert!(prompt.contains("[PRIORITY: CRITICAL]"));
+        assert!(prompt.contains("roughly 2-14 words"));
+        assert!(prompt.contains("overrides character or style preferences"));
+    }
+
+    #[test]
+    fn short_message_style_rejects_oversized_sentence_workarounds() {
+        let instruction = built_in_style("short-messages");
+        assert!(instruction.contains("one short sentence or fragment"));
+        assert!(instruction.contains("oversized multi-clause sentence"));
+        assert!(instruction.contains("do not default to three sentences"));
     }
 
     #[test]
