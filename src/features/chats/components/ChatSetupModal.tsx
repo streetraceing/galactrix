@@ -200,33 +200,36 @@ export function ChatSetupModal({
                         {t('chatSetupModal.name')}
                         <RequiredMark />
                       </Label>
+                    </div>
+                    <div className="flex gap-3 justify-between">
+                      <Input
+                        id="chat-title"
+                        required
+                        fullWidth
+                        variant="secondary"
+                        value={form.title}
+                        maxLength={120}
+                        autoFocus={autoFocus}
+                        autoComplete="off"
+                        onChange={(event) =>
+                          setForm((current) => ({
+                            ...current,
+                            title: event.target.value,
+                          }))
+                        }
+                        className="min-h-10 flex items-center"
+                      />
                       {!chat ? (
                         <Button
                           size="sm"
                           variant="tertiary"
                           onPress={() => setCustomTitle(false)}
+                          className="rounded-lg h-full"
                         >
                           {t('chatSetupModal.useAutomaticTitle')}
                         </Button>
                       ) : null}
                     </div>
-                    <Input
-                      id="chat-title"
-                      required
-                      fullWidth
-                      variant="secondary"
-                      value={form.title}
-                      maxLength={120}
-                      autoFocus={autoFocus}
-                      autoComplete="off"
-                      onChange={(event) =>
-                        setForm((current) => ({
-                          ...current,
-                          title: event.target.value,
-                        }))
-                      }
-                      className="min-h-10 flex items-center"
-                    />
                   </div>
                 ) : (
                   <Surface className="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-separator bg-surface-secondary/50 px-3 py-2.5">

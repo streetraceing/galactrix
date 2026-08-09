@@ -28,6 +28,13 @@ function ChatListItemComponent({
   const character = galaxyItems.find(
     (item) => item.kind === 'character' && item.id === chat.characterId,
   );
+  const characterName = character?.name.trim();
+  const normalizedTitle = chat.title.trim().toLocaleLowerCase();
+  const normalizedCharacterName = characterName?.toLocaleLowerCase();
+  const showCharacterLabel =
+    !characterName ||
+    !normalizedCharacterName ||
+    !normalizedTitle.includes(normalizedCharacterName);
 
   return (
     <ChatActions chat={chat} onAction={onAction}>
@@ -52,12 +59,16 @@ function ChatListItemComponent({
           />
           <span className="min-w-0 flex-1">
             <span className="flex min-w-0 items-center gap-2">
-              <strong className="min-w-0 flex-1 truncate text-sm font-semibold flex items-center gap-2">
-                {chat.title}
-                <span className="block truncate text-[0.7rem] text-muted">
-                  {character?.name ?? t('chatListItem.noCharacterSelected')}
-                </span>
-              </strong>
+              <span className="flex min-w-0 flex-1 items-center gap-2">
+                <strong className="min-w-0 truncate text-sm font-semibold">
+                  {chat.title}
+                </strong>
+                {showCharacterLabel ? (
+                  <span className="min-w-0 truncate text-[0.7rem] text-muted">
+                    {characterName ?? t('chatListItem.noCharacterSelected')}
+                  </span>
+                ) : null}
+              </span>
               {chat.pinned ? (
                 <Chip size="sm" variant="soft" className="bg-transparent">
                   <Icon name="pin" className="size-3" />

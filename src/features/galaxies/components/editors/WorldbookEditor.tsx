@@ -58,7 +58,7 @@ export function WorldbookEditor({
       }
     >
       {data.entries.length === 0 ? (
-        <p className="rounded-xl bg-surface-secondary px-4 py-5 text-center text-sm text-muted">
+        <p className="rounded-xl bg-surface px-4 py-5 text-center text-sm text-muted">
           {t('worldbookEditor.addTheFirstWorldbookEntry')}
         </p>
       ) : (
@@ -66,7 +66,7 @@ export function WorldbookEditor({
           {data.entries.map((entry, index) => (
             <div
               key={entry.id}
-              className="space-y-3 rounded-xl border border-separator bg-surface-secondary p-3"
+              className="space-y-3 rounded-xl border border-separator bg-surface p-3"
             >
               <div className="flex items-center gap-2">
                 <Checkbox
@@ -77,7 +77,15 @@ export function WorldbookEditor({
                   onChange={(enabled) =>
                     patchEntry(entry.id, 'enabled', enabled)
                   }
-                />
+                >
+                  {' '}
+                  <Checkbox.Content>
+                    {index + 1}
+                    <Checkbox.Control>
+                      <Checkbox.Indicator />
+                    </Checkbox.Control>
+                  </Checkbox.Content>
+                </Checkbox>
                 <Input
                   autoComplete="off"
                   fullWidth

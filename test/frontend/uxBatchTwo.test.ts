@@ -66,3 +66,33 @@ test('provider keys are round-robin selected before rate limits are hit', async 
   assert.match(retry, /status == 429/);
   assert.match(credentials, /round-robin/);
 });
+
+test('chat list does not repeat the character name when the title already contains it', async () => {
+  const source = await read('src/features/chats/components/ChatListItem.tsx');
+
+  assert.match(
+    source,
+    /const normalizedTitle = chat\.title\.trim\(\)\.toLocaleLowerCase\(\)/,
+  );
+  assert.match(
+    source,
+    /const normalizedCharacterName = characterName\?\.toLocaleLowerCase\(\)/,
+  );
+  assert.match(source, /!normalizedTitle\.includes\(normalizedCharacterName\)/);
+  assert.match(source, /\{showCharacterLabel \? \(/);
+});
+
+test('desktop interactive controls consistently use a pointer cursor', async () => {
+  const [css, contextMenu] = await Promise.all([
+    read('src/App.css'),
+    read('src/components/ui/context-menu.tsx'),
+  ]);
+
+  assert.match(css, /@media \(hover: hover\) and \(pointer: fine\)/);
+  assert.match(css, /\[role='menuitem'\]:not\(\[aria-disabled='true'\]\)/);
+  assert.match(css, /\[role='option'\]:not\(\[aria-disabled='true'\]\)/);
+  assert.match(css, /cursor: var\(--cursor-interactive\) !important/);
+  assert.match(css, /cursor: var\(--cursor-disabled\) !important/);
+  assert.doesNotMatch(contextMenu, /cursor-default select-none/);
+  assert.match(contextMenu, /cursor-pointer select-none/);
+});

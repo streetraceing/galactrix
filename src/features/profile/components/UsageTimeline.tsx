@@ -137,7 +137,7 @@ export function UsageTimeline({
     <Surface className="overflow-hidden rounded-2xl border border-separator bg-surface shadow-surface ring-1 ring-inset ring-foreground/5">
       <div className="border-b border-separator p-4 sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex min-w-0 flex-wrap items-center gap-1 rounded-xl bg-default/45 p-1">
+          <div className="flex min-w-0 flex-wrap items-center gap-1 rounded-xl">
             {(['week', 'month', 'all'] as const).map((value) => (
               <Button
                 key={value}
