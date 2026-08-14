@@ -38,6 +38,18 @@ const galaxyEditorPath = new URL(
   '../../src/features/galaxies/components/GalaxyEditorModal.tsx',
   import.meta.url,
 );
+const contextMenuPath = new URL(
+  '../../src/components/ui/context-menu.tsx',
+  import.meta.url,
+);
+const contextSelectionPath = new URL(
+  '../../src/hooks/useContextSelection.ts',
+  import.meta.url,
+);
+const appControllerPath = new URL(
+  '../../src/app/useAppController.ts',
+  import.meta.url,
+);
 
 test('mobile continuation is available only from the context menu', async () => {
   const source = await readFile(messageListPath, 'utf8');
@@ -198,6 +210,51 @@ test('mobile modal transitions skip retired nested history entries', async () =>
   assert.match(source, /removeRetiredEntryIfNeeded/);
   assert.match(source, /scheduleHistoryEntryRemoval/);
   assert.match(source, /window\.setTimeout\([\s\S]*window\.history\.back\(\)/);
+});
+
+test('mobile back stays inside the app for stale sessions, menus, selections, and archive', async () => {
+  const [back, menu, selection, controller, screen] = await Promise.all([
+    readFile(mobileBackPath, 'utf8'),
+    readFile(contextMenuPath, 'utf8'),
+    readFile(contextSelectionPath, 'utf8'),
+    readFile(appControllerPath, 'utf8'),
+    readFile(chatsScreenPath, 'utf8'),
+  ]);
+
+  assert.match(back, /historySessionId/);
+  assert.match(back, /resetStaleHistoryEntry\(\)/);
+  assert.match(menu, /useMobileBackEntry\(isMobilePlatform\(\) && open/);
+  assert.match(menu, /actionsRef\.current\?\.close\(\)/);
+  assert.match(selection, /useMobileBackEntry\(selectedIds\.size > 0, clear\)/);
+  assert.match(controller, /if \(tab === 'chats'\) \{/);
+  assert.match(controller, /setChatListRequest\(\(current\) => current \+ 1\)/);
+  assert.match(screen, /isMobile && !isChatOpen && archiveMode/);
+  assert.match(screen, /changeArchiveMode\(false\)/);
+});
+
+test('chat tail follows generation, variants, and keyboard without duplicating regeneration', async () => {
+  const [messageSource, controllerSource, screenSource] = await Promise.all([
+    readFile(messageListPath, 'utf8'),
+    readFile(appControllerPath, 'utf8'),
+    readFile(chatsScreenPath, 'utf8'),
+  ]);
+
+  assert.match(controllerSource, /setActiveMessageGeneration/);
+  assert.match(messageSource, /effectiveMessageGeneration/);
+  assert.match(messageSource, /activeMessageGeneration\?\.chatId === chatId/);
+  assert.match(
+    messageSource,
+    /const chatChanged = previous\.chatId !== chatId/,
+  );
+  assert.doesNotMatch(
+    messageSource,
+    /const chatChanged = previous\.chatId !== chatId \|\| !previous\.active/,
+  );
+  assert.match(messageSource, /tailLayoutKey/);
+  assert.match(messageSource, /followBottomRef/);
+  assert.match(messageSource, /viewportHeight/);
+  assert.match(messageSource, /syncVirtualWindow\(\)/);
+  assert.match(screenSource, /viewportHeight=\{keyboardViewportHeight\}/);
 });
 
 test('mobile modal keeps its layout viewport while the keyboard changes the visual viewport', async () => {

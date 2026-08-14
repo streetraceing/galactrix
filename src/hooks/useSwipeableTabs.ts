@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import { isMobilePlatform } from '../lib/platform';
 import { MOTION_DURATION_MS } from '../lib/motion';
 import {
@@ -38,9 +38,9 @@ const SWIPE_IGNORE_SELECTOR = [
   '.tabs__list-container__scroller',
 ].join(',');
 
-const TAB_SWIPE_VISUAL_MAX_PX = 34;
+const TAB_SWIPE_VISUAL_MAX_PX = 44;
 const TAB_SWIPE_EDGE_RESISTANCE = 0.35;
-const TAB_SWIPE_COMMIT_ANIMATION_MS = MOTION_DURATION_MS.standard;
+const TAB_SWIPE_COMMIT_ANIMATION_MS = MOTION_DURATION_MS.slow;
 
 type SwipeGesture = {
   touchId: number;
@@ -118,11 +118,46 @@ export function useSwipeableTabs<T extends string>({
   const containerRef = useRef<HTMLDivElement>(null);
   const keysRef = useRef(keys);
   const selectedKeyRef = useRef(selectedKey);
+  const previousSelectedKeyRef = useRef(selectedKey);
   const onSelectionChangeRef = useRef(onSelectionChange);
+  const selectionAnimationTimerRef = useRef<number | undefined>(undefined);
 
   keysRef.current = keys;
   selectedKeyRef.current = selectedKey;
   onSelectionChangeRef.current = onSelectionChange;
+
+  useLayoutEffect(() => {
+    const previousKey = previousSelectedKeyRef.current;
+    previousSelectedKeyRef.current = selectedKey;
+    if (previousKey === selectedKey || !isMobilePlatform()) return;
+
+    const container = containerRef.current;
+    if (!container) return;
+    const previousIndex = keysRef.current.indexOf(previousKey);
+    const nextIndex = keysRef.current.indexOf(selectedKey);
+    if (previousIndex < 0 || nextIndex < 0) return;
+
+    if (!container.dataset.tabSwipeCommit) {
+      container.dataset.tabSwipeCommit =
+        nextIndex > previousIndex ? 'next' : 'previous';
+    }
+    if (selectionAnimationTimerRef.current !== undefined) {
+      window.clearTimeout(selectionAnimationTimerRef.current);
+    }
+    selectionAnimationTimerRef.current = window.setTimeout(() => {
+      delete container.dataset.tabSwipeCommit;
+      selectionAnimationTimerRef.current = undefined;
+    }, TAB_SWIPE_COMMIT_ANIMATION_MS);
+  }, [selectedKey]);
+
+  useEffect(
+    () => () => {
+      if (selectionAnimationTimerRef.current !== undefined) {
+        window.clearTimeout(selectionAnimationTimerRef.current);
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     const container = containerRef.current;

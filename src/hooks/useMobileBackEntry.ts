@@ -2,6 +2,9 @@ import { useEffect, useRef } from 'react';
 import { isMobilePlatform } from '../lib/platform';
 
 const HISTORY_STATE_KEY = '__galactrixBackEntry';
+const historySessionId = `${Date.now().toString(36)}-${Math.random()
+  .toString(36)
+  .slice(2)}`;
 let nextEntryId = 0;
 const activeEntries = new Map<string, () => void>();
 const retiredEntries = new Set<string>();
@@ -21,6 +24,16 @@ function currentHistoryState() {
     : {};
 }
 
+function resetStaleHistoryEntry() {
+  const state = currentHistoryState();
+  const entryId = historyEntryId(state);
+  if (!entryId || entryId.startsWith(`galactrix-${historySessionId}-`)) return;
+
+  const nextState = { ...state };
+  delete nextState[HISTORY_STATE_KEY];
+  window.history.replaceState(nextState, '');
+}
+
 function removeRetiredEntryIfNeeded(entryId: string | undefined) {
   if (!entryId || !retiredEntries.has(entryId)) return;
   retiredEntries.delete(entryId);
@@ -34,6 +47,7 @@ function removeRetiredEntryIfNeeded(entryId: string | undefined) {
 function installGlobalListener() {
   if (listenerInstalled || typeof window === 'undefined') return;
   listenerInstalled = true;
+  resetStaleHistoryEntry();
   knownHistoryEntryId = historyEntryId(window.history.state);
 
   window.addEventListener('popstate', (event) => {
@@ -97,7 +111,7 @@ export function useMobileBackEntry(active: boolean, onBack: () => void) {
   useEffect(() => {
     if (!active || !isMobilePlatform()) return;
 
-    const entryId = `galactrix-${++nextEntryId}`;
+    const entryId = `galactrix-${historySessionId}-${++nextEntryId}`;
     activeEntries.set(entryId, () => onBackRef.current());
     retiredEntries.delete(entryId);
     installHistoryEntry(entryId);

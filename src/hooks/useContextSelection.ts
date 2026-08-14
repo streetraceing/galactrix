@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMobileBackEntry } from './useMobileBackEntry';
 
 export function toggleContextSelection(current: Set<string>, id: string) {
   const next = new Set(current);
@@ -39,6 +40,8 @@ export function useContextSelection(availableIds: readonly string[]) {
   const selectAll = useCallback(() => {
     setSelectedIds(new Set(availableIds));
   }, [availableKey, availableIds]);
+
+  useMobileBackEntry(selectedIds.size > 0, clear);
 
   return useMemo(
     () => ({

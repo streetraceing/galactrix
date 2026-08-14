@@ -45,7 +45,11 @@ test('virtual scrolling updates only bounded message windows', async () => {
   assert.match(source, /new ResizeObserver/);
   assert.match(source, /MESSAGE_VIRTUALIZATION_THRESHOLD/);
   assert.match(source, /const \[virtualWindow, setVirtualWindow\]/);
-  assert.match(source, /startTransition\(syncVirtualWindow\)/);
+  assert.doesNotMatch(source, /startTransition\(syncVirtualWindow\)/);
+  assert.match(
+    source,
+    /requestAnimationFrame\(\(\) => \{[\s\S]*syncVirtualWindow\(\)/,
+  );
   assert.match(source, /setVirtualBufferReady\(virtualLayoutKey\)/);
   assert.match(source, /MESSAGE_VIRTUAL_INITIAL_OVERSCAN_PX/);
   assert.match(source, /commitMeasuredMessageHeights/);
@@ -53,8 +57,9 @@ test('virtual scrolling updates only bounded message windows', async () => {
   assert.match(source, /viewportOffset/);
   assert.match(source, /programmaticScrollRef/);
   assert.match(source, /nearBottomRef\.current = distanceFromBottom <= 4/);
-  assert.match(source, /pinBottom:[\s\S]*scrollTop\s*<=\s*2/);
-  assert.match(source, /}, 3_000\);/);
+  assert.match(source, /pinBottom: followBottomRef\.current/);
+  assert.match(source, /USER_SCROLL_IDLE_MS/);
+  assert.match(source, /userScrollIntentRef\.current/);
   assert.match(source, /shouldForceBottom/);
   assert.match(source, /previous\.sending !== sending/);
   assert.match(source, /previous\.generationKey !== generationKey/);

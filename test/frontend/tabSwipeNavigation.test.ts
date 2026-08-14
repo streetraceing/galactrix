@@ -60,6 +60,23 @@ test('tab swipe listener protects controls and horizontal scrollers', async () =
   assert.match(source, /event\.preventDefault\(\)/);
 });
 
+test('mobile tab taps and swipes share the slower directional transition', async () => {
+  const [source, cssSource] = await Promise.all([
+    readFile(swipeHookPath, 'utf8'),
+    readFile(appCssPath, 'utf8'),
+  ]);
+
+  assert.match(source, /previousSelectedKeyRef/);
+  assert.match(source, /useLayoutEffect\(\(\) => \{/);
+  assert.match(source, /MOTION_DURATION_MS\.slow/);
+  assert.match(source, /nextIndex > previousIndex \? 'next' : 'previous'/);
+  assert.match(cssSource, /galactrix-tab-swipe-next var\(--motion-slow\)/);
+  assert.match(
+    cssSource,
+    /transition: transform var\(--motion-standard\) var\(--motion-ease-enter\)/,
+  );
+});
+
 test('every screen using HeroUI tabs enables full-screen mobile swiping', async () => {
   const sources = await Promise.all(
     [profilePath, settingsPath, galaxiesPath].map((path) =>

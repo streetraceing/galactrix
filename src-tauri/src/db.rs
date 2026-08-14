@@ -1037,32 +1037,39 @@ fn resolve_new_chat_title(
     connection: &Connection,
     input: &ChatConfigInput,
 ) -> CommandResult<String> {
-    let explicit = input.title.trim();
+    resolve_chat_title(connection, &input.title, input.character_id.as_deref())
+}
+
+fn resolve_chat_title(
+    connection: &Connection,
+    explicit_title: &str,
+    character_id: Option<&str>,
+) -> CommandResult<String> {
+    let explicit = explicit_title.trim();
     if !explicit.is_empty() {
         return Ok(explicit.to_owned());
     }
 
-    let (base_name, existing_count): (String, i64) =
-        if let Some(character_id) = input.character_id.as_deref() {
-            let character_name = connection.query_row(
-                "SELECT name FROM galaxy_items WHERE id = ?1 AND kind = 'character'",
-                params![character_id],
-                |row| row.get::<_, String>(0),
-            )?;
-            let count = connection.query_row(
-                "SELECT COUNT(*) FROM chats WHERE character_id = ?1",
-                params![character_id],
-                |row| row.get::<_, i64>(0),
-            )?;
-            (character_name, count)
-        } else {
-            let count = connection.query_row(
-                "SELECT COUNT(*) FROM chats WHERE character_id IS NULL",
-                [],
-                |row| row.get::<_, i64>(0),
-            )?;
-            ("Chat".to_owned(), count)
-        };
+    let (base_name, existing_count): (String, i64) = if let Some(character_id) = character_id {
+        let character_name = connection.query_row(
+            "SELECT name FROM galaxy_items WHERE id = ?1 AND kind = 'character'",
+            params![character_id],
+            |row| row.get::<_, String>(0),
+        )?;
+        let count = connection.query_row(
+            "SELECT COUNT(*) FROM chats WHERE character_id = ?1",
+            params![character_id],
+            |row| row.get::<_, i64>(0),
+        )?;
+        (character_name, count)
+    } else {
+        let count = connection.query_row(
+            "SELECT COUNT(*) FROM chats WHERE character_id IS NULL",
+            [],
+            |row| row.get::<_, i64>(0),
+        )?;
+        ("Chat".to_owned(), count)
+    };
 
     let mut sequence = existing_count + 1;
     loop {
@@ -1077,7 +1084,7 @@ fn resolve_new_chat_title(
             base = "Chat".chars().take(max_base_chars).collect();
         }
         let candidate = format!("{base}{suffix}");
-        let exists = if let Some(character_id) = input.character_id.as_deref() {
+        let exists = if let Some(character_id) = character_id {
             connection.query_row(
                 "SELECT EXISTS(SELECT 1 FROM chats WHERE title = ?1 AND character_id = ?2)",
                 params![&candidate, character_id],
@@ -1730,10 +1737,7 @@ pub fn clone_chat(
         .optional()?
         .ok_or_else(|| CommandError::new(keys::CHAT_NOT_FOUND))?;
 
-    let title = title.trim();
-    if title.is_empty() {
-        return Err(CommandError::new(keys::CHAT_TITLE_REQUIRED));
-    }
+    let title = resolve_chat_title(connection, title, source.2.as_deref())?;
     if title.chars().count() > 120 {
         return Err(CommandError::new(keys::CHAT_TITLE_TOO_LONG));
     }
@@ -1747,7 +1751,7 @@ pub fn clone_chat(
              ) VALUES (?1, ?2, '', ?3, 0, 0, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
         params![
             new_chat_id,
-            title,
+            &title,
             now,
             source.0,
             source.1,
@@ -1875,7 +1879,7 @@ pub fn clone_chat(
     }
 
     transaction.commit()?;
-    Ok(title.to_owned())
+    Ok(title)
 }
 
 pub fn edit_message(

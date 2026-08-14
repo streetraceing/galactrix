@@ -71,6 +71,7 @@ import {
   toggleMessageSelection,
 } from '../messageSelection';
 import { copyChatText } from '../chatClipboard';
+import type { ActiveMessageGeneration } from '../types';
 
 type MessageActionProps = {
   message: Message;
@@ -100,6 +101,7 @@ const TOUCH_SELECTION_MOVE_THRESHOLD = 10;
 const MESSAGE_ENTRY_ANIMATION_MS = MOTION_DURATION_MS.standard;
 const SCROLL_TO_BOTTOM_RELEASE_MS = 1_400;
 const CHAT_LAYOUT_BOTTOM_LOCK_MS = 420;
+const USER_SCROLL_IDLE_MS = 180;
 
 type MessageSelectionGesture = {
   pointerId: number;
@@ -946,6 +948,7 @@ function MessageListComponent({
   userName,
   userAvatar,
   sending,
+  activeMessageGeneration,
   viewActive,
   viewMode,
   showAvatars,
@@ -954,6 +957,7 @@ function MessageListComponent({
   wide,
   scrollRef,
   scrollToBottomRequest,
+  viewportHeight,
   clearSelectionRequest,
   responseActionRequest,
   onGenerationComplete,
@@ -977,6 +981,7 @@ function MessageListComponent({
   userName: string;
   userAvatar?: string;
   sending: boolean;
+  activeMessageGeneration: ActiveMessageGeneration | null;
   viewActive: boolean;
   viewMode: AppSettings['chatViewMode'];
   showAvatars: boolean;
@@ -985,6 +990,7 @@ function MessageListComponent({
   wide: boolean;
   scrollRef: RefObject<HTMLDivElement | null>;
   scrollToBottomRequest: number;
+  viewportHeight: number;
   clearSelectionRequest: number;
   responseActionRequest: MessageResponseActionRequest | null;
   onGenerationComplete: () => void;
@@ -1050,6 +1056,8 @@ function MessageListComponent({
   } | null>(null);
   const programmaticScrollRef = useRef(false);
   const nearBottomRef = useRef(true);
+  const followBottomRef = useRef(true);
+  const userScrollIntentRef = useRef(false);
   const previousViewStateRef = useRef({
     chatId: '',
     active: false,
@@ -1113,10 +1121,25 @@ function MessageListComponent({
   const lastMessage = messages[messages.length - 1];
   const hasPendingAssistant =
     lastMessage?.role === 'assistant' && lastMessage.pending === true;
+  const effectiveMessageGeneration = useMemo(
+    () =>
+      messageGeneration ??
+      (activeMessageGeneration?.chatId === chatId
+        ? {
+            messageId: activeMessageGeneration.messageId,
+            mode: activeMessageGeneration.mode,
+          }
+        : null),
+    [activeMessageGeneration, chatId, messageGeneration],
+  );
   const showStandaloneTypingBubble =
     sending &&
     !hasPendingAssistant &&
-    (!messageGeneration || messageGeneration.mode === 'continue');
+    (!effectiveMessageGeneration ||
+      effectiveMessageGeneration.mode === 'continue');
+  const tailLayoutKey = lastMessage
+    ? `${lastMessage.id}:${lastMessage.activeVariantIndex}:${lastMessage.variants.length}:${lastMessage.content.length}:${lastMessage.pending === true}`
+    : 'empty';
   const estimatedMessageHeights = useMemo(() => {
     if (!virtualizationEnabled) return [];
     return messages.map((message) => {
@@ -1185,7 +1208,7 @@ function MessageListComponent({
       : fallbackVirtualRange;
   const keepVirtualTailMounted =
     virtualizationEnabled &&
-    nearBottomRef.current &&
+    followBottomRef.current &&
     (sending || hasPendingAssistant || virtualRange.end >= messages.length - 2);
   const visibleStart = virtualizationEnabled ? virtualRange.start : 0;
   const visibleEnd = virtualizationEnabled
@@ -1662,11 +1685,25 @@ function MessageListComponent({
     }
   }, []);
 
+  const beginUserScroll = useCallback(() => {
+    userScrollIntentRef.current = true;
+    finishScrollToBottom();
+    stopBottomLayoutLock();
+    if (userScrollIdleTimerRef.current != null) {
+      window.clearTimeout(userScrollIdleTimerRef.current);
+    }
+    userScrollIdleTimerRef.current = window.setTimeout(() => {
+      userScrollIdleTimerRef.current = null;
+      userScrollIntentRef.current = false;
+    }, 700);
+  }, [finishScrollToBottom, stopBottomLayoutLock]);
+
   const pinScrollerToBottom = useCallback(() => {
     const scroller = scrollRef.current;
     if (!scroller) return;
     scroller.scrollTop = scroller.scrollHeight;
     nearBottomRef.current = true;
+    followBottomRef.current = true;
   }, [scrollRef]);
 
   const lockScrollerToBottomDuringLayout = useCallback(
@@ -1696,6 +1733,7 @@ function MessageListComponent({
       scroller.scrollHeight - scroller.clientHeight - scroller.scrollTop,
     );
     nearBottomRef.current = distanceFromBottom <= 4;
+    if (nearBottomRef.current) followBottomRef.current = true;
 
     if (scrollingToBottomRef.current) {
       setShowScrollToBottom(false);
@@ -1718,6 +1756,7 @@ function MessageListComponent({
     const smooth = document.documentElement.dataset.animations !== 'off';
     finishScrollToBottom();
     scrollingToBottomRef.current = true;
+    followBottomRef.current = true;
     setShowScrollToBottom(false);
     scroller.scrollTo({
       top: scroller.scrollHeight,
@@ -1779,7 +1818,7 @@ function MessageListComponent({
     if (virtualScrollFrameRef.current != null) return;
     virtualScrollFrameRef.current = window.requestAnimationFrame(() => {
       virtualScrollFrameRef.current = null;
-      startTransition(syncVirtualWindow);
+      syncVirtualWindow();
     });
   }, [syncVirtualWindow]);
 
@@ -1837,11 +1876,7 @@ function MessageListComponent({
             messageId: anchor.messageId,
             viewportOffset:
               anchor.element.getBoundingClientRect().top - scrollerTop,
-            pinBottom:
-              scroller.scrollHeight -
-                scroller.clientHeight -
-                scroller.scrollTop <=
-              2,
+            pinBottom: followBottomRef.current,
           }
         : null;
     }
@@ -1947,7 +1982,7 @@ function MessageListComponent({
 
     const observer = new ResizeObserver(() => {
       if (
-        nearBottomRef.current ||
+        followBottomRef.current ||
         performance.now() < bottomLockUntilRef.current
       ) {
         pinScrollerToBottom();
@@ -1961,9 +1996,11 @@ function MessageListComponent({
 
   useLayoutEffect(() => {
     const previous = previousViewStateRef.current;
-    const chatChanged = previous.chatId !== chatId || !previous.active;
+    const chatChanged = previous.chatId !== chatId;
+    const viewActivated = viewActive && !previous.active;
     const layoutChanged = previous.wide !== wide;
-    const shouldResetPosition = viewActive && (chatChanged || layoutChanged);
+    const shouldResetPosition =
+      viewActive && (chatChanged || viewActivated || layoutChanged);
     previousViewStateRef.current = { chatId, active: viewActive, wide };
     if (!shouldResetPosition) return;
 
@@ -1981,6 +2018,7 @@ function MessageListComponent({
     setShowScrollToBottom(false);
     pendingMeasurementCommitRef.current = false;
     nearBottomRef.current = true;
+    followBottomRef.current = true;
     if (measurementCommitTimerRef.current != null) {
       window.clearTimeout(measurementCommitTimerRef.current);
       measurementCommitTimerRef.current = null;
@@ -2027,8 +2065,19 @@ function MessageListComponent({
   ]);
 
   useLayoutEffect(() => {
-    const generationKey = messageGeneration
-      ? `${messageGeneration.mode}:${messageGeneration.messageId}`
+    if (!viewActive || !followBottomRef.current) return;
+    lockScrollerToBottomDuringLayout();
+  }, [
+    lockScrollerToBottomDuringLayout,
+    showStandaloneTypingBubble,
+    tailLayoutKey,
+    viewportHeight,
+    viewActive,
+  ]);
+
+  useLayoutEffect(() => {
+    const generationKey = effectiveMessageGeneration
+      ? `${effectiveMessageGeneration.mode}:${effectiveMessageGeneration.messageId}`
       : '';
     const previous = previousGenerationStateRef.current;
     const shouldForceBottom =
@@ -2039,17 +2088,17 @@ function MessageListComponent({
     if (!shouldForceBottom) return;
 
     nearBottomRef.current = true;
+    followBottomRef.current = true;
     setShowScrollToBottom(false);
+    lockScrollerToBottomDuringLayout();
     const frame = window.requestAnimationFrame(() => {
-      const scroller = scrollRef.current;
-      if (!scroller) return;
-      scroller.scrollTop = scroller.scrollHeight;
       syncVirtualWindow();
       updateScrollToBottomVisibility();
     });
     return () => window.cancelAnimationFrame(frame);
   }, [
-    messageGeneration,
+    lockScrollerToBottomDuringLayout,
+    effectiveMessageGeneration,
     scrollRef,
     sending,
     syncVirtualWindow,
@@ -2060,7 +2109,7 @@ function MessageListComponent({
   useLayoutEffect(() => {
     const frame = window.requestAnimationFrame(() => {
       const scroller = scrollRef.current;
-      if (scroller && nearBottomRef.current) {
+      if (scroller && followBottomRef.current) {
         scroller.scrollTop = scroller.scrollHeight;
       }
       syncVirtualWindow();
@@ -2082,6 +2131,16 @@ function MessageListComponent({
     const programmatic = programmaticScrollRef.current;
     if (!layoutLocked && !programmatic) {
       isUserScrollingRef.current = true;
+      if (userScrollIntentRef.current) {
+        const scroller = scrollRef.current;
+        if (scroller) {
+          followBottomRef.current =
+            scroller.scrollHeight -
+              scroller.clientHeight -
+              scroller.scrollTop <=
+            4;
+        }
+      }
       if (userScrollIdleTimerRef.current != null) {
         window.clearTimeout(userScrollIdleTimerRef.current);
       }
@@ -2092,8 +2151,9 @@ function MessageListComponent({
       userScrollIdleTimerRef.current = window.setTimeout(() => {
         userScrollIdleTimerRef.current = null;
         isUserScrollingRef.current = false;
+        userScrollIntentRef.current = false;
         commitMeasuredMessageHeights();
-      }, 3_000);
+      }, USER_SCROLL_IDLE_MS);
     }
 
     updateScrollToBottomVisibility();
@@ -2103,6 +2163,7 @@ function MessageListComponent({
     scheduleVirtualWindowSync,
     updateScrollToBottomVisibility,
     virtualizationEnabled,
+    scrollRef,
   ]);
 
   const historyMessage = useMemo(
@@ -2445,6 +2506,8 @@ function MessageListComponent({
             selectedMessageIds.size > 0 ? 'select-none' : ''
           }`}
           onScroll={handleMessageScroll}
+          onTouchStartCapture={beginUserScroll}
+          onWheelCapture={beginUserScroll}
           onPointerDown={readOnly ? undefined : handleSelectionPointerDown}
           onPointerMove={readOnly ? undefined : handleSelectionPointerMove}
           onPointerUp={readOnly ? undefined : handleSelectionPointerUp}
@@ -2513,9 +2576,10 @@ function MessageListComponent({
                   const rewind = () => setRewinding(message);
                   const history = () => setHistoryMessageId(message.id);
                   const isGenerating =
-                    messageGeneration?.messageId === message.id;
+                    effectiveMessageGeneration?.messageId === message.id;
                   const isRegenerating =
-                    isGenerating && messageGeneration?.mode === 'regenerate';
+                    isGenerating &&
+                    effectiveMessageGeneration?.mode === 'regenerate';
                   const isPendingAssistant =
                     message.role === 'assistant' && message.pending === true;
                   const showsTypingBubble =

@@ -2,9 +2,38 @@ import { ContextMenu as ContextMenuPrimitive } from '@base-ui/react/context-menu
 import { CheckIcon, ChevronRightIcon } from 'lucide-react';
 import * as React from 'react';
 import { cn } from '@/lib/utils';
+import { useMobileBackEntry } from '../../hooks/useMobileBackEntry';
+import { isMobilePlatform } from '../../lib/platform';
 
-function ContextMenu(props: ContextMenuPrimitive.Root.Props) {
-  return <ContextMenuPrimitive.Root data-slot="context-menu" {...props} />;
+function ContextMenu({
+  open: controlledOpen,
+  defaultOpen = false,
+  onOpenChange,
+  actionsRef: externalActionsRef,
+  ...props
+}: ContextMenuPrimitive.Root.Props) {
+  const internalActionsRef =
+    React.useRef<ContextMenuPrimitive.Root.Actions>(null);
+  const actionsRef = externalActionsRef ?? internalActionsRef;
+  const [uncontrolledOpen, setUncontrolledOpen] = React.useState(defaultOpen);
+  const open = controlledOpen ?? uncontrolledOpen;
+
+  useMobileBackEntry(isMobilePlatform() && open, () => {
+    actionsRef.current?.close();
+  });
+
+  return (
+    <ContextMenuPrimitive.Root
+      data-slot="context-menu"
+      {...props}
+      actionsRef={actionsRef}
+      open={open}
+      onOpenChange={(nextOpen, eventDetails) => {
+        if (controlledOpen === undefined) setUncontrolledOpen(nextOpen);
+        onOpenChange?.(nextOpen, eventDetails);
+      }}
+    />
+  );
 }
 
 function ContextMenuPortal(props: ContextMenuPrimitive.Portal.Props) {

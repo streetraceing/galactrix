@@ -199,10 +199,10 @@ test('prompt builder keeps convenience wrappers test-only while production uses 
     ),
   ]);
 
-  assert.match(builder, /#\[cfg\(test\)\]\nfn build_system_prompt\(/);
+  assert.match(builder, /#\[cfg\(test\)\]\r?\nfn build_system_prompt\(/);
   assert.match(
     builder,
-    /#\[cfg\(test\)\]\nfn build_system_prompt_with_options\(/,
+    /#\[cfg\(test\)\]\r?\nfn build_system_prompt_with_options\(/,
   );
   assert.match(generationContext, /build_system_prompt_with_histories\(/);
   assert.match(previewBackend, /build_system_prompt_with_histories\(/);

@@ -13,8 +13,8 @@ export const MOTION_EASING = {
 } as const;
 
 export const MOTION_STAGGER_MS = 40;
-export const TYPING_DOT_CYCLE_MS = 1_200;
-export const TYPING_DOT_STAGGER_MS = 120;
+export const TYPING_DOT_CYCLE_MS = 1_400;
+export const TYPING_DOT_STAGGER_MS = 140;
 
 export function animationsEnabled() {
   if (typeof document === 'undefined') return false;

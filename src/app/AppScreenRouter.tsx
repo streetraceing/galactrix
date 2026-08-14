@@ -31,6 +31,7 @@ export function AppScreenRouter({
         profileAvatar={snapshot.settings.profileAvatar}
         activeChatId={controller.activeChatId}
         isChatOpen={controller.isChatOpen}
+        chatListRequest={controller.chatListRequest}
         chatMaximized={chatMaximized}
         chatSidebarWidth={snapshot.settings.chatSidebarWidth}
         onChatSidebarWidthPreview={(chatSidebarWidth) =>
@@ -72,6 +73,7 @@ export function AppScreenRouter({
         showMessageTimestamps={snapshot.settings.showMessageTimestamps}
         responseLanguage={getResponseLocale(snapshot.settings.responseLanguage)}
         sending={controller.sending}
+        activeMessageGeneration={controller.activeMessageGeneration}
       />
     );
   }

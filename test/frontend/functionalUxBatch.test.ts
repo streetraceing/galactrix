@@ -57,3 +57,16 @@ test('new chats can keep their title automatic while existing chats remain named
   assert.match(db, /resolve_new_chat_title/);
   assert.match(db, /existing_count \+ 1/);
 });
+
+test('chat copies reuse the automatic character title sequence', async () => {
+  const [controller, db] = await Promise.all([
+    read('src/app/useAppController.ts'),
+    read('src-tauri/src/db.rs'),
+  ]);
+
+  assert.match(controller, /const title = input\?\.title\.trim\(\) \?\? ''/);
+  assert.match(
+    db,
+    /resolve_chat_title\(connection, title, source\.2\.as_deref\(\)\)/,
+  );
+});

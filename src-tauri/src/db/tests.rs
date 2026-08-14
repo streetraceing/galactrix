@@ -753,6 +753,43 @@ fn blank_new_chat_title_uses_character_name_and_sequence() {
 }
 
 #[test]
+fn blank_clone_title_continues_character_chat_sequence() {
+    let connection = test_database();
+    connection
+        .execute(
+            "INSERT INTO galaxy_items (id, kind, name, description, data_json, badge, accent, updated_at)\n             VALUES ('character-clone-title', 'character', 'Alice', '', '{}', '', 'violet', 1)",
+            [],
+        )
+        .expect("character must insert");
+
+    let input = ChatConfigInput {
+        title: String::new(),
+        greeting_message: None,
+        provider_id: None,
+        persona_id: None,
+        character_id: Some("character-clone-title".into()),
+        style_item_id: None,
+        universe_id: None,
+        worldbook_ids: Vec::new(),
+        prompt_config: PromptConfig::default(),
+        module_overrides: Default::default(),
+    };
+
+    create_chat(&connection, "chat-clone-1", &input).expect("first chat must save");
+    create_chat(&connection, "chat-clone-2", &input).expect("second chat must save");
+    let title = clone_chat(&connection, "chat-clone-1", "chat-clone-3", "", false, None)
+        .expect("chat must clone");
+
+    assert_eq!(title, "Alice #3");
+    assert_eq!(
+        get_chat(&connection, "chat-clone-3")
+            .expect("clone must load")
+            .title,
+        "Alice #3"
+    );
+}
+
+#[test]
 fn character_accepts_short_and_long_message_style_presets() {
     let connection = test_database();
 

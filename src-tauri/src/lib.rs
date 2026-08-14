@@ -149,7 +149,7 @@ fn clone_chat(
         .trim()
         .to_owned();
     let database = state.database.lock().map_err(CommandError::internal)?;
-    db::clone_chat(
+    let resolved_title = db::clone_chat(
         &database,
         &chat_id,
         &new_id,
@@ -158,7 +158,8 @@ fn clone_chat(
         None,
     )?;
 
-    if let Some(input) = input {
+    if let Some(mut input) = input {
+        input.title = resolved_title.clone();
         if let Err(error) = db::update_chat_config(&database, &new_id, &input) {
             let _ = db::delete_chat(&database, &new_id);
             return Err(error);
@@ -167,7 +168,7 @@ fn clone_chat(
 
     Ok(CreatedChat {
         id: new_id,
-        title: requested_title,
+        title: resolved_title,
     })
 }
 

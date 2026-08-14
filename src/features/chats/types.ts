@@ -19,6 +19,12 @@ export type ChatAction =
   | 'clear'
   | 'delete';
 
+export type ActiveMessageGeneration = {
+  chatId: string;
+  messageId: string;
+  mode: 'regenerate' | 'continue';
+};
+
 export type ChatsScreenProps = {
   chats: Chat[];
   messages: Message[];
@@ -29,6 +35,7 @@ export type ChatsScreenProps = {
   profileAvatar?: string;
   activeChatId: string;
   isChatOpen: boolean;
+  chatListRequest: number;
   chatMaximized: boolean;
   chatSidebarWidth: number;
   onChatSidebarWidthPreview: (width: number) => void;
@@ -70,4 +77,5 @@ export type ChatsScreenProps = {
   showMessageTimestamps: boolean;
   responseLanguage?: 'en' | 'ru';
   sending: boolean;
+  activeMessageGeneration: ActiveMessageGeneration | null;
 };

@@ -6,6 +6,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { UiModal } from '../../components/ui/UiModal';
 import { useContextSelection } from '../../hooks/useContextSelection';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
+import { useMobileBackEntry } from '../../hooks/useMobileBackEntry';
 import { useVisualViewportMetrics } from '../../hooks/useVisualViewportMetrics';
 import { toast } from '../../i18n/toast';
 import { galaxyItemAvatar } from '../../lib/avatar';
@@ -44,6 +45,7 @@ export function ChatsScreen({
   profileAvatar,
   activeChatId,
   isChatOpen,
+  chatListRequest,
   chatMaximized,
   chatSidebarWidth,
   onChatSidebarWidthPreview,
@@ -78,15 +80,15 @@ export function ChatsScreen({
   showMessageTimestamps,
   responseLanguage,
   sending,
+  activeMessageGeneration,
 }: ChatsScreenProps) {
   const { t } = useTranslation(['chats', 'common']);
   const isMobile = isMobilePlatform();
   const usesNativeImeInsets = isAndroidPlatform();
   const isNarrowDesktop = useMediaQuery('(max-width: 820px)');
   const isSinglePane = isMobile || isNarrowDesktop;
-  const { bottomInset: keyboardInset } = useVisualViewportMetrics(
-    isMobile && isSinglePane && isChatOpen,
-  );
+  const { bottomInset: keyboardInset, viewportHeight: keyboardViewportHeight } =
+    useVisualViewportMetrics(isMobile && isSinglePane && isChatOpen);
   const [working, setWorking] = useState(false);
   const [archiveMode, setArchiveMode] = useState(false);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
@@ -114,6 +116,7 @@ export function ChatsScreen({
     chat: Chat;
   } | null>(null);
   const messageScrollRef = useRef<HTMLDivElement | null>(null);
+  const previousChatListRequestRef = useRef(chatListRequest);
   const sendInFlightRef = useRef(false);
   const responseActionRequestIdRef = useRef(0);
 
@@ -333,7 +336,10 @@ export function ChatsScreen({
   }, [openNewChat]);
 
   useEffect(() => {
-    if (isSinglePane && isChatOpen) chatSelection.clear();
+    if (isSinglePane && isChatOpen) {
+      chatSelection.clear();
+      setArchiveMode(false);
+    }
   }, [chatSelection.clear, isChatOpen, isSinglePane]);
 
   const changeArchiveMode = useCallback(
@@ -343,6 +349,17 @@ export function ChatsScreen({
     },
     [chatSelection.clear],
   );
+
+  useMobileBackEntry(isMobile && !isChatOpen && archiveMode, () =>
+    changeArchiveMode(false),
+  );
+
+  useEffect(() => {
+    if (previousChatListRequestRef.current === chatListRequest) return;
+    previousChatListRequestRef.current = chatListRequest;
+    changeArchiveMode(false);
+    setClearMessageSelectionRequest((current) => current + 1);
+  }, [changeArchiveMode, chatListRequest]);
 
   const archiveSelectedChats = useCallback(async () => {
     if (chatSelection.selectedIds.size === 0 || working) return;
@@ -542,6 +559,7 @@ export function ChatsScreen({
                       galaxyItemAvatar(canvasPersona) ?? profileAvatar
                     }
                     sending={sending && canvasChat.id === activeChat.id}
+                    activeMessageGeneration={activeMessageGeneration}
                     viewActive={!isSinglePane || isChatOpen}
                     viewMode={chatViewMode}
                     showAvatars={showMessageAvatars}
@@ -550,6 +568,7 @@ export function ChatsScreen({
                     wide={chatMaximized}
                     scrollRef={messageScrollRef}
                     scrollToBottomRequest={scrollToBottomRequest}
+                    viewportHeight={keyboardViewportHeight}
                     clearSelectionRequest={clearMessageSelectionRequest}
                     responseActionRequest={responseActionRequest}
                     onGenerationComplete={requestComposerFocusAfterGeneration}

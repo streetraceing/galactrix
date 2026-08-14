@@ -67,6 +67,7 @@ import {
   selectMessageVariantInSnapshot,
   sortChats,
 } from '../features/chats/chatState';
+import type { ActiveMessageGeneration } from '../features/chats/types';
 
 type MessageGenerationCommand = (
   messageId: string,
@@ -84,10 +85,13 @@ export function useAppController() {
   const [isChatOpen, setIsChatOpen] = useState(
     initialChatViewRef.current.isChatOpen,
   );
+  const [chatListRequest, setChatListRequest] = useState(0);
   const [loading, setLoading] = useState(true);
   const [fatalError, setFatalError] = useState('');
   const [notice, setNotice] = useState('');
   const [sending, setSending] = useState(false);
+  const [activeMessageGeneration, setActiveMessageGeneration] =
+    useState<ActiveMessageGeneration | null>(null);
   const activeGenerationRef = useRef<string | null>(null);
   const cancelRequestedRef = useRef(false);
 
@@ -181,6 +185,10 @@ export function useAppController() {
   const navigate = useCallback(
     (tab: TabId) => {
       haptic();
+      if (tab === 'chats') {
+        setIsChatOpen(false);
+        setChatListRequest((current) => current + 1);
+      }
       setActiveTab(tab);
     },
     [haptic],
@@ -407,15 +415,7 @@ export function useAppController() {
       includeMessages: boolean,
       input?: ChatConfigInput,
     ) => {
-      const sourceTitle =
-        snapshot.chats.find((chat) => chat.id === chatId)?.title ||
-        i18next.t('setup.defaultTitle', { ns: 'chats' });
-      const title =
-        input?.title.trim() ||
-        i18next.t('chatsScreen.copyTitle', {
-          ns: 'chats',
-          value1: sourceTitle,
-        });
+      const title = input?.title.trim() ?? '';
       const created = await cloneChat(chatId, title, includeMessages, input);
       await refreshChat(created.id);
       setActiveChatId(created.id);
@@ -423,7 +423,7 @@ export function useAppController() {
       setActiveTab('chats');
       haptic();
     },
-    [haptic, refreshChat, snapshot.chats],
+    [haptic, refreshChat],
   );
 
   const branchFromMessage = useCallback(
@@ -507,12 +507,17 @@ export function useAppController() {
   );
 
   const runExistingMessageGeneration = useCallback(
-    async (messageId: string, command: MessageGenerationCommand) => {
+    async (
+      messageId: string,
+      mode: ActiveMessageGeneration['mode'],
+      command: MessageGenerationCommand,
+    ) => {
       if (activeGenerationRef.current) return;
       const chatId = findMessageChatId(snapshot.messages, messageId);
       const generationId = createRuntimeId();
       activeGenerationRef.current = generationId;
       cancelRequestedRef.current = false;
+      setActiveMessageGeneration({ chatId: chatId ?? '', messageId, mode });
       setSending(true);
       try {
         await command(
@@ -534,6 +539,7 @@ export function useAppController() {
         if (activeGenerationRef.current === generationId) {
           activeGenerationRef.current = null;
           cancelRequestedRef.current = false;
+          setActiveMessageGeneration(null);
           setSending(false);
         }
       }
@@ -549,13 +555,13 @@ export function useAppController() {
 
   const regenerateExistingMessage = useCallback(
     (messageId: string) =>
-      runExistingMessageGeneration(messageId, regenerateMessage),
+      runExistingMessageGeneration(messageId, 'regenerate', regenerateMessage),
     [runExistingMessageGeneration],
   );
 
   const continueExistingMessage = useCallback(
     (messageId: string) =>
-      runExistingMessageGeneration(messageId, continueMessage),
+      runExistingMessageGeneration(messageId, 'continue', continueMessage),
     [runExistingMessageGeneration],
   );
 
@@ -676,10 +682,12 @@ export function useAppController() {
     snapshot,
     activeChatId,
     isChatOpen,
+    chatListRequest,
     loading,
     fatalError,
     notice,
     sending,
+    activeMessageGeneration,
     navigate,
     openChat,
     closeChat,
