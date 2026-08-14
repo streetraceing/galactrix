@@ -1,5 +1,5 @@
-import { Surface } from '@heroui/react';
 import { MOTION_STAGGER_MS } from '../../lib/motion';
+import { AppPanel } from './AppPanel';
 
 export type Metric = {
   label: string;
@@ -9,7 +9,7 @@ export type Metric = {
 
 export function MetricGrid({ metrics }: { metrics: Metric[] }) {
   return (
-    <Surface className="grid grid-cols-2 overflow-hidden rounded-2xl border border-separator bg-surface shadow-surface ring-1 ring-inset ring-foreground/5 md:grid-cols-4">
+    <AppPanel className="grid grid-cols-2 overflow-hidden md:grid-cols-4">
       {metrics.map((metric, index) => (
         <div
           key={metric.label}
@@ -29,6 +29,6 @@ export function MetricGrid({ metrics }: { metrics: Metric[] }) {
           ) : null}
         </div>
       ))}
-    </Surface>
+    </AppPanel>
   );
 }

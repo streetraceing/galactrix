@@ -19,19 +19,16 @@ export function usageSummary(
   usage: readonly UsagePoint[],
   metric: UsageMetric,
 ) {
-  const total = usage.reduce(
-    (sum, point) => sum + usageValue(point, metric),
-    0,
-  );
-  const activeDays = usage.filter(
-    (point) => usageValue(point, metric) > 0,
-  ).length;
-  const peak = usage.reduce<UsagePoint | undefined>((best, point) => {
-    if (!best || usageValue(point, metric) > usageValue(best, metric)) {
-      return point;
-    }
-    return best;
-  }, undefined);
+  let total = 0;
+  let activeDays = 0;
+  let peak: UsagePoint | undefined;
+
+  for (const point of usage) {
+    const value = usageValue(point, metric);
+    total += value;
+    if (value > 0) activeDays += 1;
+    if (!peak || value > usageValue(peak, metric)) peak = point;
+  }
 
   return {
     total,

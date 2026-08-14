@@ -1,5 +1,7 @@
-import { Chip, Surface } from '@heroui/react';
+import { Chip } from '@heroui/react';
+import { useTranslation } from 'react-i18next';
 import { Icon } from '../../../components/Icon';
+import { CollectionCard } from '../../../components/ui/CollectionCard';
 import { ProviderLogo } from '../../../components/ui/ProviderLogo';
 import {
   ContextMenu,
@@ -12,7 +14,6 @@ import {
 import type { Provider } from '../../../types';
 import { providerCatalog } from '../catalog';
 import { providerStatusLabels } from '../providerHelpers';
-import { useTranslation } from 'react-i18next';
 
 export function ProviderCard({
   provider,
@@ -37,112 +38,80 @@ export function ProviderCard({
 }) {
   const { t } = useTranslation('telescope');
   const catalog = providerCatalog.find((entry) => entry.kind === provider.kind);
+
   return (
     <ContextMenu>
       <ContextMenuTrigger className="block">
-        <Surface
-          className={`collection-item-enter interactive-card group overflow-hidden rounded-2xl border ${
-            selected
-              ? 'border-accent/55 bg-accent/8 ring-1 ring-inset ring-accent/25'
-              : 'border-separator hover:bg-surface-secondary'
-          }`}
-          aria-busy={checking}
-        >
-          <button
-            type="button"
-            className="flex w-full min-w-0 flex-col gap-4 p-4 text-left outline-none sm:flex-row sm:items-start sm:gap-5 sm:p-5"
-            aria-pressed={selectionActive ? selected : undefined}
-            onClick={selectionActive ? onToggleSelection : onEdit}
-          >
-            <span className="flex min-w-0 flex-1 items-start gap-3.5 sm:gap-4">
-              {selectionActive ? (
-                <span
-                  className={`motion-status-enter grid size-5 shrink-0 place-items-center rounded-full border transition-[color,background-color,border-color,transform] duration-(--motion-fast) ease-(--motion-ease) ${
-                    selected
-                      ? 'border-accent bg-accent text-accent-foreground'
-                      : 'border-separator text-transparent'
-                  }`}
-                  aria-hidden="true"
-                >
-                  <Icon name="check" className="size-3" />
-                </span>
-              ) : null}
-              <ProviderLogo kind={provider.kind} name={provider.name} />
-              <span className="min-w-0 flex-1">
-                <span className="flex min-w-0 flex-wrap items-center gap-2">
-                  <strong className="min-w-0 text-base font-semibold sm:text-lg">
-                    {provider.name}
-                  </strong>
-                  <Chip
-                    key={`${provider.status}:${checking}`}
-                    size="sm"
-                    variant="soft"
-                    className="motion-status-enter"
-                    color={
-                      provider.status === 'connected'
-                        ? 'success'
-                        : provider.status === 'error'
-                          ? 'danger'
-                          : 'default'
-                    }
-                  >
-                    {checking
-                      ? t('providerCard.checking')
-                      : providerStatusLabels[provider.status]}
-                  </Chip>
-                </span>
-
-                <span className="mt-1 block text-sm leading-6 text-muted">
-                  {catalog?.description ?? provider.kind}
-                </span>
-
-                <span className="mt-3 grid min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-4">
-                  <ProviderFact
-                    label={t('providerCard.model')}
-                    value={provider.model || t('providerCard.noModelSelected')}
-                  />
-                  <ProviderFact
-                    label={t('providerCard.maxOutput')}
-                    value={t('providerCard.tokens', {
-                      count: provider.maxTokens,
-                    })}
-                  />
-                  <ProviderFact
-                    label={t('providerCard.sampling')}
-                    value={`T ${provider.temperature} · P ${provider.topP}`}
-                  />
-                  <ProviderFact
-                    label={t('providerCard.embedding')}
-                    value={
-                      provider.embeddingModel || t('providerCard.notConfigured')
-                    }
-                  />
-                </span>
-              </span>
-            </span>
-
-            <span className="flex shrink-0 items-center justify-between gap-4 border-t border-separator pt-3 text-xs text-muted sm:min-w-48 sm:justify-end sm:border-l sm:border-t-0 sm:py-1 sm:pl-5 sm:pt-0">
-              <span className="flex flex-col gap-1.5 sm:items-end">
-                <span className="flex items-center gap-1.5">
-                  <Icon name="key" className="size-3.5" />
-                  {provider.hasSecret
-                    ? t('providerCard.keySaved')
-                    : t('providerCard.noKey')}
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <Icon name="refresh" className="size-3.5" />
-                  {provider.latencyMs != null
-                    ? t('providerCard.latency', { value1: provider.latencyMs })
-                    : t('providerCard.notChecked')}
-                </span>
-              </span>
-              <Icon
-                name="chevron"
-                className="size-4 shrink-0 transition-transform duration-(--motion-fast) ease-(--motion-ease) group-hover:translate-x-0.5"
+        <CollectionCard
+          className="collection-item-enter"
+          leading={<ProviderLogo kind={provider.kind} name={provider.name} />}
+          title={provider.name}
+          badges={
+            <Chip
+              key={`${provider.status}:${checking}`}
+              size="sm"
+              variant="soft"
+              className="motion-status-enter"
+              color={
+                provider.status === 'connected'
+                  ? 'success'
+                  : provider.status === 'error'
+                    ? 'danger'
+                    : 'default'
+              }
+            >
+              {checking
+                ? t('providerCard.checking')
+                : providerStatusLabels[provider.status]}
+            </Chip>
+          }
+          description={catalog?.description ?? provider.kind}
+          details={
+            <span className="grid min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-4">
+              <ProviderFact
+                label={t('providerCard.model')}
+                value={provider.model || t('providerCard.noModelSelected')}
+              />
+              <ProviderFact
+                label={t('providerCard.maxOutput')}
+                value={t('providerCard.tokens', {
+                  count: provider.maxTokens,
+                })}
+              />
+              <ProviderFact
+                label={t('providerCard.sampling')}
+                value={`T ${provider.temperature} · P ${provider.topP}`}
+              />
+              <ProviderFact
+                label={t('providerCard.embedding')}
+                value={
+                  provider.embeddingModel || t('providerCard.notConfigured')
+                }
               />
             </span>
-          </button>
-        </Surface>
+          }
+          metadata={
+            <span className="flex flex-col gap-1.5 sm:items-end">
+              <span className="flex items-center gap-1.5">
+                <Icon name="key" className="size-3.5" />
+                {provider.hasSecret
+                  ? t('providerCard.keySaved')
+                  : t('providerCard.noKey')}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Icon name="refresh" className="size-3.5" />
+                {provider.latencyMs != null
+                  ? t('providerCard.latency', { value1: provider.latencyMs })
+                  : t('providerCard.notChecked')}
+              </span>
+            </span>
+          }
+          metadataClassName="sm:min-w-48"
+          selectionActive={selectionActive}
+          selected={selected}
+          onPress={selectionActive ? onToggleSelection : onEdit}
+          busy={checking}
+        />
       </ContextMenuTrigger>
       <ContextMenuContent className="w-56">
         <ContextMenuLabel>{provider.name}</ContextMenuLabel>

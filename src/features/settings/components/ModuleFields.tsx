@@ -1,4 +1,4 @@
-import { Input, Label, ListBox, Select, Surface } from '@heroui/react';
+import { Input, Label, ListBox, Select } from '@heroui/react';
 import {
   useEffect,
   useId,
@@ -10,6 +10,7 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Icon, type IconName } from '../../../components/Icon';
+import { AppPanel } from '../../../components/ui/AppPanel';
 import { useMediaQuery } from '../../../hooks/useMediaQuery';
 import {
   readStorageItem,
@@ -213,7 +214,7 @@ export function ModuleSettingsCard({
   }, [enabled, isCompactLayout, moduleId]);
 
   return (
-    <Surface className="settings-card-enter w-full min-w-0 max-w-full overflow-hidden rounded-2xl border border-separator bg-surface p-4 shadow-surface ring-1 ring-inset ring-foreground/5 transition sm:p-5">
+    <AppPanel className="settings-card-enter w-full min-w-0 max-w-full overflow-hidden p-4 transition sm:p-5">
       <button
         type="button"
         className="flex w-full min-w-0 items-center gap-3 rounded-xl text-left outline-none transition focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:cursor-default"
@@ -276,6 +277,6 @@ export function ModuleSettingsCard({
           </div>
         </div>
       </div>
-    </Surface>
+    </AppPanel>
   );
 }

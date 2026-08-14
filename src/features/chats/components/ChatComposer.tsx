@@ -1,4 +1,4 @@
-import { Button, Dropdown, Label, Surface, TextArea } from '@heroui/react';
+import { Button, Dropdown, Label, TextArea } from '@heroui/react';
 import {
   memo,
   useCallback,
@@ -9,6 +9,7 @@ import {
 } from 'react';
 import type { ChangeEvent, KeyboardEvent } from 'react';
 import { Icon } from '../../../components/Icon';
+import { AppPanel } from '../../../components/ui/AppPanel';
 import { TooltipIconButton } from '../../../components/ui/TooltipIconButton';
 import { UiModal } from '../../../components/ui/UiModal';
 import {
@@ -546,12 +547,9 @@ function ChatComposerComponent({
 
   return (
     <>
-      <div
-        ref={rootRef}
-        className="shrink-0 border-t border-separator bg-background px-3 py-2 sm:px-5 sm:py-4"
-      >
+      <div ref={rootRef} className="chat-composer">
         <div className={`mx-auto w-full ${wide ? 'max-w-5xl' : 'max-w-3xl'}`}>
-          <Surface className="rounded-2xl p-2 transition-shadow">
+          <AppPanel className="chat-composer__panel p-2">
             <div className="flex min-w-0 items-end gap-2">
               <TextArea
                 autoComplete="off"
@@ -602,7 +600,7 @@ function ChatComposerComponent({
                   : t('chatComposer.ctrlEnterSend')}
               </span>
             </div>
-          </Surface>
+          </AppPanel>
         </div>
       </div>
 

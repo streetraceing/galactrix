@@ -10,6 +10,7 @@ import {
 } from '@heroui/react';
 import { useEffect, useState } from 'react';
 import { Icon } from '../../../components/Icon';
+import { AppTabList } from '../../../components/ui/AppTabList';
 import { UiModal } from '../../../components/ui/UiModal';
 import { PromptPreviewCard } from '../../../components/ui/PromptPreviewCard';
 import { RequiredMark } from '../../../components/ui/RequiredMark';
@@ -166,29 +167,15 @@ export function ChatSetupModal({
           }
           className="w-full min-w-0"
         >
-          <Tabs.ListContainer className="w-full">
-            <Tabs.List
-              aria-label={t('chatSetupModal.sections')}
-              className="w-max min-w-full *:min-w-max *:flex-1 *:px-3 sm:*:px-4"
-            >
-              <Tabs.Tab id="general">
-                {t('chatSetupModal.general')}
-                <Tabs.Indicator />
-              </Tabs.Tab>
-              <Tabs.Tab id="context">
-                {t('chatSetupModal.context')}
-                <Tabs.Indicator />
-              </Tabs.Tab>
-              <Tabs.Tab id="modules">
-                {t('chatSetupModal.modules')}
-                <Tabs.Indicator />
-              </Tabs.Tab>
-              <Tabs.Tab id="prompt">
-                {t('chatSetupModal.prompt')}
-                <Tabs.Indicator />
-              </Tabs.Tab>
-            </Tabs.List>
-          </Tabs.ListContainer>
+          <AppTabList
+            label={t('chatSetupModal.sections')}
+            items={[
+              { id: 'general', label: t('chatSetupModal.general') },
+              { id: 'context', label: t('chatSetupModal.context') },
+              { id: 'modules', label: t('chatSetupModal.modules') },
+              { id: 'prompt', label: t('chatSetupModal.prompt') },
+            ]}
+          />
 
           <Tabs.Panel id="general" className="pt-4 sm:pt-5">
             <div className="min-w-0 space-y-3 sm:space-y-4">

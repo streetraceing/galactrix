@@ -1,6 +1,7 @@
-import { Button, Checkbox, Surface } from '@heroui/react';
+import { Button, Checkbox } from '@heroui/react';
 import { useEffect, useMemo, useState } from 'react';
 import { Icon } from '../../components/Icon';
+import { AppPanel } from '../../components/ui/AppPanel';
 import { toast } from '../../i18n/toast';
 import { errorMessage } from '../../lib/errors';
 import { ContextSelectionToolbar } from '../../components/ui/ContextSelectionToolbar';
@@ -548,7 +549,7 @@ export function TelescopeScreen({
             selectedIds={exportIds}
             onChange={setExportIds}
           />
-          <Surface className="rounded-2xl border border-separator bg-surface-secondary/50 p-4 sm:p-5">
+          <AppPanel emphasis="subtle" className="p-4 sm:p-5">
             <h3 className="mb-4 text-sm font-semibold">
               {t('telescopeScreen.connectionData')}
             </h3>
@@ -575,11 +576,11 @@ export function TelescopeScreen({
               </Checkbox.Content>
             </Checkbox>
             {includeSecrets ? (
-              <Surface className="mt-3 rounded-xl border border-warning/30 bg-warning/10 p-3 text-xs leading-5 text-warning">
+              <AppPanel className="mt-3 rounded-xl border-warning/30 bg-warning/10 p-3 text-xs leading-5 text-warning shadow-none">
                 {t('telescopeScreen.theFileWillContainKeysAsPlainTextTreatIt')}
-              </Surface>
+              </AppPanel>
             ) : null}
-          </Surface>
+          </AppPanel>
           <ExportDestinationPicker
             value={exportDestination}
             onChange={setExportDestination}

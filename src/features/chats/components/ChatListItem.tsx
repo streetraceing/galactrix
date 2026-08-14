@@ -3,6 +3,7 @@ import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Icon } from '../../../components/Icon';
 import { AppAvatar } from '../../../components/ui/AppAvatar';
+import { SelectionIndicator } from '../../../components/ui/SelectionIndicator';
 import { useRelativeTime } from '../../../i18n/useRelativeTime';
 import { galaxyItemAvatar } from '../../../lib/avatar';
 import type { Chat, GalaxyItem } from '../../../types';
@@ -12,7 +13,7 @@ import { ChatActions } from './ChatActions';
 
 function ChatListItemComponent({
   chat,
-  galaxyItems,
+  character,
   isActive,
   onSelect,
   onAction,
@@ -22,7 +23,7 @@ function ChatListItemComponent({
   onStartSelection,
 }: {
   chat: Chat;
-  galaxyItems: GalaxyItem[];
+  character?: GalaxyItem;
   isActive: boolean;
   onSelect: (id: string) => void;
   onAction: (action: ChatAction, chat: Chat) => void;
@@ -33,9 +34,6 @@ function ChatListItemComponent({
 }) {
   const { t } = useTranslation('chats');
   const relativeUpdatedAt = useRelativeTime(chat.updatedAt);
-  const character = galaxyItems.find(
-    (item) => item.kind === 'character' && item.id === chat.characterId,
-  );
   const characterName = character?.name.trim();
   const normalizedTitle = chat.title.trim().toLocaleLowerCase();
   const normalizedCharacterName = characterName?.toLocaleLowerCase();
@@ -71,18 +69,7 @@ function ChatListItemComponent({
             selectionActive ? onToggleSelection(chat.id) : onSelect(chat.id)
           }
         >
-          {selectionActive ? (
-            <span
-              className={`motion-status-enter grid size-5 shrink-0 place-items-center rounded-full border text-xs transition-[color,background-color,border-color,transform] duration-(--motion-fast) ease-(--motion-ease) ${
-                selected
-                  ? 'border-accent bg-accent text-accent-foreground'
-                  : 'border-separator text-transparent'
-              }`}
-              aria-hidden="true"
-            >
-              <Icon name="check" className="size-3" />
-            </span>
-          ) : null}
+          {selectionActive ? <SelectionIndicator selected={selected} /> : null}
           <AppAvatar
             src={galaxyItemAvatar(character)}
             name={character?.name ?? chat.title}

@@ -1,15 +1,28 @@
-import { Surface } from '@heroui/react';
+import { AppPanel } from '../../../components/ui/AppPanel';
 import { MetricGrid } from '../../../components/ui/MetricGrid';
 import { formatNumber, i18next } from '../../../i18n';
 import type { GalaxyItem, UsagePoint } from '../../../types';
 import { formatTokenCount, formatTokens } from '../format';
 import { useTranslation } from 'react-i18next';
 
-function sum(
-  points: UsagePoint[],
-  field: 'tokens' | 'requests' | 'inputTokens' | 'outputTokens',
-) {
-  return points.reduce((total, point) => total + point[field], 0);
+function summarizeUsage(points: readonly UsagePoint[]) {
+  return points.reduce(
+    (summary, point) => {
+      summary.tokens += point.tokens;
+      summary.requests += point.requests;
+      summary.inputTokens += point.inputTokens;
+      summary.outputTokens += point.outputTokens;
+      if (point.requests > 0) summary.activeDays += 1;
+      return summary;
+    },
+    {
+      tokens: 0,
+      requests: 0,
+      inputTokens: 0,
+      outputTokens: 0,
+      activeDays: 0,
+    },
+  );
 }
 
 function comparison(current: number, previous: number) {
@@ -40,19 +53,25 @@ export function ProfileOverview({
   galaxyItems: GalaxyItem[];
 }) {
   const { t } = useTranslation('profile');
-  const current = usage.slice(-7);
-  const previous = usage.slice(-14, -7);
-  const tokens = sum(current, 'tokens');
-  const requests = sum(current, 'requests');
-  const input = sum(current, 'inputTokens');
-  const output = sum(current, 'outputTokens');
-  const activeDays = current.filter((point) => point.requests > 0).length;
+  const current = summarizeUsage(usage.slice(-7));
+  const previous = summarizeUsage(usage.slice(-14, -7));
+  const {
+    tokens,
+    requests,
+    inputTokens: input,
+    outputTokens: output,
+  } = current;
+  const { activeDays } = current;
   const average = requests > 0 ? Math.round(tokens / requests) : 0;
   const outputShare = tokens > 0 ? Math.round((output / tokens) * 100) : 0;
-  const personas = galaxyItems.filter((item) => item.kind === 'persona').length;
-  const characters = galaxyItems.filter(
-    (item) => item.kind === 'character',
-  ).length;
+  const { personas, characters } = galaxyItems.reduce(
+    (counts, item) => {
+      if (item.kind === 'persona') counts.personas += 1;
+      if (item.kind === 'character') counts.characters += 1;
+      return counts;
+    },
+    { personas: 0, characters: 0 },
+  );
   const lore = galaxyItems.length - personas - characters;
   const averageChatLength =
     chatCount > 0 ? Math.round(messageCount / chatCount) : 0;
@@ -64,12 +83,12 @@ export function ProfileOverview({
           {
             label: t('profileOverview.tokensOver7Days'),
             value: formatTokens(tokens),
-            note: comparison(tokens, sum(previous, 'tokens')),
+            note: comparison(tokens, previous.tokens),
           },
           {
             label: t('profileOverview.modelRequests'),
             value: formatNumber(requests),
-            note: comparison(requests, sum(previous, 'requests')),
+            note: comparison(requests, previous.requests),
           },
           {
             label: t('profileOverview.averagePerRequest'),
@@ -90,7 +109,7 @@ export function ProfileOverview({
       />
 
       <div className="grid gap-4 md:grid-cols-2">
-        <Surface className="rounded-2xl border border-separator bg-surface p-4 shadow-surface ring-1 ring-inset ring-foreground/5 sm:p-5">
+        <AppPanel className="p-4 sm:p-5">
           <h2 className="section-title">
             {t('profileOverview.libraryAndChats')}
           </h2>
@@ -117,9 +136,9 @@ export function ProfileOverview({
               </div>
             ))}
           </dl>
-        </Surface>
+        </AppPanel>
 
-        <Surface className="rounded-2xl border border-separator bg-surface p-4 shadow-surface ring-1 ring-inset ring-foreground/5 sm:p-5">
+        <AppPanel className="p-4 sm:p-5">
           <h2 className="section-title">{t('profileOverview.appReadiness')}</h2>
           <p className="section-description">
             {t('profileOverview.aQuickSummaryOfTheConfiguredEnvironment')}
@@ -168,7 +187,7 @@ export function ProfileOverview({
               </div>
             ))}
           </div>
-        </Surface>
+        </AppPanel>
       </div>
     </div>
   );

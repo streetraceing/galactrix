@@ -10,6 +10,10 @@ const chatModulesPath = new URL(
   '../../src/features/chats/components/ChatModuleOverrides.tsx',
   import.meta.url,
 );
+const appTabListPath = new URL(
+  '../../src/components/ui/AppTabList.tsx',
+  import.meta.url,
+);
 const galaxiesPath = new URL(
   '../../src/features/galaxies/GalaxiesScreen.tsx',
   import.meta.url,
@@ -29,15 +33,18 @@ const generationPath = new URL(
 );
 
 test('chat settings expose focused sections and module overrides', async () => {
-  const [setup, modules] = await Promise.all([
+  const [setup, appTabList, modules] = await Promise.all([
     readFile(chatSetupPath, 'utf8'),
+    readFile(appTabListPath, 'utf8'),
     readFile(chatModulesPath, 'utf8'),
   ]);
 
-  assert.match(setup, /<Tabs\.Tab id="general">/);
-  assert.match(setup, /<Tabs\.Tab id="context">/);
-  assert.match(setup, /<Tabs\.Tab id="modules">/);
-  assert.match(setup, /<Tabs\.Tab id="prompt">/);
+  assert.match(setup, /<AppTabList/);
+  assert.match(setup, /id: 'general'/);
+  assert.match(setup, /id: 'context'/);
+  assert.match(setup, /id: 'modules'/);
+  assert.match(setup, /id: 'prompt'/);
+  assert.match(appTabList, /<Tabs\.Tab key=\{item\.id\} id=\{item\.id\}>/);
   assert.match(setup, /<ChatModuleOverridesPanel/);
   assert.match(setup, /value=\{form\.moduleOverrides\}/);
   assert.match(modules, /id: 'retry'/);

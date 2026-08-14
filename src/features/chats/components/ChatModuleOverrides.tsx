@@ -2,6 +2,7 @@ import { Button, Chip, Switch } from '@heroui/react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Icon, type IconName } from '../../../components/Icon';
+import { AppPanel } from '../../../components/ui/AppPanel';
 import type {
   AiModuleId,
   AiModuleSettings,
@@ -98,10 +99,7 @@ export function ChatModuleOverridesPanel({
           const isInherited = override == null;
           const effectiveEnabled = override ?? module.globallyEnabled;
           return (
-            <div
-              key={module.id}
-              className="rounded-2xl border border-separator bg-surface px-3 py-3 ring-1 ring-inset ring-foreground/5 sm:px-4"
-            >
+            <AppPanel key={module.id} className="px-3 py-3 sm:px-4">
               <div className="flex min-w-0 items-start gap-3">
                 <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-accent/10 text-accent">
                   <Icon name={module.icon} className="size-4.5" />
@@ -168,7 +166,7 @@ export function ChatModuleOverridesPanel({
                   </Button>
                 </div>
               ) : null}
-            </div>
+            </AppPanel>
           );
         })}
       </div>

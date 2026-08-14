@@ -1,8 +1,9 @@
-import { Button, Checkbox, Surface } from '@heroui/react';
+import { Button, Checkbox } from '@heroui/react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Icon, type IconName } from '../Icon';
 import type { TranslationKey } from '../../i18n';
+import { AppPanel } from './AppPanel';
 import {
   canChooseExportFile,
   canDownloadExportFile,
@@ -40,9 +41,6 @@ const destinationOptions: Array<{
   },
 ];
 
-const exportSectionClass =
-  'rounded-2xl border border-separator bg-surface-secondary/50 p-4 sm:p-5';
-
 export function ExportDestinationPicker({
   value,
   onChange,
@@ -53,7 +51,7 @@ export function ExportDestinationPicker({
   const { t } = useTranslation('common');
 
   return (
-    <Surface className={exportSectionClass}>
+    <AppPanel emphasis="subtle" className="p-4 sm:p-5">
       <h3 className="text-sm font-semibold">
         {t('exportOptions.exportDestination')}
       </h3>
@@ -98,7 +96,7 @@ export function ExportDestinationPicker({
             );
           })}
       </div>
-    </Surface>
+    </AppPanel>
   );
 }
 
@@ -118,7 +116,7 @@ export function ExportSelectionList({
   const allSelected = items.length > 0 && selectedIds.length === items.length;
 
   return (
-    <Surface className={exportSectionClass}>
+    <AppPanel emphasis="subtle" className="p-4 sm:p-5">
       <div className="flex items-center justify-between gap-3">
         <h3 className="text-sm font-semibold">
           {t('exportOptions.whatToExport')}
@@ -176,6 +174,6 @@ export function ExportSelectionList({
       {hint ? (
         <div className="mt-2 text-xs leading-5 text-muted">{hint}</div>
       ) : null}
-    </Surface>
+    </AppPanel>
   );
 }

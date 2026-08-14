@@ -22,6 +22,7 @@ import {
   ExportSelectionList,
 } from '../../components/ui/ExportOptions';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { AppTabList } from '../../components/ui/AppTabList';
 import { UiModal } from '../../components/ui/UiModal';
 import { useContextSelection } from '../../hooks/useContextSelection';
 import { useSwipeableTabs } from '../../hooks/useSwipeableTabs';
@@ -412,24 +413,20 @@ export function GalaxiesScreen({
           onSelectionChange={(key) => setSection(String(key) as GalaxyKind)}
           className="w-full"
         >
-          <Tabs.ListContainer className="w-full">
-            <Tabs.List
-              aria-label={t('galaxiesScreen.galaxySections')}
-              className="w-max min-w-full *:min-w-max *:flex-1 *:gap-2"
-            >
-              {galaxySections.map((entry) => (
-                <Tabs.Tab key={entry.id} id={entry.id}>
-                  {t(entry.labelKey)}
-                  <Chip size="sm" variant="soft" className="bg-transparent">
-                    {normalizedQuery
-                      ? visibleByKind[entry.id].length
-                      : byKind[entry.id].length}
-                  </Chip>
-                  <Tabs.Indicator />
-                </Tabs.Tab>
-              ))}
-            </Tabs.List>
-          </Tabs.ListContainer>
+          <AppTabList
+            label={t('galaxiesScreen.galaxySections')}
+            items={galaxySections.map((entry) => ({
+              id: entry.id,
+              label: t(entry.labelKey),
+              accessory: (
+                <Chip size="sm" variant="soft" className="bg-transparent">
+                  {normalizedQuery
+                    ? visibleByKind[entry.id].length
+                    : byKind[entry.id].length}
+                </Chip>
+              ),
+            }))}
+          />
 
           {galaxySections.map((entry) => {
             const sectionItems = visibleByKind[entry.id];

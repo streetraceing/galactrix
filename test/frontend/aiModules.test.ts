@@ -7,6 +7,10 @@ const settingsPath = new URL(
   '../../src/features/settings/SettingsScreen.tsx',
   import.meta.url,
 );
+const appTabListPath = new URL(
+  '../../src/components/ui/AppTabList.tsx',
+  import.meta.url,
+);
 const moduleCardPath = new URL(
   '../../src/features/settings/components/ModuleFields.tsx',
   import.meta.url,
@@ -54,15 +58,19 @@ test('new AI modules are backward-compatible and independently configurable', as
 });
 
 test('settings separate parameters and animated searchable modules', async () => {
-  const [settings, moduleCard, modules] = await Promise.all([
+  const [settings, appTabList, moduleCard, modules] = await Promise.all([
     readFile(settingsPath, 'utf8'),
+    readFile(appTabListPath, 'utf8'),
     readFile(moduleCardPath, 'utf8'),
     readFile(modulesPath, 'utf8'),
   ]);
 
   assert.match(settings, /useState<SettingsSection>\('parameters'\)/);
-  assert.match(settings, /<Tabs\.Tab id="parameters">/);
-  assert.match(settings, /<Tabs\.Tab id="modules">/);
+  assert.match(settings, /<AppTabList/);
+  assert.match(settings, /id: 'parameters'/);
+  assert.match(settings, /id: 'modules'/);
+  assert.match(appTabList, /<Tabs\.Tab key=\{item\.id\} id=\{item\.id\}>/);
+  assert.match(appTabList, /<Tabs\.Indicator/);
   assert.match(
     settings,
     /<Tabs\.Panel id="parameters"[\s\S]*<ProfilePreferences/,

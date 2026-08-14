@@ -1,6 +1,7 @@
-import { Button, Chip, Surface } from '@heroui/react';
+import { Button, Chip } from '@heroui/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '../../../components/Icon';
+import { AppPanel } from '../../../components/ui/AppPanel';
 import { TooltipIconButton } from '../../../components/ui/TooltipIconButton';
 import { formatDate, formatNumber } from '../../../i18n';
 import type { UsagePoint } from '../../../types';
@@ -120,9 +121,9 @@ export function UsageTimeline({
 
   if (!selected) {
     return (
-      <Surface className="grid min-h-64 place-items-center rounded-2xl border border-separator bg-surface p-6 text-center text-muted shadow-surface ring-1 ring-inset ring-foreground/5">
+      <AppPanel className="grid min-h-64 place-items-center p-6 text-center text-muted">
         {t('usageTimeline.statisticsWillAppearAfterTheFirstModelRequest')}
-      </Surface>
+      </AppPanel>
     );
   }
 
@@ -135,7 +136,7 @@ export function UsageTimeline({
   const isWeeklyRange = range === 'week';
 
   return (
-    <Surface className="overflow-hidden rounded-2xl border border-separator bg-surface shadow-surface ring-1 ring-inset ring-foreground/5">
+    <AppPanel className="overflow-hidden">
       <div className="border-b border-separator p-4 sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 flex-wrap items-center gap-1 rounded-xl">
@@ -364,7 +365,7 @@ export function UsageTimeline({
           </>
         )}
       </div>
-    </Surface>
+    </AppPanel>
   );
 }
 

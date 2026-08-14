@@ -1,7 +1,8 @@
-import { Button, Input, Surface } from '@heroui/react';
+import { Button, Input } from '@heroui/react';
 import { useEffect, useMemo, useState } from 'react';
 import { Icon } from '../../../components/Icon';
 import { AppAvatar } from '../../../components/ui/AppAvatar';
+import { AppPanel } from '../../../components/ui/AppPanel';
 import { AvatarPicker } from '../../../components/ui/AvatarPicker';
 import { toast } from '../../../i18n/toast';
 import { galaxyItemAvatar, withAvatar } from '../../../lib/avatar';
@@ -114,7 +115,7 @@ export function IdentitySettings({
 
   return (
     <div className="space-y-5 sm:space-y-6">
-      <Surface className="flex flex-col gap-4 overflow-hidden rounded-2xl border border-separator bg-surface p-4 shadow-surface ring-1 ring-inset ring-foreground/5">
+      <AppPanel className="flex flex-col gap-4 overflow-hidden p-4">
         <div className="border-b border-separator pb-4">
           <h2 className="section-title">{t('identitySettings.yourProfile')}</h2>
           <p className="section-description">
@@ -173,7 +174,7 @@ export function IdentitySettings({
             className="items-start"
           />
         </div>
-      </Surface>
+      </AppPanel>
 
       <section>
         <div className="mb-3">
@@ -194,9 +195,9 @@ export function IdentitySettings({
                 ? (avatarOverrides.get(item.id) ?? undefined)
                 : galaxyItemAvatar(item);
               return (
-                <Surface
+                <AppPanel
                   key={item.id}
-                  className="mobile-card-enter flex min-w-0 items-start gap-3 rounded-2xl border border-separator bg-surface p-3 shadow-surface ring-1 ring-inset ring-foreground/5 sm:p-4"
+                  className="mobile-card-enter flex min-w-0 items-start gap-3 p-3 sm:p-4"
                   style={{
                     animationDelay: `${index * MOTION_STAGGER_MS}ms`,
                   }}
@@ -225,12 +226,15 @@ export function IdentitySettings({
                       />
                     </div>
                   </div>
-                </Surface>
+                </AppPanel>
               );
             })}
           </div>
         ) : (
-          <Surface className="rounded-2xl border border-dashed border-border p-6 text-center">
+          <AppPanel
+            emphasis="subtle"
+            className="border-dashed p-6 text-center shadow-none"
+          >
             <p className="font-medium">
               {t('identitySettings.noPersonasOrCharacters')}
             </p>
@@ -239,7 +243,7 @@ export function IdentitySettings({
                 'identitySettings.createThemInGalaxiesThenPhotoControlsWillAppearHere',
               )}
             </p>
-          </Surface>
+          </AppPanel>
         )}
       </section>
     </div>

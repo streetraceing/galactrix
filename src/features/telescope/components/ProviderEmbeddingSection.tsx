@@ -1,7 +1,9 @@
-import { Button, Input, Surface, Switch } from '@heroui/react';
+import { Button, Input, Switch } from '@heroui/react';
 import type { ChangeEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Icon } from '../../../components/Icon';
+import { AppIconTile } from '../../../components/ui/AppIconTile';
+import { AppPanel } from '../../../components/ui/AppPanel';
 import type { EmbeddingProbeResult, ProviderInput } from '../../../types';
 import { FormField } from './FormField';
 
@@ -31,11 +33,9 @@ export function ProviderEmbeddingSection({
   const enabled = form.embeddingModel != null;
 
   return (
-    <Surface className="rounded-2xl border border-separator bg-surface-secondary/50 p-4">
+    <AppPanel emphasis="subtle" className="p-4">
       <div className="flex items-center gap-3">
-        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-accent/10 text-accent">
-          <Icon name="brain" className="size-4" />
-        </span>
+        <AppIconTile icon="brain" size="sm" className="size-9" />
         <div className="min-w-0 flex-1">
           <strong className="block text-sm font-medium">
             {t('providerEmbeddingSection.title')}
@@ -114,6 +114,6 @@ export function ProviderEmbeddingSection({
           </div>
         </div>
       ) : null}
-    </Surface>
+    </AppPanel>
   );
 }

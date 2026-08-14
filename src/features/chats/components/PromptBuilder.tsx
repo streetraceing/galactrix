@@ -1,6 +1,7 @@
-import { Accordion, Chip, Label, Surface } from '@heroui/react';
+import { Accordion, Chip, Label } from '@heroui/react';
 import { useEffect, useState } from 'react';
-import { Icon } from '../../../components/Icon';
+import { AppIconTile } from '../../../components/ui/AppIconTile';
+import { AppPanel } from '../../../components/ui/AppPanel';
 import { useMediaQuery } from '../../../hooks/useMediaQuery';
 import type {
   GalaxyItem,
@@ -51,13 +52,11 @@ export function PromptBuilder({
   }, [isCompactLayout, mode]);
 
   return (
-    <Surface className="min-w-0 overflow-hidden rounded-2xl border border-separator bg-surface-secondary/50">
+    <AppPanel emphasis="subtle" className="min-w-0 overflow-hidden">
       <div className="flex min-w-0 flex-col items-stretch gap-2.5 border-b border-separator p-3 sm:flex-row sm:items-start sm:justify-between sm:gap-3 sm:p-5">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <span className="grid size-8 place-items-center rounded-xl bg-accent/10 text-accent">
-              <Icon name="sparkles" className="size-4" />
-            </span>
+            <AppIconTile icon="sparkles" size="sm" className="rounded-xl" />
             <h3 className="text-sm font-semibold">
               {t('promptBuilder.promptBuilder')}
             </h3>
@@ -126,6 +125,6 @@ export function PromptBuilder({
           activeContextFields={activeContextFields}
         />
       </Accordion>
-    </Surface>
+    </AppPanel>
   );
 }

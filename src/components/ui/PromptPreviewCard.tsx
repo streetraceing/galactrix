@@ -1,10 +1,12 @@
-import { Button, Chip, Surface } from '@heroui/react';
+import { Button, Chip } from '@heroui/react';
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { toast } from '../../i18n/toast';
 import { previewPrompt } from '../../lib/backend';
 import { errorMessage } from '../../lib/errors';
 import type { PromptPreviewInput, PromptPreviewResult } from '../../types';
 import { Icon } from '../Icon';
+import { AppIconTile } from './AppIconTile';
+import { AppPanel } from './AppPanel';
 import { UiModal } from './UiModal';
 import { useTranslation } from 'react-i18next';
 
@@ -76,12 +78,10 @@ export function PromptPreviewCard({
 
   return (
     <>
-      <Surface className="rounded-2xl border border-separator bg-surface-secondary/50 p-4 sm:p-5">
+      <AppPanel emphasis="subtle" className="p-4 sm:p-5">
         <div className="flex min-w-0 flex-col gap-3">
           <div className="flex min-w-0 items-start gap-3 sm:flex-1">
-            <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-accent/10 text-accent">
-              <Icon name="database" className="size-4" />
-            </span>
+            <AppIconTile icon="database" size="sm" className="size-9" />
             <span className="min-w-0 flex-1">
               <strong className="block wrap-break-word text-sm">
                 {resolvedTitle}
@@ -150,7 +150,7 @@ export function PromptPreviewCard({
         {error ? (
           <p className="selectable mt-3 text-xs text-danger">{error}</p>
         ) : null}
-      </Surface>
+      </AppPanel>
 
       <UiModal
         isOpen={previewOpen}

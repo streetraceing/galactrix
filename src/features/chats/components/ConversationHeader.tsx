@@ -1,5 +1,5 @@
 import { Button, Chip, Popover } from '@heroui/react';
-import { memo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Icon, type IconName } from '../../../components/Icon';
 import { AppAvatar } from '../../../components/ui/AppAvatar';
@@ -236,17 +236,27 @@ function ConversationHeaderComponent({
   const isMobile = isMobilePlatform();
   const relativeUpdatedAt = useRelativeTime(chat.updatedAt);
   const [overviewOpen, setOverviewOpen] = useState(false);
-  const persona = galaxyItems.find(
-    (item) => item.kind === 'persona' && item.id === chat.personaId,
+  const galaxyById = useMemo(
+    () => new Map(galaxyItems.map((item) => [item.id, item])),
+    [galaxyItems],
   );
-  const character = galaxyItems.find(
-    (item) => item.kind === 'character' && item.id === chat.characterId,
-  );
-  const universe = galaxyItems.find(
-    (item) => item.kind === 'universe' && item.id === chat.universeId,
-  );
+  const personaCandidate = chat.personaId
+    ? galaxyById.get(chat.personaId)
+    : undefined;
+  const characterCandidate = chat.characterId
+    ? galaxyById.get(chat.characterId)
+    : undefined;
+  const universeCandidate = chat.universeId
+    ? galaxyById.get(chat.universeId)
+    : undefined;
+  const persona =
+    personaCandidate?.kind === 'persona' ? personaCandidate : undefined;
+  const character =
+    characterCandidate?.kind === 'character' ? characterCandidate : undefined;
+  const universe =
+    universeCandidate?.kind === 'universe' ? universeCandidate : undefined;
   const worldbooks = chat.worldbookIds
-    .map((id) => galaxyItems.find((item) => item.id === id))
+    .map((id) => galaxyById.get(id))
     .filter((item): item is GalaxyItem => Boolean(item));
   const contextNames = [
     persona?.name,
@@ -285,7 +295,7 @@ function ConversationHeaderComponent({
 
   return (
     <>
-      <header className="shrink-0 border-b border-separator bg-background px-3 py-3 sm:px-4">
+      <header className="conversation-header">
         <div
           className={`mx-auto flex min-w-0 items-center gap-2 ${
             maximized ? 'max-w-5xl' : 'max-w-none'

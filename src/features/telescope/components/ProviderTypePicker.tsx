@@ -1,5 +1,5 @@
-import { Surface } from '@heroui/react';
 import { Icon } from '../../../components/Icon';
+import { AppPanel } from '../../../components/ui/AppPanel';
 import { ProviderLogo } from '../../../components/ui/ProviderLogo';
 import type { ProviderKind } from '../../../types';
 import { providerCatalog } from '../catalog';
@@ -14,9 +14,11 @@ export function ProviderTypePicker({
       {providerCatalog
         .filter((provider) => provider.available !== false)
         .map((provider) => (
-          <Surface
+          <AppPanel
             key={provider.kind}
-            className="interactive-card overflow-hidden rounded-2xl border border-separator bg-surface-secondary/50 hover:bg-surface-secondary"
+            emphasis="subtle"
+            interactive
+            className="overflow-hidden"
           >
             <button
               type="button"
@@ -41,7 +43,7 @@ export function ProviderTypePicker({
                 className="mt-1 size-4 shrink-0 text-muted"
               />
             </button>
-          </Surface>
+          </AppPanel>
         ))}
     </div>
   );

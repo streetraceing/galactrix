@@ -1,6 +1,8 @@
 {
   "appError.couldNotOpenData": "Не удалось открыть данные",
   "appError.retry": "Повторить",
+  "appError.unexpectedCrash": "Не удалось отобразить экран",
+  "appError.reload": "Перезапустить приложение",
   "applicationFrame.changeMainSidebarWidth": "Изменить ширину основной панели",
   "applicationFrame.loading": "Загрузка",
   "appNotice.dismissNotification": "Закрыть уведомление",

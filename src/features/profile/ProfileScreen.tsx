@@ -1,6 +1,6 @@
 import { Tabs } from '@heroui/react';
 import { useState } from 'react';
-import { Icon } from '../../components/Icon';
+import { AppTabList } from '../../components/ui/AppTabList';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { useSwipeableTabs } from '../../hooks/useSwipeableTabs';
 import type {
@@ -63,33 +63,31 @@ export function ProfileScreen({
           onSelectionChange={(key) => setSection(String(key) as ProfileSection)}
           className="w-full"
         >
-          <Tabs.ListContainer className="w-full">
-            <Tabs.List
-              aria-label={t('profileScreen.profileSections')}
-              className="w-full *:min-w-0 *:flex-1 *:gap-1.5 *:px-2 sm:*:px-4"
-            >
-              <Tabs.Tab id="overview">
-                <Icon name="profile" className="size-4 shrink-0" />
-                {t('profileScreen.overview')}
-                <Tabs.Indicator />
-              </Tabs.Tab>
-              <Tabs.Tab id="tokens">
-                <Icon name="database" className="size-4 shrink-0" />
-                {t('profileScreen.tokens')}
-                <Tabs.Indicator />
-              </Tabs.Tab>
-              <Tabs.Tab id="requests">
-                <Icon name="send" className="size-4 shrink-0" />
-                {t('profileScreen.requests')}
-                <Tabs.Indicator />
-              </Tabs.Tab>
-              <Tabs.Tab id="identities">
-                <Icon name="user" className="size-4 shrink-0" />
-                {t('profileScreen.identities')}
-                <Tabs.Indicator />
-              </Tabs.Tab>
-            </Tabs.List>
-          </Tabs.ListContainer>
+          <AppTabList
+            label={t('profileScreen.profileSections')}
+            items={[
+              {
+                id: 'overview',
+                label: t('profileScreen.overview'),
+                icon: 'profile',
+              },
+              {
+                id: 'tokens',
+                label: t('profileScreen.tokens'),
+                icon: 'database',
+              },
+              {
+                id: 'requests',
+                label: t('profileScreen.requests'),
+                icon: 'send',
+              },
+              {
+                id: 'identities',
+                label: t('profileScreen.identities'),
+                icon: 'user',
+              },
+            ]}
+          />
 
           <Tabs.Panel id="overview" className="pt-5 sm:pt-6">
             <ProfileOverview

@@ -1,6 +1,7 @@
 import { Tabs } from '@heroui/react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { AppTabList } from '../../components/ui/AppTabList';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { useSwipeableTabs } from '../../hooks/useSwipeableTabs';
 import type { AppSettings, Provider } from '../../types';
@@ -45,21 +46,13 @@ export function SettingsScreen({
           }
           className="w-full"
         >
-          <Tabs.ListContainer className="w-full">
-            <Tabs.List
-              aria-label={t('settingsScreen.settingsSections')}
-              className="w-full *:min-w-0 *:flex-1 *:px-3 sm:*:px-4"
-            >
-              <Tabs.Tab id="parameters">
-                {t('settingsScreen.parameters')}
-                <Tabs.Indicator />
-              </Tabs.Tab>
-              <Tabs.Tab id="modules">
-                {t('settingsScreen.modules')}
-                <Tabs.Indicator />
-              </Tabs.Tab>
-            </Tabs.List>
-          </Tabs.ListContainer>
+          <AppTabList
+            label={t('settingsScreen.settingsSections')}
+            items={[
+              { id: 'parameters', label: t('settingsScreen.parameters') },
+              { id: 'modules', label: t('settingsScreen.modules') },
+            ]}
+          />
 
           <Tabs.Panel id="parameters" className="pt-5 sm:pt-6">
             <ProfilePreferences

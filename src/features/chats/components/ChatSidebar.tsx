@@ -8,6 +8,7 @@ import type { Chat, GalaxyItem } from '../../../types';
 import type { ChatAction } from '../types';
 import { ChatListItem } from './ChatListItem';
 import { useTranslation } from 'react-i18next';
+import { cn } from '../../../lib/cn';
 
 function ChatSidebarComponent({
   chats,
@@ -58,6 +59,10 @@ function ChatSidebarComponent({
     () => galaxyItems.filter((item) => item.kind === 'character'),
     [galaxyItems],
   );
+  const characterById = useMemo(
+    () => new Map(characters.map((character) => [character.id, character])),
+    [characters],
+  );
   const scopedChats = useMemo(
     () => chats.filter((chat) => Boolean(chat.archived) === archiveMode),
     [archiveMode, chats],
@@ -73,10 +78,17 @@ function ChatSidebarComponent({
 
   return (
     <aside
-      className={`${isSinglePane ? (isVisibleMobile ? 'app-screen-enter flex w-full' : 'hidden') : 'flex w-[min(var(--chat-sidebar-width),36vw)] min-[1300px]:w-(--chat-sidebar-width)'} h-full shrink-0 flex-col border-separator bg-background border-r`}
+      className={cn(
+        'chat-sidebar h-full shrink-0 flex-col',
+        isSinglePane
+          ? isVisibleMobile
+            ? 'app-screen-enter flex w-full'
+            : 'hidden'
+          : 'flex w-[min(var(--chat-sidebar-width),36vw)] min-[1300px]:w-(--chat-sidebar-width)',
+      )}
       style={{ '--chat-sidebar-width': `${width}px` } as CSSProperties}
     >
-      <header className="flex items-start gap-2 px-4 pb-3 pt-4">
+      <header className="chat-sidebar__header">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-semibold tracking-tight">
@@ -241,7 +253,9 @@ function ChatSidebarComponent({
           <ChatListItem
             key={chat.id}
             chat={chat}
-            galaxyItems={galaxyItems}
+            character={
+              chat.characterId ? characterById.get(chat.characterId) : undefined
+            }
             isActive={chat.id === activeChatId}
             selectionActive={selectionActive}
             selected={selectedIds.has(chat.id)}

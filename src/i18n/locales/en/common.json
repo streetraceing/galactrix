@@ -1,6 +1,8 @@
 {
   "appError.couldNotOpenData": "Could not open data",
   "appError.retry": "Retry",
+  "appError.unexpectedCrash": "The screen could not be displayed",
+  "appError.reload": "Reload app",
   "applicationFrame.changeMainSidebarWidth": "Change main sidebar width",
   "applicationFrame.loading": "Loading",
   "appNotice.dismissNotification": "Dismiss notification",
