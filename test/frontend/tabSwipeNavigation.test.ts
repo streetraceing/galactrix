@@ -70,11 +70,25 @@ test('mobile tab taps and swipes share the slower directional transition', async
   assert.match(source, /useLayoutEffect\(\(\) => \{/);
   assert.match(source, /MOTION_DURATION_MS\.slow/);
   assert.match(source, /nextIndex > previousIndex \? 'next' : 'previous'/);
+  assert.match(source, /Math\.exp\(-distance \/ maxOffset\)/);
+  assert.match(source, /clearSwipeVisual\(container\);[\s\S]*?gesture = \{/);
   assert.match(cssSource, /galactrix-tab-swipe-next var\(--motion-slow\)/);
+  assert.match(cssSource, /clamp\(1\.75rem, 9vw, 3\.5rem\)/);
   assert.match(
     cssSource,
     /transition: transform var\(--motion-standard\) var\(--motion-ease-enter\)/,
   );
+});
+
+test('swiping to an overflowed tab smoothly centers it in the tab menu', async () => {
+  const source = await readFile(swipeHookPath, 'utf8');
+
+  assert.match(source, /scrollSelectedTabIntoView/);
+  assert.match(source, /\[role="tab"\]\[aria-selected="true"\]/);
+  assert.match(source, /\.tabs__list-container__scroller/);
+  assert.match(source, /selectedRect\.left -[\s\S]*?scrollerRect\.left/);
+  assert.match(source, /scroller\.scrollTo\(\{/);
+  assert.match(source, /behavior: animationsEnabled\(\) \? 'smooth' : 'auto'/);
 });
 
 test('every screen using HeroUI tabs enables full-screen mobile swiping', async () => {
@@ -135,6 +149,6 @@ test('chat settings tabs use the same mobile swipe gesture as full screens', asy
   );
   assert.match(
     cssSource,
-    /prefers-reduced-motion:[\s\S]*tab-swipe-host\[data-tab-swipe-state\]/,
+    /prefers-reduced-motion:[\s\S]*tab-swipe-host\[data-tab-swipe-commit\]/,
   );
 });

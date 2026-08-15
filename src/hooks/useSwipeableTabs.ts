@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import { isMobilePlatform } from '../lib/platform';
-import { MOTION_DURATION_MS } from '../lib/motion';
+import { animationsEnabled, MOTION_DURATION_MS } from '../lib/motion';
 import {
   TAB_SWIPE_ACTIVATION_PX,
   isHorizontalTabSwipeIntent,
@@ -38,8 +38,11 @@ const SWIPE_IGNORE_SELECTOR = [
   '.tabs__list-container__scroller',
 ].join(',');
 
-const TAB_SWIPE_VISUAL_MAX_PX = 44;
-const TAB_SWIPE_EDGE_RESISTANCE = 0.35;
+const TAB_SWIPE_VISUAL_MIN_PX = 36;
+const TAB_SWIPE_VISUAL_MAX_PX = 72;
+const TAB_SWIPE_VISUAL_WIDTH_RATIO = 0.18;
+const TAB_SWIPE_FOLLOW_RATIO = 0.72;
+const TAB_SWIPE_EDGE_RESISTANCE = 0.32;
 const TAB_SWIPE_COMMIT_ANIMATION_MS = MOTION_DURATION_MS.slow;
 
 type SwipeGesture = {
@@ -73,13 +76,55 @@ function shouldIgnoreSwipeStart(target: EventTarget | null, boundary: Element) {
   return false;
 }
 
-function visualSwipeOffset(dx: number, atBoundary: boolean) {
-  const resistance = atBoundary ? TAB_SWIPE_EDGE_RESISTANCE : 1;
-  const resisted = dx * resistance;
-  return Math.max(
-    -TAB_SWIPE_VISUAL_MAX_PX,
-    Math.min(TAB_SWIPE_VISUAL_MAX_PX, resisted),
+function visualSwipeOffset(
+  dx: number,
+  atBoundary: boolean,
+  containerWidth: number,
+) {
+  const maxOffset = Math.min(
+    TAB_SWIPE_VISUAL_MAX_PX,
+    Math.max(
+      TAB_SWIPE_VISUAL_MIN_PX,
+      containerWidth * TAB_SWIPE_VISUAL_WIDTH_RATIO,
+    ),
   );
+  const resistance = atBoundary ? TAB_SWIPE_EDGE_RESISTANCE : 1;
+  const distance = Math.abs(dx) * TAB_SWIPE_FOLLOW_RATIO * resistance;
+  const easedDistance = maxOffset * (1 - Math.exp(-distance / maxOffset));
+  return Math.sign(dx) * easedDistance;
+}
+
+function scrollSelectedTabIntoView(container: HTMLElement) {
+  const selectedTab = container.querySelector<HTMLElement>(
+    '[role="tab"][aria-selected="true"]',
+  );
+  const scroller = selectedTab?.closest<HTMLElement>(
+    '.tabs__list-container__scroller',
+  );
+  if (
+    !selectedTab ||
+    !scroller ||
+    scroller.scrollWidth <= scroller.clientWidth
+  ) {
+    return;
+  }
+
+  const selectedRect = selectedTab.getBoundingClientRect();
+  const scrollerRect = scroller.getBoundingClientRect();
+  const centeredLeft =
+    scroller.scrollLeft +
+    selectedRect.left -
+    scrollerRect.left -
+    (scroller.clientWidth - selectedRect.width) / 2;
+  const maxScrollLeft = Math.max(
+    0,
+    scroller.scrollWidth - scroller.clientWidth,
+  );
+
+  scroller.scrollTo({
+    left: Math.max(0, Math.min(maxScrollLeft, centeredLeft)),
+    behavior: animationsEnabled() ? 'smooth' : 'auto',
+  });
 }
 
 function setSwipeVisual(container: HTMLElement, offset: number) {
@@ -121,6 +166,7 @@ export function useSwipeableTabs<T extends string>({
   const previousSelectedKeyRef = useRef(selectedKey);
   const onSelectionChangeRef = useRef(onSelectionChange);
   const selectionAnimationTimerRef = useRef<number | undefined>(undefined);
+  const tabScrollFrameRef = useRef<number | undefined>(undefined);
 
   keysRef.current = keys;
   selectedKeyRef.current = selectedKey;
@@ -133,6 +179,14 @@ export function useSwipeableTabs<T extends string>({
 
     const container = containerRef.current;
     if (!container) return;
+    if (tabScrollFrameRef.current !== undefined) {
+      window.cancelAnimationFrame(tabScrollFrameRef.current);
+    }
+    tabScrollFrameRef.current = window.requestAnimationFrame(() => {
+      scrollSelectedTabIntoView(container);
+      tabScrollFrameRef.current = undefined;
+    });
+
     const previousIndex = keysRef.current.indexOf(previousKey);
     const nextIndex = keysRef.current.indexOf(selectedKey);
     if (previousIndex < 0 || nextIndex < 0) return;
@@ -155,6 +209,9 @@ export function useSwipeableTabs<T extends string>({
       if (selectionAnimationTimerRef.current !== undefined) {
         window.clearTimeout(selectionAnimationTimerRef.current);
       }
+      if (tabScrollFrameRef.current !== undefined) {
+        window.cancelAnimationFrame(tabScrollFrameRef.current);
+      }
     },
     [],
   );
@@ -164,18 +221,18 @@ export function useSwipeableTabs<T extends string>({
     if (!container || !isMobilePlatform()) return;
 
     let gesture: SwipeGesture | undefined;
-    let commitTimer: number | undefined;
-
     const clearGesture = (releaseVisual = false) => {
       gesture = undefined;
       if (releaseVisual) releaseSwipeVisual(container);
     };
 
     const finishVisual = () => {
-      if (commitTimer !== undefined) window.clearTimeout(commitTimer);
-      commitTimer = window.setTimeout(() => {
+      if (selectionAnimationTimerRef.current !== undefined) {
+        window.clearTimeout(selectionAnimationTimerRef.current);
+      }
+      selectionAnimationTimerRef.current = window.setTimeout(() => {
         clearSwipeVisual(container);
-        commitTimer = undefined;
+        selectionAnimationTimerRef.current = undefined;
       }, TAB_SWIPE_COMMIT_ANIMATION_MS);
     };
 
@@ -191,6 +248,12 @@ export function useSwipeableTabs<T extends string>({
 
       const touch = event.touches.item(0);
       if (!touch) return;
+
+      if (selectionAnimationTimerRef.current !== undefined) {
+        window.clearTimeout(selectionAnimationTimerRef.current);
+        selectionAnimationTimerRef.current = undefined;
+      }
+      clearSwipeVisual(container);
 
       gesture = {
         touchId: touch.identifier,
@@ -239,7 +302,11 @@ export function useSwipeableTabs<T extends string>({
         const candidate = tabKeyAfterSwipe(keysRef.current, currentKey, dx);
         setSwipeVisual(
           container,
-          visualSwipeOffset(dx, candidate === currentKey),
+          visualSwipeOffset(
+            dx,
+            candidate === currentKey,
+            container.clientWidth,
+          ),
         );
         if (event.cancelable) event.preventDefault();
       }
@@ -293,7 +360,6 @@ export function useSwipeableTabs<T extends string>({
       container.removeEventListener('touchmove', onTouchMove);
       container.removeEventListener('touchend', onTouchEnd);
       container.removeEventListener('touchcancel', onTouchCancel);
-      if (commitTimer !== undefined) window.clearTimeout(commitTimer);
       clearSwipeVisual(container);
     };
   }, []);

@@ -131,6 +131,16 @@ test('release workflow builds desktop and signed Android artifacts', async () =>
   assert.match(workflow, /Build signed Android APK and AAB/);
   assert.match(workflow, /npm run tauri:build:android --/);
   assert.match(workflow, /--apk --aab --ci/);
+  assert.match(workflow, /Normalize Android artifact names/);
+  assert.match(
+    workflow,
+    /Galactrix_\$\{VERSION\}_\$\{architecture\}\.\$\{extension\}/,
+  );
+  assert.match(workflow, /\*universal\*\) architecture="universal"/);
+  assert.match(
+    workflow,
+    /ASSET_DIR: \$\{\{ steps\.android_artifacts\.outputs\.asset_dir \}\}/,
+  );
   assert.match(workflow, /gh release upload/);
   assert.match(workflow, /ANDROID_KEYSTORE_BASE64/);
 });

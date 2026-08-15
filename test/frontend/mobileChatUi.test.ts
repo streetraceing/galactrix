@@ -30,6 +30,10 @@ const mobileBackPath = new URL(
   '../../src/hooks/useMobileBackEntry.ts',
   import.meta.url,
 );
+const mobileTabHistoryPath = new URL(
+  '../../src/hooks/useMobileTabHistory.ts',
+  import.meta.url,
+);
 const chatDialogsPath = new URL(
   '../../src/features/chats/components/ChatDialogs.tsx',
   import.meta.url,
@@ -216,17 +220,25 @@ test('mobile modal transitions skip retired nested history entries', async () =>
   assert.match(source, /window\.setTimeout\([\s\S]*window\.history\.back\(\)/);
 });
 
-test('mobile back stays inside the app for stale sessions, menus, selections, and archive', async () => {
-  const [back, menu, selection, controller, screen] = await Promise.all([
-    readFile(mobileBackPath, 'utf8'),
-    readFile(contextMenuPath, 'utf8'),
-    readFile(contextSelectionPath, 'utf8'),
-    readFile(appControllerPath, 'utf8'),
-    readFile(chatsScreenPath, 'utf8'),
-  ]);
+test('mobile back stays inside the app for tabs, stale sessions, menus, selections, and archive', async () => {
+  const [back, tabHistory, menu, selection, controller, screen] =
+    await Promise.all([
+      readFile(mobileBackPath, 'utf8'),
+      readFile(mobileTabHistoryPath, 'utf8'),
+      readFile(contextMenuPath, 'utf8'),
+      readFile(contextSelectionPath, 'utf8'),
+      readFile(appControllerPath, 'utf8'),
+      readFile(chatsScreenPath, 'utf8'),
+    ]);
 
   assert.match(back, /historySessionId/);
   assert.match(back, /resetStaleHistoryEntry\(\)/);
+  assert.match(back, /pushMobileRouteHistoryState/);
+  assert.match(tabHistory, /pushMobileRouteHistoryState\(historyStateForTab/);
+  assert.match(tabHistory, /window\.addEventListener\('popstate'/);
+  assert.match(tabHistory, /onHistoryTabChangeRef\.current\(entry\.tab\)/);
+  assert.match(controller, /useMobileTabHistory\(activeTab, setActiveTab\)/);
+  assert.match(controller, /rememberTabNavigation\(tab\)/);
   assert.match(menu, /useMobileBackEntry\(isMobilePlatform\(\) && open/);
   assert.match(menu, /actionsRef\.current\?\.close\(\)/);
   assert.match(selection, /useMobileBackEntry\(selectedIds\.size > 0, clear\)/);

@@ -51,6 +51,7 @@ import type {
   TabId,
 } from '../types';
 import { useMobileBackEntry } from '../hooks/useMobileBackEntry';
+import { useMobileTabHistory } from '../hooks/useMobileTabHistory';
 import { getResponseLocale, i18next } from '../i18n';
 import {
   forgetChatNavigationState,
@@ -96,6 +97,8 @@ export function useAppController() {
   const cancelRequestedRef = useRef(false);
 
   useApplicationPreferences(snapshot.settings);
+
+  const rememberTabNavigation = useMobileTabHistory(activeTab, setActiveTab);
 
   const refresh = useCallback(async () => {
     const data = await loadSnapshot();
@@ -185,17 +188,19 @@ export function useAppController() {
   const navigate = useCallback(
     (tab: TabId) => {
       haptic();
+      rememberTabNavigation(tab);
       if (tab === 'chats') {
         setIsChatOpen(false);
         setChatListRequest((current) => current + 1);
       }
       setActiveTab(tab);
     },
-    [haptic],
+    [haptic, rememberTabNavigation],
   );
 
   const openChat = useCallback(
     (chatId: string) => {
+      rememberTabNavigation('chats');
       startTransition(() => {
         setActiveChatId(chatId);
         setIsChatOpen(true);
@@ -203,7 +208,7 @@ export function useAppController() {
       });
       haptic();
     },
-    [haptic],
+    [haptic, rememberTabNavigation],
   );
 
   const previewSettings = useCallback((settings: AppSettings) => {
@@ -233,10 +238,11 @@ export function useAppController() {
       await refreshChat(created.id);
       setActiveChatId(created.id);
       setIsChatOpen(true);
+      rememberTabNavigation('chats');
       setActiveTab('chats');
       haptic();
     },
-    [haptic, refreshChat],
+    [haptic, refreshChat, rememberTabNavigation],
   );
 
   const updateExistingChat = useCallback(
@@ -420,10 +426,11 @@ export function useAppController() {
       await refreshChat(created.id);
       setActiveChatId(created.id);
       setIsChatOpen(true);
+      rememberTabNavigation('chats');
       setActiveTab('chats');
       haptic();
     },
-    [haptic, refreshChat],
+    [haptic, refreshChat, rememberTabNavigation],
   );
 
   const branchFromMessage = useCallback(
@@ -442,10 +449,17 @@ export function useAppController() {
       await refreshChat(created.id);
       setActiveChatId(created.id);
       setIsChatOpen(true);
+      rememberTabNavigation('chats');
       setActiveTab('chats');
       haptic();
     },
-    [haptic, refreshChat, snapshot.chats, snapshot.messages],
+    [
+      haptic,
+      refreshChat,
+      rememberTabNavigation,
+      snapshot.chats,
+      snapshot.messages,
+    ],
   );
 
   const editExistingMessage = useCallback(

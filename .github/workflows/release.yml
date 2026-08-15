@@ -168,19 +168,56 @@ jobs:
           --target i686
           --target x86_64
           --apk --aab --ci
-      - name: Upload Android artifacts to GitHub Release
+      - name: Normalize Android artifact names
+        id: android_artifacts
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ needs.validate.outputs.tag }}
+          VERSION: ${{ needs.validate.outputs.version }}
         shell: bash
         run: |
+          ASSET_DIR="$RUNNER_TEMP/galactrix-android-assets"
+          mkdir -p "$ASSET_DIR"
           mapfile -t artifacts < <(find src-tauri/gen/android/app/build/outputs \
             -type f \
             \( -name '*.apk' -o -name '*.aab' \) \
+            ! -name '*-unsigned.*' \
+            ! -name '*-unaligned.*' \
             -ipath '*release*' \
             -print)
           if (( ${#artifacts[@]} == 0 )); then
             echo "::error::Android build completed without release APK/AAB artifacts."
+            exit 1
+          fi
+
+          for artifact in "${artifacts[@]}"; do
+            file_name="${artifact##*/}"
+            extension="${file_name##*.}"
+            case "$file_name" in
+              *universal*) architecture="universal" ;;
+              *arm64-v8a*|*aarch64*) architecture="arm64" ;;
+              *armeabi-v7a*|*armv7*) architecture="armv7" ;;
+              *x86_64*) architecture="x86_64" ;;
+              *x86*) architecture="x86" ;;
+              *) architecture="android" ;;
+            esac
+            asset="$ASSET_DIR/Galactrix_${VERSION}_${architecture}.${extension}"
+            if [[ -e "$asset" ]]; then
+              echo "::error::Multiple Android artifacts resolve to ${asset##*/}."
+              exit 1
+            fi
+            cp -- "$artifact" "$asset"
+          done
+          echo "asset_dir=$ASSET_DIR" >> "$GITHUB_OUTPUT"
+      - name: Upload Android artifacts to GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.validate.outputs.tag }}
+          ASSET_DIR: ${{ steps.android_artifacts.outputs.asset_dir }}
+        shell: bash
+        run: |
+          mapfile -t artifacts < <(find "$ASSET_DIR" -maxdepth 1 -type f \
+            \( -name '*.apk' -o -name '*.aab' \) -print)
+          if (( ${#artifacts[@]} == 0 )); then
+            echo "::error::No normalized Android release artifacts were found."
             exit 1
           fi
           gh release upload "$TAG" "${artifacts[@]}" --repo "$GITHUB_REPOSITORY" --clobber

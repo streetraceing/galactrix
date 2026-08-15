@@ -24,6 +24,36 @@ function currentHistoryState() {
     : {};
 }
 
+function routeHistoryState(extraState: Record<string, unknown>) {
+  const nextState = { ...currentHistoryState(), ...extraState };
+  delete nextState[HISTORY_STATE_KEY];
+  return nextState;
+}
+
+function prepareForRouteHistoryChange() {
+  installGlobalListener();
+  const entryId = historyEntryId(window.history.state);
+  if (entryId) {
+    activeEntries.delete(entryId);
+    retiredEntries.add(entryId);
+  }
+  knownHistoryEntryId = undefined;
+}
+
+export function replaceMobileRouteHistoryState(
+  extraState: Record<string, unknown>,
+) {
+  prepareForRouteHistoryChange();
+  window.history.replaceState(routeHistoryState(extraState), '');
+}
+
+export function pushMobileRouteHistoryState(
+  extraState: Record<string, unknown>,
+) {
+  prepareForRouteHistoryChange();
+  window.history.pushState(routeHistoryState(extraState), '');
+}
+
 function resetStaleHistoryEntry() {
   const state = currentHistoryState();
   const entryId = historyEntryId(state);
