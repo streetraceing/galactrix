@@ -42,7 +42,7 @@
     "release:prepare:major": "npm run version:major && npm run release:prepare",
     "tauri:build:all": "npm run tauri:build:desktop && npm run tauri:build:android",
     "release:tag": "tsx scripts/version.ts tag",
-    "release:push": "tsx scripts/version.ts commit && npm run release:tag"
+    "release:push": "tsx scripts/version.ts push"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

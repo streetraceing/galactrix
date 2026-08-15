@@ -167,13 +167,17 @@ export async function checkVersions() {
 
 function assertReleaseTagAvailable(version: string) {
   const tag = `v${version}`;
+  if (releaseTagExists(tag)) throw new Error(`Tag ${tag} already exists.`);
+}
+
+function releaseTagExists(tag: string) {
   const result = spawnSync(
     'git',
     ['rev-parse', '--verify', '--quiet', `refs/tags/${tag}`],
     { stdio: 'ignore' },
   );
   if (result.error) throw result.error;
-  if (result.status === 0) throw new Error(`Tag ${tag} already exists.`);
+  return result.status === 0;
 }
 
 function workingTreeStatus() {
@@ -233,6 +237,80 @@ function createReleaseTag(version: string) {
   console.log(`Created ${tag}. Publish it with: git push origin ${tag}`);
 }
 
+function gitRefCommit(ref: string) {
+  return execFileSync('git', ['rev-parse', '--verify', `${ref}^{commit}`], {
+    encoding: 'utf8',
+  }).trim();
+}
+
+function assertReleaseTagTargetsHead(version: string) {
+  const tag = `v${version}`;
+  if (!releaseTagExists(tag)) {
+    throw new Error(`Tag ${tag} does not exist.`);
+  }
+  if (gitRefCommit(tag) !== gitRefCommit('HEAD')) {
+    throw new Error(`Tag ${tag} does not point to the current release commit.`);
+  }
+}
+
+function currentBranch() {
+  const result = spawnSync(
+    'git',
+    ['symbolic-ref', '--quiet', '--short', 'HEAD'],
+    { encoding: 'utf8' },
+  );
+  if (result.error) throw result.error;
+  const branch = result.stdout.trim();
+  if (result.status !== 0 || !branch) {
+    throw new Error('Cannot publish a release from a detached HEAD.');
+  }
+  return branch;
+}
+
+function pushRelease(version: string) {
+  if (workingTreeStatus()) {
+    throw new Error('Working tree must be clean before publishing a release.');
+  }
+  assertReleaseTagTargetsHead(version);
+
+  const tag = `v${version}`;
+  const branch = currentBranch();
+  execFileSync(
+    'git',
+    [
+      'push',
+      '--atomic',
+      'origin',
+      `HEAD:refs/heads/${branch}`,
+      `refs/tags/${tag}`,
+    ],
+    { stdio: 'inherit' },
+  );
+  console.log(`Published ${branch} and ${tag} to origin.`);
+}
+
+function prepareAndPushRelease(version: string) {
+  if (headVersion() !== version) {
+    createReleaseCommit(version);
+  } else if (workingTreeStatus()) {
+    throw new Error(
+      `Version ${version} is already committed, but the working tree is not clean.`,
+    );
+  } else {
+    console.log(`Using existing release commit ${version}.`);
+  }
+
+  const tag = `v${version}`;
+  if (releaseTagExists(tag)) {
+    assertReleaseTagTargetsHead(version);
+    console.log(`Using existing ${tag}.`);
+  } else {
+    createReleaseTag(version);
+  }
+
+  pushRelease(version);
+}
+
 async function main() {
   const command = process.argv[2] ?? 'check';
   const packageJson = parseJson<VersionedJson>(
@@ -250,6 +328,10 @@ async function main() {
   if (command === 'commit') {
     const version = await checkVersions();
     return createReleaseCommit(version);
+  }
+  if (command === 'push') {
+    const version = await checkVersions();
+    return prepareAndPushRelease(version);
   }
   if (command === 'set') {
     const version = process.argv[3];

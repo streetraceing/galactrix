@@ -67,13 +67,18 @@ test('release helpers expose combined local builds and a safe annotated tag comm
   );
   assert.equal(
     packageJson.scripts['release:push'],
-    'tsx scripts/version.ts commit && npm run release:tag',
+    'tsx scripts/version.ts push',
   );
   assert.match(versionScript, /git', \['status', '--porcelain'\]/);
   assert.match(versionScript, /git', \['add', '--all'\]/);
   assert.match(versionScript, /git', \['commit', '-m'/);
   assert.match(versionScript, /previousVersion === version/);
   assert.match(versionScript, /git', \['tag', '-a'/);
+  assert.match(versionScript, /git',\s*\[\s*'push',\s*'--atomic'/);
+  assert.match(versionScript, /`HEAD:refs\/heads\/\$\{branch\}`/);
+  assert.match(versionScript, /`refs\/tags\/\$\{tag\}`/);
+  assert.match(versionScript, /assertReleaseTagTargetsHead\(version\)/);
+  assert.match(versionScript, /Using existing release commit/);
 });
 
 test('project-owned automation uses TypeScript entrypoints through tsx', async () => {
