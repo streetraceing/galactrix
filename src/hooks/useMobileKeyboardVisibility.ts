@@ -1,26 +1,8 @@
 import { useLayoutEffect, useState } from 'react';
+import { isKeyboardInput } from '../lib/mobileViewport';
 
 const MIN_KEYBOARD_HEIGHT = 96;
 const KEYBOARD_HEIGHT_RATIO = 0.16;
-
-function isKeyboardInput(element: Element | null) {
-  if (element instanceof HTMLTextAreaElement) return true;
-  if (element instanceof HTMLElement && element.isContentEditable) return true;
-  if (!(element instanceof HTMLInputElement)) return false;
-
-  return ![
-    'button',
-    'checkbox',
-    'color',
-    'file',
-    'hidden',
-    'image',
-    'radio',
-    'range',
-    'reset',
-    'submit',
-  ].includes(element.type);
-}
 
 function visibleViewportHeight() {
   return Math.round(

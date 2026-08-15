@@ -7,6 +7,11 @@ import {
   type ReactNode,
 } from 'react';
 import { useMobileBackEntry } from '../../hooks/useMobileBackEntry';
+import {
+  dismissMobileKeyboard,
+  resolveExpandedLayoutViewport,
+  type LayoutViewportSize,
+} from '../../lib/mobileViewport';
 import { isMobilePlatform } from '../../lib/platform';
 
 export function UiModal({
@@ -33,10 +38,8 @@ export function UiModal({
   bodyClassName?: string;
 }) {
   const isMobile = isMobilePlatform();
-  const [mobileLayoutViewport, setMobileLayoutViewport] = useState<{
-    width: number;
-    height: number;
-  }>();
+  const [mobileLayoutViewport, setMobileLayoutViewport] =
+    useState<LayoutViewportSize>();
 
   useMobileBackEntry(isOpen, () => onOpenChange(false));
 
@@ -46,32 +49,48 @@ export function UiModal({
       return;
     }
 
-    const layoutViewport = () => ({
-      width: Math.round(
-        document.documentElement.clientWidth || window.innerWidth || 0,
-      ),
-      height: Math.round(
-        document.documentElement.clientHeight || window.innerHeight || 0,
-      ),
-    });
+    dismissMobileKeyboard();
+
+    const syncLayoutViewport = () => {
+      const viewport = resolveExpandedLayoutViewport();
+      if (!viewport) return;
+
+      setMobileLayoutViewport((current) =>
+        current?.width === viewport.width && current.height === viewport.height
+          ? current
+          : viewport,
+      );
+    };
+    const visualViewport = window.visualViewport;
     let frame = 0;
-    const updateForOrientation = () => {
+    const scheduleLayoutViewportSync = () => {
       window.cancelAnimationFrame(frame);
       frame = window.requestAnimationFrame(() => {
-        setMobileLayoutViewport(layoutViewport());
+        syncLayoutViewport();
       });
     };
 
-    updateForOrientation();
-    window.addEventListener('orientationchange', updateForOrientation);
-    window.screen.orientation?.addEventListener('change', updateForOrientation);
+    syncLayoutViewport();
+    scheduleLayoutViewportSync();
+    window.addEventListener('resize', scheduleLayoutViewportSync);
+    window.addEventListener('orientationchange', scheduleLayoutViewportSync);
+    visualViewport?.addEventListener('resize', scheduleLayoutViewportSync);
+    window.screen.orientation?.addEventListener(
+      'change',
+      scheduleLayoutViewportSync,
+    );
 
     return () => {
       window.cancelAnimationFrame(frame);
-      window.removeEventListener('orientationchange', updateForOrientation);
+      window.removeEventListener('resize', scheduleLayoutViewportSync);
+      window.removeEventListener(
+        'orientationchange',
+        scheduleLayoutViewportSync,
+      );
+      visualViewport?.removeEventListener('resize', scheduleLayoutViewportSync);
       window.screen.orientation?.removeEventListener(
         'change',
-        updateForOrientation,
+        scheduleLayoutViewportSync,
       );
     };
   }, [isMobile, isOpen]);

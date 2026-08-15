@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
+import { mergeExpandedLayoutViewport } from '../../src/lib/mobileViewport.ts';
 
 const pageHeaderPath = new URL(
   '../../src/components/ui/PageHeader.tsx',
@@ -31,6 +32,27 @@ const mobileKeyboardPath = new URL(
   '../../src/hooks/useMobileKeyboardVisibility.ts',
   import.meta.url,
 );
+const stableViewportPath = new URL(
+  '../../src/hooks/useStableMobileLayoutViewport.ts',
+  import.meta.url,
+);
+
+test('expanded mobile viewport does not collapse with the keyboard', () => {
+  assert.deepEqual(
+    mergeExpandedLayoutViewport(
+      { width: 412, height: 915 },
+      { width: 412, height: 503 },
+    ),
+    { width: 412, height: 915 },
+  );
+  assert.deepEqual(
+    mergeExpandedLayoutViewport(
+      { width: 412, height: 915 },
+      { width: 915, height: 412 },
+    ),
+    { width: 915, height: 412 },
+  );
+});
 
 test('mobile page headers share one compact centered title area', async () => {
   const [componentSource, cssSource] = await Promise.all([
@@ -97,17 +119,21 @@ test('mobile settings keep field rings visible and number drafts editable', asyn
   assert.match(source, /-mx-1 min-h-0 overflow-hidden px-1 sm:mx-0 sm:px-0/);
 });
 
-test('mobile bottom navigation stays hidden while the keyboard contracts the viewport', async () => {
-  const [frame, keyboard] = await Promise.all([
+test('mobile layout tracks the expanded viewport and hides navigation for the keyboard', async () => {
+  const [frame, keyboard, stableViewport] = await Promise.all([
     readFile(applicationFramePath, 'utf8'),
     readFile(mobileKeyboardPath, 'utf8'),
+    readFile(stableViewportPath, 'utf8'),
   ]);
 
+  assert.match(frame, /useStableMobileLayoutViewport\(isMobile\)/);
   assert.match(frame, /useMobileKeyboardVisibility\(isMobile\)/);
   assert.match(frame, /mobileNavigationVisible && !mobileKeyboardVisible/);
   assert.match(keyboard, /isKeyboardInput\(document\.activeElement\)/);
   assert.match(keyboard, /baselineHeight - currentHeight > threshold/);
   assert.match(keyboard, /viewport\?\.addEventListener\('resize', update\)/);
+  assert.match(stableViewport, /rememberExpandedLayoutViewport\(\)/);
+  assert.match(stableViewport, /visualViewport\?\.addEventListener\('resize'/);
 });
 
 test('chat configuration starts dense prompt sections collapsed on phones', async () => {

@@ -22,6 +22,10 @@ const uiModalPath = new URL(
   '../../src/components/ui/UiModal.tsx',
   import.meta.url,
 );
+const mobileViewportPath = new URL(
+  '../../src/lib/mobileViewport.ts',
+  import.meta.url,
+);
 const mobileBackPath = new URL(
   '../../src/hooks/useMobileBackEntry.ts',
   import.meta.url,
@@ -257,11 +261,15 @@ test('chat tail follows generation, variants, and keyboard without duplicating r
   assert.match(screenSource, /viewportHeight=\{keyboardViewportHeight\}/);
 });
 
-test('mobile modal keeps its layout viewport while the keyboard changes the visual viewport', async () => {
-  const source = await readFile(uiModalPath, 'utf8');
+test('mobile modal dismisses the keyboard and keeps the expanded layout viewport', async () => {
+  const [source, viewport] = await Promise.all([
+    readFile(uiModalPath, 'utf8'),
+    readFile(mobileViewportPath, 'utf8'),
+  ]);
 
-  assert.match(source, /const layoutViewport = \(\) => \(\{/);
-  assert.match(source, /setMobileLayoutViewport\(layoutViewport\(\)\)/);
+  assert.match(source, /dismissMobileKeyboard\(\)/);
+  assert.match(source, /resolveExpandedLayoutViewport\(\)/);
+  assert.match(source, /syncLayoutViewport\(\)/);
   assert.match(
     source,
     /h-\(--ui-modal-layout-height\)!|!h-\[var\(--ui-modal-layout-height\)\]/,
@@ -269,10 +277,8 @@ test('mobile modal keeps its layout viewport while the keyboard changes the visu
   assert.match(source, /minWidth: mobileLayoutViewport\.width/);
   assert.match(source, /maxHeight: mobileLayoutViewport\.height/);
   assert.match(source, /'--ui-modal-layout-height'/);
-  assert.match(
-    source,
-    /window\.addEventListener\('orientationchange', updateForOrientation\)/,
-  );
-  assert.doesNotMatch(source, /window\.visualViewport/);
-  assert.doesNotMatch(source, /window\.addEventListener\('resize'/);
+  assert.match(source, /window\.addEventListener\('resize'/);
+  assert.match(source, /visualViewport\?\.addEventListener\('resize'/);
+  assert.match(viewport, /Math\.max\(previous\.height, current\.height\)/);
+  assert.match(viewport, /\(activeElement as HTMLElement\)\.blur\(\)/);
 });

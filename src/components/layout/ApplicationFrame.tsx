@@ -3,6 +3,7 @@ import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { isMobilePlatform } from '../../lib/platform';
 import { useMobileKeyboardVisibility } from '../../hooks/useMobileKeyboardVisibility';
+import { useStableMobileLayoutViewport } from '../../hooks/useStableMobileLayoutViewport';
 import { resolveProfileName } from '../../lib/profile';
 import type { AppSettings, Chat, TabId } from '../../types';
 import { ResizeHandle } from '../ResizeHandle';
@@ -47,6 +48,7 @@ export function ApplicationFrame({
   const { t } = useTranslation('common');
   const [sidebarResizing, setSidebarResizing] = useState(false);
   const isMobile = isMobilePlatform();
+  useStableMobileLayoutViewport(isMobile);
   const mobileKeyboardVisible = useMobileKeyboardVisibility(isMobile);
   const hideDesktopNavigation =
     !isMobile && activeTab === 'chats' && chatMaximized;
