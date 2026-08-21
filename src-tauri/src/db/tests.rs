@@ -274,45 +274,6 @@ fn batched_chat_and_variant_loading_preserves_relations() {
 }
 
 #[test]
-fn messages_through_assistant_uses_the_active_variant_and_excludes_later_messages() {
-    let connection = test_database();
-    create_test_chat(&connection, "chat-1");
-    add_user_message(&connection, "chat-1", "user-1", "hello").expect("user message must persist");
-    add_assistant_message(&connection, "chat-1", "assistant-1", "first answer")
-        .expect("assistant message must persist");
-    append_message_variant(
-        &connection,
-        "assistant-1",
-        "assistant-1-variant-1",
-        "selected answer",
-        false,
-    )
-    .expect("variant must append");
-    add_user_message(&connection, "chat-1", "user-2", "later message")
-        .expect("later message must persist");
-
-    let (chat_id, history) = messages_through_message(&connection, "assistant-1")
-        .expect("history through assistant must load");
-
-    assert_eq!(chat_id, "chat-1");
-    assert_eq!(history.len(), 2);
-    assert_eq!(history[0].content, "hello");
-    assert_eq!(history[1].role, "assistant");
-    assert_eq!(history[1].content, "selected answer");
-}
-
-#[test]
-fn messages_through_message_rejects_user_messages() {
-    let connection = test_database();
-    create_test_chat(&connection, "chat-1");
-    add_user_message(&connection, "chat-1", "user-1", "hello").expect("user message must persist");
-
-    let error = messages_through_message(&connection, "user-1")
-        .expect_err("user messages cannot be continued");
-    assert_eq!(error.key, keys::MESSAGE_CONTINUE_ASSISTANT_ONLY);
-}
-
-#[test]
 fn usage_history_always_contains_at_least_six_weeks() {
     let connection = test_database();
     let points = usage_history(&connection).expect("usage history must load");
@@ -993,5 +954,73 @@ fn rewind_chat_keeps_target_and_removes_only_later_messages() {
         .collect::<Vec<_>>();
     assert_eq!(ids, vec!["rewind-1", "rewind-2"]);
     assert_eq!(state.chat.message_count, 2);
+    assert_eq!(state.chat.preview, "second");
+}
+
+#[test]
+fn rewind_uses_message_order_when_timestamps_match() {
+    let connection = test_database();
+    create_test_chat(&connection, "chat-rewind-tie");
+    add_user_message(&connection, "chat-rewind-tie", "tie-1", "first")
+        .expect("first message must persist");
+    add_assistant_message(&connection, "chat-rewind-tie", "tie-2", "second")
+        .expect("second message must persist");
+    add_user_message(&connection, "chat-rewind-tie", "tie-3", "third")
+        .expect("third message must persist");
+    add_assistant_message(&connection, "chat-rewind-tie", "tie-4", "fourth")
+        .expect("fourth message must persist");
+    connection
+        .execute(
+            "UPDATE messages SET created_at = 100, updated_at = 100 WHERE chat_id = 'chat-rewind-tie'",
+            [],
+        )
+        .expect("timestamps must match");
+
+    rewind_chat_to_message(&connection, "tie-2").expect("chat must rewind");
+
+    let state = chat_state(&connection, "chat-rewind-tie").expect("chat state must load");
+    let ids = state
+        .messages
+        .iter()
+        .map(|message| message.id.as_str())
+        .collect::<Vec<_>>();
+    assert_eq!(ids, vec!["tie-1", "tie-2"]);
+    assert_eq!(state.chat.preview, "second");
+}
+
+#[test]
+fn branch_stops_at_the_exact_message_when_timestamps_match() {
+    let connection = test_database();
+    create_test_chat(&connection, "chat-branch-tie");
+    add_user_message(&connection, "chat-branch-tie", "branch-1", "first")
+        .expect("first message must persist");
+    add_assistant_message(&connection, "chat-branch-tie", "branch-2", "second")
+        .expect("second message must persist");
+    add_user_message(&connection, "chat-branch-tie", "branch-3", "third")
+        .expect("third message must persist");
+    connection
+        .execute(
+            "UPDATE messages SET created_at = 100, updated_at = 100 WHERE chat_id = 'chat-branch-tie'",
+            [],
+        )
+        .expect("timestamps must match");
+
+    clone_chat(
+        &connection,
+        "chat-branch-tie",
+        "chat-branch-copy",
+        "Branch copy",
+        true,
+        Some("branch-2"),
+    )
+    .expect("branch must clone");
+
+    let state = chat_state(&connection, "chat-branch-copy").expect("branch must load");
+    let contents = state
+        .messages
+        .iter()
+        .map(|message| message.content.as_str())
+        .collect::<Vec<_>>();
+    assert_eq!(contents, vec!["first", "second"]);
     assert_eq!(state.chat.preview, "second");
 }

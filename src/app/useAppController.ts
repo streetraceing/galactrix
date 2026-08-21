@@ -96,6 +96,7 @@ export function useAppController() {
     useState<ActiveMessageGeneration | null>(null);
   const activeGenerationRef = useRef<string | null>(null);
   const cancelRequestedRef = useRef(false);
+  const chatRefreshVersionsRef = useRef(new Map<string, number>());
 
   useApplicationPreferences(snapshot.settings);
 
@@ -114,6 +115,8 @@ export function useAppController() {
   }, []);
 
   const refreshChat = useCallback(async (chatId: string) => {
+    const version = (chatRefreshVersionsRef.current.get(chatId) ?? 0) + 1;
+    chatRefreshVersionsRef.current.set(chatId, version);
     const state = await loadChatState(chatId);
     if (state.chat.id !== chatId) {
       throw new Error(
@@ -123,6 +126,9 @@ export function useAppController() {
     const chatMessages = state.messages.filter(
       (message) => message.chatId === chatId,
     );
+    if (chatRefreshVersionsRef.current.get(chatId) !== version) {
+      return { ...state, messages: chatMessages };
+    }
     setSnapshot((current) => ({
       ...current,
       chats: sortChats([
@@ -271,6 +277,10 @@ export function useAppController() {
           ?.id ?? '';
       if (chatId === activeChatId) closeChat();
       await deleteChat(chatId);
+      chatRefreshVersionsRef.current.set(
+        chatId,
+        (chatRefreshVersionsRef.current.get(chatId) ?? 0) + 1,
+      );
       forgetChatNavigationState(chatId);
       setSnapshot((current) => ({
         ...current,
@@ -315,7 +325,12 @@ export function useAppController() {
 
   const sendMessage = useCallback(
     async (content: string) => {
-      if (!activeChatId || activeGenerationRef.current) return;
+      if (!activeChatId) return;
+      if (activeGenerationRef.current) {
+        throw new Error(
+          i18next.t('errors.generationInProgress', { ns: 'chats' }),
+        );
+      }
       const activeChat = snapshot.chats.find(
         (chat) => chat.id === activeChatId,
       );
@@ -551,12 +566,17 @@ export function useAppController() {
       mode: ActiveMessageGeneration['mode'],
       command: MessageGenerationCommand,
     ) => {
-      if (activeGenerationRef.current) return;
+      if (activeGenerationRef.current) {
+        throw new Error(
+          i18next.t('errors.generationInProgress', { ns: 'chats' }),
+        );
+      }
       const chatId = findMessageChatId(snapshot.messages, messageId);
+      if (!chatId) return;
       const generationId = createRuntimeId();
       activeGenerationRef.current = generationId;
       cancelRequestedRef.current = false;
-      setActiveMessageGeneration({ chatId: chatId ?? '', messageId, mode });
+      setActiveMessageGeneration({ chatId, messageId, mode });
       setSending(true);
       try {
         await command(

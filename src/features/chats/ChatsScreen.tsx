@@ -166,6 +166,12 @@ export function ChatsScreen({
   const canvasAssistantName =
     canvasCharacter?.name ?? t('chatsScreen.assistant');
   const canvasUserName = canvasPersona?.name || displayProfileName;
+  const canvasGenerationActive = Boolean(
+    sending && activeMessageGeneration?.chatId === canvasChat?.id,
+  );
+  const generationBusyElsewhere = Boolean(
+    sending && activeMessageGeneration?.chatId !== canvasChat?.id,
+  );
   const shouldAutoFocusComposer =
     !activeChat?.archived &&
     !isMobile &&
@@ -249,6 +255,7 @@ export function ChatsScreen({
 
   const handleAction = useCallback(
     (action: ChatAction, chat: Chat) => {
+      if (working) return;
       if (action === 'configure') {
         setConfigTarget(chat);
         return;
@@ -298,7 +305,7 @@ export function ChatsScreen({
       if (chat.archived && action !== 'delete') return;
       setConfirmTarget({ type: action, chat });
     },
-    [onCloneChat, onSetArchived, onSetPinned, showChatError, t],
+    [onCloneChat, onSetArchived, onSetPinned, showChatError, t, working],
   );
   const selectChat = useCallback(
     (chatId: string) => {
@@ -394,8 +401,8 @@ export function ChatsScreen({
     setWorking(true);
     try {
       for (const chatId of ids) {
-        removeStorageItem(draftKey(chatId));
         await onDeleteChat(chatId);
+        removeStorageItem(draftKey(chatId));
       }
       chatSelection.clear();
       setBulkDeleteOpen(false);
@@ -462,8 +469,8 @@ export function ChatsScreen({
     setWorking(true);
     try {
       if (confirmTarget.type === 'delete') {
-        removeStorageItem(draftKey(confirmTarget.chat.id));
         await onDeleteChat(confirmTarget.chat.id);
+        removeStorageItem(draftKey(confirmTarget.chat.id));
         toast.success(t('chatsScreen.chatDeleted'));
       } else {
         await onClearChat(confirmTarget.chat.id);
@@ -619,7 +626,8 @@ export function ChatsScreen({
                     key={canvasChat.id}
                     chatId={canvasChat.id}
                     provider={canvasProvider}
-                    sending={sending}
+                    sending={canvasGenerationActive}
+                    generationBlocked={generationBusyElsewhere}
                     sendOnEnter={sendOnEnter}
                     focusAfterSend={focusComposerAfterSend}
                     focusAfterActionRequest={focusComposerRequest}

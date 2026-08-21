@@ -1,8 +1,87 @@
 import { Button, Input, Label, Surface } from '@heroui/react';
 import type { ChatGenerationSettings, Provider } from '../../../types';
 import { useTranslation } from 'react-i18next';
+import { useEffect, useState } from 'react';
 
 type SettingKey = keyof ChatGenerationSettings;
+
+function normalizeSettingValue(key: SettingKey, value: number) {
+  if (key === 'temperature') return Math.min(2, Math.max(0, value));
+  if (key === 'topP') return Math.min(1, Math.max(0, value));
+  return Math.min(131_072, Math.max(1, Math.round(value)));
+}
+
+function GenerationOverrideInput({
+  id,
+  setting,
+  value,
+  placeholder,
+  min,
+  max,
+  step,
+  onValueChange,
+}: {
+  id: string;
+  setting: SettingKey;
+  value?: number;
+  placeholder: string;
+  min: number;
+  max: number;
+  step: number;
+  onValueChange: (value?: number) => void;
+}) {
+  const [draft, setDraft] = useState(value == null ? '' : String(value));
+
+  useEffect(() => {
+    const parsed = Number(draft);
+    const draftMatchesValue =
+      draft.trim() === ''
+        ? value == null
+        : Number.isFinite(parsed) &&
+          normalizeSettingValue(setting, parsed) === value;
+    if (!draftMatchesValue) setDraft(value == null ? '' : String(value));
+  }, [draft, setting, value]);
+
+  const updateDraft = (rawValue: string) => {
+    setDraft(rawValue);
+    if (!rawValue.trim()) {
+      onValueChange(undefined);
+      return;
+    }
+    const parsed = Number(rawValue);
+    if (Number.isFinite(parsed)) {
+      onValueChange(normalizeSettingValue(setting, parsed));
+    }
+  };
+
+  const normalizeDraft = () => {
+    if (!draft.trim()) return;
+    const parsed = Number(draft);
+    if (!Number.isFinite(parsed)) {
+      setDraft(value == null ? '' : String(value));
+      return;
+    }
+    const normalized = normalizeSettingValue(setting, parsed);
+    setDraft(String(normalized));
+    onValueChange(normalized);
+  };
+
+  return (
+    <Input
+      id={id}
+      fullWidth
+      variant="secondary"
+      type="number"
+      min={min}
+      max={max}
+      step={step}
+      value={draft}
+      placeholder={placeholder}
+      onBlur={normalizeDraft}
+      onChange={(event) => updateDraft(event.target.value)}
+    />
+  );
+}
 
 export function ChatGenerationSettingsPanel({
   value,
@@ -14,22 +93,14 @@ export function ChatGenerationSettingsPanel({
   onChange: (value: ChatGenerationSettings) => void;
 }) {
   const { t } = useTranslation('chats');
-  const patch = (key: SettingKey, rawValue: string) => {
-    if (!rawValue.trim()) {
+  const patch = (key: SettingKey, nextValue?: number) => {
+    if (nextValue == null) {
       const next = { ...value };
       delete next[key];
       onChange(next);
       return;
     }
-    const parsed = Number(rawValue);
-    if (!Number.isFinite(parsed)) return;
-    const normalized =
-      key === 'temperature'
-        ? Math.min(2, Math.max(0, parsed))
-        : key === 'topP'
-          ? Math.min(1, Math.max(0, parsed))
-          : Math.min(131_072, Math.max(1, Math.round(parsed)));
-    onChange({ ...value, [key]: normalized });
+    onChange({ ...value, [key]: nextValue });
   };
   const hasOverrides = Object.values(value).some((entry) => entry != null);
 
@@ -60,49 +131,43 @@ export function ChatGenerationSettingsPanel({
           <Label htmlFor="chat-temperature">
             {t('chatGenerationSettings.temperature')}
           </Label>
-          <Input
+          <GenerationOverrideInput
             id="chat-temperature"
-            fullWidth
-            variant="secondary"
-            type="number"
+            setting="temperature"
             min={0}
             max={2}
             step={0.1}
-            value={value.temperature == null ? '' : String(value.temperature)}
+            value={value.temperature}
             placeholder={String(provider?.temperature ?? 0.7)}
-            onChange={(event) => patch('temperature', event.target.value)}
+            onValueChange={(nextValue) => patch('temperature', nextValue)}
           />
         </div>
         <div className="min-w-0">
           <Label htmlFor="chat-top-p">{t('chatGenerationSettings.topP')}</Label>
-          <Input
+          <GenerationOverrideInput
             id="chat-top-p"
-            fullWidth
-            variant="secondary"
-            type="number"
+            setting="topP"
             min={0}
             max={1}
             step={0.05}
-            value={value.topP == null ? '' : String(value.topP)}
+            value={value.topP}
             placeholder={String(provider?.topP ?? 0.95)}
-            onChange={(event) => patch('topP', event.target.value)}
+            onValueChange={(nextValue) => patch('topP', nextValue)}
           />
         </div>
         <div className="min-w-0">
           <Label htmlFor="chat-max-tokens">
             {t('chatGenerationSettings.maxOutput')}
           </Label>
-          <Input
+          <GenerationOverrideInput
             id="chat-max-tokens"
-            fullWidth
-            variant="secondary"
-            type="number"
+            setting="maxTokens"
             min={1}
             max={131_072}
             step={1}
-            value={value.maxTokens == null ? '' : String(value.maxTokens)}
+            value={value.maxTokens}
             placeholder={String(provider?.maxTokens ?? 4096)}
-            onChange={(event) => patch('maxTokens', event.target.value)}
+            onValueChange={(nextValue) => patch('maxTokens', nextValue)}
           />
         </div>
       </div>

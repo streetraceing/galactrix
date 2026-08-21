@@ -810,36 +810,6 @@ fn message_variants_before(
     Ok(variants_from_rows(rows))
 }
 
-fn message_variants_through(
-    connection: &Connection,
-    chat_id: &str,
-    created_at: i64,
-    message_rowid: i64,
-) -> CommandResult<HashMap<String, Vec<MessageVariant>>> {
-    let mut statement = connection.prepare(
-        "SELECT variants.message_id, variants.id, variants.position, variants.content, variants.created_at, variants.edited
-         FROM message_variants variants
-         INNER JOIN messages ON messages.id = variants.message_id
-         WHERE messages.chat_id = ?1
-           AND (messages.created_at < ?2
-                OR (messages.created_at = ?2 AND messages.rowid <= ?3))
-         ORDER BY variants.message_id, variants.position ASC",
-    )?;
-    let rows = statement
-        .query_map(params![chat_id, created_at, message_rowid], |row| {
-            Ok((
-                row.get(0)?,
-                row.get(1)?,
-                row.get(2)?,
-                row.get(3)?,
-                row.get(4)?,
-                row.get::<_, i64>(5)? != 0,
-            ))
-        })?
-        .collect::<Result<Vec<_>, _>>()?;
-    Ok(variants_from_rows(rows))
-}
-
 type MessageRow = (String, String, String, String, i64, i64, bool, bool, i64);
 
 fn messages_from_rows(
@@ -885,7 +855,7 @@ fn list_messages(connection: &Connection) -> CommandResult<Vec<Message>> {
     let variants = all_message_variants(connection)?;
     let mut statement = connection.prepare(
         "SELECT id, chat_id, role, content, created_at, updated_at, edited, remembered, active_variant_index
-         FROM messages ORDER BY created_at ASC",
+         FROM messages ORDER BY created_at ASC, rowid ASC",
     )?;
     let rows = statement
         .query_map([], |row| {
@@ -1578,7 +1548,7 @@ pub fn messages_for_chat(connection: &Connection, chat_id: &str) -> CommandResul
     let variants = message_variants_for_chat(connection, chat_id)?;
     let mut statement = connection.prepare(
         "SELECT id, chat_id, role, content, created_at, updated_at, edited, remembered, active_variant_index
-         FROM messages WHERE chat_id = ?1 ORDER BY created_at ASC",
+         FROM messages WHERE chat_id = ?1 ORDER BY created_at ASC, rowid ASC",
     )?;
     let rows = statement
         .query_map(params![chat_id], |row| {
@@ -1627,56 +1597,6 @@ pub fn messages_before_message(
          FROM messages
          WHERE chat_id = ?1
            AND (created_at < ?2 OR (created_at = ?2 AND rowid < ?3))
-         ORDER BY created_at ASC, rowid ASC",
-    )?;
-    let rows = statement
-        .query_map(params![chat_id, created_at, message_rowid], |row| {
-            Ok((
-                row.get::<_, String>(0)?,
-                row.get::<_, String>(1)?,
-                row.get::<_, String>(2)?,
-                row.get::<_, String>(3)?,
-                row.get::<_, i64>(4)?,
-                row.get::<_, i64>(5)?,
-                row.get::<_, i64>(6)? != 0,
-                row.get::<_, i64>(7)? != 0,
-                row.get::<_, i64>(8)?,
-            ))
-        })?
-        .collect::<Result<Vec<_>, _>>()?;
-
-    Ok((chat_id, messages_from_rows(rows, variants)))
-}
-
-pub fn messages_through_message(
-    connection: &Connection,
-    message_id: &str,
-) -> CommandResult<(String, Vec<Message>)> {
-    let (chat_id, created_at, role, message_rowid) = connection
-        .query_row(
-            "SELECT chat_id, created_at, role, rowid FROM messages WHERE id = ?1",
-            params![message_id],
-            |row| {
-                Ok((
-                    row.get::<_, String>(0)?,
-                    row.get::<_, i64>(1)?,
-                    row.get::<_, String>(2)?,
-                    row.get::<_, i64>(3)?,
-                ))
-            },
-        )
-        .optional()?
-        .ok_or_else(|| CommandError::new(keys::MESSAGE_NOT_FOUND))?;
-    if role != "assistant" {
-        return Err(CommandError::new(keys::MESSAGE_CONTINUE_ASSISTANT_ONLY));
-    }
-
-    let variants = message_variants_through(connection, &chat_id, created_at, message_rowid)?;
-    let mut statement = connection.prepare(
-        "SELECT id, chat_id, role, content, created_at, updated_at, edited, remembered, active_variant_index
-         FROM messages
-         WHERE chat_id = ?1
-           AND (created_at < ?2 OR (created_at = ?2 AND rowid <= ?3))
          ORDER BY created_at ASC, rowid ASC",
     )?;
     let rows = statement
@@ -2020,40 +1940,45 @@ pub fn clone_chat(
     }
 
     if include_messages || through_message_id.is_some() {
-        let cutoff = match through_message_id {
-            Some(message_id) => Some(
-                transaction
+        let (cutoff_created_at, cutoff_rowid) = match through_message_id {
+            Some(message_id) => {
+                let (created_at, rowid) = transaction
                     .query_row(
-                        "SELECT created_at FROM messages WHERE id = ?1 AND chat_id = ?2",
+                        "SELECT created_at, rowid FROM messages WHERE id = ?1 AND chat_id = ?2",
                         params![message_id, source_chat_id],
-                        |row| row.get::<_, i64>(0),
+                        |row| Ok((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?)),
                     )
                     .optional()?
-                    .ok_or_else(|| CommandError::new(keys::MESSAGE_NOT_FOUND))?,
-            ),
-            None => None,
+                    .ok_or_else(|| CommandError::new(keys::MESSAGE_NOT_FOUND))?;
+                (Some(created_at), Some(rowid))
+            }
+            None => (None, None),
         };
 
         let mut statement = transaction
             .prepare(
                 "SELECT id, role, content, created_at, updated_at, edited, remembered, active_variant_index
                  FROM messages
-                 WHERE chat_id = ?1 AND (?2 IS NULL OR created_at <= ?2)
-                 ORDER BY created_at ASC",
+                 WHERE chat_id = ?1
+                   AND (?2 IS NULL OR created_at < ?2 OR (created_at = ?2 AND rowid <= ?3))
+                 ORDER BY created_at ASC, rowid ASC",
             )?;
         let rows = statement
-            .query_map(params![source_chat_id, cutoff], |row| {
-                Ok((
-                    row.get::<_, String>(0)?,
-                    row.get::<_, String>(1)?,
-                    row.get::<_, String>(2)?,
-                    row.get::<_, i64>(3)?,
-                    row.get::<_, i64>(4)?,
-                    row.get::<_, i64>(5)? != 0,
-                    row.get::<_, i64>(6)? != 0,
-                    row.get::<_, i64>(7)?,
-                ))
-            })?
+            .query_map(
+                params![source_chat_id, cutoff_created_at, cutoff_rowid],
+                |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, String>(2)?,
+                        row.get::<_, i64>(3)?,
+                        row.get::<_, i64>(4)?,
+                        row.get::<_, i64>(5)? != 0,
+                        row.get::<_, i64>(6)? != 0,
+                        row.get::<_, i64>(7)?,
+                    ))
+                },
+            )?
             .collect::<Result<Vec<_>, _>>()?;
         drop(statement);
 
@@ -2249,18 +2174,20 @@ fn clear_greeting_if_message(
 
 pub fn rewind_chat_to_message(connection: &Connection, message_id: &str) -> CommandResult<()> {
     let chat_id = ensure_message_chat_mutable(connection, message_id)?;
-    let created_at = connection
+    let (created_at, message_rowid) = connection
         .query_row(
-            "SELECT created_at FROM messages WHERE id = ?1 AND chat_id = ?2",
+            "SELECT created_at, rowid FROM messages WHERE id = ?1 AND chat_id = ?2",
             params![message_id, &chat_id],
-            |row| row.get::<_, i64>(0),
+            |row| Ok((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?)),
         )
         .optional()?
         .ok_or_else(|| CommandError::new(keys::MESSAGE_NOT_FOUND))?;
     let transaction = connection.unchecked_transaction()?;
     transaction.execute(
-        "DELETE FROM messages WHERE chat_id = ?1 AND created_at > ?2",
-        params![&chat_id, created_at],
+        "DELETE FROM messages
+         WHERE chat_id = ?1
+           AND (created_at > ?2 OR (created_at = ?2 AND rowid > ?3))",
+        params![&chat_id, created_at, message_rowid],
     )?;
     refresh_chat_summary(&transaction, &chat_id)?;
     clear_chat_ai_context(&transaction, &chat_id)?;
@@ -2293,8 +2220,8 @@ fn refresh_chat_summary(connection: &Connection, chat_id: &str) -> CommandResult
     let (message_count, preview, updated_at) = connection
         .query_row(
             "SELECT COUNT(*),
-                    COALESCE((SELECT content FROM messages WHERE chat_id = ?1 ORDER BY created_at DESC LIMIT 1), ''),
-                    COALESCE((SELECT created_at FROM messages WHERE chat_id = ?1 ORDER BY created_at DESC LIMIT 1), ?2)
+                    COALESCE((SELECT content FROM messages WHERE chat_id = ?1 ORDER BY created_at DESC, rowid DESC LIMIT 1), ''),
+                    COALESCE((SELECT created_at FROM messages WHERE chat_id = ?1 ORDER BY created_at DESC, rowid DESC LIMIT 1), ?2)
              FROM messages WHERE chat_id = ?1",
             params![chat_id, now_unix()],
             |row| {

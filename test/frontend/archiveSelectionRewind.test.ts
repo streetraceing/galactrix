@@ -76,6 +76,6 @@ test('rewind keeps the selected message and deletes only later history', async (
   assert.match(backend, /pub fn rewind_chat_to_message/);
   assert.match(
     backend,
-    /DELETE FROM messages WHERE chat_id = \?1 AND created_at > \?2/,
+    /created_at > \?2 OR \(created_at = \?2 AND rowid > \?3\)/,
   );
 });
