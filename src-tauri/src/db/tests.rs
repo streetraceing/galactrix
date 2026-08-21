@@ -687,6 +687,86 @@ fn chat_module_overrides_persist_update_and_clone() {
 }
 
 #[test]
+fn full_backup_round_trip_preserves_messages_variants_settings_and_usage() {
+    let source = test_database();
+    create_test_chat(&source, "backup-chat");
+    add_user_message(&source, "backup-chat", "backup-user", "hello")
+        .expect("user message must save");
+    add_assistant_message(&source, "backup-chat", "backup-assistant", "first answer")
+        .expect("assistant message must save");
+    append_message_variant(
+        &source,
+        "backup-assistant",
+        "backup-assistant-variant-1",
+        "better answer",
+        true,
+    )
+    .expect("variant must save");
+    let mut settings = get_settings(&source).expect("settings must load");
+    settings.profile_name = "Backup profile".into();
+    update_settings(&source, &settings).expect("settings must save");
+    source
+        .execute(
+            "INSERT INTO usage_events (id, provider_id, model, input_tokens, output_tokens, request_count, created_at)
+             VALUES ('backup-usage', NULL, 'model', 120, 40, 1, ?1)",
+            params![now_unix()],
+        )
+        .expect("usage must save");
+
+    let data = backup_data(&source).expect("backup data must export");
+    validate_backup_data(&data).expect("exported backup must validate");
+
+    let restored = test_database();
+    create_test_chat(&restored, "replaced-chat");
+    let transaction = restored
+        .unchecked_transaction()
+        .expect("restore transaction must start");
+    replace_with_backup(&transaction, &data).expect("backup must restore");
+    transaction.commit().expect("restore must commit");
+
+    let state = chat_state(&restored, "backup-chat").expect("restored chat must load");
+    assert_eq!(state.messages.len(), 2);
+    assert_eq!(state.messages[1].content, "better answer");
+    assert_eq!(state.messages[1].active_variant_index, 1);
+    assert_eq!(state.messages[1].variants.len(), 2);
+    assert!(get_chat(&restored, "replaced-chat").is_err());
+    assert_eq!(
+        get_settings(&restored)
+            .expect("restored settings must load")
+            .profile_name,
+        "Backup profile"
+    );
+    assert!(usage_history(&restored)
+        .expect("restored usage must load")
+        .iter()
+        .any(|point| point.input_tokens == 120
+            && point.output_tokens == 40
+            && point.requests == 1));
+}
+
+#[test]
+fn failed_backup_replacement_rolls_back_existing_data() {
+    let source = test_database();
+    create_test_chat(&source, "backup-chat");
+    let mut data = backup_data(&source).expect("backup data must export");
+    data.settings.profile_avatar = Some("https://example.com/not-inline.png".into());
+
+    let target = test_database();
+    create_test_chat(&target, "existing-chat");
+    let transaction = target
+        .unchecked_transaction()
+        .expect("restore transaction must start");
+    let error = replace_with_backup(&transaction, &data).expect_err("restore must fail");
+    assert_eq!(error.key, keys::PROFILE_IMAGE_UNSUPPORTED);
+    transaction
+        .rollback()
+        .expect("failed restore must roll back");
+
+    assert!(get_chat(&target, "existing-chat").is_ok());
+    assert!(get_chat(&target, "backup-chat").is_err());
+}
+
+#[test]
 fn chat_generation_overrides_persist_update_and_clone() {
     let connection = test_database();
     let mut input = ChatConfigInput {

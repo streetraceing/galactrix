@@ -113,6 +113,15 @@ export type Message = {
   pending?: boolean;
 };
 
+export type GenerationJob = {
+  id: string;
+  chatId: string;
+  messageId: string;
+  mode: 'send' | 'regenerate' | 'continue';
+  status: 'running' | 'cancelling';
+  startedAt: number;
+};
+
 export type GalaxyKind =
   'persona' | 'character' | 'universe' | 'worldbook' | 'style' | 'prompt-set';
 
@@ -430,6 +439,20 @@ export type AppSnapshot = {
   settings: AppSettings;
   usage: UsagePoint[];
   appVersion: string;
+};
+
+export type AppBackupPreview = {
+  formatVersion: number;
+  sourceAppVersion: string;
+  createdAt: number;
+  credentialsIncluded: boolean;
+  credentialCount: number;
+  chatCount: number;
+  messageCount: number;
+  variantCount: number;
+  galaxyItemCount: number;
+  providerCount: number;
+  usageDayCount: number;
 };
 
 export type ProviderModelResult = {

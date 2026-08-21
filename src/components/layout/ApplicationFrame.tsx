@@ -5,9 +5,10 @@ import { isMobilePlatform } from '../../lib/platform';
 import { useMobileKeyboardVisibility } from '../../hooks/useMobileKeyboardVisibility';
 import { useStableMobileLayoutViewport } from '../../hooks/useStableMobileLayoutViewport';
 import { resolveProfileName } from '../../lib/profile';
-import type { AppSettings, Chat, TabId } from '../../types';
+import type { AppSettings, Chat, GenerationJob, TabId } from '../../types';
 import { ResizeHandle } from '../ResizeHandle';
 import { AppNotice } from './AppNotice';
+import { GenerationJobQueue } from './GenerationJobQueue';
 import {
   DESKTOP_SIDEBAR_COLLAPSED_WIDTH,
   DesktopSidebar,
@@ -21,12 +22,14 @@ export function ApplicationFrame({
   chatMaximized,
   settings,
   chats,
+  generationJobs,
   loading,
   notice,
   mobileNavigationVisible,
   children,
   onNavigate,
   onOpenChat,
+  onCancelGeneration,
   onCloseNotice,
   onSettingsPreview,
   onSettingsCommit,
@@ -35,12 +38,14 @@ export function ApplicationFrame({
   chatMaximized: boolean;
   settings: AppSettings;
   chats: Chat[];
+  generationJobs: GenerationJob[];
   loading: boolean;
   notice: string;
   mobileNavigationVisible: boolean;
   children: ReactNode;
   onNavigate: (tab: TabId) => void;
   onOpenChat: (chatId: string) => void;
+  onCancelGeneration: (generationId: string) => Promise<void>;
   onCloseNotice: () => void;
   onSettingsPreview: (settings: AppSettings) => void;
   onSettingsCommit: (settings: AppSettings) => void;
@@ -135,6 +140,12 @@ export function ApplicationFrame({
           ) : null}
 
           <AppNotice message={notice} onClose={onCloseNotice} />
+          <GenerationJobQueue
+            jobs={generationJobs}
+            chats={chats}
+            onOpenChat={onOpenChat}
+            onCancel={onCancelGeneration}
+          />
           <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
             {children}
           </div>

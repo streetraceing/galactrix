@@ -1,4 +1,5 @@
 mod ai_memory;
+mod backup;
 mod galaxy;
 mod settings;
 
@@ -22,6 +23,7 @@ pub(crate) use ai_memory::{
     prune_semantic_memories, save_dynamic_context, semantic_memory_indexed_contents,
     upsert_semantic_memories,
 };
+pub(crate) use backup::{backup_data, replace_with_backup, validate_backup_data};
 use galaxy::get_galaxy_item;
 pub(crate) use galaxy::{delete_galaxy_item, upsert_galaxy_item};
 pub(crate) use settings::{get_settings, provider_ids, update_settings, usage_history};
@@ -35,7 +37,7 @@ pub fn open(path: &Path) -> CommandResult<Connection> {
     Ok(connection)
 }
 
-fn migrate(connection: &Connection) -> CommandResult<()> {
+pub(crate) fn migrate(connection: &Connection) -> CommandResult<()> {
     connection.execute_batch(
         r#"
             CREATE TABLE IF NOT EXISTS chats (

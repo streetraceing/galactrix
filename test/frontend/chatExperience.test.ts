@@ -39,7 +39,8 @@ test('chat switching keeps one full-width canvas without a temporary skeleton', 
   ]);
 
   assert.match(screen, /const canvasChat = activeChat/);
-  assert.match(screen, /const canvasMessages = activeChat/);
+  assert.match(screen, /const storedCanvasMessages = activeChat/);
+  assert.match(screen, /withGenerationPlaceholder\(storedCanvasMessages/);
   assert.doesNotMatch(screen, /canvasChatId/);
   assert.doesNotMatch(screen, /isCanvasSwitching/);
   assert.doesNotMatch(screen, /animate-pulse/);

@@ -400,7 +400,7 @@ pub struct Provider {
     pub has_secret: bool,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProviderInput {
     pub id: Option<String>,
@@ -749,6 +749,52 @@ pub struct UsagePoint {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct BackupProvider {
+    pub provider: ProviderInput,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub api_keys: Option<Vec<String>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AppBackupData {
+    pub chats: Vec<Chat>,
+    pub messages: Vec<Message>,
+    pub galaxy_items: Vec<GalaxyItem>,
+    pub providers: Vec<BackupProvider>,
+    pub settings: AppSettings,
+    pub usage: Vec<UsagePoint>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AppBackupArchive {
+    pub format: String,
+    pub format_version: u32,
+    pub source_app_version: String,
+    pub created_at: i64,
+    pub credentials_included: bool,
+    pub data: AppBackupData,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AppBackupPreview {
+    pub format_version: u32,
+    pub source_app_version: String,
+    pub created_at: i64,
+    pub credentials_included: bool,
+    pub credential_count: usize,
+    pub chat_count: usize,
+    pub message_count: usize,
+    pub variant_count: usize,
+    pub galaxy_item_count: usize,
+    pub provider_count: usize,
+    pub usage_day_count: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ChatState {
     pub chat: Chat,
     pub messages: Vec<Message>,
@@ -771,6 +817,48 @@ pub struct AppSnapshot {
 pub struct CreatedChat {
     pub id: String,
     pub title: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum GenerationMode {
+    Send,
+    Regenerate,
+    Continue,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum GenerationStatus {
+    Running,
+    Cancelling,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GenerationJob {
+    pub id: String,
+    pub chat_id: String,
+    pub message_id: String,
+    pub mode: GenerationMode,
+    pub status: GenerationStatus,
+    pub started_at: i64,
+}
+
+impl GenerationJob {
+    pub fn new(id: String, chat_id: String, message_id: String, mode: GenerationMode) -> Self {
+        Self {
+            id,
+            chat_id,
+            message_id,
+            mode,
+            status: GenerationStatus::Running,
+            started_at: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs() as i64,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

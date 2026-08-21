@@ -255,7 +255,9 @@ test('chat tail follows generation, variants, and keyboard without duplicating r
     readFile(chatsScreenPath, 'utf8'),
   ]);
 
-  assert.match(controllerSource, /setActiveMessageGeneration/);
+  assert.match(controllerSource, /startLocalGeneration/);
+  assert.match(controllerSource, /finishLocalGeneration/);
+  assert.match(screenSource, /withGenerationPlaceholder/);
   assert.match(messageSource, /effectiveMessageGeneration/);
   assert.match(messageSource, /activeMessageGeneration\?\.chatId === chatId/);
   assert.match(

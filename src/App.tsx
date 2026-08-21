@@ -20,6 +20,7 @@ function App() {
       chatMaximized={chatMaximized}
       settings={controller.snapshot.settings}
       chats={controller.snapshot.chats}
+      generationJobs={controller.generationJobs}
       loading={controller.loading}
       notice={controller.notice}
       mobileNavigationVisible={
@@ -27,6 +28,7 @@ function App() {
       }
       onNavigate={controller.navigate}
       onOpenChat={controller.openChat}
+      onCancelGeneration={controller.cancelGenerationJob}
       onCloseNotice={() => controller.setNotice('')}
       onSettingsPreview={controller.previewSettings}
       onSettingsCommit={(settings) => void controller.saveSettings(settings)}

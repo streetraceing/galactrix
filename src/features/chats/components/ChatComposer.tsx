@@ -55,7 +55,6 @@ function ChatComposerComponent({
   chatId,
   provider,
   sending,
-  generationBlocked,
   sendOnEnter,
   focusAfterSend,
   focusAfterActionRequest,
@@ -70,7 +69,6 @@ function ChatComposerComponent({
   chatId: string;
   provider?: Provider;
   sending: boolean;
-  generationBlocked: boolean;
   sendOnEnter: boolean;
   focusAfterSend: boolean;
   focusAfterActionRequest: number;
@@ -347,14 +345,7 @@ function ChatComposerComponent({
 
   const submit = async () => {
     const value = draft.trim();
-    if (
-      !value ||
-      !provider ||
-      sending ||
-      generationBlocked ||
-      submittingRef.current
-    )
-      return;
+    if (!value || !provider || sending || submittingRef.current) return;
 
     submittingRef.current = true;
     pendingFocusAfterSendRef.current = focusAfterSend;
@@ -477,13 +468,9 @@ function ChatComposerComponent({
           isIconOnly
           size="lg"
           variant="primary"
-          className={`size-12 min-w-12 p-0 ${draft.trim() && !generationBlocked ? '' : 'opacity-55'}`}
-          aria-label={
-            generationBlocked
-              ? t('chatComposer.generationInAnotherChat')
-              : t('chatComposer.sendMessage')
-          }
-          aria-disabled={!draft.trim() || !provider || generationBlocked}
+          className={`size-12 min-w-12 p-0 ${draft.trim() ? '' : 'opacity-55'}`}
+          aria-label={t('chatComposer.sendMessage')}
+          aria-disabled={!draft.trim() || !provider}
           isDisabled={!provider}
           onPress={() => {
             if (mobileMenuOpen || Date.now() < suppressSendUntilRef.current) {
@@ -546,16 +533,12 @@ function ChatComposerComponent({
     </ContextMenu>
   ) : (
     <TooltipIconButton
-      label={
-        generationBlocked
-          ? t('chatComposer.generationInAnotherChat')
-          : t('chatComposer.sendMessage')
-      }
+      label={t('chatComposer.sendMessage')}
       size="lg"
       variant="primary"
       className="size-12 min-w-12 p-0"
       tooltipTriggerClassName="flex size-12 items-center justify-center leading-none"
-      isDisabled={!draft.trim() || !provider || generationBlocked}
+      isDisabled={!draft.trim() || !provider}
       onPress={() => void submit()}
     >
       <Icon name="send" className="size-5" />
@@ -628,9 +611,7 @@ function ChatComposerComponent({
         description={t('chatComposer.fullscreenDescription')}
         size="full"
         onConfirm={() => void submit()}
-        isConfirmDisabled={
-          !draft.trim() || !provider || sending || generationBlocked
-        }
+        isConfirmDisabled={!draft.trim() || !provider || sending}
         bodyClassName="flex min-h-0 flex-col"
         footer={
           <div className="flex w-full items-center justify-end gap-2">
@@ -639,9 +620,7 @@ function ChatComposerComponent({
             </Button>
             <Button
               variant="primary"
-              isDisabled={
-                !draft.trim() || !provider || sending || generationBlocked
-              }
+              isDisabled={!draft.trim() || !provider || sending}
               onPress={() => void submit()}
             >
               <Icon name="send" className="size-4" />

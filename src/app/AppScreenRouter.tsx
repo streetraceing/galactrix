@@ -64,7 +64,7 @@ export function AppScreenRouter({
         onContinueMessage={controller.continueExistingMessage}
         onSelectMessageVariant={controller.chooseMessageVariant}
         onSend={controller.sendMessage}
-        onCancelGeneration={controller.cancelCurrentGeneration}
+        onCancelGeneration={controller.cancelChatGeneration}
         sendOnEnter={snapshot.settings.sendOnEnter}
         focusComposerAfterSend={snapshot.settings.focusComposerAfterSend}
         saveDrafts={snapshot.settings.saveDrafts}
@@ -72,8 +72,7 @@ export function AppScreenRouter({
         showMessageAvatars={snapshot.settings.showMessageAvatars}
         showMessageTimestamps={snapshot.settings.showMessageTimestamps}
         responseLanguage={getResponseLocale(snapshot.settings.responseLanguage)}
-        sending={controller.sending}
-        activeMessageGeneration={controller.activeMessageGeneration}
+        generationJobs={controller.generationJobs}
       />
     );
   }
@@ -111,6 +110,10 @@ export function AppScreenRouter({
         providers={snapshot.providers}
         appVersion={snapshot.appVersion}
         onChangeSettings={controller.saveSettings}
+        generationActive={controller.generationJobs.length > 0}
+        onCreateBackup={controller.createFullAppBackup}
+        onInspectBackup={controller.inspectFullAppBackup}
+        onRestoreBackup={controller.restoreFullAppBackup}
       />
     );
   }

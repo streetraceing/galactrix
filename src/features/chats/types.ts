@@ -6,6 +6,7 @@ import type {
   GalaxyItem,
   Message,
   Provider,
+  GenerationJob,
 } from '../../types';
 
 export type ChatAction =
@@ -19,11 +20,10 @@ export type ChatAction =
   | 'clear'
   | 'delete';
 
-export type ActiveMessageGeneration = {
-  chatId: string;
-  messageId: string;
-  mode: 'send' | 'regenerate' | 'continue';
-};
+export type ActiveMessageGeneration = Pick<
+  GenerationJob,
+  'chatId' | 'messageId' | 'mode'
+>;
 
 export type ChatsScreenProps = {
   chats: Chat[];
@@ -68,7 +68,7 @@ export type ChatsScreenProps = {
     variantIndex: number,
   ) => Promise<void>;
   onSend: (content: string) => Promise<void>;
-  onCancelGeneration: () => Promise<void>;
+  onCancelGeneration: (chatId: string) => Promise<void>;
   sendOnEnter: boolean;
   focusComposerAfterSend: boolean;
   saveDrafts: boolean;
@@ -76,6 +76,5 @@ export type ChatsScreenProps = {
   showMessageAvatars: boolean;
   showMessageTimestamps: boolean;
   responseLanguage?: 'en' | 'ru';
-  sending: boolean;
-  activeMessageGeneration: ActiveMessageGeneration | null;
+  generationJobs: GenerationJob[];
 };

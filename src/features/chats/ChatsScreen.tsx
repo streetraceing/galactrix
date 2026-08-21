@@ -20,6 +20,7 @@ import { resolveProfileName } from '../../lib/profile';
 import { removeStorageItem } from '../../lib/storage';
 import type { Chat, ChatConfigInput, Message } from '../../types';
 import { activeChatById, groupMessagesByChat } from './chatMessages';
+import { generationForChat, withGenerationPlaceholder } from './generationJobs';
 import { ChatComposer } from './components/ChatComposer';
 import { ChatDialogs } from './components/ChatDialogs';
 import { ChatSetupModal } from './components/ChatSetupModal';
@@ -79,8 +80,7 @@ export function ChatsScreen({
   showMessageAvatars,
   showMessageTimestamps,
   responseLanguage,
-  sending,
-  activeMessageGeneration,
+  generationJobs,
 }: ChatsScreenProps) {
   const { t } = useTranslation(['chats', 'common']);
   const isMobile = isMobilePlatform();
@@ -132,9 +132,14 @@ export function ChatsScreen({
     [messages],
   );
   const canvasChat = activeChat;
-  const canvasMessages = activeChat
+  const storedCanvasMessages = activeChat
     ? (messagesByChat.get(activeChat.id) ?? EMPTY_MESSAGES)
     : EMPTY_MESSAGES;
+  const canvasGeneration = generationForChat(generationJobs, canvasChat?.id);
+  const canvasMessages = useMemo(
+    () => withGenerationPlaceholder(storedCanvasMessages, canvasGeneration),
+    [canvasGeneration, storedCanvasMessages],
+  );
   const latestAssistantMessage = useMemo(() => {
     for (let index = canvasMessages.length - 1; index >= 0; index -= 1) {
       const message = canvasMessages[index];
@@ -166,12 +171,7 @@ export function ChatsScreen({
   const canvasAssistantName =
     canvasCharacter?.name ?? t('chatsScreen.assistant');
   const canvasUserName = canvasPersona?.name || displayProfileName;
-  const canvasGenerationActive = Boolean(
-    sending && activeMessageGeneration?.chatId === canvasChat?.id,
-  );
-  const generationBusyElsewhere = Boolean(
-    sending && activeMessageGeneration?.chatId !== canvasChat?.id,
-  );
+  const canvasGenerationActive = canvasGeneration != null;
   const shouldAutoFocusComposer =
     !activeChat?.archived &&
     !isMobile &&
@@ -194,7 +194,7 @@ export function ChatsScreen({
         !activeChat ||
         activeChat.archived ||
         !activeProvider ||
-        sending ||
+        canvasGenerationActive ||
         sendInFlightRef.current
       ) {
         return;
@@ -209,7 +209,7 @@ export function ChatsScreen({
         sendInFlightRef.current = false;
       }
     },
-    [activeChat, activeProvider, onSend, sending, showChatError],
+    [activeChat, activeProvider, canvasGenerationActive, onSend, showChatError],
   );
 
   const keepBottomPinnedAfterComposerResize = useCallback((delta: number) => {
@@ -228,16 +228,18 @@ export function ChatsScreen({
   }, []);
 
   const cancelGeneration = useCallback(async () => {
+    if (!canvasChat) return;
     try {
-      await onCancelGeneration();
+      await onCancelGeneration(canvasChat.id);
     } catch (error) {
       showChatError(error);
     }
-  }, [onCancelGeneration, showChatError]);
+  }, [canvasChat, onCancelGeneration, showChatError]);
 
   const requestLatestResponseAction = useCallback(
     (action: MessageResponseActionRequest['action']) => {
-      if (!canvasChat || !latestAssistantMessage || sending) return;
+      if (!canvasChat || !latestAssistantMessage || canvasGenerationActive)
+        return;
       responseActionRequestIdRef.current += 1;
       setResponseActionRequest({
         id: responseActionRequestIdRef.current,
@@ -246,7 +248,7 @@ export function ChatsScreen({
         action,
       });
     },
-    [canvasChat, latestAssistantMessage, sending],
+    [canvasChat, canvasGenerationActive, latestAssistantMessage],
   );
 
   const requestComposerFocusAfterGeneration = useCallback(() => {
@@ -549,7 +551,9 @@ export function ChatsScreen({
               canUseResponseActions={
                 !activeChat.archived && latestAssistantMessage != null
               }
-              responseActionsBusy={sending || activeChat.archived}
+              responseActionsBusy={
+                canvasGenerationActive || activeChat.archived
+              }
               onRegenerateLast={() => requestLatestResponseAction('regenerate')}
               onContinueLast={() => requestLatestResponseAction('continue')}
             />
@@ -566,11 +570,8 @@ export function ChatsScreen({
                     userAvatar={
                       galaxyItemAvatar(canvasPersona) ?? profileAvatar
                     }
-                    sending={
-                      sending &&
-                      activeMessageGeneration?.chatId === canvasChat.id
-                    }
-                    activeMessageGeneration={activeMessageGeneration}
+                    sending={canvasGenerationActive}
+                    activeMessageGeneration={canvasGeneration ?? null}
                     viewActive={!isSinglePane || isChatOpen}
                     viewMode={chatViewMode}
                     showAvatars={showMessageAvatars}
@@ -627,7 +628,6 @@ export function ChatsScreen({
                     chatId={canvasChat.id}
                     provider={canvasProvider}
                     sending={canvasGenerationActive}
-                    generationBlocked={generationBusyElsewhere}
                     sendOnEnter={sendOnEnter}
                     focusAfterSend={focusComposerAfterSend}
                     focusAfterActionRequest={focusComposerRequest}

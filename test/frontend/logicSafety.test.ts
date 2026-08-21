@@ -22,17 +22,18 @@ test('stale chat refreshes cannot overwrite a newer chat state', async () => {
   );
 });
 
-test('a generation in another chat cannot masquerade as the current response', async () => {
+test('generation jobs stay scoped while other chats remain usable', async () => {
   const [screen, composer, controller] = await Promise.all([
     read('src/features/chats/ChatsScreen.tsx'),
     read('src/features/chats/components/ChatComposer.tsx'),
     read('src/app/useAppController.ts'),
   ]);
 
+  assert.match(screen, /generationForChat\(generationJobs, canvasChat\?\.id\)/);
   assert.match(screen, /canvasGenerationActive/);
-  assert.match(screen, /generationBusyElsewhere/);
-  assert.match(composer, /generationBlocked/);
-  assert.match(composer, /generationInAnotherChat/);
+  assert.doesNotMatch(screen, /generationBusyElsewhere/);
+  assert.doesNotMatch(composer, /generationBlocked/);
+  assert.match(controller, /generationJobsRef\.current\.some/);
   assert.match(controller, /errors\.generationInProgress/);
 });
 

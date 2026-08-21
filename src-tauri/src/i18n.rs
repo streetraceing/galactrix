@@ -12,6 +12,10 @@ pub mod keys {
     pub const CHAT_NOT_FOUND: &str = "backend.chat.notFound";
     pub const CHAT_ARCHIVED_READ_ONLY: &str = "backend.chat.archivedReadOnly";
 
+    pub const GENERATION_CHAT_BUSY: &str = "backend.generation.chatBusy";
+    pub const GENERATION_ID_INVALID: &str = "backend.generation.idInvalid";
+    pub const GENERATION_ID_IN_USE: &str = "backend.generation.idInUse";
+
     pub const MESSAGE_NOT_FOUND: &str = "backend.message.notFound";
     pub const MESSAGE_EMPTY: &str = "backend.message.empty";
     pub const MESSAGE_USER_BEFORE_ASSISTANT_MISSING: &str =
@@ -86,6 +90,14 @@ pub mod keys {
     pub const PROFILE_NAME_TOO_LONG: &str = "backend.profile.nameTooLong";
     pub const PROFILE_IMAGE_UNSUPPORTED: &str = "backend.profile.imageUnsupported";
     pub const PROFILE_IMAGE_TOO_LARGE: &str = "backend.profile.imageTooLarge";
+
+    pub const BACKUP_INVALID: &str = "backend.backup.invalid";
+    pub const BACKUP_UNSUPPORTED_VERSION: &str = "backend.backup.unsupportedVersion";
+    pub const BACKUP_TOO_LARGE: &str = "backend.backup.tooLarge";
+    pub const BACKUP_DUPLICATE_ID: &str = "backend.backup.duplicateId";
+    pub const BACKUP_BROKEN_REFERENCE: &str = "backend.backup.brokenReference";
+    pub const BACKUP_ACTIVE_GENERATION: &str = "backend.backup.activeGeneration";
+    pub const BACKUP_ROLLBACK_FAILED: &str = "backend.backup.rollbackFailed";
 
     pub const SECURE_STORAGE_UNAVAILABLE: &str = "backend.secureStorage.unavailable";
 }

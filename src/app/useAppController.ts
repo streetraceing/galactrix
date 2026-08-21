@@ -7,11 +7,13 @@ import {
 } from 'react';
 import {
   branchChat,
+  cancelChatGeneration as cancelChatGenerationBackend,
   cancelGeneration,
   checkProvider,
   clearChat,
   cloneChat,
   continueMessage,
+  createAppBackup,
   createChat,
   deleteChat,
   deleteGalaxyItem,
@@ -23,12 +25,15 @@ import {
   fetchProviderModels,
   importProviderConnections,
   importGalaxyItems,
+  inspectAppBackup,
   isBackendCommandError,
   loadChatState,
+  listGenerationJobs,
   loadSnapshot,
   loadUsageHistory,
   regenerateMessage,
   renameChat,
+  restoreAppBackup,
   rewindChatToMessage,
   saveProvider,
   selectMessageVariant,
@@ -46,6 +51,7 @@ import type {
   ChatConfigInput,
   GalaxyItemInput,
   EmbeddingProbeResult,
+  GenerationJob,
   ProviderInput,
   ProviderImportInput,
   TabId,
@@ -70,6 +76,10 @@ import {
 } from '../features/chats/chatState';
 import { chatConfigFromChat } from '../features/chats/chatConfig';
 import type { ActiveMessageGeneration } from '../features/chats/types';
+import {
+  mergeGenerationJobs,
+  sortGenerationJobs,
+} from '../features/chats/generationJobs';
 
 type MessageGenerationCommand = (
   messageId: string,
@@ -91,11 +101,9 @@ export function useAppController() {
   const [loading, setLoading] = useState(true);
   const [fatalError, setFatalError] = useState('');
   const [notice, setNotice] = useState('');
-  const [sending, setSending] = useState(false);
-  const [activeMessageGeneration, setActiveMessageGeneration] =
-    useState<ActiveMessageGeneration | null>(null);
-  const activeGenerationRef = useRef<string | null>(null);
-  const cancelRequestedRef = useRef(false);
+  const [generationJobs, setGenerationJobs] = useState<GenerationJob[]>([]);
+  const generationJobsRef = useRef<GenerationJob[]>([]);
+  const localGenerationIdsRef = useRef(new Set<string>());
   const chatRefreshVersionsRef = useRef(new Map<string, number>());
 
   useApplicationPreferences(snapshot.settings);
@@ -146,17 +154,80 @@ export function useAppController() {
     return usage;
   }, []);
 
+  const updateGenerationJobs = useCallback(
+    (update: (current: GenerationJob[]) => GenerationJob[]) => {
+      const next = sortGenerationJobs(update(generationJobsRef.current));
+      generationJobsRef.current = next;
+      setGenerationJobs(next);
+    },
+    [],
+  );
+
+  const startLocalGeneration = useCallback(
+    (job: GenerationJob) => {
+      localGenerationIdsRef.current.add(job.id);
+      updateGenerationJobs((current) => [
+        ...current.filter((candidate) => candidate.id !== job.id),
+        job,
+      ]);
+    },
+    [updateGenerationJobs],
+  );
+
+  const finishLocalGeneration = useCallback(
+    (generationId: string) => {
+      localGenerationIdsRef.current.delete(generationId);
+      updateGenerationJobs((current) =>
+        current.filter((job) => job.id !== generationId),
+      );
+    },
+    [updateGenerationJobs],
+  );
+
+  const syncGenerationJobs = useCallback(async () => {
+    const remoteJobs = await listGenerationJobs();
+    const previousJobs = generationJobsRef.current;
+    const remoteIds = new Set(remoteJobs.map((job) => job.id));
+    const localOnlyJobs = previousJobs.filter(
+      (job) =>
+        localGenerationIdsRef.current.has(job.id) && !remoteIds.has(job.id),
+    );
+    const nextJobs = mergeGenerationJobs(remoteJobs, localOnlyJobs);
+    const nextIds = new Set(nextJobs.map((job) => job.id));
+    const completedChatIds = new Set(
+      previousJobs
+        .filter(
+          (job) =>
+            !localGenerationIdsRef.current.has(job.id) && !nextIds.has(job.id),
+        )
+        .map((job) => job.chatId),
+    );
+
+    updateGenerationJobs(() => nextJobs);
+    if (completedChatIds.size === 0) return;
+    await Promise.all(
+      [...completedChatIds].map((chatId) =>
+        refreshChat(chatId).catch(() => undefined),
+      ),
+    );
+    await refreshUsage().catch(() => undefined);
+  }, [refreshChat, refreshUsage, updateGenerationJobs]);
+
   const boot = useCallback(async () => {
     setLoading(true);
     setFatalError('');
     try {
+      // Read jobs first: if one finishes during the following snapshot load,
+      // the committed response is included; otherwise polling keeps the job.
+      const jobs = await listGenerationJobs();
       await refresh();
+      updateGenerationJobs(() => jobs);
     } catch (error) {
       setFatalError(errorMessage(error));
     } finally {
       setLoading(false);
     }
-  }, [refresh]);
+  }, [refresh, updateGenerationJobs]);
 
   useEffect(() => {
     if (loading || activeTab !== 'profile') return;
@@ -166,6 +237,14 @@ export function useAppController() {
   useEffect(() => {
     void boot();
   }, [boot]);
+
+  useEffect(() => {
+    if (loading || generationJobs.length === 0) return;
+    const timer = window.setInterval(() => {
+      void syncGenerationJobs().catch(() => undefined);
+    }, 1_000);
+    return () => window.clearInterval(timer);
+  }, [generationJobs.length, loading, syncGenerationJobs]);
 
   useEffect(() => {
     if (!notice) return;
@@ -182,6 +261,14 @@ export function useAppController() {
     if (snapshot.settings.haptics && 'vibrate' in navigator)
       navigator.vibrate(12);
   }, [snapshot.settings.haptics]);
+
+  const ensureChatIdle = useCallback((chatId: string) => {
+    if (generationJobsRef.current.some((job) => job.chatId === chatId)) {
+      throw new Error(
+        i18next.t('errors.generationInProgress', { ns: 'chats' }),
+      );
+    }
+  }, []);
 
   const closeChat = useCallback(() => {
     if (document.activeElement instanceof HTMLElement) {
@@ -272,6 +359,7 @@ export function useAppController() {
 
   const removeChat = useCallback(
     async (chatId: string) => {
+      ensureChatIdle(chatId);
       const nextChatId =
         snapshot.chats.find((chat) => chat.id !== chatId && !chat.archived)
           ?.id ?? '';
@@ -292,7 +380,7 @@ export function useAppController() {
       if (chatId === activeChatId) setActiveChatId(nextChatId);
       haptic();
     },
-    [activeChatId, closeChat, haptic, snapshot.chats],
+    [activeChatId, closeChat, ensureChatIdle, haptic, snapshot.chats],
   );
 
   const pinChat = useCallback(
@@ -306,27 +394,31 @@ export function useAppController() {
 
   const archiveChat = useCallback(
     async (chatId: string, archived: boolean) => {
+      ensureChatIdle(chatId);
       await setChatArchived(chatId, archived);
       await refreshChat(chatId);
       haptic();
     },
-    [haptic, refreshChat],
+    [ensureChatIdle, haptic, refreshChat],
   );
 
   const clearExistingChat = useCallback(
     async (chatId: string) => {
+      ensureChatIdle(chatId);
       await clearChat(chatId);
       forgetChatNavigationState(chatId);
       await refreshChat(chatId);
       haptic();
     },
-    [haptic, refreshChat],
+    [ensureChatIdle, haptic, refreshChat],
   );
 
   const sendMessage = useCallback(
     async (content: string) => {
       if (!activeChatId) return;
-      if (activeGenerationRef.current) {
+      if (
+        generationJobsRef.current.some((job) => job.chatId === activeChatId)
+      ) {
         throw new Error(
           i18next.t('errors.generationInProgress', { ns: 'chats' }),
         );
@@ -340,12 +432,13 @@ export function useAppController() {
       const userMessageId = createRuntimeId();
       const assistantMessageId = createRuntimeId();
       const createdAt = Math.floor(Date.now() / 1_000);
-      activeGenerationRef.current = generationId;
-      cancelRequestedRef.current = false;
-      setActiveMessageGeneration({
+      startLocalGeneration({
+        id: generationId,
         chatId,
         messageId: assistantMessageId,
         mode: 'send',
+        status: 'running',
+        startedAt: createdAt,
       });
       setSnapshot((current) => ({
         ...current,
@@ -386,7 +479,6 @@ export function useAppController() {
           },
         ],
       }));
-      setSending(true);
       try {
         await sendChatMessage(
           chatId,
@@ -407,12 +499,7 @@ export function useAppController() {
           throw error;
         }
       } finally {
-        if (activeGenerationRef.current === generationId) {
-          activeGenerationRef.current = null;
-          cancelRequestedRef.current = false;
-          setActiveMessageGeneration(null);
-          setSending(false);
-        }
+        finishLocalGeneration(generationId);
       }
     },
     [
@@ -422,20 +509,67 @@ export function useAppController() {
       refreshUsage,
       snapshot.chats,
       snapshot.settings.responseLanguage,
+      finishLocalGeneration,
+      startLocalGeneration,
     ],
   );
 
-  const cancelCurrentGeneration = useCallback(async () => {
-    const generationId = activeGenerationRef.current;
-    if (!generationId || cancelRequestedRef.current) return;
-    cancelRequestedRef.current = true;
-    try {
-      await cancelGeneration(generationId);
-    } catch (error) {
-      cancelRequestedRef.current = false;
-      throw error;
-    }
-  }, []);
+  const cancelGenerationJob = useCallback(
+    async (generationId: string) => {
+      const job = generationJobsRef.current.find(
+        (candidate) => candidate.id === generationId,
+      );
+      if (!job || job.status === 'cancelling') return;
+      updateGenerationJobs((current) =>
+        current.map((candidate) =>
+          candidate.id === generationId
+            ? { ...candidate, status: 'cancelling' }
+            : candidate,
+        ),
+      );
+      try {
+        await cancelGeneration(generationId);
+      } catch (error) {
+        updateGenerationJobs((current) =>
+          current.map((candidate) =>
+            candidate.id === generationId
+              ? { ...candidate, status: 'running' }
+              : candidate,
+          ),
+        );
+        throw error;
+      }
+    },
+    [updateGenerationJobs],
+  );
+
+  const cancelChatGeneration = useCallback(
+    async (chatId: string) => {
+      const jobs = generationJobsRef.current.filter(
+        (job) => job.chatId === chatId,
+      );
+      if (jobs.length === 0) return;
+      updateGenerationJobs((current) =>
+        current.map((job) =>
+          job.chatId === chatId ? { ...job, status: 'cancelling' } : job,
+        ),
+      );
+      try {
+        const cancelled = await cancelChatGenerationBackend(chatId);
+        if (cancelled === 0) {
+          await Promise.all(jobs.map((job) => cancelGeneration(job.id)));
+        }
+      } catch (error) {
+        updateGenerationJobs((current) =>
+          current.map((job) =>
+            job.chatId === chatId ? { ...job, status: 'running' } : job,
+          ),
+        );
+        throw error;
+      }
+    },
+    [updateGenerationJobs],
+  );
 
   const cloneExistingChat = useCallback(
     async (
@@ -505,21 +639,23 @@ export function useAppController() {
   const editExistingMessage = useCallback(
     async (messageId: string, content: string) => {
       const chatId = findMessageChatId(snapshot.messages, messageId);
+      if (chatId) ensureChatIdle(chatId);
       await editMessage(messageId, content);
       if (chatId) await refreshChat(chatId);
       haptic();
     },
-    [haptic, refreshChat, snapshot.messages],
+    [ensureChatIdle, haptic, refreshChat, snapshot.messages],
   );
 
   const removeMessage = useCallback(
     async (messageId: string) => {
       const chatId = findMessageChatId(snapshot.messages, messageId);
+      if (chatId) ensureChatIdle(chatId);
       await deleteMessage(messageId);
       if (chatId) await refreshChat(chatId);
       haptic();
     },
-    [haptic, refreshChat, snapshot.messages],
+    [ensureChatIdle, haptic, refreshChat, snapshot.messages],
   );
 
   const removeMessages = useCallback(
@@ -530,16 +666,18 @@ export function useAppController() {
           .filter((message) => selectedIds.has(message.id))
           .map((message) => message.chatId),
       );
+      chatIds.forEach(ensureChatIdle);
       await deleteMessages(messageIds);
       await Promise.all([...chatIds].map((chatId) => refreshChat(chatId)));
       haptic();
     },
-    [haptic, refreshChat, snapshot.messages],
+    [ensureChatIdle, haptic, refreshChat, snapshot.messages],
   );
 
   const rewindToMessage = useCallback(
     async (messageId: string) => {
       const chatId = findMessageChatId(snapshot.messages, messageId);
+      if (chatId) ensureChatIdle(chatId);
       await rewindChatToMessage(messageId);
       if (chatId) {
         forgetChatNavigationState(chatId);
@@ -547,17 +685,18 @@ export function useAppController() {
       }
       haptic();
     },
-    [haptic, refreshChat, snapshot.messages],
+    [ensureChatIdle, haptic, refreshChat, snapshot.messages],
   );
 
   const rememberMessage = useCallback(
     async (messageId: string, remembered: boolean) => {
       const chatId = findMessageChatId(snapshot.messages, messageId);
+      if (chatId) ensureChatIdle(chatId);
       await setMessageRemembered(messageId, remembered);
       if (chatId) await refreshChat(chatId);
       haptic();
     },
-    [haptic, refreshChat, snapshot.messages],
+    [ensureChatIdle, haptic, refreshChat, snapshot.messages],
   );
 
   const runExistingMessageGeneration = useCallback(
@@ -566,18 +705,22 @@ export function useAppController() {
       mode: ActiveMessageGeneration['mode'],
       command: MessageGenerationCommand,
     ) => {
-      if (activeGenerationRef.current) {
+      const chatId = findMessageChatId(snapshot.messages, messageId);
+      if (!chatId) return;
+      if (generationJobsRef.current.some((job) => job.chatId === chatId)) {
         throw new Error(
           i18next.t('errors.generationInProgress', { ns: 'chats' }),
         );
       }
-      const chatId = findMessageChatId(snapshot.messages, messageId);
-      if (!chatId) return;
       const generationId = createRuntimeId();
-      activeGenerationRef.current = generationId;
-      cancelRequestedRef.current = false;
-      setActiveMessageGeneration({ chatId, messageId, mode });
-      setSending(true);
+      startLocalGeneration({
+        id: generationId,
+        chatId,
+        messageId,
+        mode,
+        status: 'running',
+        startedAt: Math.floor(Date.now() / 1_000),
+      });
       try {
         await command(
           messageId,
@@ -595,12 +738,7 @@ export function useAppController() {
           throw error;
         }
       } finally {
-        if (activeGenerationRef.current === generationId) {
-          activeGenerationRef.current = null;
-          cancelRequestedRef.current = false;
-          setActiveMessageGeneration(null);
-          setSending(false);
-        }
+        finishLocalGeneration(generationId);
       }
     },
     [
@@ -609,6 +747,8 @@ export function useAppController() {
       refreshUsage,
       snapshot.messages,
       snapshot.settings.responseLanguage,
+      finishLocalGeneration,
+      startLocalGeneration,
     ],
   );
 
@@ -626,6 +766,8 @@ export function useAppController() {
 
   const chooseMessageVariant = useCallback(
     async (messageId: string, variantIndex: number) => {
+      const chatId = findMessageChatId(snapshot.messages, messageId);
+      if (chatId) ensureChatIdle(chatId);
       await selectMessageVariant(messageId, variantIndex);
       const updatedAt = Math.floor(Date.now() / 1_000);
       setSnapshot((current) =>
@@ -638,7 +780,7 @@ export function useAppController() {
       );
       haptic();
     },
-    [haptic],
+    [ensureChatIdle, haptic, snapshot.messages],
   );
 
   const saveGalaxyItem = useCallback(
@@ -736,6 +878,34 @@ export function useAppController() {
     [haptic],
   );
 
+  const createFullAppBackup = useCallback(
+    (includeCredentials: boolean) => createAppBackup(includeCredentials),
+    [],
+  );
+
+  const inspectFullAppBackup = useCallback(
+    (archive: unknown) => inspectAppBackup(archive),
+    [],
+  );
+
+  const restoreFullAppBackup = useCallback(
+    async (archive: unknown) => {
+      const restored = await restoreAppBackup(archive);
+      chatRefreshVersionsRef.current.clear();
+      setSnapshot(restored);
+      setActiveChatId((current) =>
+        restored.chats.some((chat) => chat.id === current)
+          ? current
+          : (restored.chats[0]?.id ?? ''),
+      );
+      setIsChatOpen(false);
+      setChatListRequest((current) => current + 1);
+      haptic();
+      return restored;
+    },
+    [haptic],
+  );
+
   return {
     activeTab,
     snapshot,
@@ -745,8 +915,7 @@ export function useAppController() {
     loading,
     fatalError,
     notice,
-    sending,
-    activeMessageGeneration,
+    generationJobs,
     navigate,
     openChat,
     closeChat,
@@ -762,7 +931,8 @@ export function useAppController() {
     archiveChat,
     clearExistingChat,
     sendMessage,
-    cancelCurrentGeneration,
+    cancelGenerationJob,
+    cancelChatGeneration,
     cloneExistingChat,
     branchFromMessage,
     editExistingMessage,
@@ -783,5 +953,8 @@ export function useAppController() {
     saveProviderConnection,
     checkProviderConnection,
     removeProviderConnection,
+    createFullAppBackup,
+    inspectFullAppBackup,
+    restoreFullAppBackup,
   };
 }

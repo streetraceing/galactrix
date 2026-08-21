@@ -1,5 +1,6 @@
 mod ai_context;
 mod app_settings;
+mod backup;
 mod db;
 mod dynamic_context;
 mod generation_context;
@@ -21,14 +22,16 @@ use std::collections::HashMap;
 
 use i18n::{keys, CommandError, CommandResult};
 use models::{
-    AppSettings, AppSnapshot, ChatConfigInput, ChatState, CreatedChat, EmbeddingProbeResult,
-    GalaxyItem, GalaxyItemInput, PromptPreviewInput, PromptPreviewResult, Provider,
-    ProviderImportInput, ProviderInput, ProviderModelResult, UsagePoint,
+    AppBackupArchive, AppBackupPreview, AppSettings, AppSnapshot, ChatConfigInput, ChatState,
+    CreatedChat, EmbeddingProbeResult, GalaxyItem, GalaxyItemInput, GenerationJob, GenerationMode,
+    PromptPreviewInput, PromptPreviewResult, Provider, ProviderImportInput, ProviderInput,
+    ProviderModelResult, UsagePoint,
 };
+use serde_json::Value;
 use tauri::{Manager, State};
 use uuid::Uuid;
 
-use runtime::{complete_cancellable, AppState};
+use runtime::{await_cancellable, complete_cancellable, AppState};
 
 #[cfg(target_os = "android")]
 #[export_name = "Java_ru_streetraceing_galactrix_MainActivity_initializeRustlsPlatformVerifier"]
@@ -44,6 +47,16 @@ pub extern "system" fn initialize_rustls_platform_verifier<'local>(
 #[tauri::command]
 fn cancel_generation(generation_id: String, state: State<'_, AppState>) -> CommandResult<bool> {
     state.cancel_generation(generation_id)
+}
+
+#[tauri::command]
+fn cancel_chat_generation(chat_id: String, state: State<'_, AppState>) -> CommandResult<usize> {
+    state.cancel_chat_generation(&chat_id)
+}
+
+#[tauri::command]
+fn list_generation_jobs(state: State<'_, AppState>) -> CommandResult<Vec<GenerationJob>> {
+    state.generation_jobs()
 }
 
 #[tauri::command]
@@ -66,6 +79,38 @@ fn get_app_snapshot(state: State<'_, AppState>) -> CommandResult<AppSnapshot> {
 fn get_usage_history(state: State<'_, AppState>) -> CommandResult<Vec<UsagePoint>> {
     let database = state.database.lock().map_err(CommandError::internal)?;
     db::usage_history(&database)
+}
+
+#[tauri::command]
+fn create_app_backup(
+    include_credentials: bool,
+    state: State<'_, AppState>,
+) -> CommandResult<AppBackupArchive> {
+    if state.has_active_generations()? {
+        return Err(CommandError::new(keys::BACKUP_ACTIVE_GENERATION));
+    }
+    let database = state.database.lock().map_err(CommandError::internal)?;
+    backup::create_archive(&database, include_credentials, env!("CARGO_PKG_VERSION"))
+}
+
+#[tauri::command]
+fn inspect_app_backup(archive: Value) -> CommandResult<AppBackupPreview> {
+    backup::inspect_archive(archive)
+}
+
+#[tauri::command]
+fn restore_app_backup(archive: Value, state: State<'_, AppState>) -> CommandResult<AppSnapshot> {
+    if state.has_active_generations()? {
+        return Err(CommandError::new(keys::BACKUP_ACTIVE_GENERATION));
+    }
+    let archive = backup::parse_archive(archive)?;
+    let database = state.database.lock().map_err(CommandError::internal)?;
+    backup::restore_archive(&database, &archive)?;
+    let mut snapshot = db::snapshot(&database, env!("CARGO_PKG_VERSION"))?;
+    for provider in &mut snapshot.providers {
+        provider.has_secret = secure_storage::has_provider_secret(&provider.id);
+    }
+    Ok(snapshot)
 }
 
 #[tauri::command]
@@ -281,6 +326,12 @@ async fn regenerate_message(
         db::invalidate_chat_ai_context(&database, &chat_id)?;
         (chat_id, provider, history, regeneration_mode)
     };
+    let (cancellation, _generation_lease) = state.register_generation(GenerationJob::new(
+        generation_id.clone(),
+        chat_id.clone(),
+        message_id.clone(),
+        GenerationMode::Regenerate,
+    ))?;
     let regeneration_instruction =
         response_rules::regeneration_instruction(regeneration_mode, response_language.as_deref());
     let query_text = full_history
@@ -288,17 +339,19 @@ async fn regenerate_message(
         .map(|message| message.content.as_str())
         .or(regeneration_instruction)
         .unwrap_or("Regenerate the response");
-    let prepared = generation_context::prepare(
-        &state,
-        &chat_id,
-        &full_history,
-        &provider,
-        query_text,
-        response_language.as_deref(),
+    let (prepared, cancellation) = await_cancellable(
+        generation_context::prepare(
+            &state,
+            &chat_id,
+            &full_history,
+            &provider,
+            query_text,
+            response_language.as_deref(),
+        ),
+        cancellation,
     )
     .await?;
     let secret = provider_support::saved_secret(&provider)?;
-    let cancellation = state.register_generation(&generation_id)?;
     let completion = complete_cancellable(
         &provider,
         secret.as_deref(),
@@ -309,7 +362,6 @@ async fn regenerate_message(
         cancellation,
     )
     .await;
-    state.finish_generation(&generation_id);
     let completion = match completion {
         Ok(completion) => completion,
         Err(error) => {
@@ -375,6 +427,12 @@ async fn continue_message(
         db::chat_generation_settings(&database, &chat_id)?.apply_to(&mut provider);
         (chat_id, provider, history)
     };
+    let (cancellation, _generation_lease) = state.register_generation(GenerationJob::new(
+        generation_id.clone(),
+        chat_id.clone(),
+        message_id.clone(),
+        GenerationMode::Continue,
+    ))?;
     let instruction = full_history
         .last()
         .is_some_and(|message| message.role == "assistant")
@@ -384,17 +442,19 @@ async fn continue_message(
         .map(|message| message.content.as_str())
         .or(instruction)
         .unwrap_or("Continue the conversation");
-    let prepared = generation_context::prepare(
-        &state,
-        &chat_id,
-        &full_history,
-        &provider,
-        query_text,
-        response_language.as_deref(),
+    let (prepared, cancellation) = await_cancellable(
+        generation_context::prepare(
+            &state,
+            &chat_id,
+            &full_history,
+            &provider,
+            query_text,
+            response_language.as_deref(),
+        ),
+        cancellation,
     )
     .await?;
     let secret = provider_support::saved_secret(&provider)?;
-    let cancellation = state.register_generation(&generation_id)?;
     let completion = complete_cancellable(
         &provider,
         secret.as_deref(),
@@ -405,7 +465,6 @@ async fn continue_message(
         cancellation,
     )
     .await;
-    state.finish_generation(&generation_id);
     let completion = match completion {
         Ok(completion) => completion,
         Err(error) => {
@@ -482,6 +541,12 @@ async fn send_chat_message(
     if assistant_message_id == user_message_id {
         assistant_message_id = Uuid::new_v4().to_string();
     }
+    let (cancellation, _generation_lease) = state.register_generation(GenerationJob::new(
+        generation_id.clone(),
+        chat_id.clone(),
+        assistant_message_id.clone(),
+        GenerationMode::Send,
+    ))?;
     let (provider, full_history) = {
         let database = state.database.lock().map_err(CommandError::internal)?;
         db::add_user_message(&database, &chat_id, &user_message_id, &content)?;
@@ -494,21 +559,20 @@ async fn send_chat_message(
         })()
         .map_err(persisted)?
     };
-    let prepared = generation_context::prepare(
-        &state,
-        &chat_id,
-        &full_history,
-        &provider,
-        &content,
-        response_language.as_deref(),
+    let (prepared, cancellation) = await_cancellable(
+        generation_context::prepare(
+            &state,
+            &chat_id,
+            &full_history,
+            &provider,
+            &content,
+            response_language.as_deref(),
+        ),
+        cancellation,
     )
     .await
     .map_err(persisted)?;
     let secret = provider_support::saved_secret(&provider).map_err(persisted)?;
-
-    let cancellation = state
-        .register_generation(&generation_id)
-        .map_err(persisted)?;
     let completion = complete_cancellable(
         &provider,
         secret.as_deref(),
@@ -519,7 +583,6 @@ async fn send_chat_message(
         cancellation,
     )
     .await;
-    state.finish_generation(&generation_id);
     let completion = match completion {
         Ok(completion) => completion,
         Err(error) => {
@@ -948,8 +1011,13 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_app_snapshot,
             get_usage_history,
+            create_app_backup,
+            inspect_app_backup,
+            restore_app_backup,
             get_chat_state,
             cancel_generation,
+            cancel_chat_generation,
+            list_generation_jobs,
             create_chat,
             update_chat_config,
             rename_chat,

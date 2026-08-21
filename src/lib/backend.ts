@@ -2,10 +2,12 @@ import { invoke } from '@tauri-apps/api/core';
 import { i18next } from '../i18n';
 import { getBackendErrorPayload, localizeBackendError } from '../i18n/backend';
 import type {
+  AppBackupPreview,
   AppSettings,
   AppSnapshot,
   ChatConfigInput,
   ChatState,
+  GenerationJob,
   GalaxyItem,
   EmbeddingProbeResult,
   GalaxyItemInput,
@@ -86,6 +88,23 @@ export async function loadUsageHistory(): Promise<UsagePoint[]> {
   return invokeBackend<UsagePoint[]>('get_usage_history');
 }
 
+export async function createAppBackup(includeCredentials: boolean) {
+  requireTauri();
+  return invokeBackend<unknown>('create_app_backup', { includeCredentials });
+}
+
+export async function inspectAppBackup(
+  archive: unknown,
+): Promise<AppBackupPreview> {
+  requireTauri();
+  return invokeBackend<AppBackupPreview>('inspect_app_backup', { archive });
+}
+
+export async function restoreAppBackup(archive: unknown): Promise<AppSnapshot> {
+  requireTauri();
+  return invokeBackend<AppSnapshot>('restore_app_backup', { archive });
+}
+
 export async function loadChatState(chatId: string): Promise<ChatState> {
   requireTauri();
   return invokeBackend<ChatState>('get_chat_state', { chatId });
@@ -94,6 +113,16 @@ export async function loadChatState(chatId: string): Promise<ChatState> {
 export async function cancelGeneration(generationId: string) {
   requireTauri();
   return invokeBackend<boolean>('cancel_generation', { generationId });
+}
+
+export async function cancelChatGeneration(chatId: string) {
+  requireTauri();
+  return invokeBackend<number>('cancel_chat_generation', { chatId });
+}
+
+export async function listGenerationJobs() {
+  requireTauri();
+  return invokeBackend<GenerationJob[]>('list_generation_jobs');
 }
 
 export async function createChat(input: ChatConfigInput) {
