@@ -757,6 +757,9 @@ fn built_in_style(preset: &str) -> &'static str {
         "telegram-human" => {
             "Write like an ordinary person in a private Telegram chat: mostly lowercase, short uneven fragments, contractions, colloquial wording, fewer full stops, and occasional believable abbreviations or minor typos. Do not sound polished, formal, or assistant-like. Do not intentionally damage every word or reduce readability. Keep personal names, place names, brands, acronyms, code, links, and identifiers correctly capitalized."
         }
+        "coherent-thought" => {
+            "Write each reply as one coherent, complete thought. Use line breaks sparingly and only when the topic, speaker, or scene beat genuinely changes. Prefer connected sentences inside one compact paragraph over stacking every sentence on a new line. Think through the full point before writing, keep the progression logical, and avoid fragmented message bursts."
+        }
         "roleplay" => {
             "Stay fully in character, preserve scene continuity, and balance dialogue with actions and sensory detail."
         }

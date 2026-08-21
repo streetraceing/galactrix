@@ -104,6 +104,7 @@ fn validate_galaxy_data(connection: &Connection, input: &GalaxyItemInput) -> Com
                 | "casual-lowercase"
                 | "roleplay-rich"
                 | "telegram-human"
+                | "coherent-thought"
                 | "short-messages"
                 | "long-messages"
                 | "roleplay"
@@ -111,6 +112,16 @@ fn validate_galaxy_data(connection: &Connection, input: &GalaxyItemInput) -> Com
                 | "custom"
         ) {
             return Err(CommandError::new(keys::GALAXY_STYLE_PRESET_UNKNOWN));
+        }
+
+        if let Some(style_id) = input
+            .data
+            .get("styleItemId")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+        {
+            validate_optional_galaxy(connection, Some(style_id), "style")?;
         }
 
         if preset == "custom" {
@@ -133,6 +144,15 @@ fn validate_galaxy_data(connection: &Connection, input: &GalaxyItemInput) -> Com
                     .ok_or_else(|| CommandError::new(keys::GALAXY_PROMPT_SET_REFERENCE_INVALID))?;
                 validate_optional_galaxy(connection, Some(id), "prompt-set")?;
             }
+        }
+
+        if input
+            .data
+            .get("greetingMessage")
+            .and_then(Value::as_str)
+            .is_some_and(|value| value.chars().count() > 12_000)
+        {
+            return Err(CommandError::new(keys::CHAT_GREETING_TOO_LONG));
         }
     }
 

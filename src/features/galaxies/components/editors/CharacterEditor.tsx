@@ -1,7 +1,6 @@
-import { Label, ListBox, Select } from '@heroui/react';
+import { Label, ListBox, Select, TextArea } from '@heroui/react';
 import type { Key } from 'react';
 import type { CharacterData, GalaxyItem } from '../../../../types';
-import { RequiredMark } from '../../../../components/ui/RequiredMark';
 import { stylePresets } from '../../model';
 import { DefinitionSectionsEditor } from './DefinitionSectionsEditor';
 import { EditorSection } from './EditorSection';
@@ -21,9 +20,6 @@ export function CharacterEditor({
   onChange: (data: CharacterData) => void;
 }) {
   const { t } = useTranslation('galaxies');
-  const selectedStylePreset =
-    stylePresets.find((preset) => preset.id === data.stylePreset) ??
-    stylePresets[0];
   const patch = <K extends keyof CharacterData>(
     key: K,
     value: CharacterData[K],
@@ -48,8 +44,6 @@ export function CharacterEditor({
                 onChange({
                   ...data,
                   stylePreset,
-                  styleItemId:
-                    stylePreset === 'custom' ? data.styleItemId : undefined,
                 });
               }}
             >
@@ -59,19 +53,78 @@ export function CharacterEditor({
               </Select.Trigger>
               <Select.Popover>
                 <ListBox>
-                  {stylePresets.map((preset) => (
+                  {stylePresets
+                    .filter((preset) => preset.id !== 'custom')
+                    .map((preset) => (
+                      <ListBox.Item
+                        key={preset.id}
+                        id={preset.id}
+                        textValue={t(preset.labelKey)}
+                      >
+                        <span className="min-w-0 flex-1">
+                          <strong className="block text-sm font-medium">
+                            {t(preset.labelKey)}
+                          </strong>
+                          <span className="mt-0.5 block text-xs leading-4 text-muted">
+                            {t(preset.descriptionKey)}
+                          </span>
+                        </span>
+                        <ListBox.ItemIndicator />
+                      </ListBox.Item>
+                    ))}
+                </ListBox>
+              </Select.Popover>
+            </Select>
+          </div>
+
+          <div className="flex flex-col gap-1.5 rounded-xl border border-separator bg-background/25 p-3 sm:p-4">
+            <div>
+              <Label>{t('characterEditor.savedStyle')}</Label>
+              <p className="mt-1 text-xs leading-5 text-muted">
+                {t('characterEditor.savedStyleDescription')}
+              </p>
+            </div>
+            <Select
+              fullWidth
+              variant="secondary"
+              value={data.styleItemId ?? NONE_KEY}
+              placeholder={t('characterEditor.selectAStyle')}
+              onChange={(key: Key | Key[] | null) => {
+                if (Array.isArray(key)) return;
+                const value = key == null ? NONE_KEY : String(key);
+                patch('styleItemId', value === NONE_KEY ? undefined : value);
+              }}
+            >
+              <Select.Trigger>
+                <Select.Value />
+                <Select.Indicator />
+              </Select.Trigger>
+              <Select.Popover>
+                <ListBox>
+                  <ListBox.Item
+                    id={NONE_KEY}
+                    textValue={t('characterEditor.noStyleSelected')}
+                  >
+                    <span className="text-muted">
+                      {t('characterEditor.noStyleSelected')}
+                    </span>
+                    <ListBox.ItemIndicator />
+                  </ListBox.Item>
+                  {styles.map((style) => (
                     <ListBox.Item
-                      key={preset.id}
-                      id={preset.id}
-                      textValue={t(preset.labelKey)}
+                      key={style.id}
+                      id={style.id}
+                      textValue={style.name}
                     >
                       <span className="min-w-0 flex-1">
-                        <strong className="block text-sm font-medium">
-                          {t(preset.labelKey)}
+                        <strong className="block truncate text-sm font-medium">
+                          {style.name}
                         </strong>
-                        <span className="mt-0.5 block text-xs leading-4 text-muted">
-                          {t(preset.descriptionKey)}
-                        </span>
+                        {style.description ? (
+                          <span className="mt-0.5 block truncate text-xs text-muted">
+                            {style.description}
+                          </span>
+                        ) : null}
                       </span>
                       <ListBox.ItemIndicator />
                     </ListBox.Item>
@@ -79,78 +132,28 @@ export function CharacterEditor({
                 </ListBox>
               </Select.Popover>
             </Select>
-            <p className="text-xs leading-5 text-muted">
-              {t(selectedStylePreset.descriptionKey)}
-            </p>
+            {styles.length === 0 ? (
+              <p className="text-xs leading-5 text-muted">
+                {t('characterEditor.firstCreateAStyleObjectInTheLibrary')}
+              </p>
+            ) : null}
           </div>
-
-          {data.stylePreset === 'custom' ? (
-            <div className="flex flex-col gap-1.5 rounded-xl border border-separator bg-background/25 p-3 sm:p-4">
-              <div>
-                <Label>
-                  {t('characterEditor.savedStyle')}
-                  <RequiredMark />
-                </Label>
-                <p className="mt-1 text-xs leading-5 text-muted">
-                  {t('characterEditor.savedStyleDescription')}
-                </p>
-              </div>
-              <Select
-                fullWidth
-                variant="secondary"
-                value={data.styleItemId ?? NONE_KEY}
-                placeholder={t('characterEditor.selectAStyle')}
-                onChange={(key: Key | Key[] | null) => {
-                  if (Array.isArray(key)) return;
-                  const value = key == null ? NONE_KEY : String(key);
-                  patch('styleItemId', value === NONE_KEY ? undefined : value);
-                }}
-              >
-                <Select.Trigger>
-                  <Select.Value />
-                  <Select.Indicator />
-                </Select.Trigger>
-                <Select.Popover>
-                  <ListBox>
-                    <ListBox.Item
-                      id={NONE_KEY}
-                      textValue={t('characterEditor.noStyleSelected')}
-                    >
-                      <span className="text-muted">
-                        {t('characterEditor.noStyleSelected')}
-                      </span>
-                      <ListBox.ItemIndicator />
-                    </ListBox.Item>
-                    {styles.map((style) => (
-                      <ListBox.Item
-                        key={style.id}
-                        id={style.id}
-                        textValue={style.name}
-                      >
-                        <span className="min-w-0 flex-1">
-                          <strong className="block truncate text-sm font-medium">
-                            {style.name}
-                          </strong>
-                          {style.description ? (
-                            <span className="mt-0.5 block truncate text-xs text-muted">
-                              {style.description}
-                            </span>
-                          ) : null}
-                        </span>
-                        <ListBox.ItemIndicator />
-                      </ListBox.Item>
-                    ))}
-                  </ListBox>
-                </Select.Popover>
-              </Select>
-              {styles.length === 0 ? (
-                <p className="text-xs leading-5 text-muted">
-                  {t('characterEditor.firstCreateAStyleObjectInTheLibrary')}
-                </p>
-              ) : null}
-            </div>
-          ) : null}
         </div>
+      </EditorSection>
+
+      <EditorSection
+        title={t('characterEditor.greetingMessage')}
+        description={t('characterEditor.greetingMessageDescription')}
+      >
+        <TextArea
+          fullWidth
+          variant="secondary"
+          rows={3}
+          maxLength={12_000}
+          value={data.greetingMessage ?? ''}
+          placeholder={t('characterEditor.greetingMessagePlaceholder')}
+          onChange={(event) => patch('greetingMessage', event.target.value)}
+        />
       </EditorSection>
 
       <EditorSection

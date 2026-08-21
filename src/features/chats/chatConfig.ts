@@ -11,9 +11,12 @@ import { clonePromptConfig, defaultPromptConfig } from './promptConfig';
 export function createChatConfig(defaultTitle: string): ChatConfigInput {
   return {
     title: defaultTitle,
+    autoTitle: true,
+    automaticTitleBase: defaultTitle,
     greetingMessage: '',
     worldbookIds: [],
     promptConfig: clonePromptConfig(defaultPromptConfig),
+    generationSettings: {},
     moduleOverrides: {},
   };
 }
@@ -21,6 +24,8 @@ export function createChatConfig(defaultTitle: string): ChatConfigInput {
 export function chatConfigFromChat(chat: Chat): ChatConfigInput {
   return {
     title: chat.title,
+    autoTitle: chat.autoTitle,
+    greetingMessage: chat.greetingMessage ?? '',
     providerId: chat.providerId,
     personaId: chat.personaId,
     characterId: chat.characterId,
@@ -28,6 +33,7 @@ export function chatConfigFromChat(chat: Chat): ChatConfigInput {
     universeId: chat.universeId,
     worldbookIds: [...chat.worldbookIds],
     promptConfig: clonePromptConfig(chat.promptConfig),
+    generationSettings: { ...chat.generationSettings },
     moduleOverrides: { ...(chat.moduleOverrides ?? {}) },
   };
 }
@@ -49,22 +55,27 @@ export function automaticChatTitle(
   characterId: string | undefined,
   chats: readonly Chat[],
   galaxyItems: readonly GalaxyItem[],
+  excludeChatId?: string,
+  fallbackTitle = 'Chat',
 ) {
   const character = characterId
     ? galaxyItems.find(
         (item) => item.kind === 'character' && item.id === characterId,
       )
     : undefined;
-  const existingCount = chats.filter((chat) =>
-    characterId ? chat.characterId === characterId : !chat.characterId,
+  const existingCount = chats.filter(
+    (chat) =>
+      chat.id !== excludeChatId &&
+      (characterId ? chat.characterId === characterId : !chat.characterId),
   ).length;
-  const rawBase = character?.name.trim() || 'Chat';
+  const rawBase = character?.name.trim() || fallbackTitle;
   let sequence = existingCount + 1;
 
   while (true) {
     const suffix = ` #${sequence}`;
     const maxBaseCharacters = Math.max(0, 120 - [...suffix].length);
-    const base = [...rawBase].slice(0, maxBaseCharacters).join('') || 'Chat';
+    const base =
+      [...rawBase].slice(0, maxBaseCharacters).join('') || fallbackTitle;
     const title = `${base}${suffix}`;
     const collides = chats.some(
       (chat) =>
@@ -116,7 +127,7 @@ export function effectiveStyleItemId(
   );
   if (!character) return undefined;
   const data = character.data as CharacterData;
-  return data.stylePreset === 'custom' ? data.styleItemId : undefined;
+  return data.styleItemId;
 }
 
 export function normalizeRecentMessageLimit(rawValue: string) {

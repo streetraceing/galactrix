@@ -245,6 +245,14 @@
     contain: layout style;
   }
 
+  .chat-message-virtual-item[data-related='true'] {
+    @apply z-20;
+  }
+
+  .chat-message-virtual-item[data-related='true'] .message-surface {
+    @apply ring-2 ring-accent/70 shadow-overlay;
+  }
+
   .chat-message-scroller {
     @apply overflow-y-scroll overscroll-contain;
     overflow-anchor: none;
@@ -1794,8 +1802,8 @@
 
 @keyframes galactrix-tab-swipe-next {
   from {
-    transform: translate3d(clamp(1.75rem, 9vw, 3.5rem), 0, 0);
-    opacity: 0.88;
+    transform: translate3d(clamp(0.5rem, 3vw, 1.25rem), 0, 0);
+    opacity: 0.72;
   }
   to {
     transform: translate3d(0, 0, 0);
@@ -1805,13 +1813,70 @@
 
 @keyframes galactrix-tab-swipe-previous {
   from {
-    transform: translate3d(calc(clamp(1.75rem, 9vw, 3.5rem) * -1), 0, 0);
-    opacity: 0.88;
+    transform: translate3d(calc(clamp(0.5rem, 3vw, 1.25rem) * -1), 0, 0);
+    opacity: 0.72;
   }
   to {
     transform: translate3d(0, 0, 0);
     opacity: 1;
   }
+}
+
+@keyframes galactrix-tab-view-old-next {
+  to {
+    transform: translate3d(-2rem, 0, 0);
+    opacity: 0;
+  }
+}
+
+@keyframes galactrix-tab-view-old-previous {
+  to {
+    transform: translate3d(2rem, 0, 0);
+    opacity: 0;
+  }
+}
+
+@keyframes galactrix-tab-view-new-next {
+  from {
+    transform: translate3d(2rem, 0, 0);
+    opacity: 0;
+  }
+}
+
+@keyframes galactrix-tab-view-new-previous {
+  from {
+    transform: translate3d(-2rem, 0, 0);
+    opacity: 0;
+  }
+}
+
+::view-transition-group(galactrix-tab-content) {
+  animation-duration: var(--motion-emphasis);
+  animation-timing-function: var(--motion-ease-enter);
+}
+
+html[data-tab-transition-direction='next']
+  ::view-transition-old(galactrix-tab-content) {
+  animation: galactrix-tab-view-old-next var(--motion-emphasis)
+    var(--motion-ease-enter) both;
+}
+
+html[data-tab-transition-direction='next']
+  ::view-transition-new(galactrix-tab-content) {
+  animation: galactrix-tab-view-new-next var(--motion-emphasis)
+    var(--motion-ease-enter) both;
+}
+
+html[data-tab-transition-direction='previous']
+  ::view-transition-old(galactrix-tab-content) {
+  animation: galactrix-tab-view-old-previous var(--motion-emphasis)
+    var(--motion-ease-enter) both;
+}
+
+html[data-tab-transition-direction='previous']
+  ::view-transition-new(galactrix-tab-content) {
+  animation: galactrix-tab-view-new-previous var(--motion-emphasis)
+    var(--motion-ease-enter) both;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -1873,12 +1938,12 @@
   }
 
   .page-scroll[data-tab-swipe-commit='next'] > .page-container {
-    animation: galactrix-tab-swipe-next var(--motion-slow)
+    animation: galactrix-tab-swipe-next var(--motion-emphasis)
       var(--motion-ease-enter) both;
   }
 
   .page-scroll[data-tab-swipe-commit='previous'] > .page-container {
-    animation: galactrix-tab-swipe-previous var(--motion-slow)
+    animation: galactrix-tab-swipe-previous var(--motion-emphasis)
       var(--motion-ease-enter) both;
   }
 
@@ -1895,12 +1960,12 @@
   }
 
   .tab-swipe-host[data-tab-swipe-commit='next'] .tabs__panel {
-    animation: galactrix-tab-swipe-next var(--motion-slow)
+    animation: galactrix-tab-swipe-next var(--motion-emphasis)
       var(--motion-ease-enter) both;
   }
 
   .tab-swipe-host[data-tab-swipe-commit='previous'] .tabs__panel {
-    animation: galactrix-tab-swipe-previous var(--motion-slow)
+    animation: galactrix-tab-swipe-previous var(--motion-emphasis)
       var(--motion-ease-enter) both;
   }
 
@@ -1979,4 +2044,17 @@
   .typing-dot {
     @apply animate-none opacity-70;
   }
+}
+
+textarea {
+  field-sizing: content;
+  min-block-size: 5.5rem;
+  max-block-size: min(52dvh, 32rem);
+  overflow-y: auto;
+  resize: vertical;
+}
+
+.chat-composer textarea {
+  min-block-size: 3rem;
+  resize: none;
 }

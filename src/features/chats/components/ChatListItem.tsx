@@ -13,6 +13,7 @@ import { ChatActions } from './ChatActions';
 
 function ChatListItemComponent({
   chat,
+  matchPreview,
   character,
   isActive,
   onSelect,
@@ -23,6 +24,7 @@ function ChatListItemComponent({
   onStartSelection,
 }: {
   chat: Chat;
+  matchPreview?: string;
   character?: GalaxyItem;
   isActive: boolean;
   onSelect: (id: string) => void;
@@ -96,7 +98,7 @@ function ChatListItemComponent({
             </span>
             <span className="mt-1 flex min-w-0 items-center gap-2 text-xs text-muted">
               <span className="min-w-0 flex-1 truncate">
-                {markdownToPreview(chat.preview) ||
+                {markdownToPreview(matchPreview ?? chat.preview) ||
                   t('chatListItem.noMessagesYet')}
               </span>
               <span className="shrink-0">{relativeUpdatedAt}</span>

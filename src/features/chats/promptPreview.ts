@@ -151,10 +151,7 @@ export function promptPreviewFromDraft(
       const data = draft.data as CharacterData;
       input.character = draft;
       input.characterName = draft.name;
-      input.characterStyle =
-        data.stylePreset === 'custom'
-          ? findInput(items, data.styleItemId, 'style')
-          : undefined;
+      input.characterStyle = findInput(items, data.styleItemId, 'style');
       input.promptSets = selectedPromptSets(items, [], draft);
       break;
     }

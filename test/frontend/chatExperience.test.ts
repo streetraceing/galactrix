@@ -202,7 +202,8 @@ test('new chats can start with an assistant greeting', async () => {
 
   assert.match(chatConfig, /greetingMessage: ''/);
   assert.match(modal, /<TextArea[\s\S]*chat-greeting/);
-  assert.match(modal, /chat \? undefined : greetingMessage \|\| undefined/);
+  assert.match(modal, /greetingMessage: greetingMessage \|\| undefined/);
+  assert.match(modal, /chat\s*\?\s*chatConfigFromChat\(chat\)/);
   assert.match(database, /input[\s\S]*greeting_message/);
   assert.match(database, /'assistant'/);
   assert.match(database, /message_variants/);

@@ -66,6 +66,11 @@ export const stylePresets = [
     descriptionKey: 'style.description.telegramHuman',
   },
   {
+    id: 'coherent-thought',
+    labelKey: 'style.coherentThought',
+    descriptionKey: 'style.description.coherentThought',
+  },
+  {
     id: 'roleplay',
     labelKey: 'style.roleplay',
     descriptionKey: 'style.description.roleplay',
@@ -103,6 +108,7 @@ export function emptyData(kind: GalaxyKind): GalaxyItemData {
     case 'character':
       return {
         definitionSections: [],
+        greetingMessage: '',
         stylePreset: 'neutral',
         promptSetIds: [],
       } satisfies CharacterData;
@@ -174,10 +180,8 @@ export function normalizeData(
         avatar: imageValue(value.avatar),
         definitionSections: normalizeSections(value.definitionSections),
         stylePreset,
-        styleItemId:
-          stylePreset === 'custom'
-            ? stringValue(value.styleItemId) || undefined
-            : undefined,
+        styleItemId: stringValue(value.styleItemId) || undefined,
+        greetingMessage: stringValue(value.greetingMessage) || undefined,
         promptSetIds: stringArray(value.promptSetIds),
       } satisfies CharacterData;
     }

@@ -68,6 +68,7 @@ import {
   selectMessageVariantInSnapshot,
   sortChats,
 } from '../features/chats/chatState';
+import { chatConfigFromChat } from '../features/chats/chatConfig';
 import type { ActiveMessageGeneration } from '../features/chats/types';
 
 type MessageGenerationCommand = (
@@ -326,6 +327,11 @@ export function useAppController() {
       const createdAt = Math.floor(Date.now() / 1_000);
       activeGenerationRef.current = generationId;
       cancelRequestedRef.current = false;
+      setActiveMessageGeneration({
+        chatId,
+        messageId: assistantMessageId,
+        mode: 'send',
+      });
       setSnapshot((current) => ({
         ...current,
         chats: sortChats(
@@ -389,6 +395,7 @@ export function useAppController() {
         if (activeGenerationRef.current === generationId) {
           activeGenerationRef.current = null;
           cancelRequestedRef.current = false;
+          setActiveMessageGeneration(null);
           setSending(false);
         }
       }
@@ -421,8 +428,26 @@ export function useAppController() {
       includeMessages: boolean,
       input?: ChatConfigInput,
     ) => {
-      const title = input?.title.trim() ?? '';
-      const created = await cloneChat(chatId, title, includeMessages, input);
+      const sourceChat = snapshot.chats.find((chat) => chat.id === chatId);
+      const cloneInput =
+        input ??
+        (sourceChat
+          ? {
+              ...chatConfigFromChat(sourceChat),
+              title: '',
+              autoTitle: true,
+              automaticTitleBase: i18next.t('setup.automaticTitleBase', {
+                ns: 'chats',
+              }),
+            }
+          : undefined);
+      const title = cloneInput?.title.trim() ?? '';
+      const created = await cloneChat(
+        chatId,
+        title,
+        includeMessages,
+        cloneInput,
+      );
       await refreshChat(created.id);
       setActiveChatId(created.id);
       setIsChatOpen(true);
@@ -430,7 +455,7 @@ export function useAppController() {
       setActiveTab('chats');
       haptic();
     },
-    [haptic, refreshChat, rememberTabNavigation],
+    [haptic, refreshChat, rememberTabNavigation, snapshot.chats],
   );
 
   const branchFromMessage = useCallback(

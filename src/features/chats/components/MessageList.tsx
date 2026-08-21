@@ -56,7 +56,11 @@ import {
   MESSAGE_VIRTUALIZATION_THRESHOLD,
   messageVirtualRange,
 } from '../messageWindow';
-import { formatMessageTime } from '../messageTime';
+import {
+  formatMessageDate,
+  formatMessageTime,
+  messageDateKey,
+} from '../messageTime';
 import {
   isHorizontalSwipeIntent,
   mobileSwipeDragOffset,
@@ -101,7 +105,8 @@ const TOUCH_SELECTION_MOVE_THRESHOLD = 10;
 const MESSAGE_ENTRY_ANIMATION_MS = MOTION_DURATION_MS.standard;
 const SCROLL_TO_BOTTOM_RELEASE_MS = 1_400;
 const CHAT_LAYOUT_BOTTOM_LOCK_MS = 420;
-const USER_SCROLL_IDLE_MS = 180;
+const USER_SCROLL_IDLE_MS = 360;
+const MESSAGE_DATE_SEPARATOR_HEIGHT = 38;
 
 type MessageSelectionGesture = {
   pointerId: number;
@@ -1142,7 +1147,7 @@ function MessageListComponent({
     : 'empty';
   const estimatedMessageHeights = useMemo(() => {
     if (!virtualizationEnabled) return [];
-    return messages.map((message) => {
+    return messages.map((message, index) => {
       const previousSignature = messageMeasurementSignaturesRef.current.get(
         message.id,
       );
@@ -1155,7 +1160,13 @@ function MessageListComponent({
         previousSignature?.activeVariantIndex !== message.activeVariantIndex ||
         previousSignature?.contentLength !== message.content.length
       ) {
-        estimated = estimateMessageHeight(message, isMobile, wide);
+        const startsNewDay =
+          index === 0 ||
+          messageDateKey(messages[index - 1].createdAt) !==
+            messageDateKey(message.createdAt);
+        estimated =
+          estimateMessageHeight(message, isMobile, wide) +
+          (startsNewDay ? MESSAGE_DATE_SEPARATOR_HEIGHT : 0);
         estimatedMessageHeightsRef.current.set(message.id, estimated);
         messageMeasurementSignaturesRef.current.set(message.id, {
           mobile: isMobile,
@@ -2401,6 +2412,8 @@ function MessageListComponent({
     : -1;
   const rewindRemovedCount =
     rewindMessageIndex >= 0 ? messages.length - rewindMessageIndex - 1 : 0;
+  const relatedModalMessageId =
+    editing?.id ?? deleting?.id ?? rewinding?.id ?? historyMessageId;
 
   const selectAllMessages = useCallback(() => {
     setSelectedMessageIds(new Set(messages.map((message) => message.id)));
@@ -2550,13 +2563,16 @@ function MessageListComponent({
                 }
                 style={
                   virtualizationEnabled
-                    ? visibleEnd === messages.length
-                      ? { bottom: 0 }
-                      : { top: messageOffsets[visibleStart] ?? 0 }
+                    ? { top: messageOffsets[visibleStart] ?? 0 }
                     : undefined
                 }
               >
                 {visibleMessages.map((message, visibleIndex) => {
+                  const messageIndex = visibleStart + visibleIndex;
+                  const startsNewDay =
+                    messageIndex === 0 ||
+                    messageDateKey(messages[messageIndex - 1].createdAt) !==
+                      messageDateKey(message.createdAt);
                   const isUser = message.role === 'user';
                   const isSelected = selectedMessageIds.has(message.id);
                   const displayName = isUser
@@ -2592,6 +2608,9 @@ function MessageListComponent({
                     <div
                       data-message-id={message.id}
                       data-selected={isSelected}
+                      data-related={
+                        relatedModalMessageId === message.id || undefined
+                      }
                       className="chat-message-virtual-item relative isolate rounded-2xl"
                     >
                       <div className="relative z-10">
@@ -2767,6 +2786,18 @@ function MessageListComponent({
                           : ''
                       } ${isLastVisualMessage ? 'pb-0' : 'pb-3 sm:pb-4'}`}
                     >
+                      {startsNewDay ? (
+                        <div className="message-date-separator mb-3 flex items-center gap-3 text-xs text-muted sm:mb-4">
+                          <span className="h-px flex-1 bg-separator" />
+                          <time dateTime={messageDateKey(message.createdAt)}>
+                            {formatMessageDate(
+                              message.createdAt,
+                              i18n.resolvedLanguage ?? i18n.language,
+                            )}
+                          </time>
+                          <span className="h-px flex-1 bg-separator" />
+                        </div>
+                      ) : null}
                       <div className="message-presence-inner">
                         {isMobile && !readOnly ? (
                           <SwipeableMessage

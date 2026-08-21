@@ -124,5 +124,6 @@
   "selection.checkSummary": "Доступно: {{value1}}, с ошибками: {{value2}}",
   "selection.deleteSelectedTitle": "Удалить выбранные подключения ({{count}})?",
   "selection.deleteSelectedDescription": "Подключения будут удалены. Сохранённые для них ключи также перестанут использоваться.",
-  "selection.deletedCount": "Удалено подключений: {{count}}"
+  "selection.deletedCount": "Удалено подключений: {{count}}",
+  "providerEditorModal.advancedGenerationDefaults": "Расширенные параметры генерации"
 }

@@ -39,7 +39,8 @@ test('virtual scrolling updates only bounded message windows', async () => {
   assert.match(source, /height: totalVirtualHeight/);
   assert.match(source, /chat-message-virtual-window/);
   assert.match(source, /messageOffsets\[visibleStart\]/);
-  assert.match(source, /visibleEnd === messages\.length[\s\S]*bottom: 0/);
+  assert.match(source, /top: messageOffsets\[visibleStart\] \?\? 0/);
+  assert.doesNotMatch(source, /bottom: 0/);
   assert.match(source, /absolute inset-x-0 flex flex-col/);
   assert.match(source, /data-virtual-message-id/);
   assert.match(source, /new ResizeObserver/);

@@ -482,6 +482,7 @@ export function ChatsScreen({
       {!chatMaximized ? (
         <ChatSidebar
           chats={chats}
+          messages={messages}
           galaxyItems={galaxyItems}
           activeChatId={activeChat?.id ?? ''}
           width={chatSidebarWidth}
@@ -558,7 +559,10 @@ export function ChatsScreen({
                     userAvatar={
                       galaxyItemAvatar(canvasPersona) ?? profileAvatar
                     }
-                    sending={sending && canvasChat.id === activeChat.id}
+                    sending={
+                      sending &&
+                      activeMessageGeneration?.chatId === canvasChat.id
+                    }
                     activeMessageGeneration={activeMessageGeneration}
                     viewActive={!isSinglePane || isChatOpen}
                     viewMode={chatViewMode}
@@ -615,7 +619,7 @@ export function ChatsScreen({
                     key={canvasChat.id}
                     chatId={canvasChat.id}
                     provider={canvasProvider}
-                    sending={sending && canvasChat.id === activeChat.id}
+                    sending={sending}
                     sendOnEnter={sendOnEnter}
                     focusAfterSend={focusComposerAfterSend}
                     focusAfterActionRequest={focusComposerRequest}

@@ -276,12 +276,10 @@ async fn regenerate_message(
             response_rules::regeneration_mode(history.last().map(|message| message.role.as_str()))
                 .ok_or_else(|| CommandError::new(keys::MESSAGE_USER_BEFORE_ASSISTANT_MISSING))?;
         let provider_id = db::chat_provider_id(&database, &chat_id)?;
-        (
-            chat_id,
-            db::get_provider(&database, &provider_id)?,
-            history,
-            regeneration_mode,
-        )
+        let mut provider = db::get_provider(&database, &provider_id)?;
+        db::chat_generation_settings(&database, &chat_id)?.apply_to(&mut provider);
+        db::invalidate_chat_ai_context(&database, &chat_id)?;
+        (chat_id, provider, history, regeneration_mode)
     };
     let regeneration_instruction =
         response_rules::regeneration_instruction(regeneration_mode, response_language.as_deref());
@@ -370,15 +368,22 @@ async fn continue_message(
     let (chat_id, provider, full_history) = {
         let database = state.database.lock().map_err(CommandError::internal)?;
         db::ensure_message_chat_mutable(&database, &message_id)?;
-        let (chat_id, history) = db::messages_through_message(&database, &message_id)?;
+        let chat_id = db::message_chat_id(&database, &message_id, "assistant")?;
+        let history = db::messages_for_chat(&database, &chat_id)?;
         let provider_id = db::chat_provider_id(&database, &chat_id)?;
-        (chat_id, db::get_provider(&database, &provider_id)?, history)
+        let mut provider = db::get_provider(&database, &provider_id)?;
+        db::chat_generation_settings(&database, &chat_id)?.apply_to(&mut provider);
+        (chat_id, provider, history)
     };
-    let instruction = response_rules::continuation_instruction(response_language.as_deref());
+    let instruction = full_history
+        .last()
+        .is_some_and(|message| message.role == "assistant")
+        .then(|| response_rules::continuation_instruction(response_language.as_deref()));
     let query_text = full_history
         .last()
         .map(|message| message.content.as_str())
-        .unwrap_or(instruction);
+        .or(instruction)
+        .unwrap_or("Continue the conversation");
     let prepared = generation_context::prepare(
         &state,
         &chat_id,
@@ -395,7 +400,7 @@ async fn continue_message(
         secret.as_deref(),
         &prepared.history,
         prepared.system_prompt.as_deref(),
-        Some(instruction),
+        instruction,
         &prepared.retry,
         cancellation,
     )
@@ -482,7 +487,8 @@ async fn send_chat_message(
         db::add_user_message(&database, &chat_id, &user_message_id, &content)?;
         (|| -> CommandResult<_> {
             let provider_id = db::chat_provider_id(&database, &chat_id)?;
-            let provider = db::get_provider(&database, &provider_id)?;
+            let mut provider = db::get_provider(&database, &provider_id)?;
+            db::chat_generation_settings(&database, &chat_id)?.apply_to(&mut provider);
             let history = db::messages_for_chat(&database, &chat_id)?;
             Ok((provider, history))
         })()

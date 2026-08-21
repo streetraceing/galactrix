@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
+import { flushSync } from 'react-dom';
 import { isMobilePlatform } from '../lib/platform';
 import { animationsEnabled, MOTION_DURATION_MS } from '../lib/motion';
 import {
@@ -39,11 +40,10 @@ const SWIPE_IGNORE_SELECTOR = [
 ].join(',');
 
 const TAB_SWIPE_VISUAL_MIN_PX = 36;
-const TAB_SWIPE_VISUAL_MAX_PX = 72;
-const TAB_SWIPE_VISUAL_WIDTH_RATIO = 0.18;
-const TAB_SWIPE_FOLLOW_RATIO = 0.72;
-const TAB_SWIPE_EDGE_RESISTANCE = 0.32;
-const TAB_SWIPE_COMMIT_ANIMATION_MS = MOTION_DURATION_MS.slow;
+const TAB_SWIPE_VISUAL_MAX_PX = 64;
+const TAB_SWIPE_VISUAL_WIDTH_RATIO = 0.16;
+const TAB_SWIPE_FOLLOW_RATIO = 0.64;
+const TAB_SWIPE_COMMIT_ANIMATION_MS = MOTION_DURATION_MS.emphasis;
 
 type SwipeGesture = {
   touchId: number;
@@ -76,11 +76,7 @@ function shouldIgnoreSwipeStart(target: EventTarget | null, boundary: Element) {
   return false;
 }
 
-function visualSwipeOffset(
-  dx: number,
-  atBoundary: boolean,
-  containerWidth: number,
-) {
+function visualSwipeOffset(dx: number, containerWidth: number) {
   const maxOffset = Math.min(
     TAB_SWIPE_VISUAL_MAX_PX,
     Math.max(
@@ -88,10 +84,63 @@ function visualSwipeOffset(
       containerWidth * TAB_SWIPE_VISUAL_WIDTH_RATIO,
     ),
   );
-  const resistance = atBoundary ? TAB_SWIPE_EDGE_RESISTANCE : 1;
-  const distance = Math.abs(dx) * TAB_SWIPE_FOLLOW_RATIO * resistance;
+  const distance = Math.abs(dx) * TAB_SWIPE_FOLLOW_RATIO;
   const easedDistance = maxOffset * (1 - Math.exp(-distance / maxOffset));
   return Math.sign(dx) * easedDistance;
+}
+
+type ViewTransitionDocument = Document & {
+  startViewTransition?: (update: () => void) => {
+    finished: Promise<void>;
+  };
+};
+
+function transitionSurface(container: HTMLElement) {
+  return container.classList.contains('page-scroll')
+    ? container.querySelector<HTMLElement>(':scope > .page-container')
+    : container.querySelector<HTMLElement>('.tabs__panel');
+}
+
+function commitSelection<T extends string>(
+  container: HTMLElement,
+  nextKey: T,
+  direction: 'next' | 'previous',
+  onSelectionChange: (key: T) => void,
+) {
+  const documentWithTransition = document as ViewTransitionDocument;
+  const startViewTransition = documentWithTransition.startViewTransition;
+  if (!startViewTransition || !animationsEnabled()) {
+    clearSwipeVisual(container);
+    container.dataset.tabSwipeCommit = direction;
+    onSelectionChange(nextKey);
+    return;
+  }
+
+  const oldSurface = transitionSurface(container);
+  if (!oldSurface) {
+    clearSwipeVisual(container);
+    onSelectionChange(nextKey);
+    return;
+  }
+
+  oldSurface.style.viewTransitionName = 'galactrix-tab-content';
+  document.documentElement.dataset.tabTransitionDirection = direction;
+  container.dataset.tabSwipeViewTransition = 'true';
+  const transition = startViewTransition.call(documentWithTransition, () => {
+    clearSwipeVisual(container);
+    flushSync(() => onSelectionChange(nextKey));
+    const nextSurface = transitionSurface(container);
+    if (nextSurface) {
+      nextSurface.style.viewTransitionName = 'galactrix-tab-content';
+    }
+  });
+
+  void transition.finished.finally(() => {
+    oldSurface.style.removeProperty('view-transition-name');
+    transitionSurface(container)?.style.removeProperty('view-transition-name');
+    delete document.documentElement.dataset.tabTransitionDirection;
+    delete container.dataset.tabSwipeViewTransition;
+  });
 }
 
 function scrollSelectedTabIntoView(container: HTMLElement) {
@@ -191,7 +240,10 @@ export function useSwipeableTabs<T extends string>({
     const nextIndex = keysRef.current.indexOf(selectedKey);
     if (previousIndex < 0 || nextIndex < 0) return;
 
-    if (!container.dataset.tabSwipeCommit) {
+    if (
+      !container.dataset.tabSwipeCommit &&
+      !container.dataset.tabSwipeViewTransition
+    ) {
       container.dataset.tabSwipeCommit =
         nextIndex > previousIndex ? 'next' : 'previous';
     }
@@ -300,14 +352,11 @@ export function useSwipeableTabs<T extends string>({
       if (gesture.direction === 'horizontal') {
         const currentKey = selectedKeyRef.current;
         const candidate = tabKeyAfterSwipe(keysRef.current, currentKey, dx);
-        setSwipeVisual(
-          container,
-          visualSwipeOffset(
-            dx,
-            candidate === currentKey,
-            container.clientWidth,
-          ),
-        );
+        if (candidate === currentKey) {
+          clearSwipeVisual(container);
+          return;
+        }
+        setSwipeVisual(container, visualSwipeOffset(dx, container.clientWidth));
         if (event.cancelable) event.preventDefault();
       }
     };
@@ -332,11 +381,18 @@ export function useSwipeableTabs<T extends string>({
       const currentKey = selectedKeyRef.current;
       const nextKey = tabKeyAfterSwipe(keysRef.current, currentKey, dx);
 
-      if (shouldCommitTabSwipe(dx, dy, elapsedMs) && nextKey !== currentKey) {
-        delete container.dataset.tabSwipeState;
-        container.style.removeProperty('--tab-swipe-offset');
-        container.dataset.tabSwipeCommit = dx < 0 ? 'next' : 'previous';
-        onSelectionChangeRef.current(nextKey);
+      if (nextKey === currentKey) {
+        clearSwipeVisual(container);
+        return;
+      }
+
+      if (shouldCommitTabSwipe(dx, dy, elapsedMs)) {
+        commitSelection(
+          container,
+          nextKey,
+          dx < 0 ? 'next' : 'previous',
+          onSelectionChangeRef.current,
+        );
         finishVisual();
         return;
       }

@@ -12,6 +12,10 @@ pub struct Chat {
     pub pinned: bool,
     #[serde(default)]
     pub archived: bool,
+    #[serde(default)]
+    pub auto_title: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub greeting_message: Option<String>,
     pub provider_id: Option<String>,
     pub persona_id: Option<String>,
     pub character_id: Option<String>,
@@ -20,7 +24,34 @@ pub struct Chat {
     pub worldbook_ids: Vec<String>,
     pub prompt_config: PromptConfig,
     #[serde(default)]
+    pub generation_settings: ChatGenerationSettings,
+    #[serde(default)]
     pub module_overrides: ChatModuleOverrides,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ChatGenerationSettings {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub temperature: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub top_p: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_tokens: Option<i64>,
+}
+
+impl ChatGenerationSettings {
+    pub fn apply_to(&self, provider: &mut Provider) {
+        if let Some(value) = self.temperature {
+            provider.temperature = value;
+        }
+        if let Some(value) = self.top_p {
+            provider.top_p = value;
+        }
+        if let Some(value) = self.max_tokens {
+            provider.max_tokens = value;
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -276,6 +307,10 @@ fn default_critical_priority() -> String {
 pub struct ChatConfigInput {
     pub title: String,
     #[serde(default)]
+    pub auto_title: bool,
+    #[serde(default)]
+    pub automatic_title_base: Option<String>,
+    #[serde(default)]
     pub greeting_message: Option<String>,
     pub provider_id: Option<String>,
     pub persona_id: Option<String>,
@@ -286,6 +321,8 @@ pub struct ChatConfigInput {
     pub worldbook_ids: Vec<String>,
     #[serde(default)]
     pub prompt_config: PromptConfig,
+    #[serde(default)]
+    pub generation_settings: ChatGenerationSettings,
     #[serde(default)]
     pub module_overrides: ChatModuleOverrides,
 }

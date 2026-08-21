@@ -22,7 +22,7 @@ export type ChatAction =
 export type ActiveMessageGeneration = {
   chatId: string;
   messageId: string;
-  mode: 'regenerate' | 'continue';
+  mode: 'send' | 'regenerate' | 'continue';
 };
 
 export type ChatsScreenProps = {

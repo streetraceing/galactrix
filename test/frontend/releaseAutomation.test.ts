@@ -29,7 +29,7 @@ test('version helpers increment semantic versions predictably', () => {
 test('project versions stay synchronized', async () => {
   const { stdout } = await execFileAsync(
     process.execPath,
-    ['--import', 'tsx', 'scripts/version.ts', 'check'],
+    ['scripts/version.ts', 'check'],
     {
       cwd: root,
     },
@@ -63,11 +63,11 @@ test('release helpers expose combined local builds and a safe annotated tag comm
   );
   assert.equal(
     packageJson.scripts['release:tag'],
-    'tsx scripts/version.ts tag',
+    'node scripts/version.ts tag',
   );
   assert.equal(
     packageJson.scripts['release:push'],
-    'tsx scripts/version.ts push',
+    'node scripts/version.ts push',
   );
   assert.match(versionScript, /git', \['status', '--porcelain'\]/);
   assert.match(versionScript, /git', \['add', '--all'\]/);
@@ -81,7 +81,7 @@ test('release helpers expose combined local builds and a safe annotated tag comm
   assert.match(versionScript, /Using existing release commit/);
 });
 
-test('project-owned automation uses TypeScript entrypoints through tsx', async () => {
+test('project-owned automation uses native Node TypeScript entrypoints', async () => {
   const packageJson = JSON.parse(
     await readFile(new URL('../../package.json', import.meta.url), 'utf8'),
   );
@@ -107,7 +107,7 @@ test('project-owned automation uses TypeScript entrypoints through tsx', async (
   ]) {
     assert.match(
       packageJson.scripts[scriptName],
-      /^tsx scripts\/.+\.ts(?: |$)/,
+      /^node scripts\/.+\.ts(?: |$)/,
     );
   }
 

@@ -22,7 +22,9 @@ const markdownComponents: Components = {
   h4: ({ children }) => (
     <h4 className="mb-2 mt-4 text-sm font-semibold first:mt-0">{children}</h4>
   ),
-  p: ({ children }) => <p className="my-2 first:mt-0 last:mb-0">{children}</p>,
+  p: ({ children }) => (
+    <p className="my-2 whitespace-pre-wrap first:mt-0 last:mb-0">{children}</p>
+  ),
   strong: ({ children }) => (
     <strong className="font-semibold text-foreground">{children}</strong>
   ),

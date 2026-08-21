@@ -136,7 +136,7 @@ test('mobile layout tracks the expanded viewport and hides navigation for the ke
   assert.match(stableViewport, /visualViewport\?\.addEventListener\('resize'/);
 });
 
-test('chat configuration starts dense prompt sections collapsed on phones', async () => {
+test('chat configuration keeps prompt details compact but context immediately usable', async () => {
   const [builder, contextPicker, setup, galaxyEditor] = await Promise.all([
     readFile(
       new URL(
@@ -174,7 +174,11 @@ test('chat configuration starts dense prompt sections collapsed on phones', asyn
   assert.match(builder, /onExpandedChange=\{setExpandedKeys\}/);
   assert.match(
     contextPicker,
-    /const \[expanded, setExpanded\] = useState\(false\)/,
+    /const \[expanded, setExpanded\] = useState\(true\)/,
+  );
+  assert.match(
+    contextPicker,
+    /if \(isOpen && isCompactLayout\) setExpanded\(true\)/,
   );
   assert.match(contextPicker, /!isCompactLayout \|\| expanded/);
   assert.match(contextPicker, /chatContextPicker\.expand/);
@@ -218,8 +222,9 @@ test('character style settings stay vertical and explain each preset', async () 
   assert.match(editorSource, /<div className="flex flex-col gap-3">/);
   assert.doesNotMatch(editorSource, /grid gap-4 sm:grid-cols-2/);
   assert.match(editorSource, /preset\.descriptionKey/);
-  assert.match(editorSource, /selectedStylePreset\.descriptionKey/);
+  assert.doesNotMatch(editorSource, /selectedStylePreset\.descriptionKey/);
   assert.match(editorSource, /savedStyleDescription/);
+  assert.match(editorSource, /preset\.id !== 'custom'/);
   assert.match(
     modelSource,
     /descriptionKey: 'style\.description\.telegramHuman'/,

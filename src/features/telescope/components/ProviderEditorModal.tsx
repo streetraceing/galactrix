@@ -156,7 +156,19 @@ export function ProviderEditorModal({
             </>
           ) : null}
 
-          <GenerationSettings form={form} onPatch={onPatch} />
+          <details className="group rounded-2xl border border-separator bg-surface-secondary/35 p-4">
+            <summary className="cursor-pointer list-none text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-focus">
+              <span className="flex items-center justify-between gap-3">
+                {t('providerEditorModal.advancedGenerationDefaults')}
+                <span className="text-xs text-muted transition-transform group-open:rotate-180">
+                  ↓
+                </span>
+              </span>
+            </summary>
+            <div className="mt-4 border-t border-separator pt-4">
+              <GenerationSettings form={form} onPatch={onPatch} />
+            </div>
+          </details>
           {error ? (
             <p className="selectable text-sm text-danger">{error}</p>
           ) : null}

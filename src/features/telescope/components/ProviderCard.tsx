@@ -67,20 +67,10 @@ export function ProviderCard({
           }
           description={catalog?.description ?? provider.kind}
           details={
-            <span className="grid min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-4">
+            <span className="grid min-w-0 gap-2 sm:grid-cols-2">
               <ProviderFact
                 label={t('providerCard.model')}
                 value={provider.model || t('providerCard.noModelSelected')}
-              />
-              <ProviderFact
-                label={t('providerCard.maxOutput')}
-                value={t('providerCard.tokens', {
-                  count: provider.maxTokens,
-                })}
-              />
-              <ProviderFact
-                label={t('providerCard.sampling')}
-                value={`T ${provider.temperature} · P ${provider.topP}`}
               />
               <ProviderFact
                 label={t('providerCard.embedding')}

@@ -23,10 +23,10 @@ export function ChatContextPicker({
 }) {
   const { t } = useTranslation('chats');
   const isCompactLayout = useMediaQuery('(max-width: 820px)');
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
 
   useEffect(() => {
-    if (isOpen && isCompactLayout) setExpanded(false);
+    if (isOpen && isCompactLayout) setExpanded(true);
   }, [isCompactLayout, isOpen]);
   const personas = ofKind(galaxyItems, 'persona');
   const characters = ofKind(galaxyItems, 'character');

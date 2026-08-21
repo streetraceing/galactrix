@@ -67,7 +67,7 @@ test('character style remains the fallback when chat has no override', () => {
   assert.equal(effectiveStyleItemId(config, [character]), 'style-character');
 });
 
-test('built-in character ignores a stale saved style reference', () => {
+test('built-in character can layer a saved style reference', () => {
   const character = galaxyItem('character-1', 'character', {
     definitionSections: [],
     stylePreset: 'warm',
@@ -81,7 +81,7 @@ test('built-in character ignores a stale saved style reference', () => {
     promptConfig: defaultPromptConfig,
   };
 
-  assert.equal(effectiveStyleItemId(config, [character]), undefined);
+  assert.equal(effectiveStyleItemId(config, [character]), 'style-stale');
 });
 
 test('chat config round-trip preserves a direct style selection', () => {
@@ -92,10 +92,13 @@ test('chat config round-trip preserves a direct style selection', () => {
     updatedAt: 0,
     messageCount: 0,
     pinned: false,
+    archived: false,
+    autoTitle: false,
     styleItemId: 'style-1',
     moduleOverrides: { retry: false, contextBudget: true },
     worldbookIds: [],
     promptConfig: defaultPromptConfig,
+    generationSettings: {},
   };
 
   const config = chatConfigFromChat(chat);
@@ -143,9 +146,12 @@ test('automatic chat names use the selected character and its chat count', () =>
       updatedAt: 0,
       messageCount: 0,
       pinned: false,
+      archived: false,
+      autoTitle: true,
       characterId: character.id,
       worldbookIds: [],
       promptConfig: defaultPromptConfig,
+      generationSettings: {},
       moduleOverrides: {},
     },
   ];
@@ -155,6 +161,10 @@ test('automatic chat names use the selected character and its chat count', () =>
     'Alice #2',
   );
   assert.equal(automaticChatTitle(undefined, chats, [character]), 'Chat #1');
+  assert.equal(
+    automaticChatTitle(undefined, chats, [character], undefined, 'Чат'),
+    'Чат #1',
+  );
 
   chats[0] = { ...chats[0], title: 'Alice #2' };
   assert.equal(

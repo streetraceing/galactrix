@@ -1,4 +1,4 @@
-import { Input, Surface } from '@heroui/react';
+import { Input } from '@heroui/react';
 import type { ChangeEvent } from 'react';
 import type { ProviderInput } from '../../../types';
 import { FormField } from './FormField';
@@ -16,7 +16,7 @@ export function GenerationSettings({
 }) {
   const { t } = useTranslation('telescope');
   return (
-    <Surface className="rounded-2xl border border-separator p-4 bg-surface-secondary/50">
+    <div>
       <strong className="text-sm font-medium">
         {t('generationSettings.generationSettings')}
       </strong>
@@ -65,6 +65,6 @@ export function GenerationSettings({
           />
         </FormField>
       </div>
-    </Surface>
+    </div>
   );
 }

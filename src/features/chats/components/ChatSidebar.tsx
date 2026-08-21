@@ -4,14 +4,16 @@ import type { CSSProperties } from 'react';
 import { Icon } from '../../../components/Icon';
 import { ContextSelectionToolbar } from '../../../components/ui/ContextSelectionToolbar';
 import { TooltipIconButton } from '../../../components/ui/TooltipIconButton';
-import type { Chat, GalaxyItem } from '../../../types';
+import type { Chat, GalaxyItem, Message } from '../../../types';
 import type { ChatAction } from '../types';
 import { ChatListItem } from './ChatListItem';
 import { useTranslation } from 'react-i18next';
 import { cn } from '../../../lib/cn';
+import { searchChats } from '../chatSearch';
 
 function ChatSidebarComponent({
   chats,
+  messages,
   galaxyItems,
   activeChatId,
   width,
@@ -33,6 +35,7 @@ function ChatSidebarComponent({
   onArchiveModeChange,
 }: {
   chats: Chat[];
+  messages: Message[];
   galaxyItems: GalaxyItem[];
   activeChatId: string;
   width: number;
@@ -68,13 +71,21 @@ function ChatSidebarComponent({
     [archiveMode, chats],
   );
   const deferredQuery = useDeferredValue(query);
-  const filteredChats = useMemo(() => {
-    const normalized = deferredQuery.trim().toLowerCase();
-    if (!normalized) return scopedChats;
-    return scopedChats.filter((chat) =>
-      `${chat.title} ${chat.preview}`.toLowerCase().includes(normalized),
-    );
-  }, [deferredQuery, scopedChats]);
+  const searchResults = useMemo(
+    () => searchChats(scopedChats, messages, deferredQuery),
+    [deferredQuery, messages, scopedChats],
+  );
+  const filteredChats = useMemo(
+    () => searchResults.map((result) => result.chat),
+    [searchResults],
+  );
+  const matchPreviewByChat = useMemo(
+    () =>
+      new Map(
+        searchResults.map((result) => [result.chat.id, result.matchPreview]),
+      ),
+    [searchResults],
+  );
 
   return (
     <aside
@@ -193,12 +204,12 @@ function ChatSidebarComponent({
               placeholder={
                 archiveMode
                   ? t('chatSidebar.searchArchive')
-                  : t('chatSidebar.searchChats')
+                  : t('chatSidebar.searchChatsAndMessages')
               }
               aria-label={
                 archiveMode
                   ? t('chatSidebar.searchArchive')
-                  : t('chatSidebar.searchChats')
+                  : t('chatSidebar.searchChatsAndMessages')
               }
               onKeyDown={(event) => {
                 if (
@@ -253,6 +264,7 @@ function ChatSidebarComponent({
           <ChatListItem
             key={chat.id}
             chat={chat}
+            matchPreview={matchPreviewByChat.get(chat.id)}
             character={
               chat.characterId ? characterById.get(chat.characterId) : undefined
             }

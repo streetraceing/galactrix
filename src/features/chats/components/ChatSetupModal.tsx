@@ -18,6 +18,7 @@ import { useSwipeableTabs } from '../../../hooks/useSwipeableTabs';
 import { isMobilePlatform } from '../../../lib/platform';
 import type {
   AiModuleSettings,
+  CharacterData,
   Chat,
   ChatConfigInput,
   GalaxyItem,
@@ -36,6 +37,7 @@ import {
 import { responseLengthModes } from '../promptConfig';
 import { promptPreviewFromChat } from '../promptPreview';
 import { ChatContextPicker } from './ChatContextPicker';
+import { ChatGenerationSettingsPanel } from './ChatGenerationSettings';
 import { ChatModuleOverridesPanel } from './ChatModuleOverrides';
 import { ChatProviderPicker } from './ChatProviderPicker';
 import { PromptBuilder } from './PromptBuilder';
@@ -81,11 +83,15 @@ export function ChatSetupModal({
   const autoFocus = !isMobilePlatform();
   const { t } = useTranslation('chats');
   const defaultTitle = t('setup.defaultTitle');
+  const automaticTitleBase = t('setup.automaticTitleBase');
   const [form, setForm] = useState<ChatConfigInput>(() =>
     createChatConfig(defaultTitle),
   );
   const [recentLimitDraft, setRecentLimitDraft] = useState('');
-  const [customTitle, setCustomTitle] = useState(Boolean(chat));
+  const [customTitle, setCustomTitle] = useState(
+    chat ? !chat.autoTitle : false,
+  );
+  const [greetingCustomized, setGreetingCustomized] = useState(Boolean(chat));
   const [section, setSection] = useState<ChatSetupSection>('general');
   const swipeRef = useSwipeableTabs({
     keys: CHAT_SETUP_SECTIONS,
@@ -95,23 +101,32 @@ export function ChatSetupModal({
 
   useEffect(() => {
     if (!isOpen) return;
+    const initialCharacter = galaxyItems.find(
+      (item) => item.kind === 'character' && item.id === initialCharacterId,
+    );
     const nextForm = chat
       ? chatConfigFromChat(chat)
       : {
           ...createChatConfig(defaultTitle),
           characterId: initialCharacterId,
+          greetingMessage:
+            (initialCharacter?.data as CharacterData | undefined)
+              ?.greetingMessage ?? '',
         };
     setForm(nextForm);
-    setCustomTitle(Boolean(chat));
+    setCustomTitle(chat ? !chat.autoTitle : false);
+    setGreetingCustomized(Boolean(chat));
     setSection('general');
     setRecentLimitDraft(String(nextForm.promptConfig.recentMessageLimit ?? 50));
-  }, [chat, defaultTitle, initialCharacterId, isOpen]);
+  }, [chat, defaultTitle, galaxyItems, initialCharacterId, isOpen]);
 
-  const usesAutomaticTitle = !chat && !customTitle;
+  const usesAutomaticTitle = !customTitle;
   const automaticTitle = automaticChatTitle(
     form.characterId,
     chats,
     galaxyItems,
+    chat?.id,
+    automaticTitleBase,
   );
   const canSubmit =
     isChatConfigValid(form, { allowEmptyTitle: usesAutomaticTitle }) && !saving;
@@ -120,8 +135,10 @@ export function ChatSetupModal({
     const greetingMessage = form.greetingMessage?.trim();
     onSubmit({
       ...form,
+      autoTitle: usesAutomaticTitle,
+      automaticTitleBase,
       title: usesAutomaticTitle ? '' : form.title.trim(),
-      greetingMessage: chat ? undefined : greetingMessage || undefined,
+      greetingMessage: greetingMessage || undefined,
     });
   };
   const promptSources = activePromptSources(form, messages);
@@ -180,7 +197,7 @@ export function ChatSetupModal({
           <Tabs.Panel id="general" className="pt-4 sm:pt-5">
             <div className="min-w-0 space-y-3 sm:space-y-4">
               <div className="grid min-w-0 gap-3 sm:grid-cols-2 sm:gap-4">
-                {chat || customTitle ? (
+                {customTitle ? (
                   <div className="flex min-w-0 flex-col gap-1.5">
                     <div className="flex items-center justify-between gap-3">
                       <Label htmlFor="chat-title">
@@ -188,7 +205,7 @@ export function ChatSetupModal({
                         <RequiredMark />
                       </Label>
                     </div>
-                    <div className="flex gap-3 justify-between">
+                    <div className="flex min-w-0 flex-col gap-2 sm:flex-row">
                       <Input
                         id="chat-title"
                         required
@@ -206,20 +223,24 @@ export function ChatSetupModal({
                         }
                         className="min-h-10 flex items-center"
                       />
-                      {!chat ? (
-                        <Button
-                          size="sm"
-                          variant="tertiary"
-                          onPress={() => setCustomTitle(false)}
-                          className="rounded-lg h-full"
-                        >
-                          {t('chatSetupModal.useAutomaticTitle')}
-                        </Button>
-                      ) : null}
+                      <Button
+                        size="sm"
+                        variant="tertiary"
+                        onPress={() => {
+                          setCustomTitle(false);
+                          setForm((current) => ({
+                            ...current,
+                            autoTitle: true,
+                          }));
+                        }}
+                        className="min-h-10 w-full shrink-0 rounded-lg sm:w-auto"
+                      >
+                        {t('chatSetupModal.useAutomaticTitle')}
+                      </Button>
                     </div>
                   </div>
                 ) : (
-                  <Surface className="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-separator bg-surface-secondary/50 px-3 py-2.5">
+                  <Surface className="flex min-w-0 flex-col items-stretch gap-3 rounded-xl border border-separator bg-surface-secondary/50 px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex min-w-0 items-center gap-2.5">
                       <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-accent/10 text-accent">
                         <Icon name="sparkles" className="size-4" />
@@ -236,11 +257,12 @@ export function ChatSetupModal({
                     <Button
                       size="sm"
                       variant="tertiary"
-                      className="shrink-0"
+                      className="w-full shrink-0 sm:w-auto"
                       onPress={() => {
                         setCustomTitle(true);
                         setForm((current) => ({
                           ...current,
+                          autoTitle: false,
                           title:
                             current.title === defaultTitle ? '' : current.title,
                         }));
@@ -360,33 +382,45 @@ export function ChatSetupModal({
                 </p>
               </div>
 
-              {!chat ? (
-                <div className="flex min-w-0 flex-col gap-1.5">
-                  <Label htmlFor="chat-greeting">
-                    {t('chatSetupModal.greetingMessage')}
-                  </Label>
-                  <TextArea
-                    id="chat-greeting"
-                    fullWidth
-                    variant="secondary"
-                    value={form.greetingMessage ?? ''}
-                    maxLength={12_000}
-                    rows={3}
-                    autoComplete="off"
-                    placeholder={t('chatSetupModal.greetingMessagePlaceholder')}
-                    aria-label={t('chatSetupModal.greetingMessage')}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        greetingMessage: event.target.value,
-                      }))
-                    }
-                  />
-                  <p className="text-xs leading-5 text-muted">
-                    {t('chatSetupModal.greetingMessageDescription')}
-                  </p>
-                </div>
-              ) : null}
+              <ChatGenerationSettingsPanel
+                value={form.generationSettings}
+                provider={providers.find(
+                  (provider) => provider.id === form.providerId,
+                )}
+                onChange={(generationSettings) =>
+                  setForm((current) => ({
+                    ...current,
+                    generationSettings,
+                  }))
+                }
+              />
+
+              <div className="flex min-w-0 flex-col gap-1.5">
+                <Label htmlFor="chat-greeting">
+                  {t('chatSetupModal.greetingMessage')}
+                </Label>
+                <TextArea
+                  id="chat-greeting"
+                  fullWidth
+                  variant="secondary"
+                  value={form.greetingMessage ?? ''}
+                  maxLength={12_000}
+                  rows={3}
+                  autoComplete="off"
+                  placeholder={t('chatSetupModal.greetingMessagePlaceholder')}
+                  aria-label={t('chatSetupModal.greetingMessage')}
+                  onChange={(event) => {
+                    setGreetingCustomized(true);
+                    setForm((current) => ({
+                      ...current,
+                      greetingMessage: event.target.value,
+                    }));
+                  }}
+                />
+                <p className="text-xs leading-5 text-muted">
+                  {t('chatSetupModal.greetingMessageDescription')}
+                </p>
+              </div>
             </div>
           </Tabs.Panel>
 
@@ -394,7 +428,25 @@ export function ChatSetupModal({
             <ChatContextPicker
               galaxyItems={galaxyItems}
               value={form}
-              onChange={setForm}
+              onChange={(nextForm) => {
+                if (
+                  nextForm.characterId !== form.characterId &&
+                  !greetingCustomized
+                ) {
+                  const character = galaxyItems.find(
+                    (item) =>
+                      item.kind === 'character' &&
+                      item.id === nextForm.characterId,
+                  );
+                  nextForm = {
+                    ...nextForm,
+                    greetingMessage:
+                      (character?.data as CharacterData | undefined)
+                        ?.greetingMessage ?? '',
+                  };
+                }
+                setForm(nextForm);
+              }}
               isOpen={isOpen}
             />
           </Tabs.Panel>

@@ -1,6 +1,6 @@
 import { ContextMenu as ContextMenuPrimitive } from '@base-ui/react/context-menu';
-import { CheckIcon, ChevronRightIcon } from 'lucide-react';
 import * as React from 'react';
+import { Icon } from '../Icon';
 import { cn } from '@/lib/utils';
 import { useMobileBackEntry } from '../../hooks/useMobileBackEntry';
 import { isMobilePlatform } from '../../lib/platform';
@@ -162,7 +162,7 @@ function ContextMenuSubTrigger({
       {...props}
     >
       {children}
-      <ChevronRightIcon className="ml-auto size-4" />
+      <Icon name="chevron-right" className="ml-auto size-4" />
     </ContextMenuPrimitive.SubmenuTrigger>
   );
 }
@@ -219,7 +219,7 @@ function ContextMenuCheckboxItem({
     >
       <span className="pointer-events-none absolute right-2.5">
         <ContextMenuPrimitive.CheckboxItemIndicator>
-          <CheckIcon className="size-4" />
+          <Icon name="check" className="size-4" />
         </ContextMenuPrimitive.CheckboxItemIndicator>
       </span>
       {children}
@@ -257,7 +257,7 @@ function ContextMenuRadioItem({
     >
       <span className="pointer-events-none absolute right-2.5">
         <ContextMenuPrimitive.RadioItemIndicator>
-          <CheckIcon className="size-4" />
+          <Icon name="check" className="size-4" />
         </ContextMenuPrimitive.RadioItemIndicator>
       </span>
       {children}

@@ -16,6 +16,8 @@ fn create_test_chat(connection: &Connection, id: &str) {
         id,
         &ChatConfigInput {
             title: "Test chat".into(),
+            auto_title: false,
+            automatic_title_base: None,
             greeting_message: None,
             provider_id: None,
             persona_id: None,
@@ -24,6 +26,7 @@ fn create_test_chat(connection: &Connection, id: &str) {
             universe_id: None,
             worldbook_ids: Vec::new(),
             prompt_config: PromptConfig::default(),
+            generation_settings: Default::default(),
             module_overrides: Default::default(),
         },
     )
@@ -38,6 +41,8 @@ fn greeting_message_creates_the_initial_assistant_variant() {
         "chat-greeting",
         &ChatConfigInput {
             title: "Greeting chat".into(),
+            auto_title: false,
+            automatic_title_base: None,
             greeting_message: Some("  hello, glad you're here  ".into()),
             provider_id: None,
             persona_id: None,
@@ -46,6 +51,7 @@ fn greeting_message_creates_the_initial_assistant_variant() {
             universe_id: None,
             worldbook_ids: Vec::new(),
             prompt_config: PromptConfig::default(),
+            generation_settings: Default::default(),
             module_overrides: Default::default(),
         },
     )
@@ -61,6 +67,50 @@ fn greeting_message_creates_the_initial_assistant_variant() {
     assert_eq!(
         state.messages[0].variants[0].content,
         "hello, glad you're here"
+    );
+}
+
+#[test]
+fn editing_or_deleting_the_initial_message_keeps_chat_greeting_in_sync() {
+    let connection = test_database();
+    let input = ChatConfigInput {
+        title: "Greeting chat".into(),
+        auto_title: false,
+        automatic_title_base: None,
+        greeting_message: Some("hello".into()),
+        provider_id: None,
+        persona_id: None,
+        character_id: None,
+        style_item_id: None,
+        universe_id: None,
+        worldbook_ids: Vec::new(),
+        prompt_config: PromptConfig::default(),
+        generation_settings: Default::default(),
+        module_overrides: Default::default(),
+    };
+    create_chat(&connection, "chat-greeting-sync", &input).expect("chat must save");
+
+    edit_message(
+        &connection,
+        "chat-greeting-sync-greeting",
+        "chat-greeting-sync-greeting-edited",
+        "welcome back",
+    )
+    .expect("greeting must edit");
+    assert_eq!(
+        get_chat(&connection, "chat-greeting-sync")
+            .expect("chat must load")
+            .greeting_message
+            .as_deref(),
+        Some("welcome back")
+    );
+
+    delete_message(&connection, "chat-greeting-sync-greeting").expect("greeting must delete");
+    assert_eq!(
+        get_chat(&connection, "chat-greeting-sync")
+            .expect("chat must reload")
+            .greeting_message,
+        None
     );
 }
 
@@ -551,6 +601,8 @@ fn chat_style_override_is_persisted_and_used_in_prompt_context() {
         "chat-style",
         &ChatConfigInput {
             title: "Styled chat".into(),
+            auto_title: false,
+            automatic_title_base: None,
             greeting_message: None,
             provider_id: None,
             persona_id: None,
@@ -559,6 +611,7 @@ fn chat_style_override_is_persisted_and_used_in_prompt_context() {
             universe_id: None,
             worldbook_ids: Vec::new(),
             prompt_config: PromptConfig::default(),
+            generation_settings: Default::default(),
             module_overrides: Default::default(),
         },
     )
@@ -598,6 +651,8 @@ fn deleting_style_unlinks_direct_chat_override() {
         "chat-style",
         &ChatConfigInput {
             title: "Styled chat".into(),
+            auto_title: false,
+            automatic_title_base: None,
             greeting_message: None,
             provider_id: None,
             persona_id: None,
@@ -606,6 +661,7 @@ fn deleting_style_unlinks_direct_chat_override() {
             universe_id: None,
             worldbook_ids: Vec::new(),
             prompt_config: PromptConfig::default(),
+            generation_settings: Default::default(),
             module_overrides: Default::default(),
         },
     )
@@ -621,6 +677,8 @@ fn chat_module_overrides_persist_update_and_clone() {
     let connection = test_database();
     let mut input = ChatConfigInput {
         title: "Module chat".into(),
+        auto_title: false,
+        automatic_title_base: None,
         greeting_message: None,
         provider_id: None,
         persona_id: None,
@@ -629,6 +687,7 @@ fn chat_module_overrides_persist_update_and_clone() {
         universe_id: None,
         worldbook_ids: Vec::new(),
         prompt_config: PromptConfig::default(),
+        generation_settings: Default::default(),
         module_overrides: crate::models::ChatModuleOverrides {
             retry: Some(false),
             context_budget: Some(true),
@@ -667,6 +726,53 @@ fn chat_module_overrides_persist_update_and_clone() {
 }
 
 #[test]
+fn chat_generation_overrides_persist_update_and_clone() {
+    let connection = test_database();
+    let mut input = ChatConfigInput {
+        title: "Generation chat".into(),
+        auto_title: false,
+        automatic_title_base: None,
+        greeting_message: None,
+        provider_id: None,
+        persona_id: None,
+        character_id: None,
+        style_item_id: None,
+        universe_id: None,
+        worldbook_ids: Vec::new(),
+        prompt_config: PromptConfig::default(),
+        generation_settings: crate::models::ChatGenerationSettings {
+            temperature: Some(0.25),
+            top_p: Some(0.8),
+            max_tokens: Some(2048),
+        },
+        module_overrides: Default::default(),
+    };
+
+    create_chat(&connection, "chat-generation", &input).expect("chat must save");
+    let saved = get_chat(&connection, "chat-generation").expect("chat must load");
+    assert_eq!(saved.generation_settings.temperature, Some(0.25));
+    assert_eq!(saved.generation_settings.top_p, Some(0.8));
+    assert_eq!(saved.generation_settings.max_tokens, Some(2048));
+
+    input.generation_settings.top_p = None;
+    input.generation_settings.max_tokens = Some(4096);
+    update_chat_config(&connection, "chat-generation", &input).expect("chat must update");
+    clone_chat(
+        &connection,
+        "chat-generation",
+        "chat-generation-copy",
+        "Generation chat copy",
+        false,
+        None,
+    )
+    .expect("chat must clone");
+    let cloned = get_chat(&connection, "chat-generation-copy").expect("clone must load");
+    assert_eq!(cloned.generation_settings.temperature, Some(0.25));
+    assert_eq!(cloned.generation_settings.top_p, None);
+    assert_eq!(cloned.generation_settings.max_tokens, Some(4096));
+}
+
+#[test]
 fn chat_response_length_override_persists_updates_and_clones() {
     let connection = test_database();
     let prompt_config = PromptConfig {
@@ -675,6 +781,8 @@ fn chat_response_length_override_persists_updates_and_clones() {
     };
     let mut input = ChatConfigInput {
         title: "Length chat".into(),
+        auto_title: false,
+        automatic_title_base: None,
         greeting_message: None,
         provider_id: None,
         persona_id: None,
@@ -683,6 +791,7 @@ fn chat_response_length_override_persists_updates_and_clones() {
         universe_id: None,
         worldbook_ids: Vec::new(),
         prompt_config,
+        generation_settings: Default::default(),
         module_overrides: Default::default(),
     };
 
@@ -728,6 +837,8 @@ fn blank_new_chat_title_uses_character_name_and_sequence() {
 
     let input = ChatConfigInput {
         title: String::new(),
+        auto_title: true,
+        automatic_title_base: Some("Chat".into()),
         greeting_message: None,
         provider_id: None,
         persona_id: None,
@@ -736,6 +847,7 @@ fn blank_new_chat_title_uses_character_name_and_sequence() {
         universe_id: None,
         worldbook_ids: Vec::new(),
         prompt_config: PromptConfig::default(),
+        generation_settings: Default::default(),
         module_overrides: Default::default(),
     };
 
@@ -764,6 +876,8 @@ fn blank_clone_title_continues_character_chat_sequence() {
 
     let input = ChatConfigInput {
         title: String::new(),
+        auto_title: true,
+        automatic_title_base: Some("Chat".into()),
         greeting_message: None,
         provider_id: None,
         persona_id: None,
@@ -772,6 +886,7 @@ fn blank_clone_title_continues_character_chat_sequence() {
         universe_id: None,
         worldbook_ids: Vec::new(),
         prompt_config: PromptConfig::default(),
+        generation_settings: Default::default(),
         module_overrides: Default::default(),
     };
 
@@ -790,10 +905,10 @@ fn blank_clone_title_continues_character_chat_sequence() {
 }
 
 #[test]
-fn character_accepts_short_and_long_message_style_presets() {
+fn character_accepts_contextual_message_style_presets() {
     let connection = test_database();
 
-    for preset in ["short-messages", "long-messages"] {
+    for preset in ["short-messages", "long-messages", "coherent-thought"] {
         let id = format!("character-{preset}");
         upsert_galaxy_item(
             &connection,

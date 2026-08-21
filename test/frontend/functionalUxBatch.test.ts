@@ -64,9 +64,11 @@ test('chat copies reuse the automatic character title sequence', async () => {
     read('src-tauri/src/db.rs'),
   ]);
 
-  assert.match(controller, /const title = input\?\.title\.trim\(\) \?\? ''/);
+  assert.match(controller, /chatConfigFromChat\(sourceChat\)/);
+  assert.match(controller, /autoTitle: true/);
+  assert.match(controller, /automaticTitleBase:/);
   assert.match(
     db,
-    /resolve_chat_title\(connection, title, source\.2\.as_deref\(\)\)/,
+    /resolve_chat_title\(connection, title, source\.2\.as_deref\(\), None, None\)/,
   );
 });

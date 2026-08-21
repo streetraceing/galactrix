@@ -16,7 +16,7 @@ test('fullscreen composer exposes the same formatting and draft tools', async ()
   }
   assert.match(
     fullscreen,
-    /rounded-xl border border-separator bg-default\/30 p-2/,
+    /flex-nowrap[\s\S]*overflow-x-auto[\s\S]*bg-default\/30 p-1\.5/,
   );
 });
 
@@ -54,8 +54,8 @@ test('Telescope uses full-width provider rows and balanced metric padding', asyn
   assert.match(screen, /className="flex flex-col gap-3"/);
   assert.doesNotMatch(screen, /md:grid-cols-2/);
   assert.match(card, /function ProviderFact/);
-  assert.match(card, /providerCard\.maxOutput/);
-  assert.match(card, /providerCard\.sampling/);
+  assert.doesNotMatch(card, /providerCard\.maxOutput/);
+  assert.doesNotMatch(card, /providerCard\.sampling/);
   assert.match(card, /providerCard\.embedding/);
   assert.match(metrics, /metric-enter min-w-0 p-5/);
   assert.doesNotMatch(metrics, /pt-4 pb-5/);

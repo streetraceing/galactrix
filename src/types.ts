@@ -8,6 +8,8 @@ export type Chat = {
   messageCount: number;
   pinned: boolean;
   archived: boolean;
+  autoTitle: boolean;
+  greetingMessage?: string;
   providerId?: string;
   personaId?: string;
   characterId?: string;
@@ -15,7 +17,14 @@ export type Chat = {
   universeId?: string;
   worldbookIds: string[];
   promptConfig: PromptConfig;
+  generationSettings: ChatGenerationSettings;
   moduleOverrides?: ChatModuleOverrides;
+};
+
+export type ChatGenerationSettings = {
+  temperature?: number;
+  topP?: number;
+  maxTokens?: number;
 };
 
 export type PromptPresetId =
@@ -68,6 +77,8 @@ export type PromptConfig = {
 
 export type ChatConfigInput = {
   title: string;
+  autoTitle: boolean;
+  automaticTitleBase?: string;
   greetingMessage?: string;
   providerId?: string;
   personaId?: string;
@@ -76,6 +87,7 @@ export type ChatConfigInput = {
   universeId?: string;
   worldbookIds: string[];
   promptConfig: PromptConfig;
+  generationSettings: ChatGenerationSettings;
   moduleOverrides: ChatModuleOverrides;
 };
 
@@ -137,6 +149,7 @@ export type PersonaData = {
 
 export type CharacterData = {
   avatar?: string;
+  greetingMessage?: string;
   definitionSections: DefinitionSection[];
   stylePreset:
     | 'neutral'
@@ -147,6 +160,7 @@ export type CharacterData = {
     | 'casual-lowercase'
     | 'roleplay-rich'
     | 'telegram-human'
+    | 'coherent-thought'
     | 'roleplay'
     | 'literary'
     | 'custom';

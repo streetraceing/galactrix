@@ -68,12 +68,12 @@ test('mobile tab taps and swipes share the slower directional transition', async
 
   assert.match(source, /previousSelectedKeyRef/);
   assert.match(source, /useLayoutEffect\(\(\) => \{/);
-  assert.match(source, /MOTION_DURATION_MS\.slow/);
+  assert.match(source, /MOTION_DURATION_MS\.emphasis/);
   assert.match(source, /nextIndex > previousIndex \? 'next' : 'previous'/);
   assert.match(source, /Math\.exp\(-distance \/ maxOffset\)/);
   assert.match(source, /clearSwipeVisual\(container\);[\s\S]*?gesture = \{/);
-  assert.match(cssSource, /galactrix-tab-swipe-next var\(--motion-slow\)/);
-  assert.match(cssSource, /clamp\(1\.75rem, 9vw, 3\.5rem\)/);
+  assert.match(cssSource, /galactrix-tab-swipe-next var\(--motion-emphasis\)/);
+  assert.match(cssSource, /::view-transition-old\(galactrix-tab-content\)/);
   assert.match(
     cssSource,
     /transition: transform var\(--motion-standard\) var\(--motion-ease-enter\)/,

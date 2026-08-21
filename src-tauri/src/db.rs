@@ -12,8 +12,8 @@ use serde_json::Value;
 
 use crate::i18n::{keys, CommandError, CommandResult};
 use crate::models::{
-    AppSnapshot, Chat, ChatConfigInput, ChatModuleOverrides, ChatPromptContext, ChatState,
-    GalaxyItem, Message, MessageVariant, PromptConfig, Provider,
+    AppSnapshot, Chat, ChatConfigInput, ChatGenerationSettings, ChatModuleOverrides,
+    ChatPromptContext, ChatState, GalaxyItem, Message, MessageVariant, PromptConfig, Provider,
 };
 
 use ai_memory::clear_chat_ai_context;
@@ -46,6 +46,8 @@ fn migrate(connection: &Connection) -> CommandResult<()> {
                 message_count INTEGER NOT NULL DEFAULT 0,
                 pinned INTEGER NOT NULL DEFAULT 0,
                 archived INTEGER NOT NULL DEFAULT 0,
+                auto_title INTEGER NOT NULL DEFAULT 0,
+                greeting_message TEXT NOT NULL DEFAULT '',
                 provider_id TEXT,
                 persona_id TEXT,
                 character_id TEXT,
@@ -53,7 +55,8 @@ fn migrate(connection: &Connection) -> CommandResult<()> {
                 universe_id TEXT,
                 response_preset TEXT NOT NULL DEFAULT 'natural',
                 prompt_config_json TEXT NOT NULL DEFAULT '{}',
-                module_overrides_json TEXT NOT NULL DEFAULT '{}'
+                module_overrides_json TEXT NOT NULL DEFAULT '{}',
+                generation_settings_json TEXT NOT NULL DEFAULT '{}'
             );
 
             CREATE TABLE IF NOT EXISTS messages (
@@ -228,6 +231,24 @@ fn migrate(connection: &Connection) -> CommandResult<()> {
     )?;
     ensure_column(
         connection,
+        "chats",
+        "auto_title",
+        "INTEGER NOT NULL DEFAULT 0",
+    )?;
+    ensure_column(
+        connection,
+        "chats",
+        "greeting_message",
+        "TEXT NOT NULL DEFAULT ''",
+    )?;
+    ensure_column(
+        connection,
+        "chats",
+        "generation_settings_json",
+        "TEXT NOT NULL DEFAULT '{}'",
+    )?;
+    ensure_column(
+        connection,
         "messages",
         "remembered",
         "INTEGER NOT NULL DEFAULT 0",
@@ -390,6 +411,14 @@ fn migrate(connection: &Connection) -> CommandResult<()> {
             WHERE role = 'assistant';
             "#,
     )?;
+    connection.execute(
+        "UPDATE chats
+         SET greeting_message = COALESCE((
+             SELECT content FROM messages WHERE messages.id = chats.id || '-greeting'
+         ), greeting_message)
+         WHERE greeting_message = ''",
+        [],
+    )?;
     migrate_legacy_profile_name(connection)?;
     migrate_prompt_configs(connection)?;
     Ok(())
@@ -460,6 +489,14 @@ fn parse_module_overrides(raw: &str) -> ChatModuleOverrides {
 
 fn module_overrides_json(overrides: &ChatModuleOverrides) -> CommandResult<String> {
     Ok(serde_json::to_string(overrides)?)
+}
+
+fn parse_generation_settings(raw: &str) -> ChatGenerationSettings {
+    serde_json::from_str(raw).unwrap_or_default()
+}
+
+fn generation_settings_json(settings: &ChatGenerationSettings) -> CommandResult<String> {
+    Ok(serde_json::to_string(settings)?)
 }
 
 fn ensure_column(
@@ -538,7 +575,8 @@ fn list_chats(connection: &Connection) -> CommandResult<Vec<Chat>> {
     let mut worldbooks = worldbook_ids_by_chat(connection)?;
     let mut statement = connection.prepare(
         "SELECT id, title, preview, updated_at, message_count, pinned, archived, provider_id,
-                persona_id, character_id, style_item_id, universe_id, prompt_config_json, module_overrides_json, response_preset
+                persona_id, character_id, style_item_id, universe_id, prompt_config_json, module_overrides_json, response_preset,
+                auto_title, greeting_message, generation_settings_json
          FROM chats ORDER BY archived ASC, pinned DESC, updated_at DESC",
     )?;
     let rows = statement
@@ -559,6 +597,9 @@ fn list_chats(connection: &Connection) -> CommandResult<Vec<Chat>> {
                 row.get::<_, String>(12)?,
                 row.get::<_, String>(13)?,
                 row.get::<_, String>(14)?,
+                row.get::<_, i64>(15)? != 0,
+                row.get::<_, String>(16)?,
+                row.get::<_, String>(17)?,
             ))
         })?
         .collect::<Result<Vec<_>, _>>()?;
@@ -582,6 +623,9 @@ fn list_chats(connection: &Connection) -> CommandResult<Vec<Chat>> {
                 prompt_config_json,
                 module_overrides_json,
                 legacy_preset,
+                auto_title,
+                greeting_message,
+                generation_settings_json,
             )| Chat {
                 worldbook_ids: worldbooks.remove(&id).unwrap_or_default(),
                 id,
@@ -591,12 +635,15 @@ fn list_chats(connection: &Connection) -> CommandResult<Vec<Chat>> {
                 message_count,
                 pinned,
                 archived,
+                auto_title,
+                greeting_message: (!greeting_message.trim().is_empty()).then_some(greeting_message),
                 provider_id,
                 persona_id,
                 character_id,
                 style_item_id,
                 universe_id,
                 prompt_config: parse_prompt_config(&prompt_config_json, &legacy_preset),
+                generation_settings: parse_generation_settings(&generation_settings_json),
                 module_overrides: parse_module_overrides(&module_overrides_json),
             },
         )
@@ -618,7 +665,8 @@ pub fn get_chat(connection: &Connection, chat_id: &str) -> CommandResult<Chat> {
     let row = connection
         .query_row(
             "SELECT id, title, preview, updated_at, message_count, pinned, archived, provider_id,
-                    persona_id, character_id, style_item_id, universe_id, prompt_config_json, module_overrides_json, response_preset
+                    persona_id, character_id, style_item_id, universe_id, prompt_config_json, module_overrides_json, response_preset,
+                    auto_title, greeting_message, generation_settings_json
              FROM chats WHERE id = ?1",
             params![chat_id],
             |row| {
@@ -638,6 +686,9 @@ pub fn get_chat(connection: &Connection, chat_id: &str) -> CommandResult<Chat> {
                     row.get::<_, String>(12)?,
                     row.get::<_, String>(13)?,
                     row.get::<_, String>(14)?,
+                    row.get::<_, i64>(15)? != 0,
+                    row.get::<_, String>(16)?,
+                    row.get::<_, String>(17)?,
                 ))
             },
         )
@@ -651,12 +702,15 @@ pub fn get_chat(connection: &Connection, chat_id: &str) -> CommandResult<Chat> {
         message_count: row.4,
         pinned: row.5,
         archived: row.6,
+        auto_title: row.15,
+        greeting_message: (!row.16.trim().is_empty()).then_some(row.16),
         provider_id: row.7,
         persona_id: row.8,
         character_id: row.9,
         style_item_id: row.10,
         universe_id: row.11,
         prompt_config: parse_prompt_config(&row.12, &row.14),
+        generation_settings: parse_generation_settings(&row.17),
         module_overrides: parse_module_overrides(&row.13),
         worldbook_ids: worldbook_ids_for_chat(connection, &row.0)?,
     })
@@ -921,6 +975,7 @@ pub fn create_chat(
     let title = resolve_new_chat_title(connection, input)?;
     let prompt_config = prompt_config_json(&input.prompt_config)?;
     let module_overrides = module_overrides_json(&input.module_overrides)?;
+    let generation_settings = generation_settings_json(&input.generation_settings)?;
     let greeting = input
         .greeting_message
         .as_deref()
@@ -931,8 +986,9 @@ pub fn create_chat(
     transaction.execute(
         "INSERT INTO chats (
             id, title, preview, updated_at, message_count, pinned, provider_id,
-            persona_id, character_id, style_item_id, universe_id, prompt_config_json, module_overrides_json
-         ) VALUES (?1, ?2, ?3, ?4, ?5, 0, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+            persona_id, character_id, style_item_id, universe_id, prompt_config_json,
+            module_overrides_json, auto_title, greeting_message, generation_settings_json
+         ) VALUES (?1, ?2, ?3, ?4, ?5, 0, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
         params![
             id,
             &title,
@@ -946,6 +1002,9 @@ pub fn create_chat(
             input.universe_id,
             prompt_config,
             module_overrides,
+            input.auto_title || input.title.trim().is_empty(),
+            greeting.unwrap_or(""),
+            generation_settings,
         ],
     )?;
     replace_chat_worldbooks(&transaction, id, &input.worldbook_ids)?;
@@ -982,16 +1041,41 @@ pub fn update_chat_config(
 ) -> CommandResult<()> {
     ensure_chat_mutable(connection, chat_id)?;
     validate_chat_links(connection, input, true)?;
+    let title = if input.auto_title {
+        resolve_chat_title(
+            connection,
+            "",
+            input.character_id.as_deref(),
+            input.automatic_title_base.as_deref(),
+            Some(chat_id),
+        )?
+    } else {
+        input.title.trim().to_owned()
+    };
     let prompt_config = prompt_config_json(&input.prompt_config)?;
     let module_overrides = module_overrides_json(&input.module_overrides)?;
+    let generation_settings = generation_settings_json(&input.generation_settings)?;
+    let greeting = input
+        .greeting_message
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or("");
+    let previous_greeting = connection.query_row(
+        "SELECT greeting_message FROM chats WHERE id = ?1",
+        params![chat_id],
+        |row| row.get::<_, String>(0),
+    )?;
     let transaction = connection.unchecked_transaction()?;
     let changed = transaction.execute(
         "UPDATE chats SET title = ?1, provider_id = ?2, persona_id = ?3,
                     character_id = ?4, style_item_id = ?5, universe_id = ?6,
-                    prompt_config_json = ?7, module_overrides_json = ?8, updated_at = ?9
-             WHERE id = ?10",
+                    prompt_config_json = ?7, module_overrides_json = ?8,
+                    auto_title = ?9, greeting_message = ?10,
+                    generation_settings_json = ?11, updated_at = ?12
+             WHERE id = ?13",
         params![
-            input.title.trim(),
+            title,
             input.provider_id,
             input.persona_id,
             input.character_id,
@@ -999,6 +1083,9 @@ pub fn update_chat_config(
             input.universe_id,
             prompt_config,
             module_overrides,
+            input.auto_title,
+            greeting,
+            generation_settings,
             now_unix(),
             chat_id,
         ],
@@ -1006,8 +1093,67 @@ pub fn update_chat_config(
     if changed == 0 {
         return Err(CommandError::new(keys::CHAT_NOT_FOUND));
     }
+    sync_chat_greeting(&transaction, chat_id, &previous_greeting, greeting)?;
     replace_chat_worldbooks(&transaction, chat_id, &input.worldbook_ids)?;
+    refresh_chat_summary(&transaction, chat_id)?;
+    clear_chat_ai_context(&transaction, chat_id)?;
     transaction.commit().map_err(CommandError::internal)
+}
+
+fn sync_chat_greeting(
+    connection: &Connection,
+    chat_id: &str,
+    previous_greeting: &str,
+    greeting: &str,
+) -> CommandResult<()> {
+    let first_message = connection
+        .query_row(
+            "SELECT id, role FROM messages WHERE chat_id = ?1 ORDER BY created_at ASC, rowid ASC LIMIT 1",
+            params![chat_id],
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+        )
+        .optional()?;
+
+    let greeting_id = first_message
+        .as_ref()
+        .filter(|(_, role)| role == "assistant" && !previous_greeting.trim().is_empty())
+        .map(|(id, _)| id.clone());
+
+    match (greeting_id, greeting.is_empty()) {
+        (Some(message_id), true) => {
+            connection.execute("DELETE FROM messages WHERE id = ?1", params![message_id])?;
+        }
+        (Some(message_id), false) => {
+            connection.execute(
+                "UPDATE messages SET content = ?1, updated_at = ?2 WHERE id = ?3",
+                params![greeting, now_unix(), &message_id],
+            )?;
+            connection.execute(
+                "UPDATE message_variants SET content = ?1, edited = 1 WHERE message_id = ?2 AND position = 0",
+                params![greeting, message_id],
+            )?;
+        }
+        (None, false) => {
+            let created_at = connection.query_row(
+                "SELECT COALESCE(MIN(created_at) - 1, ?1) FROM messages WHERE chat_id = ?2",
+                params![now_unix(), chat_id],
+                |row| row.get::<_, i64>(0),
+            )?;
+            let message_id = format!("{chat_id}-greeting");
+            connection.execute(
+                "INSERT INTO messages (id, chat_id, role, content, created_at, updated_at, active_variant_index)
+                 VALUES (?1, ?2, 'assistant', ?3, ?4, ?4, 0)",
+                params![&message_id, chat_id, greeting, created_at],
+            )?;
+            connection.execute(
+                "INSERT INTO message_variants (id, message_id, position, content, created_at, edited)
+                 VALUES (?1, ?2, 0, ?3, ?4, 0)",
+                params![format!("{message_id}-variant-0"), message_id, greeting, created_at],
+            )?;
+        }
+        (None, true) => {}
+    }
+    Ok(())
 }
 
 fn replace_chat_worldbooks(
@@ -1037,13 +1183,21 @@ fn resolve_new_chat_title(
     connection: &Connection,
     input: &ChatConfigInput,
 ) -> CommandResult<String> {
-    resolve_chat_title(connection, &input.title, input.character_id.as_deref())
+    resolve_chat_title(
+        connection,
+        &input.title,
+        input.character_id.as_deref(),
+        input.automatic_title_base.as_deref(),
+        None,
+    )
 }
 
 fn resolve_chat_title(
     connection: &Connection,
     explicit_title: &str,
     character_id: Option<&str>,
+    automatic_title_base: Option<&str>,
+    exclude_chat_id: Option<&str>,
 ) -> CommandResult<String> {
     let explicit = explicit_title.trim();
     if !explicit.is_empty() {
@@ -1057,18 +1211,25 @@ fn resolve_chat_title(
             |row| row.get::<_, String>(0),
         )?;
         let count = connection.query_row(
-            "SELECT COUNT(*) FROM chats WHERE character_id = ?1",
-            params![character_id],
+            "SELECT COUNT(*) FROM chats WHERE character_id = ?1 AND (?2 IS NULL OR id != ?2)",
+            params![character_id, exclude_chat_id],
             |row| row.get::<_, i64>(0),
         )?;
         (character_name, count)
     } else {
         let count = connection.query_row(
-            "SELECT COUNT(*) FROM chats WHERE character_id IS NULL",
-            [],
+            "SELECT COUNT(*) FROM chats WHERE character_id IS NULL AND (?1 IS NULL OR id != ?1)",
+            params![exclude_chat_id],
             |row| row.get::<_, i64>(0),
         )?;
-        ("Chat".to_owned(), count)
+        (
+            automatic_title_base
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .unwrap_or("Chat")
+                .to_owned(),
+            count,
+        )
     };
 
     let mut sequence = existing_count + 1;
@@ -1086,14 +1247,14 @@ fn resolve_chat_title(
         let candidate = format!("{base}{suffix}");
         let exists = if let Some(character_id) = character_id {
             connection.query_row(
-                "SELECT EXISTS(SELECT 1 FROM chats WHERE title = ?1 AND character_id = ?2)",
-                params![&candidate, character_id],
+                "SELECT EXISTS(SELECT 1 FROM chats WHERE title = ?1 AND character_id = ?2 AND (?3 IS NULL OR id != ?3))",
+                params![&candidate, character_id, exclude_chat_id],
                 |row| row.get::<_, bool>(0),
             )?
         } else {
             connection.query_row(
-                "SELECT EXISTS(SELECT 1 FROM chats WHERE title = ?1 AND character_id IS NULL)",
-                params![&candidate],
+                "SELECT EXISTS(SELECT 1 FROM chats WHERE title = ?1 AND character_id IS NULL AND (?2 IS NULL OR id != ?2))",
+                params![&candidate, exclude_chat_id],
                 |row| row.get::<_, bool>(0),
             )?
         };
@@ -1110,7 +1271,7 @@ fn validate_chat_links(
     require_title: bool,
 ) -> CommandResult<()> {
     let title = input.title.trim();
-    if require_title && title.is_empty() {
+    if require_title && title.is_empty() && !input.auto_title {
         return Err(CommandError::new(keys::CHAT_TITLE_REQUIRED));
     }
     if title.chars().count() > 120 {
@@ -1135,6 +1296,27 @@ fn validate_chat_links(
         validate_optional_galaxy(connection, Some(id), "prompt-set")?;
     }
     validate_prompt_config(&input.prompt_config)?;
+    if input
+        .generation_settings
+        .temperature
+        .is_some_and(|value| !(0.0..=2.0).contains(&value))
+    {
+        return Err(CommandError::new(keys::PROVIDER_TEMPERATURE_RANGE));
+    }
+    if input
+        .generation_settings
+        .top_p
+        .is_some_and(|value| !(0.0..=1.0).contains(&value))
+    {
+        return Err(CommandError::new(keys::PROVIDER_TOP_P_RANGE));
+    }
+    if input
+        .generation_settings
+        .max_tokens
+        .is_some_and(|value| !(1..=131_072).contains(&value))
+    {
+        return Err(CommandError::new(keys::PROVIDER_MAX_TOKENS_POSITIVE));
+    }
     Ok(())
 }
 
@@ -1336,7 +1518,7 @@ pub fn set_chat_archived(
 pub fn rename_chat(connection: &Connection, chat_id: &str, title: &str) -> CommandResult<()> {
     ensure_chat_mutable(connection, chat_id)?;
     let changed = connection.execute(
-        "UPDATE chats SET title = ?1, updated_at = ?2 WHERE id = ?3",
+        "UPDATE chats SET title = ?1, auto_title = 0, updated_at = ?2 WHERE id = ?3",
         params![title, now_unix(), chat_id],
     )?;
     if changed == 0 {
@@ -1386,7 +1568,7 @@ pub fn clear_chat(connection: &Connection, chat_id: &str) -> CommandResult<()> {
         params![chat_id],
     )?;
     transaction.execute(
-        "UPDATE chats SET preview = '', message_count = 0, updated_at = ?1 WHERE id = ?2",
+        "UPDATE chats SET preview = '', message_count = 0, greeting_message = '', updated_at = ?1 WHERE id = ?2",
         params![now_unix(), chat_id],
     )?;
     transaction.commit().map_err(CommandError::internal)
@@ -1635,6 +1817,7 @@ pub fn append_message_variant(
             message_id
         ],
     )?;
+    sync_greeting_after_message_change(&transaction, &chat_id, message_id, content.trim())?;
     refresh_chat_summary(&transaction, &chat_id)?;
     transaction.execute(
         "DELETE FROM chat_contexts WHERE chat_id = ?1",
@@ -1677,13 +1860,14 @@ pub fn select_message_variant(
              SET content = ?1, active_variant_index = ?2, updated_at = ?3, edited = ?4
              WHERE id = ?5",
         params![
-            content,
+            &content,
             variant_index,
             now_unix(),
             edited as i64,
             message_id
         ],
     )?;
+    sync_greeting_after_message_change(&transaction, &chat_id, message_id, &content)?;
     refresh_chat_summary(&transaction, &chat_id)?;
     transaction.execute(
         "DELETE FROM chat_contexts WHERE chat_id = ?1",
@@ -1708,6 +1892,40 @@ pub fn chat_provider_id(connection: &Connection, chat_id: &str) -> CommandResult
         .ok_or_else(|| CommandError::new(keys::PROVIDER_SELECT_FOR_CHAT))
 }
 
+pub fn chat_generation_settings(
+    connection: &Connection,
+    chat_id: &str,
+) -> CommandResult<ChatGenerationSettings> {
+    let raw = connection
+        .query_row(
+            "SELECT generation_settings_json FROM chats WHERE id = ?1",
+            params![chat_id],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()?
+        .ok_or_else(|| CommandError::new(keys::CHAT_NOT_FOUND))?;
+    Ok(parse_generation_settings(&raw))
+}
+
+pub fn message_chat_id(
+    connection: &Connection,
+    message_id: &str,
+    required_role: &str,
+) -> CommandResult<String> {
+    let (chat_id, role) = connection
+        .query_row(
+            "SELECT chat_id, role FROM messages WHERE id = ?1",
+            params![message_id],
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+        )
+        .optional()?
+        .ok_or_else(|| CommandError::new(keys::MESSAGE_NOT_FOUND))?;
+    if role != required_role {
+        return Err(CommandError::new(keys::MESSAGE_CONTINUE_ASSISTANT_ONLY));
+    }
+    Ok(chat_id)
+}
+
 pub fn clone_chat(
     connection: &Connection,
     source_chat_id: &str,
@@ -1719,7 +1937,9 @@ pub fn clone_chat(
     ensure_chat_mutable(connection, source_chat_id)?;
     let source = connection
         .query_row(
-            "SELECT provider_id, persona_id, character_id, style_item_id, universe_id, prompt_config_json, module_overrides_json
+            "SELECT provider_id, persona_id, character_id, style_item_id, universe_id,
+                    prompt_config_json, module_overrides_json, auto_title,
+                    greeting_message, generation_settings_json
              FROM chats WHERE id = ?1",
             params![source_chat_id],
             |row| {
@@ -1731,13 +1951,17 @@ pub fn clone_chat(
                     row.get::<_, Option<String>>(4)?,
                     row.get::<_, String>(5)?,
                     row.get::<_, String>(6)?,
+                    row.get::<_, i64>(7)? != 0,
+                    row.get::<_, String>(8)?,
+                    row.get::<_, String>(9)?,
                 ))
             },
         )
         .optional()?
         .ok_or_else(|| CommandError::new(keys::CHAT_NOT_FOUND))?;
 
-    let title = resolve_chat_title(connection, title, source.2.as_deref())?;
+    let auto_title = title.trim().is_empty();
+    let title = resolve_chat_title(connection, title, source.2.as_deref(), None, None)?;
     if title.chars().count() > 120 {
         return Err(CommandError::new(keys::CHAT_TITLE_TOO_LONG));
     }
@@ -1747,8 +1971,9 @@ pub fn clone_chat(
     transaction.execute(
         "INSERT INTO chats (
                 id, title, preview, updated_at, message_count, pinned, provider_id,
-                persona_id, character_id, style_item_id, universe_id, prompt_config_json, module_overrides_json
-             ) VALUES (?1, ?2, '', ?3, 0, 0, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+                persona_id, character_id, style_item_id, universe_id, prompt_config_json,
+                module_overrides_json, auto_title, greeting_message, generation_settings_json
+             ) VALUES (?1, ?2, '', ?3, 0, 0, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
         params![
             new_chat_id,
             &title,
@@ -1760,6 +1985,9 @@ pub fn clone_chat(
             source.4,
             source.5,
             source.6,
+            auto_title,
+            source.8,
+            source.9,
         ],
     )?;
 
@@ -1769,6 +1997,27 @@ pub fn clone_chat(
              FROM chat_worldbooks WHERE chat_id = ?2",
         params![new_chat_id, source_chat_id],
     )?;
+
+    if !include_messages && through_message_id.is_none() && !source.8.trim().is_empty() {
+        let message_id = format!("{new_chat_id}-greeting");
+        transaction.execute(
+            "INSERT INTO messages (
+                    id, chat_id, role, content, created_at, updated_at, active_variant_index
+                 ) VALUES (?1, ?2, 'assistant', ?3, ?4, ?4, 0)",
+            params![&message_id, new_chat_id, &source.8, now],
+        )?;
+        transaction.execute(
+            "INSERT INTO message_variants (
+                    id, message_id, position, content, created_at, edited
+                 ) VALUES (?1, ?2, 0, ?3, ?4, 0)",
+            params![
+                format!("{message_id}-variant-0"),
+                message_id,
+                &source.8,
+                now
+            ],
+        )?;
+    }
 
     if include_messages || through_message_id.is_some() {
         let cutoff = match through_message_id {
@@ -1878,6 +2127,7 @@ pub fn clone_chat(
         refresh_chat_summary(&transaction, new_chat_id)?;
     }
 
+    refresh_chat_summary(&transaction, new_chat_id)?;
     transaction.commit()?;
     Ok(title)
 }
@@ -1924,6 +2174,7 @@ pub fn delete_message(connection: &Connection, message_id: &str) -> CommandResul
         )
         .optional()?
         .ok_or_else(|| CommandError::new(keys::MESSAGE_NOT_FOUND))?;
+    clear_greeting_if_message(connection, &chat_id, message_id)?;
     connection.execute("DELETE FROM messages WHERE id = ?1", params![message_id])?;
     refresh_chat_summary(connection, &chat_id)?;
     invalidate_chat_ai_context(connection, &chat_id)
@@ -1939,6 +2190,7 @@ pub fn delete_messages(connection: &Connection, message_ids: &[String]) -> Comma
 
     for message_id in message_ids {
         let chat_id = ensure_message_chat_mutable(&transaction, message_id)?;
+        clear_greeting_if_message(&transaction, &chat_id, message_id)?;
         transaction.execute("DELETE FROM messages WHERE id = ?1", params![message_id])?;
         chat_ids.insert(chat_id);
     }
@@ -1949,6 +2201,49 @@ pub fn delete_messages(connection: &Connection, message_ids: &[String]) -> Comma
     }
 
     transaction.commit()?;
+    Ok(())
+}
+
+fn sync_greeting_after_message_change(
+    connection: &Connection,
+    chat_id: &str,
+    message_id: &str,
+    content: &str,
+) -> CommandResult<()> {
+    connection.execute(
+        "UPDATE chats
+         SET greeting_message = ?1
+         WHERE id = ?2
+           AND TRIM(greeting_message) <> ''
+           AND ?3 = (
+             SELECT id FROM messages
+             WHERE chat_id = ?2
+             ORDER BY created_at ASC, rowid ASC
+             LIMIT 1
+           )",
+        params![content, chat_id, message_id],
+    )?;
+    Ok(())
+}
+
+fn clear_greeting_if_message(
+    connection: &Connection,
+    chat_id: &str,
+    message_id: &str,
+) -> CommandResult<()> {
+    connection.execute(
+        "UPDATE chats
+         SET greeting_message = ''
+         WHERE id = ?1
+           AND TRIM(greeting_message) <> ''
+           AND ?2 = (
+             SELECT id FROM messages
+             WHERE chat_id = ?1
+             ORDER BY created_at ASC, rowid ASC
+             LIMIT 1
+           )",
+        params![chat_id, message_id],
+    )?;
     Ok(())
 }
 
@@ -2126,7 +2421,6 @@ pub fn get_chat_prompt_context(
         .collect::<Result<Vec<_>, _>>()?;
     let character_style_id = character
         .as_ref()
-        .filter(|item| item.data.get("stylePreset").and_then(Value::as_str) == Some("custom"))
         .and_then(|item| item.data.get("styleItemId"))
         .and_then(Value::as_str)
         .filter(|id| !id.is_empty());

@@ -124,5 +124,6 @@
   "selection.checkSummary": "Available: {{value1}}, failed: {{value2}}",
   "selection.deleteSelectedTitle": "Delete selected connections ({{count}})?",
   "selection.deleteSelectedDescription": "The selected connections will be deleted. Their saved keys will no longer be used.",
-  "selection.deletedCount": "Connections deleted: {{count}}"
+  "selection.deletedCount": "Connections deleted: {{count}}",
+  "providerEditorModal.advancedGenerationDefaults": "Advanced generation defaults"
 }

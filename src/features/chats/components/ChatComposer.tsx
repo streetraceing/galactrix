@@ -630,7 +630,7 @@ function ChatComposerComponent({
         }
       >
         <div className="flex min-h-full min-w-0 flex-1 flex-col gap-3">
-          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-separator bg-default/30 p-2">
+          <div className="scrollbar-thin flex max-w-full flex-nowrap items-center gap-1.5 overflow-x-auto rounded-xl border border-separator bg-default/30 p-1.5 [&>button]:shrink-0">
             <Button
               size="sm"
               variant="tertiary"
@@ -640,7 +640,9 @@ function ChatComposerComponent({
               }
             >
               <Icon name="sparkles" className="size-4 text-accent" />
-              {t('chatComposer.insertRoleplayAction')}
+              <span className="hidden sm:inline">
+                {t('chatComposer.insertRoleplayAction')}
+              </span>
             </Button>
             <Button
               size="sm"
@@ -651,7 +653,9 @@ function ChatComposerComponent({
               }
             >
               <Icon name="edit" className="size-4" />
-              {t('chatComposer.insertBold')}
+              <span className="hidden sm:inline">
+                {t('chatComposer.insertBold')}
+              </span>
             </Button>
             <Button
               size="sm"
@@ -662,7 +666,9 @@ function ChatComposerComponent({
               }
             >
               <Icon name="message_box" className="size-4" />
-              {t('chatComposer.insertQuote')}
+              <span className="hidden sm:inline">
+                {t('chatComposer.insertQuote')}
+              </span>
             </Button>
             <Button
               size="sm"
@@ -673,7 +679,9 @@ function ChatComposerComponent({
               }
             >
               <Icon name="info" className="size-4" />
-              {t('chatComposer.insertOoc')}
+              <span className="hidden sm:inline">
+                {t('chatComposer.insertOoc')}
+              </span>
             </Button>
             {draft ? (
               <>
@@ -687,7 +695,9 @@ function ChatComposerComponent({
                   onPress={() => runToolAction('copy')}
                 >
                   <Icon name="copy" className="size-4" />
-                  {t('chatComposer.copyDraft')}
+                  <span className="hidden sm:inline">
+                    {t('chatComposer.copyDraft')}
+                  </span>
                 </Button>
                 <Button
                   size="sm"
@@ -696,7 +706,9 @@ function ChatComposerComponent({
                   onPress={() => runToolAction('clear')}
                 >
                   <Icon name="clear" className="size-4" />
-                  {t('chatComposer.clearDraft')}
+                  <span className="hidden sm:inline">
+                    {t('chatComposer.clearDraft')}
+                  </span>
                 </Button>
               </>
             ) : null}
@@ -706,7 +718,7 @@ function ChatComposerComponent({
             ref={fullscreenTextAreaRef}
             fullWidth
             variant="secondary"
-            rows={16}
+            rows={6}
             value={draft}
             onChange={(event: ChangeEvent<HTMLTextAreaElement>) =>
               setDraftValue(event.target.value)
@@ -715,7 +727,7 @@ function ChatComposerComponent({
             placeholder={t('chatComposer.fullscreenPlaceholder')}
             aria-label={t('chatComposer.label')}
             disabled={!provider}
-            className="scrollbar-thin min-h-[55dvh] flex-1 resize-none overflow-y-auto sm:min-h-[60dvh]"
+            className="scrollbar-thin min-h-36 max-h-[58dvh] resize-none overflow-y-auto sm:min-h-48"
           />
           <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted">
             <span>{t('chatComposer.fullscreenHint')}</span>

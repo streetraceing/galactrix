@@ -169,7 +169,10 @@ test('Galaxy editor preview renders only the real contribution scope', async () 
 
   assert.match(frontend, /scope: 'contribution'/);
   assert.match(frontend, /case 'style':\s*input\.characterStyle = draft/);
-  assert.match(frontend, /data\.stylePreset === 'custom'/);
+  assert.match(
+    frontend,
+    /input\.characterStyle = findInput\(items, data\.styleItemId, 'style'\)/,
+  );
   assert.doesNotMatch(frontend, /case 'style':[\s\S]{0,180}input\.character =/);
   assert.match(backend, /scope == "contribution"/);
   assert.match(backend, /build_contribution_prompt/);

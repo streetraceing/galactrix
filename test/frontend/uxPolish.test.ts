@@ -25,17 +25,19 @@ test('required fields expose a consistent danger asterisk', async () => {
   assert.match(galaxy, /galaxy-name[\s\S]*?required/);
   assert.match(provider, /providerCredentials\.name'[\s\S]*?required/);
   assert.match(promptBlocks, /required=\{block\.enabled\}/);
-  assert.match(character, /characterEditor\.savedStyle'[\s\S]*?<RequiredMark/);
+  assert.match(character, /characterEditor\.savedStyle/);
+  assert.doesNotMatch(character, /<RequiredMark/);
 });
 
-test('mobile tab swipes follow the finger and settle with edge resistance', async () => {
+test('mobile tab swipes follow the finger without moving past an edge', async () => {
   const [hook, css] = await Promise.all([
     read('src/hooks/useSwipeableTabs.ts'),
     read('src/App.css'),
   ]);
 
   assert.match(hook, /TAB_SWIPE_VISUAL_MAX_PX/);
-  assert.match(hook, /TAB_SWIPE_EDGE_RESISTANCE/);
+  assert.match(hook, /if \(candidate === currentKey\)[\s\S]*clearSwipeVisual/);
+  assert.doesNotMatch(hook, /TAB_SWIPE_EDGE_RESISTANCE/);
   assert.match(hook, /setSwipeVisual\(/);
   assert.match(hook, /candidate === currentKey/);
   assert.match(hook, /dataset\.tabSwipeCommit/);
