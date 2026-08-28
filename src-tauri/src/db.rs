@@ -1096,9 +1096,10 @@ fn sync_chat_greeting(
             connection.execute("DELETE FROM messages WHERE id = ?1", params![message_id])?;
         }
         (Some(message_id), false) => {
+            let updated_at = message_update_timestamp(connection, &message_id)?;
             connection.execute(
                 "UPDATE messages SET content = ?1, updated_at = ?2 WHERE id = ?3",
-                params![greeting, now_unix(), &message_id],
+                params![greeting, updated_at, &message_id],
             )?;
             connection.execute(
                 "UPDATE message_variants SET content = ?1, edited = 1 WHERE message_id = ?2 AND position = 0",
@@ -1629,6 +1630,15 @@ fn next_message_timestamp(connection: &Connection, chat_id: &str) -> CommandResu
     Ok(latest.map_or_else(now_unix, |value| now_unix().max(value + 1)))
 }
 
+fn message_update_timestamp(connection: &Connection, message_id: &str) -> CommandResult<i64> {
+    let timestamp = connection.query_row(
+        "SELECT MAX(created_at, updated_at, ?1) FROM messages WHERE id = ?2",
+        params![now_unix(), message_id],
+        |row| row.get::<_, i64>(0),
+    )?;
+    Ok(timestamp)
+}
+
 pub fn add_user_message(
     connection: &Connection,
     chat_id: &str,
@@ -1713,7 +1723,7 @@ pub fn append_message_variant(
         params![message_id],
         |row| row.get::<_, i64>(0),
     )?;
-    let now = now_unix();
+    let now = message_update_timestamp(&transaction, message_id)?;
     transaction.execute(
         "INSERT INTO message_variants (
                 id, message_id, position, content, created_at, edited
@@ -1774,9 +1784,10 @@ pub fn select_message_variant(
                     row.get::<_, i64>(2)? != 0,
                 ))
             },
-        )
+    )
         .optional()?
         .ok_or_else(|| CommandError::new(keys::MESSAGE_VARIANT_NOT_FOUND))?;
+    let now = message_update_timestamp(&transaction, message_id)?;
     transaction.execute(
         "UPDATE messages
              SET content = ?1, active_variant_index = ?2, updated_at = ?3, edited = ?4
@@ -1784,7 +1795,7 @@ pub fn select_message_variant(
         params![
             &content,
             variant_index,
-            now_unix(),
+            now,
             edited as i64,
             message_id
         ],
@@ -2080,9 +2091,10 @@ pub fn edit_message(
         return Ok(());
     }
 
+    let updated_at = message_update_timestamp(connection, message_id)?;
     let changed = connection.execute(
         "UPDATE messages SET content = ?1, updated_at = ?2, edited = 1 WHERE id = ?3",
-        params![content.trim(), now_unix(), message_id],
+        params![content.trim(), updated_at, message_id],
     )?;
     if changed == 0 {
         return Err(CommandError::new(keys::MESSAGE_NOT_FOUND));
@@ -2211,9 +2223,10 @@ pub fn set_message_remembered(
         )
         .optional()?
         .ok_or_else(|| CommandError::new(keys::MESSAGE_NOT_FOUND))?;
+    let updated_at = message_update_timestamp(connection, message_id)?;
     connection.execute(
         "UPDATE messages SET remembered = ?1, updated_at = ?2 WHERE id = ?3",
-        params![remembered as i64, now_unix(), message_id],
+        params![remembered as i64, updated_at, message_id],
     )?;
     invalidate_chat_ai_context(connection, &chat_id)
 }

@@ -745,6 +745,60 @@ fn full_backup_round_trip_preserves_messages_variants_settings_and_usage() {
 }
 
 #[test]
+fn backup_remains_valid_after_a_variant_updates_a_future_message() {
+    let source = test_database();
+    create_test_chat(&source, "backup-timestamp-chat");
+    add_assistant_message(
+        &source,
+        "backup-timestamp-chat",
+        "backup-timestamp-assistant",
+        "first answer",
+    )
+    .expect("assistant message must save");
+
+    // Rapidly sequenced messages may have timestamps ahead of the wall clock.
+    // Later edits must never move their updated_at value backwards.
+    let future_timestamp = now_unix().saturating_add(60);
+    source
+        .execute(
+            "UPDATE messages SET created_at = ?1, updated_at = ?1 WHERE id = ?2",
+            params![future_timestamp, "backup-timestamp-assistant"],
+        )
+        .expect("assistant timestamp must advance");
+    source
+        .execute(
+            "UPDATE message_variants SET created_at = ?1 WHERE message_id = ?2",
+            params![future_timestamp, "backup-timestamp-assistant"],
+        )
+        .expect("variant timestamp must advance");
+    source
+        .execute(
+            "UPDATE chats SET updated_at = ?1 WHERE id = ?2",
+            params![future_timestamp, "backup-timestamp-chat"],
+        )
+        .expect("chat timestamp must advance");
+
+    append_message_variant(
+        &source,
+        "backup-timestamp-assistant",
+        "backup-timestamp-assistant-variant-1",
+        "better answer",
+        true,
+    )
+    .expect("variant must save");
+
+    let assistant = messages_for_chat(&source, "backup-timestamp-chat")
+        .expect("messages must load")
+        .into_iter()
+        .next()
+        .expect("assistant message must exist");
+    assert!(assistant.updated_at >= assistant.created_at);
+
+    let data = backup_data(&source).expect("backup data must export");
+    validate_backup_data(&data).expect("exported backup must validate");
+}
+
+#[test]
 fn failed_backup_replacement_rolls_back_existing_data() {
     let source = test_database();
     create_test_chat(&source, "backup-chat");
