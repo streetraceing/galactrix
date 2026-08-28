@@ -55,6 +55,7 @@ import {
   MESSAGE_VIRTUAL_OVERSCAN_PX,
   MESSAGE_VIRTUALIZATION_THRESHOLD,
   messageVirtualRange,
+  reconcileMessageScrollTop,
 } from '../messageWindow';
 import {
   formatMessageDate,
@@ -1086,7 +1087,10 @@ function MessageListComponent({
         wide: boolean;
         role: Message['role'];
         activeVariantIndex: number;
-        contentLength: number;
+        content: string;
+        pending: boolean;
+        remembered: boolean;
+        edited: boolean;
       }
     >(),
   );
@@ -1157,7 +1161,10 @@ function MessageListComponent({
         previousSignature?.wide !== wide ||
         previousSignature?.role !== message.role ||
         previousSignature?.activeVariantIndex !== message.activeVariantIndex ||
-        previousSignature?.contentLength !== message.content.length
+        previousSignature?.content !== message.content ||
+        previousSignature?.pending !== Boolean(message.pending) ||
+        previousSignature?.remembered !== message.remembered ||
+        previousSignature?.edited !== Boolean(message.edited)
       ) {
         const startsNewDay =
           index === 0 ||
@@ -1172,7 +1179,10 @@ function MessageListComponent({
           wide,
           role: message.role,
           activeVariantIndex: message.activeVariantIndex,
-          contentLength: message.content.length,
+          content: message.content,
+          pending: Boolean(message.pending),
+          remembered: message.remembered,
+          edited: Boolean(message.edited),
         });
         measuredMessageHeightsRef.current.delete(message.id);
       }
@@ -1453,12 +1463,21 @@ function MessageListComponent({
       );
       return next.size === current.size ? current : next;
     });
-    for (const messageId of measuredMessageHeightsRef.current.keys()) {
+    const virtualCaches = [
+      measuredMessageHeightsRef.current,
+      estimatedMessageHeightsRef.current,
+      messageMeasurementSignaturesRef.current,
+      virtualMessageRefCallbacksRef.current,
+    ];
+    for (const cache of virtualCaches) {
+      for (const messageId of cache.keys()) {
+        if (!availableIds.has(messageId)) cache.delete(messageId);
+      }
+    }
+    for (const [messageId, element] of virtualMessageElementsRef.current) {
       if (!availableIds.has(messageId)) {
-        measuredMessageHeightsRef.current.delete(messageId);
-        estimatedMessageHeightsRef.current.delete(messageId);
-        messageMeasurementSignaturesRef.current.delete(messageId);
-        virtualMessageRefCallbacksRef.current.delete(messageId);
+        virtualResizeObserverRef.current?.unobserve(element);
+        virtualMessageElementsRef.current.delete(messageId);
       }
     }
   }, [messages]);
@@ -1873,8 +1892,15 @@ function MessageListComponent({
     (messageId: string) => {
       const existing = virtualMessageRefCallbacksRef.current.get(messageId);
       if (existing) return existing;
-      const callback = (node: HTMLDivElement | null) =>
+      const callback = (node: HTMLDivElement | null) => {
         registerVirtualMessage(messageId, node);
+        if (
+          node === null &&
+          virtualMessageRefCallbacksRef.current.get(messageId) === callback
+        ) {
+          virtualMessageRefCallbacksRef.current.delete(messageId);
+        }
+      };
       virtualMessageRefCallbacksRef.current.set(messageId, callback);
       return callback;
     },
@@ -1939,18 +1965,38 @@ function MessageListComponent({
     const scroller = scrollRef.current;
     if (!scroller) return;
     if (isUserScrollingRef.current || userScrollIntentRef.current) return;
-    programmaticScrollRef.current = true;
+
+    let nextScrollTop: number | null = null;
     if (anchor.pinBottom) {
-      scroller.scrollTop = scroller.scrollHeight;
+      nextScrollTop = reconcileMessageScrollTop({
+        scrollTop: scroller.scrollTop,
+        scrollHeight: scroller.scrollHeight,
+        viewportHeight: scroller.clientHeight,
+        previousAnchorOffset: anchor.viewportOffset,
+        currentAnchorOffset: anchor.viewportOffset,
+        pinBottom: true,
+      });
     } else {
       const element = virtualMessageElementsRef.current.get(anchor.messageId);
       if (element) {
         const currentOffset =
           element.getBoundingClientRect().top -
           scroller.getBoundingClientRect().top;
-        const correction = currentOffset - anchor.viewportOffset;
-        if (Math.abs(correction) > 0.5) scroller.scrollTop += correction;
+        nextScrollTop = reconcileMessageScrollTop({
+          scrollTop: scroller.scrollTop,
+          scrollHeight: scroller.scrollHeight,
+          viewportHeight: scroller.clientHeight,
+          previousAnchorOffset: anchor.viewportOffset,
+          currentAnchorOffset: currentOffset,
+        });
       }
+    }
+    if (
+      nextScrollTop != null &&
+      Math.abs(nextScrollTop - scroller.scrollTop) > 0.5
+    ) {
+      programmaticScrollRef.current = true;
+      scroller.scrollTop = nextScrollTop;
     }
     const frame = window.requestAnimationFrame(() => {
       programmaticScrollRef.current = false;

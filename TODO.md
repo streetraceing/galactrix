@@ -1,6 +1,6 @@
 # Project TODO
 
-This file is the canonical backlog for product improvements. The planning baseline is **v1.4.0**.
+This file is the canonical backlog for product improvements. The planning baseline is **v1.4.1**.
 
 ## How to use this file
 
@@ -12,7 +12,6 @@ This file is the canonical backlog for product improvements. The planning baseli
 
 ## Now
 
-- [ ] **TODO-003 - Establish a long-conversation performance budget.** Add measured message virtualization and automated stress scenarios for large chats while preserving the exact scroll anchor during pagination, edits, image loading, keyboard resize, and generation.
 - [ ] **TODO-004 - Add a data health and recovery center.** Provide database integrity checks, orphan cleanup, a safe repair flow, and an exportable diagnostics report without exposing provider secrets or message content by default.
 - [ ] **TODO-005 - Add chat organization beyond pin and archive.** Support folders or tags, bulk assignment, and saved smart collections such as unread, recently active, character, provider, and generation status.
 
@@ -28,6 +27,7 @@ This file is the canonical backlog for product improvements. The planning baseli
 
 - [x] ~~**TODO-001 - Add versioned full-app backup and restore.** Export chats, message variants, Galaxy objects, settings, and optional provider credentials in one validated archive; preview its contents and roll back cleanly if import fails.~~ - Implemented in v1.4.0
 - [x] ~~**TODO-002 - Make generation jobs durable and chat-scoped.** Allow responses to continue safely while the user navigates between chats, show a compact global job queue, support cancellation per chat, and recover interrupted UI state without duplicate placeholders.~~ - Implemented in v1.4.0
+- [x] ~~**TODO-003 - Establish a long-conversation performance budget.** Add measured message virtualization and automated stress scenarios for large chats while preserving the exact scroll anchor during pagination, edits, image loading, keyboard resize, and generation.~~ - Implemented in v1.4.1
 
 ## Dropped
 

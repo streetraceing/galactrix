@@ -56,6 +56,7 @@ test('virtual scrolling updates only bounded message windows', async () => {
   assert.match(source, /commitMeasuredMessageHeights/);
   assert.match(source, /pendingMeasurementAnchorRef/);
   assert.match(source, /viewportOffset/);
+  assert.match(source, /reconcileMessageScrollTop/);
   assert.match(source, /programmaticScrollRef/);
   assert.match(source, /nearBottomRef\.current = distanceFromBottom <= 4/);
   assert.match(source, /pinBottom:[\s\S]*followBottomRef\.current/);
@@ -71,6 +72,11 @@ test('virtual scrolling updates only bounded message windows', async () => {
   assert.doesNotMatch(source, /CHAT_LAYOUT_BOTTOM_LOCK_MS/);
   assert.doesNotMatch(source, /bottomLockUntilRef/);
   assert.match(source, /messageCanvasRef/);
+  assert.match(source, /const virtualCaches = \[/);
+  assert.match(
+    source,
+    /virtualMessageRefCallbacksRef\.current\.delete\(messageId\)/,
+  );
   assert.match(source, /current\.start === next\.start/);
   assert.match(source, /current\.end === next\.end/);
   assert.doesNotMatch(source, /messageOffsets\[absoluteIndex\]/);
