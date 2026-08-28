@@ -3,6 +3,10 @@ export interface LayoutViewportSize {
   height: number;
 }
 
+export interface MobileModalViewport extends LayoutViewportSize {
+  top: number;
+}
+
 const VIEWPORT_WIDTH_CHANGE_THRESHOLD = 80;
 
 let expandedLayoutViewport: LayoutViewportSize | undefined;
@@ -79,4 +83,48 @@ export function rememberExpandedLayoutViewport() {
 
 export function resolveExpandedLayoutViewport() {
   return rememberExpandedLayoutViewport();
+}
+
+/**
+ * Keeps a full-height modal stable while the browser chrome changes, but makes
+ * its actual dialog no taller than the visible viewport while an editable
+ * field has the keyboard open. This prevents a focused textarea from being
+ * covered by the Android/iOS software keyboard.
+ */
+export function constrainMobileModalViewport(
+  layoutViewport: LayoutViewportSize | undefined,
+  visualViewport: Pick<VisualViewport, 'height' | 'offsetTop'> | undefined,
+  hasFocusedKeyboardInput: boolean,
+): MobileModalViewport | undefined {
+  if (!layoutViewport) return undefined;
+
+  const visibleHeight = Math.round(visualViewport?.height ?? 0);
+  const visibleTop = Math.max(0, Math.round(visualViewport?.offsetTop ?? 0));
+  const usesVisibleViewport =
+    hasFocusedKeyboardInput &&
+    visibleHeight > 0 &&
+    (visibleHeight < layoutViewport.height || visibleTop > 0);
+
+  if (!usesVisibleViewport) return { ...layoutViewport, top: 0 };
+
+  const top = Math.min(visibleTop, Math.max(0, layoutViewport.height - 1));
+  return {
+    width: layoutViewport.width,
+    height: Math.max(1, Math.min(visibleHeight, layoutViewport.height - top)),
+    top,
+  };
+}
+
+export function resolveMobileModalViewport() {
+  const layoutViewport = resolveExpandedLayoutViewport();
+  const visualViewport =
+    typeof window === 'undefined'
+      ? undefined
+      : (window.visualViewport ?? undefined);
+
+  return constrainMobileModalViewport(
+    layoutViewport,
+    visualViewport,
+    typeof document !== 'undefined' && isKeyboardInput(document.activeElement),
+  );
 }

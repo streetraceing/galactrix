@@ -212,21 +212,6 @@ export function ChatsScreen({
     [activeChat, activeProvider, canvasGenerationActive, onSend, showChatError],
   );
 
-  const keepBottomPinnedAfterComposerResize = useCallback((delta: number) => {
-    if (delta <= 0) return;
-    const scroller = messageScrollRef.current;
-    if (!scroller) return;
-
-    const distanceAfterResize = Math.max(
-      0,
-      scroller.scrollHeight - scroller.clientHeight - scroller.scrollTop,
-    );
-    const distanceBeforeResize = Math.max(0, distanceAfterResize - delta);
-    if (distanceBeforeResize > 48) return;
-
-    scroller.scrollTop = scroller.scrollHeight;
-  }, []);
-
   const cancelGeneration = useCallback(async () => {
     if (!canvasChat) return;
     try {
@@ -637,7 +622,6 @@ export function ChatsScreen({
                     wide={chatMaximized}
                     onSend={send}
                     onCancel={cancelGeneration}
-                    onHeightChange={keepBottomPinnedAfterComposerResize}
                   />
                 )}
               </div>

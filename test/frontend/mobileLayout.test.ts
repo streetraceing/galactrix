@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
-import { mergeExpandedLayoutViewport } from '../../src/lib/mobileViewport.ts';
+import {
+  constrainMobileModalViewport,
+  mergeExpandedLayoutViewport,
+} from '../../src/lib/mobileViewport.ts';
 
 const pageHeaderPath = new URL(
   '../../src/components/ui/PageHeader.tsx',
@@ -51,6 +54,33 @@ test('expanded mobile viewport does not collapse with the keyboard', () => {
       { width: 915, height: 412 },
     ),
     { width: 915, height: 412 },
+  );
+});
+
+test('focused mobile modal uses the visible viewport above the keyboard', () => {
+  assert.deepEqual(
+    constrainMobileModalViewport(
+      { width: 412, height: 915 },
+      { height: 503, offsetTop: 0 },
+      true,
+    ),
+    { width: 412, height: 503, top: 0 },
+  );
+  assert.deepEqual(
+    constrainMobileModalViewport(
+      { width: 412, height: 915 },
+      { height: 600, offsetTop: 48 },
+      true,
+    ),
+    { width: 412, height: 600, top: 48 },
+  );
+  assert.deepEqual(
+    constrainMobileModalViewport(
+      { width: 412, height: 915 },
+      { height: 503, offsetTop: 0 },
+      false,
+    ),
+    { width: 412, height: 915, top: 0 },
   );
 });
 
@@ -184,7 +214,7 @@ test('chat configuration keeps prompt details compact but context immediately us
   assert.match(contextPicker, /chatContextPicker\.expand/);
   assert.match(setup, /space-y-3 sm:space-y-5/);
   assert.doesNotMatch(galaxyEditor, /min-h-48/);
-  assert.match(galaxyEditor, /min-h-20 sm:min-h-24/);
+  assert.match(galaxyEditor, /min-h-28 sm:min-h-32/);
 });
 
 test('chat recent-message limit keeps an editable text draft', async () => {

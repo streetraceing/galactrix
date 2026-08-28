@@ -235,6 +235,7 @@ test('mobile back stays inside the app for tabs, stale sessions, menus, selectio
   assert.match(back, /resetStaleHistoryEntry\(\)/);
   assert.match(back, /pushMobileRouteHistoryState/);
   assert.match(tabHistory, /pushMobileRouteHistoryState\(historyStateForTab/);
+  assert.match(tabHistory, /useLayoutEffect/);
   assert.match(tabHistory, /window\.addEventListener\('popstate'/);
   assert.match(tabHistory, /onHistoryTabChangeRef\.current\(entry\.tab\)/);
   assert.match(controller, /useMobileTabHistory\(activeTab, setActiveTab\)/);
@@ -275,14 +276,14 @@ test('chat tail follows generation, variants, and keyboard without duplicating r
   assert.match(screenSource, /viewportHeight=\{keyboardViewportHeight\}/);
 });
 
-test('mobile modal dismisses the keyboard and keeps the expanded layout viewport', async () => {
+test('mobile modal keeps its focused text editor above the visual viewport keyboard', async () => {
   const [source, viewport] = await Promise.all([
     readFile(uiModalPath, 'utf8'),
     readFile(mobileViewportPath, 'utf8'),
   ]);
 
   assert.match(source, /dismissMobileKeyboard\(\)/);
-  assert.match(source, /resolveExpandedLayoutViewport\(\)/);
+  assert.match(source, /resolveMobileModalViewport\(\)/);
   assert.match(source, /syncLayoutViewport\(\)/);
   assert.match(
     source,
@@ -291,8 +292,14 @@ test('mobile modal dismisses the keyboard and keeps the expanded layout viewport
   assert.match(source, /minWidth: mobileLayoutViewport\.width/);
   assert.match(source, /maxHeight: mobileLayoutViewport\.height/);
   assert.match(source, /'--ui-modal-layout-height'/);
+  assert.match(source, /'--ui-modal-layout-top'/);
   assert.match(source, /window\.addEventListener\('resize'/);
   assert.match(source, /visualViewport\?\.addEventListener\('resize'/);
+  assert.match(source, /visualViewport\?\.addEventListener\('scroll'/);
+  assert.match(source, /document\.addEventListener\('focusin'/);
+  assert.match(source, /ui-modal-mobile-backdrop/);
   assert.match(viewport, /Math\.max\(previous\.height, current\.height\)/);
+  assert.match(viewport, /constrainMobileModalViewport/);
+  assert.match(viewport, /isKeyboardInput\(document\.activeElement\)/);
   assert.match(viewport, /\(activeElement as HTMLElement\)\.blur\(\)/);
 });

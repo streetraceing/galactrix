@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useLayoutEffect, useRef } from 'react';
 import { isMobilePlatform } from '../lib/platform';
 import type { TabId } from '../types';
 import {
@@ -61,7 +61,9 @@ export function useMobileTabHistory(
   activeTabRef.current = activeTab;
   onHistoryTabChangeRef.current = onHistoryTabChange;
 
-  useEffect(() => {
+  // This must be ready before passive effects install a chat or modal Back
+  // entry. Otherwise restoring directly into a chat can replace that entry.
+  useLayoutEffect(() => {
     if (!isMobilePlatform()) return;
 
     const currentEntry = tabHistoryEntry(window.history.state);

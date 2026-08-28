@@ -166,7 +166,7 @@ export function GalaxyEditorModal({
               value={draft.description}
               placeholder={t(galaxyEditorDescriptionKeys[draft.kind])}
               autoComplete="off"
-              className="min-h-20 sm:min-h-24"
+              className="min-h-28 sm:min-h-32"
               onChange={(event) =>
                 setDraft({ ...draft, description: event.target.value })
               }

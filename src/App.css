@@ -1729,12 +1729,7 @@
   }
 
   .message-surface {
-    interpolate-size: allow-keywords;
     transition:
-      width var(--motion-standard) var(--motion-ease),
-      height var(--motion-standard) var(--motion-ease),
-      max-width var(--motion-standard) var(--motion-ease),
-      padding var(--motion-standard) var(--motion-ease),
       background-color var(--motion-fast) var(--motion-ease),
       border-color var(--motion-fast) var(--motion-ease),
       box-shadow var(--motion-fast) var(--motion-ease);
@@ -2048,13 +2043,39 @@ html[data-tab-transition-direction='previous']
 
 textarea {
   field-sizing: content;
-  min-block-size: 5.5rem;
-  max-block-size: min(52dvh, 32rem);
+  min-block-size: 7rem;
+  max-block-size: min(58dvh, 36rem);
   overflow-y: auto;
   resize: vertical;
 }
 
 .chat-composer textarea {
-  min-block-size: 3rem;
+  field-sizing: fixed;
+  min-block-size: 5.5rem;
   resize: none;
+}
+
+.ui-modal-mobile-backdrop {
+  bottom: auto !important;
+  right: auto !important;
+}
+
+.ui-modal-text-editor-body,
+.ui-modal-text-editor {
+  display: flex;
+  min-block-size: 0;
+  flex: 1 1 0%;
+  flex-direction: column;
+}
+
+.ui-modal-text-editor-body {
+  overflow: hidden;
+}
+
+.ui-modal-text-editor textarea {
+  field-sizing: fixed;
+  min-block-size: 0;
+  max-block-size: none;
+  block-size: 100%;
+  flex: 1 1 0%;
 }

@@ -58,15 +58,18 @@ test('virtual scrolling updates only bounded message windows', async () => {
   assert.match(source, /viewportOffset/);
   assert.match(source, /programmaticScrollRef/);
   assert.match(source, /nearBottomRef\.current = distanceFromBottom <= 4/);
-  assert.match(source, /pinBottom: followBottomRef\.current/);
+  assert.match(source, /pinBottom:[\s\S]*followBottomRef\.current/);
   assert.match(source, /USER_SCROLL_IDLE_MS/);
   assert.match(source, /userScrollIntentRef\.current/);
-  assert.match(source, /shouldForceBottom/);
+  assert.match(source, /shouldFollowBottom/);
   assert.match(source, /previous\.sending !== sending/);
   assert.match(source, /previous\.generationKey !== generationKey/);
   assert.match(source, /keepVirtualTailMounted/);
   assert.match(source, /virtualWindow\.layoutKey === virtualLayoutKey/);
   assert.match(source, /lockScrollerToBottomDuringLayout/);
+  assert.match(source, /Coalesce post-layout bottom corrections/);
+  assert.doesNotMatch(source, /CHAT_LAYOUT_BOTTOM_LOCK_MS/);
+  assert.doesNotMatch(source, /bottomLockUntilRef/);
   assert.match(source, /messageCanvasRef/);
   assert.match(source, /current\.start === next\.start/);
   assert.match(source, /current\.end === next\.end/);
@@ -79,31 +82,30 @@ test('virtual scrolling updates only bounded message windows', async () => {
   assert.match(source, /isLastVisualMessage \? 'pb-0'/);
 });
 
-test('composer growth keeps the current chat pinned when it was already at the bottom', async () => {
-  const [composer, chatsScreen] = await Promise.all([
+test('composer growth preserves its own scroll without competing bottom pinners', async () => {
+  const [composer, chatsScreen, messageList] = await Promise.all([
     readFile(composerPath, 'utf8'),
     readFile(chatsScreenPath, 'utf8'),
+    readFile(messageListPath, 'utf8'),
   ]);
 
-  assert.match(composer, /new ResizeObserver/);
-  assert.match(composer, /onHeightChange\?\.\(delta\)/);
+  assert.match(composer, /const CHAT_COMPOSER_MAX_HEIGHT = 192/);
+  assert.match(composer, /const previousScrollTop = textArea\.scrollTop/);
+  assert.match(
+    composer,
+    /textArea\.scrollTop = Math\.min\(previousScrollTop, maxScrollTop\)/,
+  );
   const resizeEffect = composer.match(
     /useLayoutEffect\(\(\) => \{[\s\S]*?\n  }, \[draft\]\);/,
   );
   assert.ok(resizeEffect);
   assert.match(resizeEffect[0], /textArea\.style\.height = 'auto'/);
   assert.doesNotMatch(resizeEffect[0], /requestAnimationFrame/);
-  assert.match(chatsScreen, /distanceBeforeResize/);
-  assert.match(chatsScreen, /distanceAfterResize - delta/);
-  const resizeHandler = chatsScreen.match(
-    /const keepBottomPinnedAfterComposerResize[\s\S]*?\n  }, \[\]\);/,
-  );
-  assert.ok(resizeHandler);
-  assert.match(
-    resizeHandler[0],
-    /scroller\.scrollTop = scroller\.scrollHeight/,
-  );
-  assert.doesNotMatch(resizeHandler[0], /requestAnimationFrame/);
+  assert.doesNotMatch(composer, /new ResizeObserver/);
+  assert.doesNotMatch(chatsScreen, /keepBottomPinnedAfterComposerResize/);
+  assert.doesNotMatch(chatsScreen, /onHeightChange=/);
+  assert.match(messageList, /new ResizeObserver/);
+  assert.match(messageList, /!userScrollIntentRef\.current/);
 });
 
 test('regeneration uses the same symmetric typing bubble as a new response', async () => {

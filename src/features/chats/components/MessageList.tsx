@@ -104,7 +104,6 @@ const MESSAGE_SELECTION_RETURN_THRESHOLD = 28;
 const TOUCH_SELECTION_MOVE_THRESHOLD = 10;
 const MESSAGE_ENTRY_ANIMATION_MS = MOTION_DURATION_MS.standard;
 const SCROLL_TO_BOTTOM_RELEASE_MS = 1_400;
-const CHAT_LAYOUT_BOTTOM_LOCK_MS = 420;
 const USER_SCROLL_IDLE_MS = 360;
 const MESSAGE_DATE_SEPARATOR_HEIGHT = 38;
 
@@ -1047,7 +1046,7 @@ function MessageListComponent({
   const scrollToBottomReleaseTimerRef = useRef<number | null>(null);
   const virtualScrollFrameRef = useRef<number | null>(null);
   const bottomLockFrameRef = useRef<number | null>(null);
-  const bottomLockUntilRef = useRef(0);
+  const programmaticScrollFrameRef = useRef<number | null>(null);
   const previousScrollToBottomRequestRef = useRef(scrollToBottomRequest);
   const messageCanvasRef = useRef<HTMLDivElement | null>(null);
   const userScrollIdleTimerRef = useRef<number | null>(null);
@@ -1351,6 +1350,9 @@ function MessageListComponent({
       }
       if (bottomLockFrameRef.current != null) {
         window.cancelAnimationFrame(bottomLockFrameRef.current);
+      }
+      if (programmaticScrollFrameRef.current != null) {
+        window.cancelAnimationFrame(programmaticScrollFrameRef.current);
       }
       if (userScrollIdleTimerRef.current != null) {
         window.clearTimeout(userScrollIdleTimerRef.current);
@@ -1689,7 +1691,6 @@ function MessageListComponent({
   }, []);
 
   const stopBottomLayoutLock = useCallback(() => {
-    bottomLockUntilRef.current = 0;
     if (bottomLockFrameRef.current != null) {
       window.cancelAnimationFrame(bottomLockFrameRef.current);
       bottomLockFrameRef.current = null;
@@ -1698,6 +1699,7 @@ function MessageListComponent({
 
   const beginUserScroll = useCallback(() => {
     userScrollIntentRef.current = true;
+    programmaticScrollRef.current = false;
     finishScrollToBottom();
     stopBottomLayoutLock();
     if (userScrollIdleTimerRef.current != null) {
@@ -1712,29 +1714,47 @@ function MessageListComponent({
   const pinScrollerToBottom = useCallback(() => {
     const scroller = scrollRef.current;
     if (!scroller) return;
+
+    if (programmaticScrollFrameRef.current != null) {
+      window.cancelAnimationFrame(programmaticScrollFrameRef.current);
+    }
+    programmaticScrollRef.current = true;
     scroller.scrollTop = scroller.scrollHeight;
     nearBottomRef.current = true;
     followBottomRef.current = true;
+    programmaticScrollFrameRef.current = window.requestAnimationFrame(() => {
+      programmaticScrollFrameRef.current = null;
+      programmaticScrollRef.current = false;
+    });
   }, [scrollRef]);
 
-  const lockScrollerToBottomDuringLayout = useCallback(
-    (duration = CHAT_LAYOUT_BOTTOM_LOCK_MS) => {
-      stopBottomLayoutLock();
-      bottomLockUntilRef.current = performance.now() + duration;
+  const lockScrollerToBottomDuringLayout = useCallback(() => {
+    stopBottomLayoutLock();
+    if (
+      !viewActive ||
+      !followBottomRef.current ||
+      isUserScrollingRef.current ||
+      userScrollIntentRef.current
+    ) {
+      return;
+    }
 
-      const pin = () => {
-        bottomLockFrameRef.current = null;
-        if (!viewActive) return;
-        pinScrollerToBottom();
-        if (performance.now() < bottomLockUntilRef.current) {
-          bottomLockFrameRef.current = window.requestAnimationFrame(pin);
-        }
-      };
-
-      pin();
-    },
-    [pinScrollerToBottom, stopBottomLayoutLock, viewActive],
-  );
+    // Coalesce post-layout bottom corrections into one frame. Repeatedly
+    // pinning for a timed window fought native scroll gestures and made new
+    // messages, typing placeholders, and resize measurements visibly jump.
+    bottomLockFrameRef.current = window.requestAnimationFrame(() => {
+      bottomLockFrameRef.current = null;
+      if (
+        !viewActive ||
+        !followBottomRef.current ||
+        isUserScrollingRef.current ||
+        userScrollIntentRef.current
+      ) {
+        return;
+      }
+      pinScrollerToBottom();
+    });
+  }, [pinScrollerToBottom, stopBottomLayoutLock, viewActive]);
 
   const updateScrollToBottomVisibility = useCallback(() => {
     const scroller = scrollRef.current;
@@ -1887,7 +1907,10 @@ function MessageListComponent({
             messageId: anchor.messageId,
             viewportOffset:
               anchor.element.getBoundingClientRect().top - scrollerTop,
-            pinBottom: followBottomRef.current,
+            pinBottom:
+              followBottomRef.current &&
+              !isUserScrollingRef.current &&
+              !userScrollIntentRef.current,
           }
         : null;
     }
@@ -1915,6 +1938,7 @@ function MessageListComponent({
 
     const scroller = scrollRef.current;
     if (!scroller) return;
+    if (isUserScrollingRef.current || userScrollIntentRef.current) return;
     programmaticScrollRef.current = true;
     if (anchor.pinBottom) {
       scroller.scrollTop = scroller.scrollHeight;
@@ -1971,7 +1995,9 @@ function MessageListComponent({
 
       if (!changed) return;
       pendingMeasurementCommitRef.current = true;
-      if (!isUserScrollingRef.current) scheduleMeasuredMessageCommit();
+      if (!isUserScrollingRef.current && !userScrollIntentRef.current) {
+        scheduleMeasuredMessageCommit();
+      }
     });
 
     virtualResizeObserverRef.current = observer;
@@ -1993,17 +2019,24 @@ function MessageListComponent({
 
     const observer = new ResizeObserver(() => {
       if (
-        followBottomRef.current ||
-        performance.now() < bottomLockUntilRef.current
+        followBottomRef.current &&
+        !isUserScrollingRef.current &&
+        !userScrollIntentRef.current
       ) {
-        pinScrollerToBottom();
+        lockScrollerToBottomDuringLayout();
       }
       scheduleVirtualWindowSync();
     });
     observer.observe(scroller);
     if (messageCanvasRef.current) observer.observe(messageCanvasRef.current);
     return () => observer.disconnect();
-  }, [chatId, pinScrollerToBottom, scheduleVirtualWindowSync, scrollRef, wide]);
+  }, [
+    chatId,
+    lockScrollerToBottomDuringLayout,
+    scheduleVirtualWindowSync,
+    scrollRef,
+    wide,
+  ]);
 
   useLayoutEffect(() => {
     const previous = previousViewStateRef.current;
@@ -2049,7 +2082,6 @@ function MessageListComponent({
     setVirtualWindow({ layoutKey: virtualLayoutKey, ...bottomRange });
 
     if (!scroller) return;
-    lockScrollerToBottomDuringLayout();
     const frame = window.requestAnimationFrame(() => {
       pinScrollerToBottom();
       syncVirtualWindow();
@@ -2060,7 +2092,6 @@ function MessageListComponent({
     chatId,
     clearMessageSelection,
     finishScrollToBottom,
-    lockScrollerToBottomDuringLayout,
     messageOffsets,
     messages.length,
     pinScrollerToBottom,
@@ -2076,7 +2107,14 @@ function MessageListComponent({
   ]);
 
   useLayoutEffect(() => {
-    if (!viewActive || !followBottomRef.current) return;
+    if (
+      !viewActive ||
+      !followBottomRef.current ||
+      isUserScrollingRef.current ||
+      userScrollIntentRef.current
+    ) {
+      return;
+    }
     lockScrollerToBottomDuringLayout();
   }, [
     lockScrollerToBottomDuringLayout,
@@ -2091,15 +2129,16 @@ function MessageListComponent({
       ? `${effectiveMessageGeneration.mode}:${effectiveMessageGeneration.messageId}`
       : '';
     const previous = previousGenerationStateRef.current;
-    const shouldForceBottom =
+    const shouldFollowBottom =
       viewActive &&
+      followBottomRef.current &&
+      !isUserScrollingRef.current &&
+      !userScrollIntentRef.current &&
       (previous.sending !== sending ||
         previous.generationKey !== generationKey);
     previousGenerationStateRef.current = { sending, generationKey };
-    if (!shouldForceBottom) return;
+    if (!shouldFollowBottom) return;
 
-    nearBottomRef.current = true;
-    followBottomRef.current = true;
     setShowScrollToBottom(false);
     lockScrollerToBottomDuringLayout();
     const frame = window.requestAnimationFrame(() => {
@@ -2120,8 +2159,13 @@ function MessageListComponent({
   useLayoutEffect(() => {
     const frame = window.requestAnimationFrame(() => {
       const scroller = scrollRef.current;
-      if (scroller && followBottomRef.current) {
-        scroller.scrollTop = scroller.scrollHeight;
+      if (
+        scroller &&
+        followBottomRef.current &&
+        !isUserScrollingRef.current &&
+        !userScrollIntentRef.current
+      ) {
+        lockScrollerToBottomDuringLayout();
       }
       syncVirtualWindow();
       updateScrollToBottomVisibility();
@@ -2129,6 +2173,7 @@ function MessageListComponent({
     return () => window.cancelAnimationFrame(frame);
   }, [
     chatId,
+    lockScrollerToBottomDuringLayout,
     messages.length,
     sending,
     scrollRef,
@@ -2138,9 +2183,8 @@ function MessageListComponent({
   ]);
 
   const handleMessageScroll = useCallback(() => {
-    const layoutLocked = performance.now() < bottomLockUntilRef.current;
     const programmatic = programmaticScrollRef.current;
-    if (!layoutLocked && !programmatic) {
+    if (!programmatic) {
       isUserScrollingRef.current = true;
       if (userScrollIntentRef.current) {
         const scroller = scrollRef.current;

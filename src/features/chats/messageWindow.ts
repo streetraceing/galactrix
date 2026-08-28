@@ -5,7 +5,9 @@ export const MESSAGE_VIRTUAL_OVERSCAN_PX = 1_800;
 export const MESSAGE_VIRTUAL_INITIAL_MIN_ITEMS = 8;
 export const MESSAGE_VIRTUAL_MIN_ITEMS = 16;
 export const MESSAGE_VIRTUAL_CHUNK_ITEMS = 8;
-export const MESSAGE_VIRTUALIZATION_THRESHOLD = 24;
+// The native browser scroll path is smoother for normal conversations. The
+// measured virtual window is reserved for genuinely long histories.
+export const MESSAGE_VIRTUALIZATION_THRESHOLD = 120;
 
 const DESKTOP_ASSISTANT_CHARS_PER_LINE = 76;
 const DESKTOP_USER_CHARS_PER_LINE = 58;

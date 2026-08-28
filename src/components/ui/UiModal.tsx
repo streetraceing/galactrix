@@ -9,8 +9,8 @@ import {
 import { useMobileBackEntry } from '../../hooks/useMobileBackEntry';
 import {
   dismissMobileKeyboard,
-  resolveExpandedLayoutViewport,
-  type LayoutViewportSize,
+  resolveMobileModalViewport,
+  type MobileModalViewport,
 } from '../../lib/mobileViewport';
 import { isMobilePlatform } from '../../lib/platform';
 
@@ -39,7 +39,7 @@ export function UiModal({
 }) {
   const isMobile = isMobilePlatform();
   const [mobileLayoutViewport, setMobileLayoutViewport] =
-    useState<LayoutViewportSize>();
+    useState<MobileModalViewport>();
 
   useMobileBackEntry(isOpen, () => onOpenChange(false));
 
@@ -52,11 +52,13 @@ export function UiModal({
     dismissMobileKeyboard();
 
     const syncLayoutViewport = () => {
-      const viewport = resolveExpandedLayoutViewport();
+      const viewport = resolveMobileModalViewport();
       if (!viewport) return;
 
       setMobileLayoutViewport((current) =>
-        current?.width === viewport.width && current.height === viewport.height
+        current?.width === viewport.width &&
+        current.height === viewport.height &&
+        current.top === viewport.top
           ? current
           : viewport,
       );
@@ -75,6 +77,9 @@ export function UiModal({
     window.addEventListener('resize', scheduleLayoutViewportSync);
     window.addEventListener('orientationchange', scheduleLayoutViewportSync);
     visualViewport?.addEventListener('resize', scheduleLayoutViewportSync);
+    visualViewport?.addEventListener('scroll', scheduleLayoutViewportSync);
+    document.addEventListener('focusin', scheduleLayoutViewportSync);
+    document.addEventListener('focusout', scheduleLayoutViewportSync);
     window.screen.orientation?.addEventListener(
       'change',
       scheduleLayoutViewportSync,
@@ -88,6 +93,9 @@ export function UiModal({
         scheduleLayoutViewportSync,
       );
       visualViewport?.removeEventListener('resize', scheduleLayoutViewportSync);
+      visualViewport?.removeEventListener('scroll', scheduleLayoutViewportSync);
+      document.removeEventListener('focusin', scheduleLayoutViewportSync);
+      document.removeEventListener('focusout', scheduleLayoutViewportSync);
       window.screen.orientation?.removeEventListener(
         'change',
         scheduleLayoutViewportSync,
@@ -105,6 +113,18 @@ export function UiModal({
           minHeight: mobileLayoutViewport.height,
           maxHeight: mobileLayoutViewport.height,
           '--ui-modal-layout-height': `${mobileLayoutViewport.height}px`,
+          '--ui-modal-layout-top': `${mobileLayoutViewport.top}px`,
+        } as CSSProperties)
+      : undefined;
+
+  const mobileBackdropViewportStyle: CSSProperties | undefined =
+    mobileLayoutViewportStyle && mobileLayoutViewport
+      ? ({
+          ...mobileLayoutViewportStyle,
+          top: mobileLayoutViewport.top,
+          right: 'auto',
+          bottom: 'auto',
+          left: 0,
         } as CSSProperties)
       : undefined;
 
@@ -150,9 +170,11 @@ export function UiModal({
         onOpenChange={onOpenChange}
         variant="blur"
         className={
-          isMobile ? 'h-full min-h-0 max-h-full overflow-hidden' : undefined
+          isMobile
+            ? 'ui-modal-mobile-backdrop h-full min-h-0 max-h-full overflow-hidden'
+            : undefined
         }
-        style={mobileLayoutViewportStyle}
+        style={mobileBackdropViewportStyle}
       >
         <Modal.Container
           size={isMobile ? 'full' : size}

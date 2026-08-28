@@ -56,6 +56,7 @@ export function MessageEditModal({
           : t('messageList.theChangeAppliesToTheCurrentConversationHistory')
       }
       size={isMobile ? 'full' : 'cover'}
+      bodyClassName="ui-modal-text-editor-body"
       footer={
         <>
           <Button variant="ghost" isDisabled={saving} onPress={onClose}>
@@ -72,7 +73,7 @@ export function MessageEditModal({
         </>
       }
     >
-      <div className="flex min-h-0 flex-col gap-1.5">
+      <div className="ui-modal-text-editor min-h-0 flex-1 gap-1.5">
         <Label htmlFor="message-edit-content">
           {t('messageList.messageText')}
           <RequiredMark />
@@ -84,8 +85,8 @@ export function MessageEditModal({
           fullWidth
           variant="secondary"
           value={value}
-          rows={6}
-          className="min-h-36 max-h-[58dvh]"
+          rows={8}
+          className="min-h-0 flex-1 max-h-none resize-none overflow-y-auto"
           onChange={(event) => setValue(event.target.value)}
         />
       </div>

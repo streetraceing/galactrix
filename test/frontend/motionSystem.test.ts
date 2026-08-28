@@ -57,9 +57,14 @@ test('message mutations animate without violating reduced-motion preferences', a
   assert.match(source, /animationsEnabled\(\)/);
   assert.match(source, /await waitForMotion\(MOTION_DURATION_MS\.standard\)/);
   assert.match(source, /restoreExitedMessages/);
-  assert.match(
-    css,
-    /\.message-surface \{[\s\S]*interpolate-size: allow-keywords/,
+  const messageSurface = css.match(
+    /(?:^|\n)  \.message-surface \{[\s\S]*?\n  \}/,
+  )?.[0];
+  assert.ok(messageSurface);
+  assert.match(messageSurface, /background-color var\(--motion-fast\)/);
+  assert.doesNotMatch(
+    messageSurface,
+    /interpolate-size|(?:width|height|max-width|padding) var\(--motion-standard\)/,
   );
   assert.match(
     css,

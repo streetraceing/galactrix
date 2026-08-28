@@ -35,7 +35,7 @@ test('virtual chat defaults trade a wider buffer for fewer scroll renders', () =
   assert.equal(MESSAGE_VIRTUAL_INITIAL_MIN_ITEMS, 8);
   assert.equal(MESSAGE_VIRTUAL_MIN_ITEMS, 16);
   assert.equal(MESSAGE_VIRTUAL_CHUNK_ITEMS, 8);
-  assert.equal(MESSAGE_VIRTUALIZATION_THRESHOLD, 24);
+  assert.equal(MESSAGE_VIRTUALIZATION_THRESHOLD, 120);
 });
 
 test('message height estimates account for content and viewport density', () => {

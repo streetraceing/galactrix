@@ -51,6 +51,8 @@ function persistDraft(chatId: string, value: string) {
 type ComposerToolAction =
   'roleplay' | 'bold' | 'quote' | 'ooc' | 'fullscreen' | 'copy' | 'clear';
 
+const CHAT_COMPOSER_MAX_HEIGHT = 192;
+
 function ChatComposerComponent({
   chatId,
   provider,
@@ -64,7 +66,6 @@ function ChatComposerComponent({
   wide,
   onSend,
   onCancel,
-  onHeightChange,
 }: {
   chatId: string;
   provider?: Provider;
@@ -78,14 +79,12 @@ function ChatComposerComponent({
   wide: boolean;
   onSend: (value: string) => Promise<void>;
   onCancel: () => Promise<void>;
-  onHeightChange?: (delta: number) => void;
 }) {
   const { t } = useTranslation('chats');
   const isMobile = isMobilePlatform();
   const [draft, setDraft] = useState(() => readDraft(chatId, saveDrafts));
   const [fullscreenOpen, setFullscreenOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement>(null);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
   const fullscreenTextAreaRef = useRef<HTMLTextAreaElement>(null);
   const draftRef = useRef(draft);
@@ -202,28 +201,27 @@ function ChatComposerComponent({
     [chatId, saveDrafts],
   );
 
-  useEffect(() => {
-    const root = rootRef.current;
-    if (!root || typeof ResizeObserver === 'undefined') return;
-
-    let previousHeight = root.getBoundingClientRect().height;
-    const observer = new ResizeObserver(([entry]) => {
-      const nextHeight =
-        entry?.contentRect.height ?? root.getBoundingClientRect().height;
-      const delta = nextHeight - previousHeight;
-      previousHeight = nextHeight;
-      if (Math.abs(delta) > 0.5) onHeightChange?.(delta);
-    });
-    observer.observe(root);
-    return () => observer.disconnect();
-  }, [onHeightChange]);
-
   useLayoutEffect(() => {
     const textArea = textAreaRef.current;
     if (!textArea) return;
 
+    const previousScrollTop = textArea.scrollTop;
     textArea.style.height = 'auto';
-    textArea.style.height = `${Math.min(textArea.scrollHeight, 192)}px`;
+    textArea.style.height = `${Math.min(
+      textArea.scrollHeight,
+      CHAT_COMPOSER_MAX_HEIGHT,
+    )}px`;
+
+    // Resetting height is necessary to shrink after deletions, but browsers
+    // also reset textarea.scrollTop. Restore its internal position once the
+    // composer has reached its cap so each typed character stays in view.
+    const maxScrollTop = Math.max(
+      0,
+      textArea.scrollHeight - textArea.clientHeight,
+    );
+    if (maxScrollTop > 0) {
+      textArea.scrollTop = Math.min(previousScrollTop, maxScrollTop);
+    }
   }, [draft]);
 
   useEffect(() => {
@@ -547,7 +545,7 @@ function ChatComposerComponent({
 
   return (
     <>
-      <div ref={rootRef} className="chat-composer">
+      <div className="chat-composer">
         <div className={`mx-auto w-full ${wide ? 'max-w-5xl' : 'max-w-3xl'}`}>
           <AppPanel className="chat-composer__panel p-2">
             <div className="flex min-w-0 items-end gap-2">
@@ -556,7 +554,7 @@ function ChatComposerComponent({
                 ref={textAreaRef}
                 fullWidth
                 variant="secondary"
-                rows={1}
+                rows={3}
                 value={draft}
                 onChange={(event: ChangeEvent<HTMLTextAreaElement>) =>
                   setDraftValue(event.target.value)
@@ -566,7 +564,7 @@ function ChatComposerComponent({
                 placeholder={t('chatComposer.placeholder')}
                 aria-label={t('chatComposer.label')}
                 disabled={!provider}
-                className="scrollbar-thin min-h-12 max-h-48 min-w-0 flex-1 resize-none overflow-y-auto transition-none ring-0"
+                className="scrollbar-thin min-h-22 max-h-48 min-w-0 flex-1 resize-none overflow-y-auto transition-none ring-0"
               />
 
               {desktopToolsButton}
@@ -612,7 +610,7 @@ function ChatComposerComponent({
         size="full"
         onConfirm={() => void submit()}
         isConfirmDisabled={!draft.trim() || !provider || sending}
-        bodyClassName="flex min-h-0 flex-col"
+        bodyClassName="ui-modal-text-editor-body"
         footer={
           <div className="flex w-full items-center justify-end gap-2">
             <Button variant="tertiary" onPress={() => setFullscreenOpen(false)}>
@@ -629,8 +627,8 @@ function ChatComposerComponent({
           </div>
         }
       >
-        <div className="flex min-h-full min-w-0 flex-1 flex-col gap-3">
-          <div className="scrollbar-thin flex max-w-full flex-nowrap items-center gap-1.5 overflow-x-auto rounded-xl border border-separator bg-default/30 p-1.5 [&>button]:shrink-0">
+        <div className="ui-modal-text-editor min-h-0 min-w-0 flex-1 gap-3">
+          <div className="scrollbar-thin flex shrink-0 max-w-full flex-nowrap items-center gap-1.5 overflow-x-auto rounded-xl border border-separator bg-default/30 p-1.5 [&>button]:shrink-0">
             <Button
               size="sm"
               variant="tertiary"
@@ -727,9 +725,9 @@ function ChatComposerComponent({
             placeholder={t('chatComposer.fullscreenPlaceholder')}
             aria-label={t('chatComposer.label')}
             disabled={!provider}
-            className="scrollbar-thin min-h-36 max-h-[58dvh] resize-none overflow-y-auto sm:min-h-48"
+            className="scrollbar-thin min-h-0 flex-1 max-h-none resize-none overflow-y-auto"
           />
-          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted">
+          <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 text-xs text-muted">
             <span>{t('chatComposer.fullscreenHint')}</span>
             <span className="tabular-nums">
               {t('chatComposer.characters', { count: draft.length })}
