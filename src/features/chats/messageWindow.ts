@@ -93,6 +93,24 @@ export type MessageScrollAnchor = {
 };
 
 /**
+ * Resolve a freshly measured message border-box height against the height the
+ * virtual geometry currently assumes. Returns `null` when the measurement
+ * confirms the current height, otherwise the committed integer height.
+ */
+export function resolveMessageMeasurement(
+  measuredHeight: number,
+  previousMeasured: number | undefined,
+  previousEstimated: number | undefined,
+) {
+  if (!Number.isFinite(measuredHeight)) return 1;
+  const assumedHeight = previousMeasured ?? previousEstimated;
+  if (assumedHeight != null && Math.abs(measuredHeight - assumedHeight) < 1) {
+    return null;
+  }
+  return Math.max(1, Math.ceil(measuredHeight));
+}
+
+/**
  * Reconcile a post-layout scroll position without moving the message the
  * reader was looking at. The same calculation covers prepended history,
  * edited Markdown, image hydration, keyboard resizes, and streaming tails.

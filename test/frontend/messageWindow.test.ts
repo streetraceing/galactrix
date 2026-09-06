@@ -15,6 +15,7 @@ import {
   messageMaxScrollTop,
   messageVirtualRange,
   reconcileMessageScrollTop,
+  resolveMessageMeasurement,
 } from '../../src/features/chats/messageWindow.ts';
 
 function message(
@@ -66,6 +67,15 @@ test('message height estimates account for content and viewport density', () => 
 
 test('message offsets preserve the complete virtual scroll height', () => {
   assert.deepEqual(buildMessageOffsets([100, 120, 80]), [0, 100, 220, 300]);
+});
+
+test('measured message heights only replace geometry when they really differ', () => {
+  assert.equal(resolveMessageMeasurement(221.4, undefined, 220), 222);
+  assert.equal(resolveMessageMeasurement(220.4, 220, undefined), null);
+  assert.equal(resolveMessageMeasurement(120.5, undefined, 120), null);
+  assert.equal(resolveMessageMeasurement(140, 118, undefined), 140);
+  assert.equal(resolveMessageMeasurement(0, undefined, undefined), 1);
+  assert.equal(resolveMessageMeasurement(Number.NaN, undefined, undefined), 1);
 });
 
 test('virtual ranges stay bounded and align to stable chunks', () => {

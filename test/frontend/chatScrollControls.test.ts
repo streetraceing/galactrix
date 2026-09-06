@@ -88,6 +88,48 @@ test('virtual scrolling updates only bounded message windows', async () => {
   assert.match(source, /isLastVisualMessage \? 'pb-0'/);
 });
 
+test('opening a chat resets stale gestures and pins measured geometry', async () => {
+  const source = await readFile(messageListPath, 'utf8');
+  const activationEffect = source.match(
+    /const shouldResetPosition =[\s\S]*?updateScrollToBottomVisibility\(\);\s*\}\);\s*return \(\) => window\.cancelAnimationFrame\(frame\);/,
+  );
+  assert.ok(activationEffect, 'chat activation reset block not found');
+
+  // A stale gesture flag from a recent scroll used to veto the open-path
+  // bottom pin, so the freshly opened chat sat at a stale offset and jumped.
+  assert.match(activationEffect[0], /isUserScrollingRef\.current = false/);
+  assert.match(activationEffect[0], /userScrollIntentRef\.current = false/);
+  assert.match(
+    activationEffect[0],
+    /window\.clearTimeout\(userScrollIdleTimerRef\.current\)/,
+  );
+
+  // The pin, window sync and visibility update share one pre-paint frame.
+  const pinFrame = activationEffect[0].match(
+    /const frame = window\.requestAnimationFrame\(\(\) => \{[\s\S]*?pinScrollerToBottom\(\);[\s\S]*?syncVirtualWindow\(\);[\s\S]*?updateScrollToBottomVisibility\(\);/,
+  );
+  assert.ok(pinFrame);
+
+  // Scroll events produced by geometry clamping after a pin are programmatic
+  // for a short window instead of being misread as user gestures.
+  assert.match(source, /programmaticScrollUntilRef/);
+  assert.match(
+    source,
+    /programmaticScrollRef\.current \|\|\s*performance\.now\(\) < programmaticScrollUntilRef\.current/,
+  );
+  assert.match(
+    source,
+    /beginUserScroll = useCallback\(\(\) => \{[\s\S]*?programmaticScrollUntilRef\.current = 0/,
+  );
+
+  // Every bottom-pinning path shares one eligibility predicate.
+  assert.match(source, /const isBottomFollowEligible = useCallback/);
+  assert.match(source, /isBottomFollowEligible\(\)/);
+
+  // Real message heights resolve through the shared pure helper.
+  assert.match(source, /resolveMessageMeasurement\(/);
+});
+
 test('composer growth preserves its own scroll without competing bottom pinners', async () => {
   const [composer, chatsScreen, messageList] = await Promise.all([
     readFile(composerPath, 'utf8'),
