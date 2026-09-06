@@ -1,6 +1,6 @@
 [package]
 name = "galactrix"
-version = "1.4.1"
+version = "1.4.2"
 description = "Multiplatform AI client"
 authors = ["streetraceing"]
 edition = "2021"
