@@ -52,6 +52,7 @@ export function AppScreenRouter({
         onDeleteChat={controller.removeChat}
         onSetPinned={controller.pinChat}
         onSetArchived={controller.archiveChat}
+        onAssignTags={controller.assignTagsToChats}
         onClearChat={controller.clearExistingChat}
         onCloneChat={controller.cloneExistingChat}
         onBranchMessage={controller.branchFromMessage}
@@ -114,6 +115,8 @@ export function AppScreenRouter({
         onCreateBackup={controller.createFullAppBackup}
         onInspectBackup={controller.inspectFullAppBackup}
         onRestoreBackup={controller.restoreFullAppBackup}
+        onRunDiagnostics={controller.runHealthDiagnostics}
+        onRepairIssues={controller.repairHealthIssues}
       />
     );
   }

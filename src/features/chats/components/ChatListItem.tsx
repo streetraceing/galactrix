@@ -103,6 +103,23 @@ function ChatListItemComponent({
               </span>
               <span className="shrink-0">{relativeUpdatedAt}</span>
             </span>
+            {chat.tags.length > 0 ? (
+              <span className="mt-1 flex flex-wrap items-center gap-1">
+                {chat.tags.slice(0, 2).map((tag) => (
+                  <span
+                    key={tag}
+                    className="rounded-full bg-default/50 px-1.5 py-0.5 text-[0.65rem] leading-none text-muted"
+                  >
+                    {tag}
+                  </span>
+                ))}
+                {chat.tags.length > 2 ? (
+                  <span className="text-[0.65rem] text-muted">
+                    +{chat.tags.length - 2}
+                  </span>
+                ) : null}
+              </span>
+            ) : null}
           </span>
         </button>
       </Surface>

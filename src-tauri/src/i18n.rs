@@ -11,6 +11,7 @@ pub mod keys {
     pub const CHAT_RECENT_MESSAGE_LIMIT_RANGE: &str = "backend.chat.recentMessageLimitRange";
     pub const CHAT_NOT_FOUND: &str = "backend.chat.notFound";
     pub const CHAT_ARCHIVED_READ_ONLY: &str = "backend.chat.archivedReadOnly";
+    pub const CHAT_TAGS_INVALID: &str = "backend.chat.tagsInvalid";
 
     pub const GENERATION_CHAT_BUSY: &str = "backend.generation.chatBusy";
     pub const GENERATION_ID_INVALID: &str = "backend.generation.idInvalid";
@@ -98,6 +99,8 @@ pub mod keys {
     pub const BACKUP_BROKEN_REFERENCE: &str = "backend.backup.brokenReference";
     pub const BACKUP_ACTIVE_GENERATION: &str = "backend.backup.activeGeneration";
     pub const BACKUP_ROLLBACK_FAILED: &str = "backend.backup.rollbackFailed";
+
+    pub const HEALTH_ACTIVE_GENERATION: &str = "backend.health.activeGeneration";
 
     pub const SECURE_STORAGE_UNAVAILABLE: &str = "backend.secureStorage.unavailable";
 }

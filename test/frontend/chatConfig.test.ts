@@ -43,6 +43,8 @@ test('chat style override wins over the character linked style', () => {
     characterId: character.id,
     styleItemId: 'style-chat',
     worldbookIds: [],
+    tags: [],
+    lastReadAt: 0,
     promptConfig: defaultPromptConfig,
   };
 
@@ -61,6 +63,8 @@ test('character style remains the fallback when chat has no override', () => {
     title: 'Chat',
     characterId: character.id,
     worldbookIds: [],
+    tags: [],
+    lastReadAt: 0,
     promptConfig: defaultPromptConfig,
   };
 
@@ -78,6 +82,8 @@ test('built-in character can layer a saved style reference', () => {
     title: 'Chat',
     characterId: character.id,
     worldbookIds: [],
+    tags: [],
+    lastReadAt: 0,
     promptConfig: defaultPromptConfig,
   };
 
@@ -97,6 +103,8 @@ test('chat config round-trip preserves a direct style selection', () => {
     styleItemId: 'style-1',
     moduleOverrides: { retry: false, contextBudget: true },
     worldbookIds: [],
+    tags: [],
+    lastReadAt: 0,
     promptConfig: defaultPromptConfig,
     generationSettings: {},
   };
@@ -150,6 +158,8 @@ test('automatic chat names use the selected character and its chat count', () =>
       autoTitle: true,
       characterId: character.id,
       worldbookIds: [],
+      tags: [],
+      lastReadAt: 0,
       promptConfig: defaultPromptConfig,
       generationSettings: {},
       moduleOverrides: {},

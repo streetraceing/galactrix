@@ -17,6 +17,7 @@ export type ChatAction =
   | 'pin'
   | 'archive'
   | 'unarchive'
+  | 'tags'
   | 'clear'
   | 'delete';
 
@@ -49,6 +50,11 @@ export type ChatsScreenProps = {
   onDeleteChat: (chatId: string) => Promise<void>;
   onSetPinned: (chatId: string, pinned: boolean) => Promise<void>;
   onSetArchived: (chatId: string, archived: boolean) => Promise<void>;
+  onAssignTags: (
+    chatIds: string[],
+    addTags: string[],
+    removeTags: string[],
+  ) => Promise<void>;
   onClearChat: (chatId: string) => Promise<void>;
   onCloneChat: (
     chatId: string,

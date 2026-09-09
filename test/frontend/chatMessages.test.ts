@@ -31,6 +31,8 @@ function chat(id: string): Chat {
       customBlocks: [],
     },
     worldbookIds: [],
+    tags: [],
+    lastReadAt: 0,
   };
 }
 

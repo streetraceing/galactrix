@@ -7,10 +7,12 @@ import type {
   AppSnapshot,
   ChatConfigInput,
   ChatState,
+  DatabaseHealthReport,
   GenerationJob,
   GalaxyItem,
   EmbeddingProbeResult,
   GalaxyItemInput,
+  HealthRepairReport,
   Provider,
   ProviderImportInput,
   ProviderInput,
@@ -105,6 +107,16 @@ export async function restoreAppBackup(archive: unknown): Promise<AppSnapshot> {
   return invokeBackend<AppSnapshot>('restore_app_backup', { archive });
 }
 
+export async function runDatabaseDiagnostics(): Promise<DatabaseHealthReport> {
+  requireTauri();
+  return invokeBackend<DatabaseHealthReport>('run_database_diagnostics');
+}
+
+export async function repairDatabaseIssues(): Promise<HealthRepairReport> {
+  requireTauri();
+  return invokeBackend<HealthRepairReport>('repair_database_issues');
+}
+
 export async function loadChatState(chatId: string): Promise<ChatState> {
   requireTauri();
   return invokeBackend<ChatState>('get_chat_state', { chatId });
@@ -153,6 +165,24 @@ export async function setChatPinned(chatId: string, pinned: boolean) {
 export async function setChatArchived(chatId: string, archived: boolean) {
   requireTauri();
   return invokeBackend<void>('set_chat_archived', { chatId, archived });
+}
+
+export async function markChatRead(chatId: string) {
+  requireTauri();
+  return invokeBackend<number>('mark_chat_read', { chatId });
+}
+
+export async function assignChatTags(
+  chatIds: string[],
+  addTags: string[],
+  removeTags: string[],
+) {
+  requireTauri();
+  return invokeBackend<number>('assign_chat_tags', {
+    chatIds,
+    addTags,
+    removeTags,
+  });
 }
 
 export async function clearChat(chatId: string) {

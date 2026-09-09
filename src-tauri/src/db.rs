@@ -1,6 +1,7 @@
 mod ai_memory;
 mod backup;
 mod galaxy;
+mod health;
 mod settings;
 
 use std::{
@@ -26,6 +27,7 @@ pub(crate) use ai_memory::{
 pub(crate) use backup::{backup_data, replace_with_backup, validate_backup_data};
 use galaxy::get_galaxy_item;
 pub(crate) use galaxy::{delete_galaxy_item, upsert_galaxy_item};
+pub(crate) use health::{build_health_report, repair_health_issues};
 pub(crate) use settings::{get_settings, provider_ids, update_settings, usage_history};
 
 pub fn open(path: &Path) -> CommandResult<Connection> {
@@ -58,7 +60,9 @@ pub(crate) fn migrate(connection: &Connection) -> CommandResult<()> {
                 response_preset TEXT NOT NULL DEFAULT 'natural',
                 prompt_config_json TEXT NOT NULL DEFAULT '{}',
                 module_overrides_json TEXT NOT NULL DEFAULT '{}',
-                generation_settings_json TEXT NOT NULL DEFAULT '{}'
+                generation_settings_json TEXT NOT NULL DEFAULT '{}',
+                tags_json TEXT NOT NULL DEFAULT '[]',
+                last_read_at INTEGER NOT NULL DEFAULT 0
             );
 
             CREATE TABLE IF NOT EXISTS messages (
@@ -248,6 +252,18 @@ pub(crate) fn migrate(connection: &Connection) -> CommandResult<()> {
         "chats",
         "generation_settings_json",
         "TEXT NOT NULL DEFAULT '{}'",
+    )?;
+    ensure_column(
+        connection,
+        "chats",
+        "tags_json",
+        "TEXT NOT NULL DEFAULT '[]'",
+    )?;
+    ensure_column(
+        connection,
+        "chats",
+        "last_read_at",
+        "INTEGER NOT NULL DEFAULT 0",
     )?;
     ensure_column(
         connection,
@@ -501,6 +517,99 @@ fn generation_settings_json(settings: &ChatGenerationSettings) -> CommandResult<
     Ok(serde_json::to_string(settings)?)
 }
 
+fn parse_chat_tags(raw: &str) -> Vec<String> {
+    serde_json::from_str(raw).unwrap_or_default()
+}
+
+fn chat_tags_json(tags: &[String]) -> CommandResult<String> {
+    Ok(serde_json::to_string(tags)?)
+}
+
+const MAX_CHAT_TAGS: usize = 12;
+const MAX_CHAT_TAG_LENGTH: usize = 40;
+
+/// Trims, dedupes and validates user-supplied chat tags.
+pub(crate) fn normalize_chat_tags(tags: &[String]) -> CommandResult<Vec<String>> {
+    let mut normalized = Vec::with_capacity(tags.len());
+    for tag in tags {
+        let tag = tag.trim();
+        if tag.is_empty() {
+            continue;
+        }
+        if tag.chars().count() > MAX_CHAT_TAG_LENGTH {
+            return Err(CommandError::new(keys::CHAT_TAGS_INVALID));
+        }
+        if !normalized.iter().any(|existing| existing == tag) {
+            normalized.push(tag.to_owned());
+        }
+        if normalized.len() > MAX_CHAT_TAGS {
+            return Err(CommandError::new(keys::CHAT_TAGS_INVALID));
+        }
+    }
+    Ok(normalized)
+}
+
+/// Bulk-assigns tags: adds `add_tags` and removes `remove_tags` on every chat,
+/// keeping each chat's remaining tags intact.
+pub(crate) fn assign_chat_tags(
+    connection: &Connection,
+    chat_ids: &[String],
+    add_tags: &[String],
+    remove_tags: &[String],
+) -> CommandResult<usize> {
+    let add_tags = normalize_chat_tags(add_tags)?;
+    let remove_tags = normalize_chat_tags(remove_tags)?;
+    let transaction = connection.unchecked_transaction()?;
+    let mut updated = 0usize;
+    for chat_id in chat_ids {
+        let (archived, tags): (bool, Vec<String>) = transaction
+            .query_row(
+                "SELECT archived, tags_json FROM chats WHERE id = ?1",
+                params![chat_id],
+                |row| {
+                    Ok((
+                        row.get::<_, i64>(0)? != 0,
+                        parse_chat_tags(&row.get::<_, String>(1)?),
+                    ))
+                },
+            )
+            .optional()?
+            .ok_or_else(|| CommandError::new(keys::CHAT_NOT_FOUND))?;
+        if archived {
+            return Err(CommandError::new(keys::CHAT_ARCHIVED_READ_ONLY));
+        }
+        let mut next_tags: Vec<String> = tags
+            .into_iter()
+            .filter(|tag| !remove_tags.iter().any(|removed| removed == tag))
+            .collect();
+        for tag in &add_tags {
+            if !next_tags.iter().any(|existing| existing == tag) {
+                next_tags.push(tag.clone());
+            }
+        }
+        next_tags.truncate(MAX_CHAT_TAGS);
+        updated += transaction.execute(
+            "UPDATE chats SET tags_json = ?1 WHERE id = ?2",
+            params![chat_tags_json(&next_tags)?, chat_id],
+        )?;
+    }
+    transaction.commit().map_err(CommandError::internal)?;
+    Ok(updated)
+}
+
+/// Records that the user has seen the chat's current state.
+pub(crate) fn mark_chat_read(connection: &Connection, chat_id: &str) -> CommandResult<i64> {
+    let read_at = now_unix();
+    let changed = connection.execute(
+        "UPDATE chats SET last_read_at = ?1 WHERE id = ?2",
+        params![read_at, chat_id],
+    )?;
+    if changed == 0 {
+        return Err(CommandError::new(keys::CHAT_NOT_FOUND));
+    }
+    Ok(read_at)
+}
+
 fn ensure_column(
     connection: &Connection,
     table: &str,
@@ -578,7 +687,7 @@ fn list_chats(connection: &Connection) -> CommandResult<Vec<Chat>> {
     let mut statement = connection.prepare(
         "SELECT id, title, preview, updated_at, message_count, pinned, archived, provider_id,
                 persona_id, character_id, style_item_id, universe_id, prompt_config_json, module_overrides_json, response_preset,
-                auto_title, greeting_message, generation_settings_json
+                auto_title, greeting_message, generation_settings_json, tags_json, last_read_at
          FROM chats ORDER BY archived ASC, pinned DESC, updated_at DESC",
     )?;
     let rows = statement
@@ -602,6 +711,8 @@ fn list_chats(connection: &Connection) -> CommandResult<Vec<Chat>> {
                 row.get::<_, i64>(15)? != 0,
                 row.get::<_, String>(16)?,
                 row.get::<_, String>(17)?,
+                row.get::<_, String>(18)?,
+                row.get::<_, i64>(19)?,
             ))
         })?
         .collect::<Result<Vec<_>, _>>()?;
@@ -628,6 +739,8 @@ fn list_chats(connection: &Connection) -> CommandResult<Vec<Chat>> {
                 auto_title,
                 greeting_message,
                 generation_settings_json,
+                tags_json,
+                last_read_at,
             )| Chat {
                 worldbook_ids: worldbooks.remove(&id).unwrap_or_default(),
                 id,
@@ -644,6 +757,8 @@ fn list_chats(connection: &Connection) -> CommandResult<Vec<Chat>> {
                 character_id,
                 style_item_id,
                 universe_id,
+                tags: parse_chat_tags(&tags_json),
+                last_read_at,
                 prompt_config: parse_prompt_config(&prompt_config_json, &legacy_preset),
                 generation_settings: parse_generation_settings(&generation_settings_json),
                 module_overrides: parse_module_overrides(&module_overrides_json),
@@ -668,7 +783,7 @@ pub fn get_chat(connection: &Connection, chat_id: &str) -> CommandResult<Chat> {
         .query_row(
             "SELECT id, title, preview, updated_at, message_count, pinned, archived, provider_id,
                     persona_id, character_id, style_item_id, universe_id, prompt_config_json, module_overrides_json, response_preset,
-                    auto_title, greeting_message, generation_settings_json
+                    auto_title, greeting_message, generation_settings_json, tags_json, last_read_at
              FROM chats WHERE id = ?1",
             params![chat_id],
             |row| {
@@ -691,6 +806,8 @@ pub fn get_chat(connection: &Connection, chat_id: &str) -> CommandResult<Chat> {
                     row.get::<_, i64>(15)? != 0,
                     row.get::<_, String>(16)?,
                     row.get::<_, String>(17)?,
+                    row.get::<_, String>(18)?,
+                    row.get::<_, i64>(19)?,
                 ))
             },
         )
@@ -711,6 +828,8 @@ pub fn get_chat(connection: &Connection, chat_id: &str) -> CommandResult<Chat> {
         character_id: row.9,
         style_item_id: row.10,
         universe_id: row.11,
+        tags: parse_chat_tags(&row.18),
+        last_read_at: row.19,
         prompt_config: parse_prompt_config(&row.12, &row.14),
         generation_settings: parse_generation_settings(&row.17),
         module_overrides: parse_module_overrides(&row.13),
@@ -948,6 +1067,7 @@ pub fn create_chat(
     let prompt_config = prompt_config_json(&input.prompt_config)?;
     let module_overrides = module_overrides_json(&input.module_overrides)?;
     let generation_settings = generation_settings_json(&input.generation_settings)?;
+    let tags = chat_tags_json(&normalize_chat_tags(&input.tags)?)?;
     let greeting = input
         .greeting_message
         .as_deref()
@@ -959,8 +1079,9 @@ pub fn create_chat(
         "INSERT INTO chats (
             id, title, preview, updated_at, message_count, pinned, provider_id,
             persona_id, character_id, style_item_id, universe_id, prompt_config_json,
-            module_overrides_json, auto_title, greeting_message, generation_settings_json
-         ) VALUES (?1, ?2, ?3, ?4, ?5, 0, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
+            module_overrides_json, auto_title, greeting_message, generation_settings_json,
+            tags_json
+         ) VALUES (?1, ?2, ?3, ?4, ?5, 0, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
         params![
             id,
             &title,
@@ -977,6 +1098,7 @@ pub fn create_chat(
             input.auto_title || input.title.trim().is_empty(),
             greeting.unwrap_or(""),
             generation_settings,
+            tags,
         ],
     )?;
     replace_chat_worldbooks(&transaction, id, &input.worldbook_ids)?;
@@ -1027,6 +1149,7 @@ pub fn update_chat_config(
     let prompt_config = prompt_config_json(&input.prompt_config)?;
     let module_overrides = module_overrides_json(&input.module_overrides)?;
     let generation_settings = generation_settings_json(&input.generation_settings)?;
+    let tags = chat_tags_json(&normalize_chat_tags(&input.tags)?)?;
     let greeting = input
         .greeting_message
         .as_deref()
@@ -1044,8 +1167,8 @@ pub fn update_chat_config(
                     character_id = ?4, style_item_id = ?5, universe_id = ?6,
                     prompt_config_json = ?7, module_overrides_json = ?8,
                     auto_title = ?9, greeting_message = ?10,
-                    generation_settings_json = ?11, updated_at = ?12
-             WHERE id = ?13",
+                    generation_settings_json = ?11, tags_json = ?12, updated_at = ?13
+             WHERE id = ?14",
         params![
             title,
             input.provider_id,
@@ -1058,6 +1181,7 @@ pub fn update_chat_config(
             input.auto_title,
             greeting,
             generation_settings,
+            tags,
             now_unix(),
             chat_id,
         ],
@@ -1784,7 +1908,7 @@ pub fn select_message_variant(
                     row.get::<_, i64>(2)? != 0,
                 ))
             },
-    )
+        )
         .optional()?
         .ok_or_else(|| CommandError::new(keys::MESSAGE_VARIANT_NOT_FOUND))?;
     let now = message_update_timestamp(&transaction, message_id)?;
@@ -1792,13 +1916,7 @@ pub fn select_message_variant(
         "UPDATE messages
              SET content = ?1, active_variant_index = ?2, updated_at = ?3, edited = ?4
              WHERE id = ?5",
-        params![
-            &content,
-            variant_index,
-            now,
-            edited as i64,
-            message_id
-        ],
+        params![&content, variant_index, now, edited as i64, message_id],
     )?;
     sync_greeting_after_message_change(&transaction, &chat_id, message_id, &content)?;
     refresh_chat_summary(&transaction, &chat_id)?;
@@ -1872,7 +1990,7 @@ pub fn clone_chat(
         .query_row(
             "SELECT provider_id, persona_id, character_id, style_item_id, universe_id,
                     prompt_config_json, module_overrides_json, auto_title,
-                    greeting_message, generation_settings_json
+                    greeting_message, generation_settings_json, tags_json
              FROM chats WHERE id = ?1",
             params![source_chat_id],
             |row| {
@@ -1887,6 +2005,7 @@ pub fn clone_chat(
                     row.get::<_, i64>(7)? != 0,
                     row.get::<_, String>(8)?,
                     row.get::<_, String>(9)?,
+                    row.get::<_, String>(10)?,
                 ))
             },
         )
@@ -1905,8 +2024,9 @@ pub fn clone_chat(
         "INSERT INTO chats (
                 id, title, preview, updated_at, message_count, pinned, provider_id,
                 persona_id, character_id, style_item_id, universe_id, prompt_config_json,
-                module_overrides_json, auto_title, greeting_message, generation_settings_json
-             ) VALUES (?1, ?2, '', ?3, 0, 0, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+                module_overrides_json, auto_title, greeting_message, generation_settings_json,
+                tags_json
+             ) VALUES (?1, ?2, '', ?3, 0, 0, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
         params![
             new_chat_id,
             &title,
@@ -1921,6 +2041,7 @@ pub fn clone_chat(
             auto_title,
             source.8,
             source.9,
+            source.10,
         ],
     )?;
 

@@ -25,6 +25,7 @@ fn create_test_chat(connection: &Connection, id: &str) {
             style_item_id: None,
             universe_id: None,
             worldbook_ids: Vec::new(),
+            tags: Vec::new(),
             prompt_config: PromptConfig::default(),
             generation_settings: Default::default(),
             module_overrides: Default::default(),
@@ -50,6 +51,7 @@ fn greeting_message_creates_the_initial_assistant_variant() {
             style_item_id: None,
             universe_id: None,
             worldbook_ids: Vec::new(),
+            tags: Vec::new(),
             prompt_config: PromptConfig::default(),
             generation_settings: Default::default(),
             module_overrides: Default::default(),
@@ -84,6 +86,7 @@ fn editing_or_deleting_the_initial_message_keeps_chat_greeting_in_sync() {
         style_item_id: None,
         universe_id: None,
         worldbook_ids: Vec::new(),
+        tags: Vec::new(),
         prompt_config: PromptConfig::default(),
         generation_settings: Default::default(),
         module_overrides: Default::default(),
@@ -571,6 +574,7 @@ fn chat_style_override_is_persisted_and_used_in_prompt_context() {
             style_item_id: Some("style-chat".into()),
             universe_id: None,
             worldbook_ids: Vec::new(),
+            tags: Vec::new(),
             prompt_config: PromptConfig::default(),
             generation_settings: Default::default(),
             module_overrides: Default::default(),
@@ -621,6 +625,7 @@ fn deleting_style_unlinks_direct_chat_override() {
             style_item_id: Some("style-chat".into()),
             universe_id: None,
             worldbook_ids: Vec::new(),
+            tags: Vec::new(),
             prompt_config: PromptConfig::default(),
             generation_settings: Default::default(),
             module_overrides: Default::default(),
@@ -647,6 +652,7 @@ fn chat_module_overrides_persist_update_and_clone() {
         style_item_id: None,
         universe_id: None,
         worldbook_ids: Vec::new(),
+        tags: Vec::new(),
         prompt_config: PromptConfig::default(),
         generation_settings: Default::default(),
         module_overrides: crate::models::ChatModuleOverrides {
@@ -834,6 +840,7 @@ fn chat_generation_overrides_persist_update_and_clone() {
         style_item_id: None,
         universe_id: None,
         worldbook_ids: Vec::new(),
+        tags: Vec::new(),
         prompt_config: PromptConfig::default(),
         generation_settings: crate::models::ChatGenerationSettings {
             temperature: Some(0.25),
@@ -885,6 +892,7 @@ fn chat_response_length_override_persists_updates_and_clones() {
         style_item_id: None,
         universe_id: None,
         worldbook_ids: Vec::new(),
+        tags: Vec::new(),
         prompt_config,
         generation_settings: Default::default(),
         module_overrides: Default::default(),
@@ -941,6 +949,7 @@ fn blank_new_chat_title_uses_character_name_and_sequence() {
         style_item_id: None,
         universe_id: None,
         worldbook_ids: Vec::new(),
+        tags: Vec::new(),
         prompt_config: PromptConfig::default(),
         generation_settings: Default::default(),
         module_overrides: Default::default(),
@@ -980,6 +989,7 @@ fn blank_clone_title_continues_character_chat_sequence() {
         style_item_id: None,
         universe_id: None,
         worldbook_ids: Vec::new(),
+        tags: Vec::new(),
         prompt_config: PromptConfig::default(),
         generation_settings: Default::default(),
         module_overrides: Default::default(),
@@ -1157,4 +1167,87 @@ fn branch_stops_at_the_exact_message_when_timestamps_match() {
         .collect::<Vec<_>>();
     assert_eq!(contents, vec!["first", "second"]);
     assert_eq!(state.chat.preview, "second");
+}
+
+#[test]
+fn chat_tags_normalize_on_create_and_bulk_assign() {
+    let connection = test_database();
+    create_test_chat(&connection, "chat-1");
+    create_test_chat(&connection, "chat-2");
+
+    let updated = assign_chat_tags(
+        &connection,
+        &["chat-1".into(), "chat-2".into()],
+        &[" Work ".into(), "sci-fi".into(), "Work".into()],
+        &[],
+    )
+    .expect("bulk assignment must succeed");
+    assert_eq!(updated, 2);
+
+    let chat = get_chat(&connection, "chat-1").expect("chat must load");
+    assert_eq!(chat.tags, vec!["Work".to_string(), "sci-fi".to_string()]);
+
+    assign_chat_tags(&connection, &["chat-1".into()], &[], &["Work".into()])
+        .expect("removal must succeed");
+    let chat = get_chat(&connection, "chat-1").expect("chat must load");
+    assert_eq!(chat.tags, vec!["sci-fi".to_string()]);
+
+    let chat = get_chat(&connection, "chat-2").expect("chat must load");
+    assert_eq!(chat.tags, vec!["Work".to_string(), "sci-fi".to_string()]);
+}
+
+#[test]
+fn assign_chat_tags_rejects_archived_chats_and_invalid_tags() {
+    let connection = test_database();
+    create_test_chat(&connection, "chat-1");
+    create_test_chat(&connection, "chat-2");
+    set_chat_archived(&connection, "chat-1", true).expect("chat must archive");
+
+    let error = assign_chat_tags(&connection, &["chat-1".into()], &["x".into()], &[])
+        .expect_err("archived chats must reject tag edits");
+    assert_eq!(error.key, keys::CHAT_ARCHIVED_READ_ONLY);
+
+    let too_long = "x".repeat(41);
+    let error = assign_chat_tags(&connection, &["chat-2".into()], &[too_long], &[])
+        .expect_err("oversized tags must be rejected");
+    assert_eq!(error.key, keys::CHAT_TAGS_INVALID);
+
+    let error = assign_chat_tags(&connection, &["chat-2".into()], &["Work".into()], &[])
+        .expect("active chats still accept tags");
+    assert_eq!(error, 1);
+}
+
+#[test]
+fn mark_chat_read_persists_the_read_timestamp() {
+    let connection = test_database();
+    create_test_chat(&connection, "chat-1");
+
+    let chat = get_chat(&connection, "chat-1").expect("chat must load");
+    assert_eq!(chat.last_read_at, 0);
+
+    let read_at = mark_chat_read(&connection, "chat-1").expect("mark read must succeed");
+    assert!(read_at > 0);
+    let chat = get_chat(&connection, "chat-1").expect("chat must load");
+    assert_eq!(chat.last_read_at, read_at);
+
+    let error = mark_chat_read(&connection, "missing-chat").expect_err("missing chat must fail");
+    assert_eq!(error.key, keys::CHAT_NOT_FOUND);
+}
+
+#[test]
+fn cloned_chats_inherit_tags_but_start_unread() {
+    let connection = test_database();
+    create_test_chat(&connection, "chat-1");
+    assign_chat_tags(&connection, &["chat-1".into()], &["story".into()], &[])
+        .expect("tags must be assigned");
+    let source = get_chat(&connection, "chat-1").expect("chat must load");
+    mark_chat_read(&connection, "chat-1").expect("mark read must succeed");
+
+    clone_chat(&connection, "chat-1", "chat-copy", "Copy", false, None)
+        .expect("clone must succeed");
+
+    let copy = get_chat(&connection, "chat-copy").expect("copy must load");
+    assert_eq!(copy.tags, vec!["story".to_string()]);
+    assert_eq!(copy.last_read_at, 0);
+    let _ = source;
 }

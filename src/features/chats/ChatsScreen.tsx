@@ -25,6 +25,7 @@ import { ChatComposer } from './components/ChatComposer';
 import { ChatDialogs } from './components/ChatDialogs';
 import { ChatSetupModal } from './components/ChatSetupModal';
 import { ChatSidebar } from './components/ChatSidebar';
+import { ChatTagsModal } from './components/ChatTagsModal';
 import { ConversationHeader } from './components/ConversationHeader';
 import {
   MessageList,
@@ -60,6 +61,7 @@ export function ChatsScreen({
   onDeleteChat,
   onSetPinned,
   onSetArchived,
+  onAssignTags,
   onClearChat,
   onCloneChat,
   onBranchMessage,
@@ -92,6 +94,8 @@ export function ChatsScreen({
   const [working, setWorking] = useState(false);
   const [archiveMode, setArchiveMode] = useState(false);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [tagsModalOpen, setTagsModalOpen] = useState(false);
+  const [tagsModalChatIds, setTagsModalChatIds] = useState<string[]>([]);
   const archiveScopeIds = useMemo(
     () =>
       chats
@@ -121,6 +125,10 @@ export function ChatsScreen({
   const responseActionRequestIdRef = useRef(0);
 
   const activeChat = activeChatById(chats, activeChatId);
+  const generatingChatIds = useMemo(
+    () => new Set(generationJobs.map((job) => job.chatId)),
+    [generationJobs],
+  );
 
   useEffect(() => {
     if (chatMaximized && (isMobile || !activeChat)) {
@@ -260,6 +268,11 @@ export function ChatsScreen({
         setRenameValue(chat.title);
         return;
       }
+      if (action === 'tags') {
+        setTagsModalChatIds([chat.id]);
+        setTagsModalOpen(true);
+        return;
+      }
       if (action === 'pin') {
         setWorking(true);
         void onSetPinned(chat.id, !chat.pinned)
@@ -382,6 +395,18 @@ export function ChatsScreen({
     working,
   ]);
 
+  const assignTagsToSelected = useCallback(
+    async (chatIds: string[], addTags: string[], removeTags: string[]) => {
+      setWorking(true);
+      try {
+        await onAssignTags(chatIds, addTags, removeTags);
+      } finally {
+        setWorking(false);
+      }
+    },
+    [onAssignTags],
+  );
+
   const deleteSelectedChats = useCallback(async () => {
     if (chatSelection.selectedIds.size === 0 || working) return;
     const ids = [...chatSelection.selectedIds];
@@ -478,12 +503,14 @@ export function ChatsScreen({
           chats={chats}
           messages={messages}
           galaxyItems={galaxyItems}
+          providers={providers}
           activeChatId={activeChat?.id ?? ''}
           width={chatSidebarWidth}
           isVisibleMobile={!isChatOpen}
           isSinglePane={isSinglePane}
           archiveMode={archiveMode}
           archivedCount={chats.filter((chat) => chat.archived).length}
+          generatingChatIds={generatingChatIds}
           selectedIds={chatSelection.selectedIds}
           selectionActive={chatSelection.active}
           onSelect={selectChat}
@@ -495,6 +522,10 @@ export function ChatsScreen({
           onSelectAll={chatSelection.selectAll}
           onArchiveSelected={() => void archiveSelectedChats()}
           onDeleteSelected={() => setBulkDeleteOpen(true)}
+          onTagsSelected={() => {
+            setTagsModalChatIds([...chatSelection.selectedIds]);
+            setTagsModalOpen(true);
+          }}
           onArchiveModeChange={changeArchiveMode}
         />
       ) : null}
@@ -660,6 +691,17 @@ export function ChatsScreen({
           setNewChatCharacterId(undefined);
         }}
         onSubmit={(input) => void saveConfig(input)}
+      />
+
+      <ChatTagsModal
+        isOpen={tagsModalOpen}
+        chatIds={tagsModalChatIds}
+        chats={chats}
+        working={working}
+        onApply={(chatIds, addTags, removeTags) =>
+          assignTagsToSelected(chatIds, addTags, removeTags)
+        }
+        onClose={() => setTagsModalOpen(false)}
       />
 
       <UiModal

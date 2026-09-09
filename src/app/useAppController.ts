@@ -9,6 +9,7 @@ import {
   branchChat,
   cancelChatGeneration as cancelChatGenerationBackend,
   cancelGeneration,
+  assignChatTags as assignChatTagsBackend,
   checkProvider,
   clearChat,
   cloneChat,
@@ -31,10 +32,13 @@ import {
   listGenerationJobs,
   loadSnapshot,
   loadUsageHistory,
+  markChatRead as markChatReadBackend,
   regenerateMessage,
   renameChat,
+  repairDatabaseIssues,
   restoreAppBackup,
   rewindChatToMessage,
+  runDatabaseDiagnostics,
   saveProvider,
   selectMessageVariant,
   sendChatMessage,
@@ -105,10 +109,20 @@ export function useAppController() {
   const generationJobsRef = useRef<GenerationJob[]>([]);
   const localGenerationIdsRef = useRef(new Set<string>());
   const chatRefreshVersionsRef = useRef(new Map<string, number>());
+  const activeChatIdRef = useRef(activeChatId);
+  const isChatOpenRef = useRef(isChatOpen);
 
   useApplicationPreferences(snapshot.settings);
 
   const rememberTabNavigation = useMobileTabHistory(activeTab, setActiveTab);
+
+  useEffect(() => {
+    activeChatIdRef.current = activeChatId;
+  }, [activeChatId]);
+
+  useEffect(() => {
+    isChatOpenRef.current = isChatOpen;
+  }, [isChatOpen]);
 
   const refresh = useCallback(async () => {
     const data = await loadSnapshot();
@@ -137,14 +151,25 @@ export function useAppController() {
     if (chatRefreshVersionsRef.current.get(chatId) !== version) {
       return { ...state, messages: chatMessages };
     }
+    // A chat the user is currently reading never counts as unread.
+    const markRead =
+      chatId === activeChatIdRef.current && isChatOpenRef.current;
     setSnapshot((current) => ({
       ...current,
       chats: sortChats([
         ...current.chats.filter((chat) => chat.id !== chatId),
-        state.chat,
+        markRead
+          ? {
+              ...state.chat,
+              lastReadAt: Math.max(state.chat.lastReadAt, state.chat.updatedAt),
+            }
+          : state.chat,
       ]),
       messages: reconcileChatMessages(current.messages, chatId, chatMessages),
     }));
+    if (markRead) {
+      void markChatReadBackend(chatId).catch(() => {});
+    }
     return { ...state, messages: chatMessages };
   }, []);
 
@@ -152,6 +177,19 @@ export function useAppController() {
     const usage = await loadUsageHistory();
     setSnapshot((current) => ({ ...current, usage }));
     return usage;
+  }, []);
+
+  const markChatReadLocally = useCallback((chatId: string, readAt: number) => {
+    setSnapshot((current) => ({
+      ...current,
+      chats: sortChats(
+        current.chats.map((chat) =>
+          chat.id === chatId
+            ? { ...chat, lastReadAt: Math.max(chat.lastReadAt, readAt) }
+            : chat,
+        ),
+      ),
+    }));
   }, []);
 
   const updateGenerationJobs = useCallback(
@@ -300,9 +338,11 @@ export function useAppController() {
         setIsChatOpen(true);
         setActiveTab('chats');
       });
+      markChatReadLocally(chatId, Math.floor(Date.now() / 1000));
+      void markChatReadBackend(chatId).catch(() => {});
       haptic();
     },
-    [haptic, rememberTabNavigation],
+    [haptic, markChatReadLocally, rememberTabNavigation],
   );
 
   const previewSettings = useCallback((settings: AppSettings) => {
@@ -411,6 +451,34 @@ export function useAppController() {
       haptic();
     },
     [ensureChatIdle, haptic, refreshChat],
+  );
+
+  const assignTagsToChats = useCallback(
+    async (chatIds: string[], addTags: string[], removeTags: string[]) => {
+      if (chatIds.length === 0) return;
+      await assignChatTagsBackend(chatIds, addTags, removeTags);
+      const normalizedAdd = [
+        ...new Set(
+          addTags.map((tag) => tag.trim()).filter((tag) => tag.length > 0),
+        ),
+      ];
+      const normalizedRemove = removeTags.map((tag) => tag.trim());
+      setSnapshot((current) => ({
+        ...current,
+        chats: current.chats.map((chat) => {
+          if (!chatIds.includes(chat.id)) return chat;
+          const tags = chat.tags.filter(
+            (tag) => !normalizedRemove.includes(tag),
+          );
+          for (const tag of normalizedAdd) {
+            if (!tags.includes(tag)) tags.push(tag);
+          }
+          return { ...chat, tags };
+        }),
+      }));
+      haptic();
+    },
+    [haptic],
   );
 
   const sendMessage = useCallback(
@@ -906,6 +974,14 @@ export function useAppController() {
     [haptic],
   );
 
+  const runHealthDiagnostics = useCallback(() => runDatabaseDiagnostics(), []);
+
+  const repairHealthIssues = useCallback(async () => {
+    const repaired = await repairDatabaseIssues();
+    haptic();
+    return repaired;
+  }, [haptic]);
+
   return {
     activeTab,
     snapshot,
@@ -929,6 +1005,7 @@ export function useAppController() {
     removeChat,
     pinChat,
     archiveChat,
+    assignTagsToChats,
     clearExistingChat,
     sendMessage,
     cancelGenerationJob,
@@ -956,5 +1033,7 @@ export function useAppController() {
     createFullAppBackup,
     inspectFullAppBackup,
     restoreFullAppBackup,
+    runHealthDiagnostics,
+    repairHealthIssues,
   };
 }

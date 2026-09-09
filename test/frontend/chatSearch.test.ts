@@ -19,6 +19,8 @@ function chat(id: string, title: string, updatedAt = 0): Chat {
     archived: false,
     autoTitle: true,
     worldbookIds: [],
+    tags: [],
+    lastReadAt: 0,
     promptConfig: defaultPromptConfig,
     generationSettings: {},
   };

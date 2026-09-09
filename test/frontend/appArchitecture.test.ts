@@ -49,6 +49,8 @@ function chat(
     messageCount: 0,
     pinned,
     worldbookIds: [],
+    tags: [],
+    lastReadAt: 0,
     promptConfig,
   };
 }

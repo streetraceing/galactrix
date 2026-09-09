@@ -4,17 +4,25 @@ import { useTranslation } from 'react-i18next';
 import { AppTabList } from '../../components/ui/AppTabList';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { useSwipeableTabs } from '../../hooks/useSwipeableTabs';
-import type { AppBackupPreview, AppSettings, Provider } from '../../types';
+import type {
+  AppBackupPreview,
+  AppSettings,
+  DatabaseHealthReport,
+  HealthRepairReport,
+  Provider,
+} from '../../types';
 import { ProfilePreferences } from '../profile/components/ProfilePreferences';
 import { AiModulesSettings } from './components/AiModulesSettings';
+import { DataHealthCenter } from './components/DataHealthCenter';
 import { DataManagement } from './components/DataManagement';
 
-type SettingsSection = 'parameters' | 'modules' | 'data';
+type SettingsSection = 'parameters' | 'modules' | 'data' | 'health';
 
 const settingsSections: readonly SettingsSection[] = [
   'parameters',
   'modules',
   'data',
+  'health',
 ];
 
 export function SettingsScreen({
@@ -26,6 +34,8 @@ export function SettingsScreen({
   onCreateBackup,
   onInspectBackup,
   onRestoreBackup,
+  onRunDiagnostics,
+  onRepairIssues,
 }: {
   settings: AppSettings;
   providers: Provider[];
@@ -35,6 +45,8 @@ export function SettingsScreen({
   onCreateBackup: (includeCredentials: boolean) => Promise<unknown>;
   onInspectBackup: (archive: unknown) => Promise<AppBackupPreview>;
   onRestoreBackup: (archive: unknown) => Promise<unknown>;
+  onRunDiagnostics: () => Promise<DatabaseHealthReport>;
+  onRepairIssues: () => Promise<HealthRepairReport>;
 }) {
   const { t } = useTranslation('settings');
   const [section, setSection] = useState<SettingsSection>('parameters');
@@ -65,6 +77,7 @@ export function SettingsScreen({
               { id: 'parameters', label: t('settingsScreen.parameters') },
               { id: 'modules', label: t('settingsScreen.modules') },
               { id: 'data', label: t('settingsScreen.data') },
+              { id: 'health', label: t('settingsScreen.health') },
             ]}
           />
 
@@ -91,6 +104,13 @@ export function SettingsScreen({
               onCreateBackup={onCreateBackup}
               onInspectBackup={onInspectBackup}
               onRestoreBackup={onRestoreBackup}
+            />
+          </Tabs.Panel>
+          <Tabs.Panel id="health" className="pt-5 sm:pt-6">
+            <DataHealthCenter
+              generationActive={generationActive}
+              onRunDiagnostics={onRunDiagnostics}
+              onRepairIssues={onRepairIssues}
             />
           </Tabs.Panel>
         </Tabs>

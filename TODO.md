@@ -12,11 +12,6 @@ This file is the canonical backlog for product improvements. The planning baseli
 
 ## Now
 
-- [ ] **TODO-004 - Add a data health and recovery center.** Provide database integrity checks, orphan cleanup, a safe repair flow, and an exportable diagnostics report without exposing provider secrets or message content by default.
-- [ ] **TODO-005 - Add chat organization beyond pin and archive.** Support folders or tags, bulk assignment, and saved smart collections such as unread, recently active, character, provider, and generation status.
-
-## Next
-
 - [ ] **TODO-006 - Explain context and usage per response.** Show estimated and reported tokens, included and omitted context sections, active prompt rules, truncation reasons, latency, and provider usage in a readable message-level inspector.
 - [ ] **TODO-007 - Improve response variant comparison.** Let users compare variants side by side, annotate or rate them, promote one without losing alternatives, and optionally reuse feedback when tuning character or chat styles.
 - [ ] **TODO-008 - Add revision history and undo for long-form editors.** Autosave recoverable revisions for messages, character definitions, styles, worldbooks, and prompt sets, with clear restore and conflict behavior.
@@ -25,6 +20,8 @@ This file is the canonical backlog for product improvements. The planning baseli
 
 ## Completed
 
+- [x] ~~**TODO-005 - Add chat organization beyond pin and archive.** Support folders or tags, bulk assignment, and saved smart collections such as unread, recently active, character, provider, and generation status.~~ - Implemented in v1.5.0
+- [x] ~~**TODO-004 - Add a data health and recovery center.** Provide database integrity checks, orphan cleanup, a safe repair flow, and an exportable diagnostics report without exposing provider secrets or message content by default.~~ - Implemented in v1.5.0
 - [x] ~~**TODO-001 - Add versioned full-app backup and restore.** Export chats, message variants, Galaxy objects, settings, and optional provider credentials in one validated archive; preview its contents and roll back cleanly if import fails.~~ - Implemented in v1.4.0
 - [x] ~~**TODO-002 - Make generation jobs durable and chat-scoped.** Allow responses to continue safely while the user navigates between chats, show a compact global job queue, support cancellation per chat, and recover interrupted UI state without duplicate placeholders.~~ - Implemented in v1.4.0
 - [x] ~~**TODO-003 - Establish a long-conversation performance budget.** Add measured message virtualization and automated stress scenarios for large chats while preserving the exact scroll anchor during pagination, edits, image loading, keyboard resize, and generation.~~ - Implemented in v1.4.1

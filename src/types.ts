@@ -16,6 +16,8 @@ export type Chat = {
   styleItemId?: string;
   universeId?: string;
   worldbookIds: string[];
+  tags: string[];
+  lastReadAt: number;
   promptConfig: PromptConfig;
   generationSettings: ChatGenerationSettings;
   moduleOverrides?: ChatModuleOverrides;
@@ -86,6 +88,7 @@ export type ChatConfigInput = {
   styleItemId?: string;
   universeId?: string;
   worldbookIds: string[];
+  tags: string[];
   promptConfig: PromptConfig;
   generationSettings: ChatGenerationSettings;
   moduleOverrides: ChatModuleOverrides;
@@ -453,6 +456,44 @@ export type AppBackupPreview = {
   galaxyItemCount: number;
   providerCount: number;
   usageDayCount: number;
+};
+
+export type HealthTableCount = {
+  name: string;
+  rows: number;
+};
+
+export type HealthIssueSeverity = 'error' | 'warning' | 'info';
+
+export type HealthIssue = {
+  id: string;
+  severity: HealthIssueSeverity;
+  affected: number;
+  repairable: boolean;
+  samples: string[];
+};
+
+export type DatabaseHealthReport = {
+  createdAt: number;
+  appVersion: string;
+  databaseSizeBytes: number;
+  walSizeBytes: number;
+  integrityOk: boolean;
+  integrityMessages: string[];
+  foreignKeyViolations: number;
+  tables: HealthTableCount[];
+  issues: HealthIssue[];
+};
+
+export type HealthRepairAction = {
+  issueId: string;
+  affected: number;
+};
+
+export type HealthRepairReport = {
+  repairedAt: number;
+  actions: HealthRepairAction[];
+  report: DatabaseHealthReport;
 };
 
 export type ProviderModelResult = {

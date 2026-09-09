@@ -23,9 +23,9 @@ use std::collections::HashMap;
 use i18n::{keys, CommandError, CommandResult};
 use models::{
     AppBackupArchive, AppBackupPreview, AppSettings, AppSnapshot, ChatConfigInput, ChatState,
-    CreatedChat, EmbeddingProbeResult, GalaxyItem, GalaxyItemInput, GenerationJob, GenerationMode,
-    PromptPreviewInput, PromptPreviewResult, Provider, ProviderImportInput, ProviderInput,
-    ProviderModelResult, UsagePoint,
+    CreatedChat, DatabaseHealthReport, EmbeddingProbeResult, GalaxyItem, GalaxyItemInput,
+    GenerationJob, GenerationMode, HealthRepairReport, PromptPreviewInput, PromptPreviewResult,
+    Provider, ProviderImportInput, ProviderInput, ProviderModelResult, UsagePoint,
 };
 use serde_json::Value;
 use tauri::{Manager, State};
@@ -114,6 +114,21 @@ fn restore_app_backup(archive: Value, state: State<'_, AppState>) -> CommandResu
 }
 
 #[tauri::command]
+fn run_database_diagnostics(state: State<'_, AppState>) -> CommandResult<DatabaseHealthReport> {
+    let database = state.database.lock().map_err(CommandError::internal)?;
+    db::build_health_report(&database, &state.database_path, env!("CARGO_PKG_VERSION"))
+}
+
+#[tauri::command]
+fn repair_database_issues(state: State<'_, AppState>) -> CommandResult<HealthRepairReport> {
+    if state.has_active_generations()? {
+        return Err(CommandError::new(keys::HEALTH_ACTIVE_GENERATION));
+    }
+    let database = state.database.lock().map_err(CommandError::internal)?;
+    db::repair_health_issues(&database, &state.database_path, env!("CARGO_PKG_VERSION"))
+}
+
+#[tauri::command]
 fn create_chat(input: ChatConfigInput, state: State<'_, AppState>) -> CommandResult<CreatedChat> {
     let id = Uuid::new_v4().to_string();
     let database = state.database.lock().map_err(CommandError::internal)?;
@@ -169,6 +184,23 @@ fn set_chat_archived(
     let database = state.database.lock().map_err(CommandError::internal)?;
     db::set_chat_archived(&database, &chat_id, archived)?;
     Ok(())
+}
+
+#[tauri::command]
+fn mark_chat_read(chat_id: String, state: State<'_, AppState>) -> CommandResult<i64> {
+    let database = state.database.lock().map_err(CommandError::internal)?;
+    db::mark_chat_read(&database, &chat_id)
+}
+
+#[tauri::command]
+fn assign_chat_tags(
+    chat_ids: Vec<String>,
+    add_tags: Vec<String>,
+    remove_tags: Vec<String>,
+    state: State<'_, AppState>,
+) -> CommandResult<usize> {
+    let database = state.database.lock().map_err(CommandError::internal)?;
+    db::assign_chat_tags(&database, &chat_ids, &add_tags, &remove_tags)
 }
 
 #[tauri::command]
@@ -1002,10 +1034,11 @@ pub fn run() {
                 std::io::Error::other(format!("failed to create app data directory: {error}"))
             })?;
 
-            let database = db::open(&app_data_dir.join("galactrix.sqlite3")).map_err(|error| {
+            let database_path = app_data_dir.join("galactrix.sqlite3");
+            let database = db::open(&database_path).map_err(|error| {
                 std::io::Error::other(format!("failed to open local database: {error}"))
             })?;
-            app.manage(AppState::new(database));
+            app.manage(AppState::new(database, database_path));
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -1014,6 +1047,8 @@ pub fn run() {
             create_app_backup,
             inspect_app_backup,
             restore_app_backup,
+            run_database_diagnostics,
+            repair_database_issues,
             get_chat_state,
             cancel_generation,
             cancel_chat_generation,
@@ -1024,6 +1059,8 @@ pub fn run() {
             delete_chat,
             set_chat_pinned,
             set_chat_archived,
+            mark_chat_read,
+            assign_chat_tags,
             clear_chat,
             clone_chat,
             branch_chat,

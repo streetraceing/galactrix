@@ -4,8 +4,9 @@ import type { CSSProperties } from 'react';
 import { Icon } from '../../../components/Icon';
 import { ContextSelectionToolbar } from '../../../components/ui/ContextSelectionToolbar';
 import { TooltipIconButton } from '../../../components/ui/TooltipIconButton';
-import type { Chat, GalaxyItem, Message } from '../../../types';
+import type { Chat, GalaxyItem, Message, Provider } from '../../../types';
 import type { ChatAction } from '../types';
+import { chatsInCollection, listChatCollections } from '../chatCollections';
 import { ChatListItem } from './ChatListItem';
 import { useTranslation } from 'react-i18next';
 import { cn } from '../../../lib/cn';
@@ -15,12 +16,14 @@ function ChatSidebarComponent({
   chats,
   messages,
   galaxyItems,
+  providers,
   activeChatId,
   width,
   isVisibleMobile,
   isSinglePane,
   archiveMode,
   archivedCount,
+  generatingChatIds,
   selectedIds,
   selectionActive,
   onSelect,
@@ -32,17 +35,20 @@ function ChatSidebarComponent({
   onSelectAll,
   onArchiveSelected,
   onDeleteSelected,
+  onTagsSelected,
   onArchiveModeChange,
 }: {
   chats: Chat[];
   messages: Message[];
   galaxyItems: GalaxyItem[];
+  providers: Provider[];
   activeChatId: string;
   width: number;
   isVisibleMobile: boolean;
   isSinglePane: boolean;
   archiveMode: boolean;
   archivedCount: number;
+  generatingChatIds: ReadonlySet<string>;
   selectedIds: Set<string>;
   selectionActive: boolean;
   onSelect: (id: string) => void;
@@ -54,10 +60,12 @@ function ChatSidebarComponent({
   onSelectAll: () => void;
   onArchiveSelected: () => void;
   onDeleteSelected: () => void;
+  onTagsSelected: () => void;
   onArchiveModeChange: (archived: boolean) => void;
 }) {
   const { t } = useTranslation('chats');
   const [query, setQuery] = useState('');
+  const [collectionId, setCollectionId] = useState('all');
   const characters = useMemo(
     () => galaxyItems.filter((item) => item.kind === 'character'),
     [galaxyItems],
@@ -66,14 +74,42 @@ function ChatSidebarComponent({
     () => new Map(characters.map((character) => [character.id, character])),
     [characters],
   );
+  const providerById = useMemo(
+    () => new Map(providers.map((provider) => [provider.id, provider])),
+    [providers],
+  );
   const scopedChats = useMemo(
     () => chats.filter((chat) => Boolean(chat.archived) === archiveMode),
     [archiveMode, chats],
   );
+  const collections = useMemo(
+    () =>
+      listChatCollections({
+        chats: scopedChats,
+        characters,
+        providers,
+        generatingChatIds,
+      }),
+    [generatingChatIds, providers, scopedChats, characters],
+  );
+  const collectionChatIds = useMemo(
+    () =>
+      new Set(
+        chatsInCollection(scopedChats, collectionId, generatingChatIds).map(
+          (chat) => chat.id,
+        ),
+      ),
+    [collectionId, generatingChatIds, scopedChats],
+  );
   const deferredQuery = useDeferredValue(query);
   const searchResults = useMemo(
-    () => searchChats(scopedChats, messages, deferredQuery),
-    [deferredQuery, messages, scopedChats],
+    () =>
+      searchChats(
+        scopedChats.filter((chat) => collectionChatIds.has(chat.id)),
+        messages,
+        deferredQuery,
+      ),
+    [collectionChatIds, deferredQuery, messages, scopedChats],
   );
   const filteredChats = useMemo(
     () => searchResults.map((result) => result.chat),
@@ -86,6 +122,33 @@ function ChatSidebarComponent({
       ),
     [searchResults],
   );
+
+  const collectionLabel = (
+    collection: ReturnType<typeof listChatCollections>[number],
+  ): string => {
+    switch (collection.kind) {
+      case 'all':
+        return t('chatSidebar.collectionAll');
+      case 'unread':
+        return t('chatSidebar.collectionUnread');
+      case 'recent':
+        return t('chatSidebar.collectionRecent');
+      case 'generating':
+        return t('chatSidebar.collectionGenerating');
+      case 'tag':
+        return collection.key ?? t('chatSidebar.collectionAll');
+      case 'character':
+        return (
+          characterById.get(collection.key ?? '')?.name ??
+          t('chatSidebar.collectionCharacter')
+        );
+      case 'provider':
+        return (
+          providerById.get(collection.key ?? '')?.name ??
+          t('chatSidebar.collectionProvider')
+        );
+    }
+  };
 
   return (
     <aside
@@ -229,6 +292,43 @@ function ChatSidebarComponent({
         </SearchField>
       </div>
 
+      {!archiveMode ? (
+        <div
+          role="tablist"
+          aria-label={t('chatSidebar.collectionsLabel')}
+          className="scrollbar-thin flex shrink-0 gap-1.5 overflow-x-auto px-3 pb-2"
+        >
+          {collections
+            .filter(
+              (collection) =>
+                collection.kind === 'all' ||
+                collection.kind === 'generating' ||
+                collection.count > 0,
+            )
+            .map((collection) => {
+              const isActive = collection.id === collectionId;
+              const label = collectionLabel(collection);
+              return (
+                <button
+                  key={collection.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={isActive}
+                  onClick={() => setCollectionId(collection.id)}
+                  className={`shrink-0 cursor-pointer rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+                    isActive
+                      ? 'border-accent bg-accent/15 text-accent'
+                      : 'border-default bg-transparent text-muted hover:bg-surface'
+                  }`}
+                >
+                  {label}
+                  <span className="ml-1.5 opacity-70">{collection.count}</span>
+                </button>
+              );
+            })}
+        </div>
+      ) : null}
+
       <ContextSelectionToolbar
         count={selectedIds.size}
         total={scopedChats.length}
@@ -241,6 +341,16 @@ function ChatSidebarComponent({
         onSelectAll={onSelectAll}
         className="shrink-0 px-2 pb-2"
         actions={[
+          ...(!archiveMode
+            ? [
+                {
+                  key: 'tags',
+                  label: t('selection.tagChats'),
+                  icon: 'tag' as const,
+                  onPress: onTagsSelected,
+                },
+              ]
+            : []),
           {
             key: archiveMode ? 'unarchive' : 'archive',
             label: archiveMode

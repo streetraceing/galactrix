@@ -1,7 +1,4 @@
 {
-  "backend.generation.chatBusy": "A response is already being generated in this chat",
-  "backend.generation.idInvalid": "The generation identifier is invalid",
-  "backend.generation.idInUse": "This generation task is already running",
   "backend.backup.activeGeneration": "Wait for the current response to finish before working with a backup",
   "backend.backup.brokenReference": "The backup contains a broken {{kind}} reference",
   "backend.backup.duplicateId": "The backup contains duplicate {{kind}} identifiers",
@@ -9,10 +6,13 @@
   "backend.backup.rollbackFailed": "The restore failed and automatic rollback could not finish: {{detail}}",
   "backend.backup.tooLarge": "The backup is too large to process safely",
   "backend.backup.unsupportedVersion": "Backup format version {{version}} is not supported",
+  "backend.chat.archivedReadOnly": "This chat is archived and read-only.",
+  "backend.chat.greetingTooLong": "Greeting message is too long",
   "backend.chat.notFound": "Chat not found",
+  "backend.chat.recentMessageLimitRange": "The recent message context limit must be between 0 and 500",
+  "backend.chat.tagsInvalid": "A tag must be 1-40 characters; a chat can hold up to 12 tags",
   "backend.chat.titleRequired": "Enter a chat name",
   "backend.chat.titleTooLong": "The chat name is too long",
-  "backend.chat.greetingTooLong": "Greeting message is too long",
   "backend.common.fieldRequired": "Enter or select {{field}}",
   "backend.common.nameRequired": "Enter a name",
   "backend.common.nameTooLong": "The name is too long",
@@ -31,6 +31,10 @@
   "backend.galaxy.promptSetReferenceInvalid": "Invalid prompt set reference",
   "backend.galaxy.savedStyleRequired": "Select a saved messaging style",
   "backend.galaxy.stylePresetUnknown": "Unknown character style preset",
+  "backend.generation.chatBusy": "A response is already being generated in this chat",
+  "backend.generation.idInUse": "This generation task is already running",
+  "backend.generation.idInvalid": "The generation identifier is invalid",
+  "backend.health.activeGeneration": "Wait for the current response to finish before repairing data",
   "backend.internal": "Internal error: {{detail}}",
   "backend.message.continueAssistantOnly": "Only assistant responses can be continued",
   "backend.message.empty": "The message cannot be empty",
@@ -81,7 +85,5 @@
   "backend.provider.temperatureRange": "Temperature must be between 0 and 2",
   "backend.provider.topPRange": "Top P must be between 0 and 1",
   "backend.provider.unknownKind": "Unknown provider type: {{kind}}",
-  "backend.secureStorage.unavailable": "Secure storage is unavailable: {{detail}}",
-  "backend.chat.recentMessageLimitRange": "The recent message context limit must be between 0 and 500",
-  "backend.chat.archivedReadOnly": "This chat is archived and read-only."
+  "backend.secureStorage.unavailable": "Secure storage is unavailable: {{detail}}"
 }

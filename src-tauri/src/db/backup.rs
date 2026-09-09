@@ -110,6 +110,7 @@ pub(crate) fn replace_with_backup(
     }
 
     for chat in &data.chats {
+        let tags = super::normalize_chat_tags(&chat.tags)?;
         let input = ChatConfigInput {
             title: chat.title.clone(),
             auto_title: chat.auto_title,
@@ -121,6 +122,7 @@ pub(crate) fn replace_with_backup(
             style_item_id: chat.style_item_id.clone(),
             universe_id: chat.universe_id.clone(),
             worldbook_ids: chat.worldbook_ids.clone(),
+            tags: Vec::new(),
             prompt_config: chat.prompt_config.clone(),
             generation_settings: chat.generation_settings.clone(),
             module_overrides: chat.module_overrides.clone(),
@@ -131,9 +133,9 @@ pub(crate) fn replace_with_backup(
                     id, title, preview, updated_at, message_count, pinned, archived,
                     auto_title, greeting_message, provider_id, persona_id, character_id,
                     style_item_id, universe_id, response_preset, prompt_config_json,
-                    module_overrides_json, generation_settings_json
+                    module_overrides_json, generation_settings_json, tags_json
                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12,
-                         ?13, ?14, 'natural', ?15, ?16, ?17)"#,
+                         ?13, ?14, 'natural', ?15, ?16, ?17, ?18)"#,
             params![
                 chat.id,
                 chat.title,
@@ -152,6 +154,7 @@ pub(crate) fn replace_with_backup(
                 prompt_config_json(&chat.prompt_config)?,
                 module_overrides_json(&chat.module_overrides)?,
                 generation_settings_json(&chat.generation_settings)?,
+                serde_json::to_string(&tags)?,
             ],
         )?;
         replace_chat_worldbooks(connection, &chat.id, &chat.worldbook_ids)?;
@@ -258,6 +261,7 @@ fn validate_structure(data: &AppBackupData) -> CommandResult<()> {
         if chat.title.trim().is_empty() {
             return Err(CommandError::new(keys::BACKUP_INVALID));
         }
+        super::normalize_chat_tags(&chat.tags)?;
         validate_optional_reference(chat.provider_id.as_deref(), &provider_ids, "provider")?;
         validate_typed_galaxy(chat.persona_id.as_deref(), &galaxy_kinds, "persona")?;
         validate_typed_galaxy(chat.character_id.as_deref(), &galaxy_kinds, "character")?;

@@ -22,6 +22,10 @@ pub struct Chat {
     pub style_item_id: Option<String>,
     pub universe_id: Option<String>,
     pub worldbook_ids: Vec<String>,
+    #[serde(default)]
+    pub tags: Vec<String>,
+    #[serde(default)]
+    pub last_read_at: i64,
     pub prompt_config: PromptConfig,
     #[serde(default)]
     pub generation_settings: ChatGenerationSettings,
@@ -319,6 +323,8 @@ pub struct ChatConfigInput {
     pub universe_id: Option<String>,
     #[serde(default)]
     pub worldbook_ids: Vec<String>,
+    #[serde(default)]
+    pub tags: Vec<String>,
     #[serde(default)]
     pub prompt_config: PromptConfig,
     #[serde(default)]
@@ -791,6 +797,52 @@ pub struct AppBackupPreview {
     pub galaxy_item_count: usize,
     pub provider_count: usize,
     pub usage_day_count: usize,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HealthTableCount {
+    pub name: String,
+    pub rows: i64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HealthIssue {
+    pub id: String,
+    pub severity: String,
+    pub affected: i64,
+    pub repairable: bool,
+    pub samples: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DatabaseHealthReport {
+    pub created_at: i64,
+    pub app_version: String,
+    pub database_size_bytes: i64,
+    pub wal_size_bytes: i64,
+    pub integrity_ok: bool,
+    pub integrity_messages: Vec<String>,
+    pub foreign_key_violations: usize,
+    pub tables: Vec<HealthTableCount>,
+    pub issues: Vec<HealthIssue>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HealthRepairAction {
+    pub issue_id: String,
+    pub affected: i64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HealthRepairReport {
+    pub repaired_at: i64,
+    pub actions: Vec<HealthRepairAction>,
+    pub report: DatabaseHealthReport,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

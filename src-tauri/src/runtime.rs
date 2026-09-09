@@ -41,13 +41,15 @@ impl Drop for GenerationLease<'_> {
 
 pub(crate) struct AppState {
     pub(crate) database: Mutex<Connection>,
+    pub(crate) database_path: std::path::PathBuf,
     generations: Mutex<HashMap<String, GenerationEntry>>,
 }
 
 impl AppState {
-    pub(crate) fn new(database: Connection) -> Self {
+    pub(crate) fn new(database: Connection, database_path: std::path::PathBuf) -> Self {
         Self {
             database: Mutex::new(database),
+            database_path,
             generations: Mutex::new(HashMap::new()),
         }
     }
@@ -293,7 +295,10 @@ mod tests {
     use crate::models::GenerationMode;
 
     fn state() -> AppState {
-        AppState::new(Connection::open_in_memory().expect("in-memory database"))
+        AppState::new(
+            Connection::open_in_memory().expect("in-memory database"),
+            std::path::PathBuf::from("galactrix-test.sqlite3"),
+        )
     }
 
     fn job(id: &str, chat_id: &str) -> GenerationJob {
