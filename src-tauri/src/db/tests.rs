@@ -1,5 +1,8 @@
 use super::*;
-use crate::models::{DynamicContextState, SemanticMemoryCandidate};
+use crate::models::{
+    DynamicContextState, GenerationReport, ReportModules, ReportSection, ReportTokenEstimate,
+    ReportTruncation, ReportedTokenUsage, SemanticMemoryCandidate,
+};
 
 fn test_database() -> Connection {
     let connection = Connection::open_in_memory().expect("in-memory SQLite must open");
@@ -1250,4 +1253,96 @@ fn cloned_chats_inherit_tags_but_start_unread() {
     assert_eq!(copy.tags, vec!["story".to_string()]);
     assert_eq!(copy.last_read_at, 0);
     let _ = source;
+}
+
+#[test]
+fn generation_reports_round_trip_through_variants() {
+    let connection = test_database();
+    create_test_chat(&connection, "chat-1");
+    add_user_message(&connection, "chat-1", "chat-1-user", "Hello")
+        .expect("user message must be created");
+    add_assistant_message(&connection, "chat-1", "chat-1-assistant", "Reply")
+        .expect("assistant message must be created");
+
+    let report = GenerationReport {
+        created_at: 42,
+        provider_id: "provider-1".into(),
+        provider_name: "Lab".into(),
+        model: "gpt-test".into(),
+        mode: "send".into(),
+        latency_ms: Some(812),
+        reported_usage: Some(ReportedTokenUsage {
+            input_tokens: 320,
+            output_tokens: 96,
+        }),
+        estimated_tokens: ReportTokenEstimate {
+            system_tokens: 210,
+            history_tokens: 84,
+            total_tokens: 294,
+        },
+        sections: vec![ReportSection {
+            id: "responseRules".into(),
+            title: "RESPONSE RULES".into(),
+            priority: "normal".into(),
+            included: true,
+            approximate_tokens: 24,
+            omitted_reason: None,
+        }],
+        prompt_rules: vec!["first-person".into()],
+        truncations: vec![ReportTruncation {
+            id: "recentMessageLimit".into(),
+            before: 12,
+            after: 8,
+        }],
+        modules: ReportModules {
+            dynamic_context: true,
+            dynamic_context_analysis: false,
+            semantic_memory: true,
+            semantic_memory_selected: 3,
+            repetition_guard: true,
+            response_cleanup: vec!["collapseBlankLines".into()],
+        },
+    };
+
+    save_message_variant_report(&connection, "chat-1-assistant", 0, &report)
+        .expect("report must save");
+
+    let state = chat_state(&connection, "chat-1").expect("chat state must load");
+    let stored = state
+        .messages
+        .iter()
+        .find(|message| message.id == "chat-1-assistant")
+        .expect("assistant message must load")
+        .variants
+        .iter()
+        .find(|variant| variant.index == 0)
+        .expect("variant must exist")
+        .report
+        .clone()
+        .expect("report must round-trip");
+    assert_eq!(stored.created_at, 42);
+    assert_eq!(stored.provider_name, "Lab");
+    assert_eq!(stored.latency_ms, Some(812));
+    assert_eq!(
+        stored
+            .reported_usage
+            .as_ref()
+            .map(|usage| usage.input_tokens),
+        Some(320)
+    );
+    assert_eq!(stored.estimated_tokens.total_tokens, 294);
+    assert_eq!(stored.sections[0].id, "responseRules");
+    assert_eq!(stored.truncations[0].id, "recentMessageLimit");
+    assert_eq!(stored.modules.semantic_memory_selected, 3);
+
+    // A second assistant message saved without a report loads as reportless.
+    add_assistant_message(&connection, "chat-1", "chat-1-second", "Another")
+        .expect("second message must be created");
+    let state = chat_state(&connection, "chat-1").expect("chat state must load");
+    let second = state
+        .messages
+        .iter()
+        .find(|message| message.id == "chat-1-second")
+        .expect("second message must load");
+    assert!(second.variants[0].report.is_none());
 }

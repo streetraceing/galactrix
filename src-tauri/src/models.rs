@@ -342,6 +342,90 @@ pub struct MessageVariant {
     pub created_at: i64,
     #[serde(default)]
     pub edited: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub report: Option<GenerationReport>,
+}
+
+/// Explains how one generation request was composed and what it cost. Attached
+/// to the message variant the response produced; never contains message text.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GenerationReport {
+    pub created_at: i64,
+    pub provider_id: String,
+    pub provider_name: String,
+    pub model: String,
+    #[serde(default)]
+    pub mode: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub latency_ms: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reported_usage: Option<ReportedTokenUsage>,
+    #[serde(default)]
+    pub estimated_tokens: ReportTokenEstimate,
+    #[serde(default)]
+    pub sections: Vec<ReportSection>,
+    #[serde(default)]
+    pub prompt_rules: Vec<String>,
+    #[serde(default)]
+    pub truncations: Vec<ReportTruncation>,
+    #[serde(default)]
+    pub modules: ReportModules,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReportedTokenUsage {
+    pub input_tokens: i64,
+    pub output_tokens: i64,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReportTokenEstimate {
+    #[serde(default)]
+    pub system_tokens: i64,
+    #[serde(default)]
+    pub history_tokens: i64,
+    #[serde(default)]
+    pub total_tokens: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReportSection {
+    pub id: String,
+    pub title: String,
+    pub priority: String,
+    pub included: bool,
+    pub approximate_tokens: i64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub omitted_reason: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReportTruncation {
+    pub id: String,
+    pub before: i64,
+    pub after: i64,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReportModules {
+    #[serde(default)]
+    pub dynamic_context: bool,
+    #[serde(default)]
+    pub dynamic_context_analysis: bool,
+    #[serde(default)]
+    pub semantic_memory: bool,
+    #[serde(default)]
+    pub semantic_memory_selected: i64,
+    #[serde(default)]
+    pub repetition_guard: bool,
+    #[serde(default)]
+    pub response_cleanup: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

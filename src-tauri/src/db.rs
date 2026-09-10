@@ -15,7 +15,8 @@ use serde_json::Value;
 use crate::i18n::{keys, CommandError, CommandResult};
 use crate::models::{
     AppSnapshot, Chat, ChatConfigInput, ChatGenerationSettings, ChatModuleOverrides,
-    ChatPromptContext, ChatState, GalaxyItem, Message, MessageVariant, PromptConfig, Provider,
+    ChatPromptContext, ChatState, GalaxyItem, GenerationReport, Message, MessageVariant,
+    PromptConfig, Provider,
 };
 
 use ai_memory::clear_chat_ai_context;
@@ -88,6 +89,7 @@ pub(crate) fn migrate(connection: &Connection) -> CommandResult<()> {
                 content TEXT NOT NULL,
                 created_at INTEGER NOT NULL,
                 edited INTEGER NOT NULL DEFAULT 0,
+                report_json TEXT,
                 UNIQUE(message_id, position),
                 FOREIGN KEY(message_id) REFERENCES messages(id) ON DELETE CASCADE
             );
@@ -289,6 +291,7 @@ pub(crate) fn migrate(connection: &Connection) -> CommandResult<()> {
         "edited",
         "INTEGER NOT NULL DEFAULT 0",
     )?;
+    ensure_column(connection, "message_variants", "report_json", "TEXT")?;
     connection.execute(
         "UPDATE messages SET updated_at = created_at WHERE updated_at = 0",
         [],
@@ -837,17 +840,18 @@ pub fn get_chat(connection: &Connection, chat_id: &str) -> CommandResult<Chat> {
     })
 }
 
-type MessageVariantRow = (String, String, i64, String, i64, bool);
+type MessageVariantRow = (String, String, i64, String, i64, bool, Option<String>);
 
 fn variants_from_rows(rows: Vec<MessageVariantRow>) -> HashMap<String, Vec<MessageVariant>> {
     let mut result: HashMap<String, Vec<MessageVariant>> = HashMap::new();
-    for (message_id, id, index, content, created_at, edited) in rows {
+    for (message_id, id, index, content, created_at, edited, report_json) in rows {
         result.entry(message_id).or_default().push(MessageVariant {
             id,
             index,
             content,
             created_at,
             edited,
+            report: report_json.and_then(|raw| serde_json::from_str(&raw).ok()),
         });
     }
     result
@@ -857,7 +861,7 @@ fn all_message_variants(
     connection: &Connection,
 ) -> CommandResult<HashMap<String, Vec<MessageVariant>>> {
     let mut statement = connection.prepare(
-        "SELECT message_id, id, position, content, created_at, edited
+        "SELECT message_id, id, position, content, created_at, edited, report_json
          FROM message_variants ORDER BY message_id, position ASC",
     )?;
     let rows = statement
@@ -869,6 +873,7 @@ fn all_message_variants(
                 row.get(3)?,
                 row.get(4)?,
                 row.get::<_, i64>(5)? != 0,
+                row.get::<_, Option<String>>(6)?,
             ))
         })?
         .collect::<Result<Vec<_>, _>>()?;
@@ -880,7 +885,7 @@ fn message_variants_for_chat(
     chat_id: &str,
 ) -> CommandResult<HashMap<String, Vec<MessageVariant>>> {
     let mut statement = connection.prepare(
-        "SELECT variants.message_id, variants.id, variants.position, variants.content, variants.created_at, variants.edited
+        "SELECT variants.message_id, variants.id, variants.position, variants.content, variants.created_at, variants.edited, variants.report_json
          FROM message_variants variants
          INNER JOIN messages ON messages.id = variants.message_id
          WHERE messages.chat_id = ?1
@@ -895,6 +900,7 @@ fn message_variants_for_chat(
                 row.get(3)?,
                 row.get(4)?,
                 row.get::<_, i64>(5)? != 0,
+                row.get::<_, Option<String>>(6)?,
             ))
         })?
         .collect::<Result<Vec<_>, _>>()?;
@@ -908,7 +914,7 @@ fn message_variants_before(
     message_rowid: i64,
 ) -> CommandResult<HashMap<String, Vec<MessageVariant>>> {
     let mut statement = connection.prepare(
-        "SELECT variants.message_id, variants.id, variants.position, variants.content, variants.created_at, variants.edited
+        "SELECT variants.message_id, variants.id, variants.position, variants.content, variants.created_at, variants.edited, variants.report_json
          FROM message_variants variants
          INNER JOIN messages ON messages.id = variants.message_id
          WHERE messages.chat_id = ?1
@@ -925,6 +931,7 @@ fn message_variants_before(
                 row.get(3)?,
                 row.get(4)?,
                 row.get::<_, i64>(5)? != 0,
+                row.get::<_, Option<String>>(6)?,
             ))
         })?
         .collect::<Result<Vec<_>, _>>()?;
@@ -2352,6 +2359,22 @@ pub fn set_message_remembered(
     invalidate_chat_ai_context(connection, &chat_id)
 }
 
+/// Persists the generation report for an existing variant. Best-effort by
+/// design: callers ignore failures so the response itself is never lost.
+pub fn save_message_variant_report(
+    connection: &Connection,
+    message_id: &str,
+    position: i64,
+    report: &GenerationReport,
+) -> CommandResult<()> {
+    let payload = serde_json::to_string(report)?;
+    connection.execute(
+        "UPDATE message_variants SET report_json = ?1 WHERE message_id = ?2 AND position = ?3",
+        params![payload, message_id, position],
+    )?;
+    Ok(())
+}
+
 fn refresh_chat_summary(connection: &Connection, chat_id: &str) -> CommandResult<()> {
     let (message_count, preview, updated_at) = connection
         .query_row(
@@ -2613,7 +2636,7 @@ pub fn record_usage(
     Ok(())
 }
 
-fn now_unix() -> i64 {
+pub(crate) fn now_unix() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()

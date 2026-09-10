@@ -3,8 +3,10 @@ use std::collections::HashSet;
 use serde_json::Value;
 
 use crate::{
-    models::{ChatPromptContext, ContextBudgetSettings, GalaxyItem, Message, PromptConfig},
-    response_rules,
+    models::{
+        ChatPromptContext, ContextBudgetSettings, GalaxyItem, Message, PromptConfig, ReportSection,
+    },
+    prompt_preview, response_rules,
 };
 
 #[derive(Debug, Clone)]
@@ -45,6 +47,7 @@ impl PromptBuildOptions {
 
 #[derive(Clone)]
 struct PromptSection {
+    id: &'static str,
     priority: i64,
     order: usize,
     title: String,
@@ -82,20 +85,66 @@ pub fn build_system_prompt_with_histories(
     response_language: Option<&str>,
     options: &PromptBuildOptions,
 ) -> Option<String> {
+    build_system_prompt_with_report(
+        context,
+        remembered_history,
+        activation_history,
+        response_language,
+        options,
+    )
+    .0
+}
+
+/// Builds the system prompt and a per-section composition report: every
+/// collected section is listed with its priority and approximate token cost,
+/// and sections removed by the system-prompt budget are marked omitted.
+pub fn build_system_prompt_with_report(
+    context: &ChatPromptContext,
+    remembered_history: &[Message],
+    activation_history: &[Message],
+    response_language: Option<&str>,
+    options: &PromptBuildOptions,
+) -> (Option<String>, Vec<ReportSection>) {
     let mut sections = collect_sections(context, remembered_history, activation_history, options);
     let language_contract = language_contract(response_language, options.compact_system_prompt);
 
     if sections.is_empty() && language_contract.is_empty() {
-        return None;
+        return (None, Vec::new());
     }
 
     sections.sort_by_key(|section| (section.priority, section.order));
-    fit_sections_to_budget(&mut sections, &language_contract, options);
-    Some(render_system_prompt(
+    let dropped = fit_sections_to_budget(&mut sections, &language_contract, options);
+    let prompt = Some(render_system_prompt(
         &sections,
         &language_contract,
         options.compact_system_prompt,
-    ))
+    ));
+
+    let mut report = sections
+        .iter()
+        .map(|section| section_report(section, true, None))
+        .collect::<Vec<_>>();
+    report.extend(
+        dropped
+            .iter()
+            .map(|section| section_report(section, false, Some("contextBudget".to_owned()))),
+    );
+    (prompt, report)
+}
+
+fn section_report(
+    section: &PromptSection,
+    included: bool,
+    omitted_reason: Option<String>,
+) -> ReportSection {
+    ReportSection {
+        id: section.id.to_owned(),
+        title: section.title.clone(),
+        priority: priority_label(section.priority).to_lowercase(),
+        included,
+        approximate_tokens: prompt_preview::approximate_token_count(&section.content),
+        omitted_reason,
+    }
 }
 
 pub fn build_contribution_prompt(
@@ -121,6 +170,7 @@ fn collect_sections(
     if let Some(persona) = &context.persona {
         push_section(
             &mut sections,
+            "persona",
             &priorities.persona,
             "USER PERSONA",
             persona_prompt(persona),
@@ -129,6 +179,7 @@ fn collect_sections(
     if let Some(character) = &context.character {
         push_section(
             &mut sections,
+            "character",
             &priorities.character,
             "ASSISTANT CHARACTER",
             character_prompt(character, context.character_style.as_ref()),
@@ -136,6 +187,7 @@ fn collect_sections(
     } else if let Some(style) = &context.character_style {
         push_section(
             &mut sections,
+            "style",
             &priorities.character,
             "RESPONSE STYLE",
             style_prompt(style),
@@ -144,6 +196,7 @@ fn collect_sections(
     if let Some(universe) = &context.universe {
         push_section(
             &mut sections,
+            "universe",
             &priorities.universe,
             &format!("UNIVERSE: {}", universe.name),
             universe_prompt(universe),
@@ -152,6 +205,7 @@ fn collect_sections(
     for worldbook in &context.worldbooks {
         push_section(
             &mut sections,
+            "worldbook",
             &priorities.worldbooks,
             &format!("WORLDBOOK: {}", worldbook.name),
             worldbook_prompt(worldbook, activation_history, options),
@@ -191,6 +245,7 @@ fn collect_sections(
         if let Some(instructions) = response_rules::instructions(&unique_presets) {
             push_section(
                 &mut sections,
+                "promptSet",
                 &config.context_priorities.presets,
                 &format!("PROMPT SET: {}", prompt_set.name),
                 instructions,
@@ -208,6 +263,7 @@ fn collect_sections(
             }
             push_section(
                 &mut sections,
+                "promptSetBlock",
                 &block.priority,
                 &format!("PROMPT SET {}: {}", prompt_set.name, block.title.trim()),
                 content,
@@ -218,6 +274,7 @@ fn collect_sections(
     if let Some(instructions) = response_rules::instructions(&context.prompt_config.preset_ids) {
         push_section(
             &mut sections,
+            "responseRules",
             &priorities.presets,
             "RESPONSE RULES",
             instructions,
@@ -227,6 +284,7 @@ fn collect_sections(
     if let Some(instruction) = response_length_instruction(&context.prompt_config.response_length) {
         push_section(
             &mut sections,
+            "responseLength",
             "critical",
             "CHAT RESPONSE LENGTH",
             instruction.to_owned(),
@@ -248,6 +306,7 @@ fn collect_sections(
     if !remembered.is_empty() {
         push_section(
             &mut sections,
+            "remembered",
             &priorities.remembered,
             "REMEMBERED FACTS",
             format!(
@@ -270,6 +329,7 @@ fn collect_sections(
         }
         push_section(
             &mut sections,
+            "custom",
             &block.priority,
             &format!("CUSTOM: {}", block.title.trim()),
             content,
@@ -355,10 +415,11 @@ fn fit_sections_to_budget(
     sections: &mut Vec<PromptSection>,
     language_contract: &str,
     options: &PromptBuildOptions,
-) {
+) -> Vec<PromptSection> {
     if options.max_system_characters == usize::MAX {
-        return;
+        return Vec::new();
     }
+    let mut dropped = Vec::new();
     while render_system_prompt(sections, language_contract, options.compact_system_prompt)
         .chars()
         .count()
@@ -373,8 +434,9 @@ fn fit_sections_to_budget(
         let Some(index) = removable else {
             break;
         };
-        sections.remove(index);
+        dropped.push(sections.remove(index));
     }
+    dropped
 }
 
 pub fn resolve_placeholders(
@@ -405,11 +467,18 @@ pub fn resolve_placeholders(
         .replace("{{char}}", assistant_name)
 }
 
-fn push_section(sections: &mut Vec<PromptSection>, priority: &str, title: &str, content: String) {
+fn push_section(
+    sections: &mut Vec<PromptSection>,
+    id: &'static str,
+    priority: &str,
+    title: &str,
+    content: String,
+) {
     if content.trim().is_empty() {
         return;
     }
     sections.push(PromptSection {
+        id,
         priority: priority_value(priority),
         order: sections.len(),
         title: title.to_owned(),
@@ -1098,6 +1167,70 @@ mod tests {
 
         assert!(prompt.contains("KEEP_CRITICAL"));
         assert!(!prompt.contains("DROP_LOW"));
+    }
+
+    #[test]
+    fn composition_report_lists_sections_and_budget_omissions() {
+        let context = ChatPromptContext {
+            persona: None,
+            character: None,
+            universe: None,
+            worldbooks: Vec::new(),
+            character_style: None,
+            prompt_sets: Vec::new(),
+            prompt_config: PromptConfig {
+                preset_ids: vec!["first-person".into()],
+                custom_blocks: vec![
+                    PromptBlock {
+                        id: "low".into(),
+                        title: "Optional lore".into(),
+                        content: format!("DROP_LOW {}", "x".repeat(1200)),
+                        priority: "low".into(),
+                        enabled: true,
+                    },
+                    PromptBlock {
+                        id: "critical".into(),
+                        title: "Identity".into(),
+                        content: "KEEP_CRITICAL".into(),
+                        priority: "critical".into(),
+                        enabled: true,
+                    },
+                ],
+                ..PromptConfig::default()
+            },
+        };
+        let options = PromptBuildOptions {
+            compact_system_prompt: true,
+            max_system_characters: 800,
+            ..PromptBuildOptions::default()
+        };
+
+        let (prompt, report) = build_system_prompt_with_report(&context, &[], &[], None, &options);
+
+        let prompt = prompt.expect("prompt");
+        assert!(prompt.contains("KEEP_CRITICAL"));
+        let critical = report
+            .iter()
+            .find(|section| section.id == "custom" && section.title.contains("Identity"))
+            .expect("critical section must be reported");
+        assert!(critical.included);
+        assert_eq!(critical.priority, "critical");
+        assert!(critical.approximate_tokens > 0);
+        assert!(critical.omitted_reason.is_none());
+
+        let rules = report
+            .iter()
+            .find(|section| section.id == "responseRules")
+            .expect("rules section must be reported");
+        assert!(rules.included);
+
+        let dropped = report
+            .iter()
+            .filter(|section| !section.included)
+            .collect::<Vec<_>>();
+        assert_eq!(dropped.len(), 1);
+        assert_eq!(dropped[0].omitted_reason.as_deref(), Some("contextBudget"));
+        assert_eq!(dropped[0].priority, "low");
     }
 
     #[test]

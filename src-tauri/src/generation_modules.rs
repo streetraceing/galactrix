@@ -101,6 +101,7 @@ mod tests {
                 content: content.into(),
                 created_at: 0,
                 edited: false,
+                report: None,
             }],
         }
     }

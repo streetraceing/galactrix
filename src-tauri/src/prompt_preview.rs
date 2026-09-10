@@ -227,7 +227,7 @@ fn preview_galaxy_item(input: GalaxyItemInput) -> GalaxyItem {
     }
 }
 
-fn approximate_token_count(value: &str) -> i64 {
+pub(crate) fn approximate_token_count(value: &str) -> i64 {
     if value.trim().is_empty() {
         return 0;
     }

@@ -5,8 +5,12 @@ use crate::db;
 use crate::dynamic_context;
 use crate::generation_modules;
 use crate::i18n::{CommandError, CommandResult};
-use crate::models::{Message, Provider, ResponseCleanupSettings, RetrySettings};
+use crate::models::{
+    GenerationMode, GenerationReport, Message, Provider, ReportModules, ReportSection,
+    ReportTokenEstimate, ReportTruncation, ResponseCleanupSettings, RetrySettings,
+};
 use crate::prompt_builder;
+use crate::prompt_preview;
 use crate::provider_client;
 use crate::provider_support;
 use crate::runtime::AppState;
@@ -17,6 +21,15 @@ pub(crate) struct PreparedGeneration {
     pub(crate) system_prompt: Option<String>,
     pub(crate) retry: RetrySettings,
     pub(crate) response_cleanup: ResponseCleanupSettings,
+    pub(crate) report: GenerationReport,
+}
+
+pub(crate) fn mode_label(mode: GenerationMode) -> &'static str {
+    match mode {
+        GenerationMode::Send => "send",
+        GenerationMode::Regenerate => "regenerate",
+        GenerationMode::Continue => "continue",
+    }
 }
 
 pub(crate) async fn prepare(
@@ -26,6 +39,7 @@ pub(crate) async fn prepare(
     chat_provider: &Provider,
     query_text: &str,
     response_language: Option<&str>,
+    mode: GenerationMode,
 ) -> CommandResult<PreparedGeneration> {
     let (
         settings,
@@ -75,10 +89,15 @@ pub(crate) async fn prepare(
 
     let mut dynamic_settings = settings.ai_modules.dynamic_context.clone();
     dynamic_settings.enabled = module_overrides.dynamic_context_enabled(dynamic_settings.enabled);
+    let mut modules = ReportModules {
+        dynamic_context: dynamic_settings.enabled,
+        ..ReportModules::default()
+    };
     if dynamic_settings.enabled {
         let batch =
             dynamic_context::pending_batch(full_history, context.as_ref(), &dynamic_settings);
         if !batch.is_empty() {
+            modules.dynamic_context_analysis = true;
             let analysis_secret = analysis_provider.as_ref().and_then(provider_secret_or_none);
             let model_provider = if dynamic_settings.mode == "local" {
                 None
@@ -126,6 +145,7 @@ pub(crate) async fn prepare(
 
     let mut semantic_settings = settings.ai_modules.semantic_memory.clone();
     semantic_settings.enabled = module_overrides.semantic_memory_enabled(semantic_settings.enabled);
+    modules.semantic_memory = semantic_settings.enabled;
     let mut semantic_section = None;
     if semantic_settings.enabled {
         if let Some(provider) = embedding_provider.as_ref() {
@@ -216,6 +236,7 @@ pub(crate) async fn prepare(
                                     semantic_settings.top_k,
                                     semantic_settings.similarity_threshold,
                                 );
+                                modules.semantic_memory_selected = selected.len() as i64;
                                 semantic_section =
                                     semantic_memory::render_memory_section(&selected);
                             }
@@ -234,21 +255,36 @@ pub(crate) async fn prepare(
         }
     }
 
+    let mut truncations: Vec<ReportTruncation> = Vec::new();
+    let mut push_truncation = |id: &'static str, before: usize, after: usize| {
+        if after < before {
+            truncations.push(ReportTruncation {
+                id: id.to_owned(),
+                before: before as i64,
+                after: after as i64,
+            });
+        }
+    };
     let history = if dynamic_settings.enabled {
-        dynamic_context::trim_history(
+        let trimmed = dynamic_context::trim_history(
             full_history,
             context.as_ref(),
             dynamic_settings.direct_message_limit,
-        )
+        );
+        push_truncation("dynamicContext", full_history.len(), trimmed.len());
+        trimmed
     } else {
         full_history.to_vec()
     };
     let history = if recent_message_limit > 0 && history.len() > recent_message_limit {
+        push_truncation("recentMessageLimit", history.len(), recent_message_limit);
         history[history.len() - recent_message_limit..].to_vec()
     } else {
         history
     };
+    let history_before_budget = history.len();
     let history = generation_modules::trim_history_for_budget(&history, &context_budget);
+    push_truncation("contextBudget", history_before_budget, history.len());
 
     // A remembered message that is still present in the direct history must not be paid for
     // twice. Only archived remembered messages are promoted into the persistent system section.
@@ -261,7 +297,7 @@ pub(crate) async fn prepare(
         .filter(|message| message.remembered && !active_message_ids.contains(message.id.as_str()))
         .cloned()
         .collect::<Vec<_>>();
-    let mut system_prompt = build_chat_system_prompt(
+    let (mut system_prompt, prompt_sections) = build_chat_system_prompt(
         &prompt_context,
         &remembered_history,
         full_history,
@@ -275,6 +311,7 @@ pub(crate) async fn prepare(
     let mut repetition_settings = settings.ai_modules.repetition_guard.clone();
     repetition_settings.enabled =
         module_overrides.repetition_guard_enabled(repetition_settings.enabled);
+    modules.repetition_guard = repetition_settings.enabled;
     append_prompt_section(
         &mut system_prompt,
         generation_modules::repetition_guard_section(full_history, &history, &repetition_settings),
@@ -282,13 +319,71 @@ pub(crate) async fn prepare(
 
     let mut response_cleanup = settings.ai_modules.response_cleanup.clone();
     response_cleanup.enabled = module_overrides.response_cleanup_enabled(response_cleanup.enabled);
+    if response_cleanup.enabled {
+        if response_cleanup.collapse_blank_lines {
+            modules
+                .response_cleanup
+                .push("collapseBlankLines".to_owned());
+        }
+        if response_cleanup.remove_duplicated_tail {
+            modules
+                .response_cleanup
+                .push("removeDuplicatedTail".to_owned());
+        }
+    }
+
+    let system_tokens = system_prompt
+        .as_deref()
+        .map(prompt_preview::approximate_token_count)
+        .unwrap_or(0);
+    let history_tokens = history
+        .iter()
+        .map(|message| prompt_preview::approximate_token_count(&message.content))
+        .sum();
+    let report = GenerationReport {
+        created_at: 0,
+        provider_id: chat_provider.id.clone(),
+        provider_name: chat_provider.name.clone(),
+        model: chat_provider.model.clone(),
+        mode: mode_label(mode).to_owned(),
+        latency_ms: None,
+        reported_usage: None,
+        estimated_tokens: ReportTokenEstimate {
+            system_tokens,
+            history_tokens,
+            total_tokens: system_tokens + history_tokens,
+        },
+        sections: prompt_sections,
+        prompt_rules: active_prompt_rules(&prompt_context),
+        truncations,
+        modules,
+    };
 
     Ok(PreparedGeneration {
         history,
         system_prompt,
         retry,
         response_cleanup,
+        report,
     })
+}
+
+/// Every response rule that reached the system prompt: chat-level presets plus
+/// the presets contributed by connected prompt sets.
+fn active_prompt_rules(context: &crate::models::ChatPromptContext) -> Vec<String> {
+    let mut rules = context.prompt_config.preset_ids.clone();
+    for set in &context.prompt_sets {
+        let Ok(config) = serde_json::from_value::<crate::models::PromptConfig>(set.data.clone())
+        else {
+            continue;
+        };
+        for preset in config.preset_ids {
+            if !rules.contains(&preset) {
+                rules.push(preset);
+            }
+        }
+    }
+    rules
 }
 
 fn build_chat_system_prompt(
@@ -298,16 +393,21 @@ fn build_chat_system_prompt(
     response_language: Option<&str>,
     context_budget: &crate::models::ContextBudgetSettings,
     fallback_user_name: Option<&str>,
-) -> Option<String> {
+) -> (Option<String>, Vec<ReportSection>) {
     let options = prompt_builder::PromptBuildOptions::from_context_budget(context_budget);
-    prompt_builder::build_system_prompt_with_histories(
+    let (prompt, sections) = prompt_builder::build_system_prompt_with_report(
         context,
         remembered_history,
         activation_history,
         response_language,
         &options,
+    );
+    (
+        prompt.map(|prompt| {
+            prompt_builder::resolve_placeholders(prompt, context, fallback_user_name)
+        }),
+        sections,
     )
-    .map(|prompt| prompt_builder::resolve_placeholders(prompt, context, fallback_user_name))
 }
 
 fn append_prompt_section(base: &mut Option<String>, section: Option<String>) {

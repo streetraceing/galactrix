@@ -179,10 +179,15 @@ pub(crate) fn replace_with_backup(
             ],
         )?;
         for variant in &message.variants {
+            let report_json = variant
+                .report
+                .as_ref()
+                .map(serde_json::to_string)
+                .transpose()?;
             connection.execute(
                 r#"INSERT INTO message_variants (
-                        id, message_id, position, content, created_at, edited
-                   ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)"#,
+                        id, message_id, position, content, created_at, edited, report_json
+                   ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)"#,
                 params![
                     variant.id,
                     message.id,
@@ -190,6 +195,7 @@ pub(crate) fn replace_with_backup(
                     variant.content,
                     variant.created_at,
                     variant.edited as i64,
+                    report_json,
                 ],
             )?;
         }

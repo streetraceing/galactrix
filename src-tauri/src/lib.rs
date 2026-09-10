@@ -23,15 +23,32 @@ use std::collections::HashMap;
 use i18n::{keys, CommandError, CommandResult};
 use models::{
     AppBackupArchive, AppBackupPreview, AppSettings, AppSnapshot, ChatConfigInput, ChatState,
-    CreatedChat, DatabaseHealthReport, EmbeddingProbeResult, GalaxyItem, GalaxyItemInput,
-    GenerationJob, GenerationMode, HealthRepairReport, PromptPreviewInput, PromptPreviewResult,
-    Provider, ProviderImportInput, ProviderInput, ProviderModelResult, UsagePoint,
+    CompletionResult, CreatedChat, DatabaseHealthReport, EmbeddingProbeResult, GalaxyItem,
+    GalaxyItemInput, GenerationJob, GenerationMode, GenerationReport, HealthRepairReport,
+    PromptPreviewInput, PromptPreviewResult, Provider, ProviderImportInput, ProviderInput,
+    ProviderModelResult, ReportedTokenUsage, UsagePoint,
 };
 use serde_json::Value;
 use tauri::{Manager, State};
 use uuid::Uuid;
 
 use runtime::{await_cancellable, complete_cancellable, AppState};
+
+/// Attaches the completion outcome to the request report. Reported token
+/// counts are dropped when the provider did not disclose any usage.
+fn finalize_report(
+    mut report: GenerationReport,
+    completion: &CompletionResult,
+) -> GenerationReport {
+    report.created_at = db::now_unix();
+    report.latency_ms = Some(completion.latency_ms);
+    let usage = ReportedTokenUsage {
+        input_tokens: completion.input_tokens,
+        output_tokens: completion.output_tokens,
+    };
+    report.reported_usage = (usage.input_tokens > 0 || usage.output_tokens > 0).then_some(usage);
+    report
+}
 
 #[cfg(target_os = "android")]
 #[export_name = "Java_ru_streetraceing_galactrix_MainActivity_initializeRustlsPlatformVerifier"]
@@ -379,6 +396,7 @@ async fn regenerate_message(
             &provider,
             query_text,
             response_language.as_deref(),
+            GenerationMode::Regenerate,
         ),
         cancellation,
     )
@@ -418,13 +436,19 @@ async fn regenerate_message(
     }
 
     let database = state.database.lock().map_err(CommandError::internal)?;
-    db::append_message_variant(
+    let variant_position = db::append_message_variant(
         &database,
         &message_id,
         &Uuid::new_v4().to_string(),
         &response_content,
         false,
     )?;
+    let _ = db::save_message_variant_report(
+        &database,
+        &message_id,
+        variant_position,
+        &finalize_report(prepared.report, &completion),
+    );
     db::record_usage(
         &database,
         &Uuid::new_v4().to_string(),
@@ -482,6 +506,7 @@ async fn continue_message(
             &provider,
             query_text,
             response_language.as_deref(),
+            GenerationMode::Continue,
         ),
         cancellation,
     )
@@ -520,12 +545,14 @@ async fn continue_message(
         return Err(CommandError::new(keys::PROVIDER_EMPTY_RESPONSE));
     }
     let database = state.database.lock().map_err(CommandError::internal)?;
-    db::add_assistant_message(
+    let continuation_message_id = Uuid::new_v4().to_string();
+    db::add_assistant_message(&database, &chat_id, &continuation_message_id, &continuation)?;
+    let _ = db::save_message_variant_report(
         &database,
-        &chat_id,
-        &Uuid::new_v4().to_string(),
-        &continuation,
-    )?;
+        &continuation_message_id,
+        0,
+        &finalize_report(prepared.report, &completion),
+    );
     db::record_usage(
         &database,
         &Uuid::new_v4().to_string(),
@@ -599,6 +626,7 @@ async fn send_chat_message(
             &provider,
             &content,
             response_language.as_deref(),
+            GenerationMode::Send,
         ),
         cancellation,
     )
@@ -649,6 +677,12 @@ async fn send_chat_message(
         &response_content,
     )
     .map_err(persisted)?;
+    let _ = db::save_message_variant_report(
+        &database,
+        &assistant_message_id,
+        0,
+        &finalize_report(prepared.report, &completion),
+    );
     db::record_usage(
         &database,
         &Uuid::new_v4().to_string(),

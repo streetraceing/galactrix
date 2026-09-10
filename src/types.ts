@@ -94,12 +94,59 @@ export type ChatConfigInput = {
   moduleOverrides: ChatModuleOverrides;
 };
 
+export type ContextReportSection = {
+  id: string;
+  title: string;
+  priority: 'low' | 'normal' | 'high' | 'critical';
+  included: boolean;
+  approximateTokens: number;
+  omittedReason?: string;
+};
+
+export type ContextReportTruncation = {
+  id: string;
+  before: number;
+  after: number;
+};
+
+export type ContextReportUsage = {
+  inputTokens: number;
+  outputTokens: number;
+};
+
+export type ContextReport = {
+  createdAt: number;
+  providerId: string;
+  providerName: string;
+  model: string;
+  mode: 'send' | 'regenerate' | 'continue';
+  latencyMs?: number;
+  reportedUsage?: ContextReportUsage;
+  estimatedTokens: {
+    systemTokens: number;
+    historyTokens: number;
+    totalTokens: number;
+  };
+  sections: ContextReportSection[];
+  promptRules: string[];
+  truncations: ContextReportTruncation[];
+  modules: {
+    dynamicContext: boolean;
+    dynamicContextAnalysis: boolean;
+    semanticMemory: boolean;
+    semanticMemorySelected: number;
+    repetitionGuard: boolean;
+    responseCleanup: string[];
+  };
+};
+
 export type MessageVariant = {
   id: string;
   index: number;
   content: string;
   createdAt: number;
   edited?: boolean;
+  report?: ContextReport;
 };
 
 export type Message = {

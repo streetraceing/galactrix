@@ -14,7 +14,7 @@ import type {
   ReactNode,
   RefObject,
 } from 'react';
-import { Icon } from '../../../components/Icon';
+import { Icon, type IconName } from '../../../components/Icon';
 import { AppAvatar } from '../../../components/ui/AppAvatar';
 import { toast } from '../../../i18n/toast';
 import {
@@ -43,6 +43,7 @@ import {
 import { isMobilePlatform } from '../../../lib/platform';
 import { useMobileBackEntry } from '../../../hooks/useMobileBackEntry';
 import type { AppSettings, Message, Provider } from '../../../types';
+import { MessageContextInspectorModal } from './MessageContextInspectorModal';
 import { MessageHistoryModal } from './MessageHistoryModal';
 import { MessageEditModal } from './MessageEditModal';
 import { useTranslation } from 'react-i18next';
@@ -89,6 +90,7 @@ type MessageActionProps = {
   onEditRequest: () => void;
   onDeleteRequest: () => void;
   onHistoryRequest: () => void;
+  onInspectRequest: () => void;
   onError: (message: string) => void;
 };
 
@@ -153,6 +155,7 @@ function MessageMenu({
   onSelectMessage,
   onRewindRequest,
   onHistoryRequest,
+  onInspectRequest,
   onError,
   readOnly,
 }: MessageActionProps & {
@@ -200,6 +203,16 @@ function MessageMenu({
             ? t('messageList.assistantResponse')
             : t('chatComposer.label')}
         </ContextMenuLabel>
+        {isAssistant &&
+        message.variants[message.activeVariantIndex]?.report != null ? (
+          <>
+            <ContextMenuItem onClick={onInspectRequest}>
+              <Icon name="info" className="size-4 text-accent" />
+              {t('messageList.responseInspector')}
+            </ContextMenuItem>
+            <ContextMenuSeparator />
+          </>
+        ) : null}
         {isAssistant ? (
           <>
             <ContextMenuItem
@@ -520,6 +533,7 @@ function DesktopMessageActions({
   onContinue,
   onSelectVariant,
   onHistoryRequest,
+  onInspectRequest,
   onRewindRequest,
   onError,
 }: MessageActionProps & { onRewindRequest: () => void }) {
@@ -527,7 +541,12 @@ function DesktopMessageActions({
   const run = (action: () => Promise<void>) => {
     void action().catch((error) => onError(errorMessage(error)));
   };
-  const actions = [
+  const actions: {
+    label: string;
+    icon: IconName;
+    onPress: () => void;
+    danger?: boolean;
+  }[] = [
     ...(message.role === 'assistant'
       ? [
           {
@@ -545,6 +564,15 @@ function DesktopMessageActions({
             icon: 'history' as const,
             onPress: onHistoryRequest,
           },
+          ...(message.variants[message.activeVariantIndex]?.report != null
+            ? [
+                {
+                  label: t('messageList.responseInspector'),
+                  icon: 'info' as const,
+                  onPress: onInspectRequest,
+                },
+              ]
+            : []),
         ]
       : []),
     {
@@ -1019,6 +1047,7 @@ function MessageListComponent({
   const [rewinding, setRewinding] = useState<Message | null>(null);
   const [deletingSelection, setDeletingSelection] = useState(false);
   const [historyMessageId, setHistoryMessageId] = useState<string | null>(null);
+  const [inspectMessageId, setInspectMessageId] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [selectedMessageIds, setSelectedMessageIds] = useState<Set<string>>(
@@ -2281,6 +2310,10 @@ function MessageListComponent({
     () => messages.find((message) => message.id === historyMessageId) ?? null,
     [historyMessageId, messages],
   );
+  const inspectMessage = useMemo(
+    () => messages.find((message) => message.id === inspectMessageId) ?? null,
+    [inspectMessageId, messages],
+  );
   const selectedMessages = useMemo(
     () => messages.filter((message) => selectedMessageIds.has(message.id)),
     [messages, selectedMessageIds],
@@ -2691,6 +2724,7 @@ function MessageListComponent({
                   };
                   const rewind = () => setRewinding(message);
                   const history = () => setHistoryMessageId(message.id);
+                  const inspect = () => setInspectMessageId(message.id);
                   const isGenerating =
                     effectiveMessageGeneration?.messageId === message.id;
                   const isRegenerating =
@@ -2727,6 +2761,7 @@ function MessageListComponent({
                           onEditRequest={edit}
                           onDeleteRequest={remove}
                           onHistoryRequest={history}
+                          onInspectRequest={inspect}
                           onError={reportError}
                           readOnly={readOnly}
                         >
@@ -2849,6 +2884,7 @@ function MessageListComponent({
                                   onDeleteRequest={remove}
                                   onRewindRequest={rewind}
                                   onHistoryRequest={history}
+                                  onInspectRequest={inspect}
                                   onError={reportError}
                                 />
                               ) : !readOnly && !isPendingAssistant ? (
@@ -3112,6 +3148,11 @@ function MessageListComponent({
         isWorking={working}
         onSelect={(variantIndex) => void selectHistoryVariant(variantIndex)}
         onClose={() => setHistoryMessageId(null)}
+      />
+
+      <MessageContextInspectorModal
+        message={inspectMessage}
+        onClose={() => setInspectMessageId(null)}
       />
     </>
   );
