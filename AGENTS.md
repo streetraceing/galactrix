@@ -1,6 +1,18 @@
 # Project agent instructions
 
-- After every task that changes project files, finish the final response with one short suggested Conventional Commit message in the form `type: summary` (for example: `feat: ...`, `fix: ...`, `chore: ...`, `style: ...`, or `refactor: ...`).
+- After every task that changes project files, finish the final response with one short suggested Conventional Commit message in the form `type: summary` (for example: `feat: ...`, `fix: ...`, `chore: ...`, `style: ...`, or `refactor: ...`), plus the release recommendation described in `Versioning rules`.
+
+## Versioning rules
+
+- Never change the application version yourself. Do not run `npm run version:*`, `npm run release:prepare:*` or similar scripts, and do not edit version fields in `package.json`, `package-lock.json`, `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock` or `src-tauri/tauri.conf.json`. Preparing a release is the maintainer's job (see RELEASING.md).
+- Instead, for every task decide whether the change warrants a release and write the recommendation in the chat, on the line below the suggested commit message: `none`, `patch`, `minor` or `major`, with a one-line reason.
+- Classify the change by its user-facing impact:
+  - `none` — no behavior change at all: comments, formatting, docs/README edits, CI tweaks, or metadata such as `chore: changed package description` — this needs no new version.
+  - `patch` — backwards-compatible fixes users can feel: bug fixes, corrected translations, small UX corrections.
+  - `minor` — new user-facing functionality: new features, screens, commands, settings, or notable behavior additions.
+  - `major` — breaking changes: incompatible data or backup formats, removed features, or workflows that stop working as before.
+- When a change could justify two levels, recommend the smaller one. For several changes in one release, recommend the highest level among them.
+- In `TODO.md`, append `Implemented in vX.Y.Z` using the version you recommended in chat; the maintainer applies the actual bump when releasing, so never bump the version just to make the entry true.
 
 ## Project TODO workflow
 
@@ -8,7 +20,7 @@
 - Read `TODO.md` before planning any feature, UX, performance, or architectural refactor task.
 - Give every roadmap item a stable `TODO-NNN` identifier and preserve that identifier for its entire lifetime.
 - Add an item only when it is a concrete project improvement rather than a routine implementation detail or incidental bug fix.
-- When an item is fully implemented, tested, and assigned to a release, move it to `Completed`, check it, strike through its original text, and append `Implemented in vX.Y.Z` using the actual project version.
+- When an item is fully implemented, tested, and assigned to a release, move it to `Completed`, check it, strike through its original text, and append `Implemented in vX.Y.Z` using the version recommended under `Versioning rules` — never by bumping the version yourself.
 - Never mark partially implemented work as complete. Update its wording or split the remaining work into a new item while preserving the completed item's history.
 - Do not delete completed items; they form a lightweight release history. If an idea is abandoned, move it to `Dropped` with a short reason instead of presenting it as implemented.
 - Update `TODO.md` in the same task whenever roadmap scope is added, completed, split, or dropped.
