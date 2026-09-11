@@ -22,17 +22,18 @@ class MainActivity : TauriActivity() {
     super.onCreate(savedInstanceState)
 
     val contentView = findViewById<View>(android.R.id.content)
+    // The keyboard overlays the content instead of squeezing it: adjustPan
+    // pans the window so the focused input stays visible.
     ViewCompat.setOnApplyWindowInsetsListener(contentView) { view, windowInsets ->
       val systemArea = windowInsets.getInsets(
         WindowInsetsCompat.Type.systemBars() or
           WindowInsetsCompat.Type.displayCutout(),
       )
-      val keyboardArea = windowInsets.getInsets(WindowInsetsCompat.Type.ime())
       view.setPadding(
         systemArea.left,
         systemArea.top,
         systemArea.right,
-        maxOf(systemArea.bottom, keyboardArea.bottom),
+        systemArea.bottom,
       )
       windowInsets
     }

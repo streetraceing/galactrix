@@ -164,7 +164,7 @@ export function DataHealthCenter({
   return (
     <div className="space-y-4 pb-5 sm:space-y-5 sm:pb-6">
       <AppPanel className="p-4 sm:p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex min-w-0 items-start gap-3">
             <AppIconTile icon="shield" />
             <div className="min-w-0">
@@ -174,10 +174,11 @@ export function DataHealthCenter({
               </p>
             </div>
           </div>
-          <div className="flex shrink-0 gap-2">
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:shrink-0 sm:flex-row">
             {report ? (
               <Button
                 variant="secondary"
+                className="w-full sm:w-auto"
                 isDisabled={exporting}
                 onPress={() => {
                   setDestination(defaultExportDestination());
@@ -190,6 +191,7 @@ export function DataHealthCenter({
             ) : null}
             <Button
               variant="primary"
+              className="w-full sm:w-auto"
               isPending={running}
               onPress={() => void runDiagnostics()}
             >
@@ -200,7 +202,7 @@ export function DataHealthCenter({
         </div>
 
         {generationActive ? (
-          <div className="mt-4 rounded-xl border border-warning/35 bg-warning/10 px-3 py-2.5 text-sm text-warning-foreground">
+          <div className="mt-4 rounded-xl border border-warning/35 bg-warning/10 px-3 py-2.5 text-sm text-warning">
             {t('dataHealth.generationActive')}
           </div>
         ) : null}
@@ -219,7 +221,7 @@ export function DataHealthCenter({
                 className="mt-0.5 size-4 shrink-0 text-success"
               />
               <div>
-                <strong className="block text-sm text-success-foreground">
+                <strong className="block text-sm text-success">
                   {t('dataHealth.statusOk')}
                 </strong>
                 <p className="mt-1 text-xs leading-5 text-muted">
@@ -234,7 +236,7 @@ export function DataHealthCenter({
                 className="mt-0.5 size-4 shrink-0 text-warning"
               />
               <div>
-                <strong className="block text-sm text-warning-foreground">
+                <strong className="block text-sm text-warning">
                   {t('dataHealth.statusIssues')}
                 </strong>
                 <p className="mt-1 text-xs leading-5 text-muted">
@@ -400,7 +402,7 @@ export function DataHealthCenter({
               );
             })}
           </div>
-          <div className="rounded-xl border border-warning/35 bg-warning/10 px-3 py-2.5 text-xs leading-5 text-warning-foreground">
+          <div className="rounded-xl border border-warning/35 bg-warning/10 px-3 py-2.5 text-xs leading-5 text-warning">
             {t('dataHealth.repairBackupNote')}
           </div>
         </div>

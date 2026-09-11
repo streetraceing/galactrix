@@ -168,7 +168,7 @@ export function DataManagement({
         </div>
 
         {generationActive ? (
-          <div className="mt-4 rounded-xl border border-warning/35 bg-warning/10 px-3 py-2.5 text-sm text-warning-foreground">
+          <div className="mt-4 rounded-xl border border-warning/35 bg-warning/10 px-3 py-2.5 text-sm text-warning">
             {t('dataManagement.generationActive')}
           </div>
         ) : null}
