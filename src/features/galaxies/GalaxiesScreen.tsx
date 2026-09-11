@@ -35,6 +35,7 @@ import {
 } from '../../lib/jsonTransfer';
 import type {
   CharacterData,
+  EntityRevision,
   GalaxyItem,
   GalaxyItemInput,
   GalaxyKind,
@@ -59,11 +60,15 @@ export function GalaxiesScreen({
   onSave,
   onImport,
   onDelete,
+  onListRevisions,
+  onRestoreRevision,
 }: {
   items: GalaxyItem[];
   onSave: (item: GalaxyItemInput) => Promise<void>;
   onImport: (items: GalaxyItemInput[]) => Promise<number>;
   onDelete: (id: string) => Promise<void>;
+  onListRevisions: (entityId: string) => Promise<EntityRevision[]>;
+  onRestoreRevision: (entityId: string, revisionId: string) => Promise<unknown>;
 }) {
   const { t } = useTranslation(['galaxies', 'common']);
   const [section, setSection] = useState<GalaxyKind>('persona');
@@ -512,6 +517,14 @@ export function GalaxiesScreen({
         error={error}
         onOpenChange={(open) => !saving && setModalOpen(open)}
         onSave={(nextDraft) => void save(nextDraft)}
+        onListRevisions={
+          editing ? () => onListRevisions(editing.id) : undefined
+        }
+        onRestoreRevision={
+          editing
+            ? (revisionId) => onRestoreRevision(editing.id, revisionId)
+            : undefined
+        }
       />
 
       <UiModal

@@ -14,6 +14,14 @@
 - When a change could justify two levels, recommend the smaller one. For several changes in one release, recommend the highest level among them.
 - In `TODO.md`, append `Implemented in vX.Y.Z` using the version you recommended in chat; the maintainer applies the actual bump when releasing, so never bump the version just to make the entry true.
 
+## Task quality and device adaptation
+
+- Treat bug-hunting as part of every feature task, not a follow-up. Before finishing, re-read the changed screens and flows looking for: content overflowing or clipped on narrow phones (~360px), buttons or text running past the viewport, unreadable text on tinted backgrounds (never use `*-foreground` tokens on translucent `/10`–`/15` fills — they resolve to dark), broken focus or scroll anchoring, and stale state after background mutations.
+- Adapt every new or changed surface to all device classes by default: layouts must stack into a single column on phones and only go side by side from the `sm:`/`md:` breakpoints up; primary actions are full width on phones; touch targets stay at least ~40px; modals keep their content in a `dvh`-capped scrollable area; the layout must survive the Android keyboard overlaying the screen (it does not resize it).
+- Shared components (tabs, selection toolbars, panels, modals) must be re-verified in every place they are used, not just the new one.
+- Pin each UX/mobile invariant you introduce with a source-assertion test in `test/frontend`, following the existing guard-test style, so regressions fail `npm test` instead of shipping.
+- A task is not done on the strength of a clean build: run the full required checks, and treat any layout or behavior you could not verify (for example Android-only behavior) as explicitly flagged in the final response.
+
 ## Project TODO workflow
 
 - Keep `TODO.md` in English and treat it as the canonical product-improvement backlog.

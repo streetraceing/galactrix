@@ -19,7 +19,10 @@ test('variant feedback persists per variant through the command boundary', async
   assert.match(db, /ensure_column\(connection, "message_variants", "note"/);
   assert.match(db, /ensure_message_chat_mutable\(connection, message_id\)/);
   assert.match(lib, /fn rate_message_variant/);
-  assert.match(lib, /rate_message_variant,\s*\n\s*preview_prompt/);
+  assert.match(
+    lib,
+    /rate_message_variant,\s*\n\s*list_entity_revisions,\s*\n\s*restore_entity_revision,\s*\n\s*preview_prompt/,
+  );
   assert.match(backend, /invokeBackend<void>\('rate_message_variant'/);
   assert.match(controller, /rateMessageVariantFeedback/);
   assert.match(

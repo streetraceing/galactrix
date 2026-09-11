@@ -451,6 +451,25 @@ pub struct Message {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct EntityRevision {
+    pub id: String,
+    pub kind: String,
+    pub entity_id: String,
+    pub origin: String,
+    pub created_at: i64,
+    #[serde(default)]
+    pub payload: Value,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EntityRestoreResult {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub item: Option<GalaxyItem>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GalaxyItem {
     pub id: String,
     pub kind: String,

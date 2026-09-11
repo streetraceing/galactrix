@@ -264,6 +264,7 @@
   "messageList.edge": "Edge",
   "messageList.edit": "Edit",
   "messageList.edited": "Edited",
+  "messageList.editHistory": "Edit history",
   "messageList.editMessage": "Edit message",
   "messageList.firstAddAProviderInTelescope": "First add a provider in Telescope.",
   "messageList.forget": "Forget",

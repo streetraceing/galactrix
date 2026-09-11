@@ -65,6 +65,10 @@ export function AppScreenRouter({
         onContinueMessage={controller.continueExistingMessage}
         onSelectMessageVariant={controller.chooseMessageVariant}
         onRateMessageVariant={controller.rateMessageVariantFeedback}
+        onListMessageRevisions={(messageId) =>
+          controller.listRevisions('message', messageId)
+        }
+        onRestoreMessageRevision={controller.restoreMessageRevision}
         onSend={controller.sendMessage}
         onCancelGeneration={controller.cancelChatGeneration}
         sendOnEnter={snapshot.settings.sendOnEnter}
@@ -86,6 +90,10 @@ export function AppScreenRouter({
         onSave={controller.saveGalaxyItem}
         onImport={controller.importGalaxyLibrary}
         onDelete={controller.removeGalaxyItem}
+        onListRevisions={(entityId) =>
+          controller.listRevisions('galaxy', entityId)
+        }
+        onRestoreRevision={controller.restoreGalaxyRevision}
       />
     );
   }

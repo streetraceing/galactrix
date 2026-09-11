@@ -23,10 +23,10 @@ use std::collections::HashMap;
 use i18n::{keys, CommandError, CommandResult};
 use models::{
     AppBackupArchive, AppBackupPreview, AppSettings, AppSnapshot, ChatConfigInput, ChatState,
-    CompletionResult, CreatedChat, DatabaseHealthReport, EmbeddingProbeResult, GalaxyItem,
-    GalaxyItemInput, GenerationJob, GenerationMode, GenerationReport, HealthRepairReport,
-    PromptPreviewInput, PromptPreviewResult, Provider, ProviderImportInput, ProviderInput,
-    ProviderModelResult, ReportedTokenUsage, UsagePoint,
+    CompletionResult, CreatedChat, DatabaseHealthReport, EmbeddingProbeResult, EntityRestoreResult,
+    EntityRevision, GalaxyItem, GalaxyItemInput, GenerationJob, GenerationMode, GenerationReport,
+    HealthRepairReport, PromptPreviewInput, PromptPreviewResult, Provider, ProviderImportInput,
+    ProviderInput, ProviderModelResult, ReportedTokenUsage, UsagePoint,
 };
 use serde_json::Value;
 use tauri::{Manager, State};
@@ -372,6 +372,27 @@ fn rate_message_variant(
 #[tauri::command]
 fn preview_prompt(input: PromptPreviewInput) -> PromptPreviewResult {
     prompt_preview::build(input)
+}
+
+#[tauri::command]
+fn list_entity_revisions(
+    kind: String,
+    entity_id: String,
+    state: State<'_, AppState>,
+) -> CommandResult<Vec<EntityRevision>> {
+    let database = state.database.lock().map_err(CommandError::internal)?;
+    db::list_entity_revisions(&database, &kind, &entity_id)
+}
+
+#[tauri::command]
+fn restore_entity_revision(
+    kind: String,
+    entity_id: String,
+    revision_id: String,
+    state: State<'_, AppState>,
+) -> CommandResult<EntityRestoreResult> {
+    let database = state.database.lock().map_err(CommandError::internal)?;
+    db::restore_entity_revision(&database, &kind, &entity_id, &revision_id)
 }
 
 #[tauri::command]
@@ -1124,6 +1145,8 @@ pub fn run() {
             set_message_remembered,
             select_message_variant,
             rate_message_variant,
+            list_entity_revisions,
+            restore_entity_revision,
             preview_prompt,
             regenerate_message,
             continue_message,

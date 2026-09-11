@@ -27,6 +27,8 @@ pub mod keys {
     pub const MESSAGE_VARIANT_NOT_FOUND: &str = "backend.message.variantNotFound";
     pub const MESSAGE_VARIANT_RATING_RANGE: &str = "backend.message.variantRatingRange";
     pub const MESSAGE_VARIANT_NOTE_TOO_LONG: &str = "backend.message.variantNoteTooLong";
+    pub const REVISION_NOT_FOUND: &str = "backend.revision.notFound";
+    pub const REVISION_KIND_UNKNOWN: &str = "backend.revision.kindUnknown";
 
     pub const PROVIDER_EMPTY_RESPONSE: &str = "backend.provider.emptyResponse";
     pub const PROVIDER_SELECT_FOR_CHAT: &str = "backend.provider.selectForChat";

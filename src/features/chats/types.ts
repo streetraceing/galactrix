@@ -3,6 +3,7 @@ import type {
   AppSettings,
   Chat,
   ChatConfigInput,
+  EntityRevision,
   GalaxyItem,
   Message,
   Provider,
@@ -72,6 +73,11 @@ export type ChatsScreenProps = {
   onSelectMessageVariant: (
     messageId: string,
     variantIndex: number,
+  ) => Promise<void>;
+  onListMessageRevisions: (messageId: string) => Promise<EntityRevision[]>;
+  onRestoreMessageRevision: (
+    messageId: string,
+    revisionId: string,
   ) => Promise<void>;
   onRateMessageVariant: (
     messageId: string,

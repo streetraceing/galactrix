@@ -8,6 +8,8 @@ import type {
   ChatConfigInput,
   ChatState,
   DatabaseHealthReport,
+  EntityRestoreResult,
+  EntityRevision,
   GenerationJob,
   GalaxyItem,
   EmbeddingProbeResult,
@@ -312,6 +314,30 @@ export async function continueMessage(
     messageId,
     generationId,
     responseLanguage: responseLanguage ?? null,
+  });
+}
+
+export async function listEntityRevisions(
+  kind: 'galaxy' | 'message',
+  entityId: string,
+): Promise<EntityRevision[]> {
+  requireTauri();
+  return invokeBackend<EntityRevision[]>('list_entity_revisions', {
+    kind,
+    entityId,
+  });
+}
+
+export async function restoreEntityRevision(
+  kind: 'galaxy' | 'message',
+  entityId: string,
+  revisionId: string,
+): Promise<EntityRestoreResult> {
+  requireTauri();
+  return invokeBackend<EntityRestoreResult>('restore_entity_revision', {
+    kind,
+    entityId,
+    revisionId,
   });
 }
 

@@ -2,6 +2,7 @@ mod ai_memory;
 mod backup;
 mod galaxy;
 mod health;
+mod revisions;
 mod settings;
 
 use std::{
@@ -29,6 +30,7 @@ pub(crate) use backup::{backup_data, replace_with_backup, validate_backup_data};
 use galaxy::get_galaxy_item;
 pub(crate) use galaxy::{delete_galaxy_item, upsert_galaxy_item};
 pub(crate) use health::{build_health_report, repair_health_issues};
+pub use revisions::{list_entity_revisions, restore_entity_revision};
 pub(crate) use settings::{get_settings, provider_ids, update_settings, usage_history};
 
 pub fn open(path: &Path) -> CommandResult<Connection> {
@@ -37,6 +39,7 @@ pub fn open(path: &Path) -> CommandResult<Connection> {
     connection.pragma_update(None, "journal_mode", "WAL")?;
     migrate(&connection)?;
     remove_legacy_preview_data(&connection)?;
+    revisions::prune_orphan_revisions(&connection)?;
     Ok(connection)
 }
 
@@ -201,6 +204,18 @@ pub(crate) fn migrate(connection: &Connection) -> CommandResult<()> {
                 created_at INTEGER NOT NULL,
                 FOREIGN KEY(provider_id) REFERENCES providers(id) ON DELETE SET NULL
             );
+
+            CREATE TABLE IF NOT EXISTS entity_revisions (
+                id TEXT PRIMARY KEY,
+                kind TEXT NOT NULL,
+                entity_id TEXT NOT NULL,
+                origin TEXT NOT NULL,
+                content_json TEXT NOT NULL,
+                created_at INTEGER NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_entity_revisions_entity
+                ON entity_revisions(kind, entity_id, created_at);
 
             CREATE TABLE IF NOT EXISTS app_migrations (
                 name TEXT PRIMARY KEY
@@ -2242,6 +2257,23 @@ pub fn edit_message(
     }
 
     let updated_at = message_update_timestamp(connection, message_id)?;
+    let previous = connection
+        .query_row(
+            "SELECT content FROM messages WHERE id = ?1",
+            params![message_id],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()?
+        .ok_or_else(|| CommandError::new(keys::MESSAGE_NOT_FOUND))?;
+    if previous.trim() != content.trim() {
+        revisions::record_revision(
+            connection,
+            revisions::KIND_MESSAGE,
+            message_id,
+            "edit",
+            &serde_json::json!({ "content": previous }),
+        )?;
+    }
     let changed = connection.execute(
         "UPDATE messages SET content = ?1, updated_at = ?2, edited = 1 WHERE id = ?3",
         params![content.trim(), updated_at, message_id],

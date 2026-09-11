@@ -1,7 +1,7 @@
 use super::*;
 use crate::models::{
-    DynamicContextState, GenerationReport, ReportModules, ReportSection, ReportTokenEstimate,
-    ReportTruncation, ReportedTokenUsage, SemanticMemoryCandidate,
+    DynamicContextState, GalaxyItemInput, GenerationReport, ReportModules, ReportSection,
+    ReportTokenEstimate, ReportTruncation, ReportedTokenUsage, SemanticMemoryCandidate,
 };
 
 fn test_database() -> Connection {
@@ -1429,4 +1429,119 @@ fn variant_feedback_is_rejected_on_archived_chats() {
     let error = set_variant_feedback(&connection, "chat-1-assistant", 0, Some(3), None)
         .expect_err("archived chats must reject feedback");
     assert_eq!(error.key, keys::CHAT_ARCHIVED_READ_ONLY);
+}
+
+#[test]
+fn galaxy_edits_snapshot_and_restore_is_itself_reversible() {
+    let connection = test_database();
+    let base = GalaxyItemInput {
+        id: None,
+        kind: "style".into(),
+        name: "Clipped".into(),
+        description: String::new(),
+        data: serde_json::json!({ "instructions": "Be brief." }),
+    };
+    let first = upsert_galaxy_item(&connection, "style-1", &base).expect("item must be created");
+
+    let mut edited = base.clone();
+    edited.data = serde_json::json!({ "instructions": "Be shorter." });
+    upsert_galaxy_item(&connection, "style-1", &edited).expect("edit must save");
+    // No-op saves must not create noise revisions.
+    upsert_galaxy_item(&connection, "style-1", &edited).expect("noop must save");
+
+    let revisions =
+        list_entity_revisions(&connection, "galaxy", "style-1").expect("revisions must list");
+    assert_eq!(revisions.len(), 1);
+    assert_eq!(revisions[0].origin, "edit");
+    assert_eq!(revisions[0].payload["data"]["instructions"], "Be brief.");
+
+    restore_entity_revision(&connection, "galaxy", "style-1", &revisions[0].id)
+        .expect("restore must work");
+    let restored = get_galaxy_item(&connection, "style-1").expect("item must load");
+    assert_eq!(restored.data["instructions"], "Be brief.");
+    assert_eq!(restored.description, first.description);
+
+    // The restore recorded the replaced state, so it can be undone.
+    let revisions =
+        list_entity_revisions(&connection, "galaxy", "style-1").expect("revisions must list");
+    assert_eq!(revisions.len(), 2);
+    assert_eq!(revisions[0].origin, "restore");
+    assert_eq!(revisions[0].payload["data"]["instructions"], "Be shorter.");
+
+    // History is bounded per entity.
+    for index in 0..25 {
+        edited.data = serde_json::json!({ "instructions": format!("Round {index}.") });
+        upsert_galaxy_item(&connection, "style-1", &edited).expect("edit must save");
+    }
+    let revisions =
+        list_entity_revisions(&connection, "galaxy", "style-1").expect("revisions must list");
+    assert_eq!(revisions.len(), 20);
+}
+
+#[test]
+fn user_message_edits_snapshot_and_restore() {
+    let connection = test_database();
+    create_test_chat(&connection, "chat-1");
+    add_user_message(&connection, "chat-1", "msg-1", "Original question")
+        .expect("message must be created");
+
+    edit_message(&connection, "msg-1", "unused", "Edited question").expect("edit must save");
+    let revisions =
+        list_entity_revisions(&connection, "message", "msg-1").expect("revisions must list");
+    assert_eq!(revisions.len(), 1);
+    assert_eq!(revisions[0].payload["content"], "Original question");
+
+    // Assistant edits keep their history in variants instead.
+    add_assistant_message(&connection, "chat-1", "msg-2", "Reply")
+        .expect("assistant message must be created");
+    edit_message(&connection, "msg-2", "msg-2-v1", "Edited reply")
+        .expect("assistant edit must save");
+    let assistant_revisions =
+        list_entity_revisions(&connection, "message", "msg-2").expect("must list");
+    assert!(assistant_revisions.is_empty());
+
+    restore_entity_revision(&connection, "message", "msg-1", &revisions[0].id)
+        .expect("restore must work");
+    let restored: String = connection
+        .query_row(
+            "SELECT content FROM messages WHERE id = 'msg-1'",
+            [],
+            |row| row.get(0),
+        )
+        .expect("message must load");
+    assert_eq!(restored, "Original question");
+
+    // Restores of another message's revision cannot cross entities.
+    let error = restore_entity_revision(&connection, "message", "msg-2", &revisions[0].id)
+        .expect_err("foreign revisions must not restore");
+    assert_eq!(error.key, keys::REVISION_NOT_FOUND);
+}
+
+#[test]
+fn orphan_revisions_are_pruned_on_open() {
+    let connection = test_database();
+    let input = GalaxyItemInput {
+        id: None,
+        kind: "persona".into(),
+        name: "Explorer".into(),
+        description: String::new(),
+        data: serde_json::json!({}),
+    };
+    upsert_galaxy_item(&connection, "persona-1", &input).expect("item must exist");
+    let mut edited = input.clone();
+    edited.description = "Updated".into();
+    upsert_galaxy_item(&connection, "persona-1", &edited).expect("edit must save");
+    assert_eq!(
+        list_entity_revisions(&connection, "galaxy", "persona-1")
+            .expect("must list")
+            .len(),
+        1
+    );
+
+    delete_galaxy_item(&connection, "persona-1").expect("item must be deleted");
+    crate::db::revisions::prune_orphan_revisions(&connection).expect("prune must work");
+
+    assert!(list_entity_revisions(&connection, "galaxy", "persona-1")
+        .expect("must list")
+        .is_empty());
 }

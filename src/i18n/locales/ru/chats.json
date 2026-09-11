@@ -272,6 +272,7 @@
   "messageList.edge": "Край",
   "messageList.edit": "Редактировать",
   "messageList.edited": "Редактировано",
+  "messageList.editHistory": "История правок",
   "messageList.editMessage": "Редактировать сообщение",
   "messageList.firstAddAProviderInTelescope": "Сначала добавьте провайдера во вкладке «Телескоп».",
   "messageList.forget": "Не запоминать",

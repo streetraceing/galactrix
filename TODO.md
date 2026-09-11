@@ -12,7 +12,6 @@ This file is the canonical backlog for product improvements. The planning baseli
 
 ## Now
 
-- [ ] **TODO-008 - Add revision history and undo for long-form editors.** Autosave recoverable revisions for messages, character definitions, styles, worldbooks, and prompt sets, with clear restore and conflict behavior.
 - [ ] **TODO-009 - Complete an accessibility quality pass.** Cover keyboard-only navigation, focus restoration, screen-reader names, contrast, reduced motion, scalable text, and touch targets with repeatable automated and manual checks.
 - [ ] **TODO-010 - Add a first-run setup and health wizard.** Guide users through locale and profile setup, provider connection, model selection, optional embeddings, a test response, and actionable diagnostics when configuration is incomplete.
 - [ ] **TODO-011 - Stream responses token by token.** Render provider replies incrementally as they arrive instead of waiting for the full completion, keep cancellation working on partial text, and fall back to the current behavior when a provider cannot stream.
@@ -23,6 +22,7 @@ This file is the canonical backlog for product improvements. The planning baseli
 
 ## Completed
 
+- [x] ~~**TODO-008 - Add revision history and undo for long-form editors.** Autosave recoverable revisions for messages, character definitions, styles, worldbooks, and prompt sets, with clear restore and conflict behavior.~~ - Implemented in v1.7.0
 - [x] ~~**TODO-007 - Improve response variant comparison.** Let users compare variants side by side, annotate or rate them, promote one without losing alternatives~~ (feedback reuse split into TODO-015) - Implemented in v1.7.0
 - [x] ~~**TODO-006 - Explain context and usage per response.** Show estimated and reported tokens, included and omitted context sections, active prompt rules, truncation reasons, latency, and provider usage in a readable message-level inspector.~~ - Implemented in v1.6.0
 - [x] ~~**TODO-005 - Add chat organization beyond pin and archive.** Support folders or tags, bulk assignment, and saved smart collections such as unread, recently active, character, provider, and generation status.~~ - Implemented in v1.5.1

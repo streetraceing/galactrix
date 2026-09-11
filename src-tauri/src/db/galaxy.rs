@@ -4,6 +4,7 @@ use serde_json::Value;
 use crate::i18n::{keys, CommandError, CommandResult};
 use crate::models::{GalaxyItem, GalaxyItemInput, PromptConfig};
 
+use super::revisions::record_revision;
 use super::{
     now_unix, parse_prompt_config, prompt_config_json, validate_optional_galaxy,
     validate_prompt_config,
@@ -45,6 +46,40 @@ pub(crate) fn upsert_galaxy_item(
     let data_json = serde_json::to_string(&input.data)?;
     if data_json.len() > 1_000_000 {
         return Err(CommandError::new(keys::GALAXY_DATA_TOO_LARGE));
+    }
+    if let Some(previous) = connection
+        .query_row(
+            "SELECT name, description, data_json FROM galaxy_items WHERE id = ?1",
+            params![id],
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                ))
+            },
+        )
+        .optional()?
+    {
+        let (previous_name, previous_description, previous_data_json) = previous;
+        let changed = previous_name != name
+            || previous_description != input.description.trim()
+            || previous_data_json != data_json;
+        if changed {
+            let previous_data: Value = serde_json::from_str(&previous_data_json)
+                .unwrap_or(Value::Object(Default::default()));
+            record_revision(
+                connection,
+                super::revisions::KIND_GALAXY,
+                id,
+                "edit",
+                &serde_json::json!({
+                    "name": previous_name,
+                    "description": previous_description,
+                    "data": previous_data,
+                }),
+            )?;
+        }
     }
     connection.execute(
         r#"INSERT INTO galaxy_items (id, kind, name, description, data_json, badge, accent, updated_at)

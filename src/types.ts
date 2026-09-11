@@ -545,6 +545,19 @@ export type HealthRepairReport = {
   report: DatabaseHealthReport;
 };
 
+export type EntityRevision = {
+  id: string;
+  kind: 'galaxy' | 'message' | string;
+  entityId: string;
+  origin: 'edit' | 'import' | 'restore' | string;
+  createdAt: number;
+  payload: Record<string, unknown>;
+};
+
+export type EntityRestoreResult = {
+  item?: GalaxyItem;
+};
+
 export type ProviderModelResult = {
   models: string[];
   latencyMs: number;

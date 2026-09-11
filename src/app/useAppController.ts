@@ -26,6 +26,7 @@ import {
   fetchProviderModels,
   importProviderConnections,
   importGalaxyItems,
+  listEntityRevisions,
   inspectAppBackup,
   isBackendCommandError,
   loadChatState,
@@ -37,6 +38,7 @@ import {
   renameChat,
   repairDatabaseIssues,
   restoreAppBackup,
+  restoreEntityRevision,
   rewindChatToMessage,
   runDatabaseDiagnostics,
   saveProvider,
@@ -899,6 +901,44 @@ export function useAppController() {
     [haptic],
   );
 
+  const listRevisions = useCallback(
+    (kind: 'galaxy' | 'message', entityId: string) =>
+      listEntityRevisions(kind, entityId),
+    [],
+  );
+
+  const restoreGalaxyRevision = useCallback(
+    async (entityId: string, revisionId: string) => {
+      const result = await restoreEntityRevision(
+        'galaxy',
+        entityId,
+        revisionId,
+      );
+      const restored = result.item;
+      if (restored) {
+        setSnapshot((current) => ({
+          ...current,
+          galaxyItems: [
+            restored,
+            ...current.galaxyItems.filter((item) => item.id !== restored.id),
+          ],
+        }));
+      }
+      haptic();
+    },
+    [haptic],
+  );
+
+  const restoreMessageRevision = useCallback(
+    async (messageId: string, revisionId: string) => {
+      await restoreEntityRevision('message', messageId, revisionId);
+      const chatId = findMessageChatId(snapshot.messages, messageId);
+      if (chatId) await refreshChat(chatId);
+      haptic();
+    },
+    [haptic, refreshChat, snapshot.messages],
+  );
+
   const removeGalaxyItem = useCallback(
     async (id: string) => {
       await deleteGalaxyItem(id);
@@ -1054,6 +1094,9 @@ export function useAppController() {
     continueExistingMessage,
     chooseMessageVariant,
     rateMessageVariantFeedback,
+    listRevisions,
+    restoreGalaxyRevision,
+    restoreMessageRevision,
     saveGalaxyItem,
     importGalaxyLibrary,
     removeGalaxyItem,

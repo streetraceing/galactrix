@@ -42,8 +42,14 @@ import {
 } from '../../../lib/motion';
 import { isMobilePlatform } from '../../../lib/platform';
 import { useMobileBackEntry } from '../../../hooks/useMobileBackEntry';
-import type { AppSettings, Message, Provider } from '../../../types';
+import type {
+  AppSettings,
+  EntityRevision,
+  Message,
+  Provider,
+} from '../../../types';
 import { MessageContextInspectorModal } from './MessageContextInspectorModal';
+import { MessageRevisionsModal } from './MessageRevisionsModal';
 import { VariantCompareModal } from './VariantCompareModal';
 import { MessageHistoryModal } from './MessageHistoryModal';
 import { MessageEditModal } from './MessageEditModal';
@@ -93,6 +99,7 @@ type MessageActionProps = {
   onHistoryRequest: () => void;
   onInspectRequest: () => void;
   onCompareRequest: () => void;
+  onRevisionsRequest: () => void;
   onError: (message: string) => void;
 };
 
@@ -159,6 +166,7 @@ function MessageMenu({
   onHistoryRequest,
   onInspectRequest,
   onCompareRequest,
+  onRevisionsRequest,
   onError,
   readOnly,
 }: MessageActionProps & {
@@ -221,6 +229,15 @@ function MessageMenu({
             <ContextMenuItem onClick={onCompareRequest}>
               <Icon name="compare" className="size-4 text-accent" />
               {t('messageList.compareResponses')}
+            </ContextMenuItem>
+            <ContextMenuSeparator />
+          </>
+        ) : null}
+        {!isAssistant && message.edited ? (
+          <>
+            <ContextMenuItem onClick={onRevisionsRequest}>
+              <Icon name="history" className="size-4 text-accent" />
+              {t('messageList.editHistory')}
             </ContextMenuItem>
             <ContextMenuSeparator />
           </>
@@ -547,6 +564,7 @@ function DesktopMessageActions({
   onHistoryRequest,
   onInspectRequest,
   onCompareRequest,
+  onRevisionsRequest,
   onRewindRequest,
   onError,
 }: MessageActionProps & { onRewindRequest: () => void }) {
@@ -624,6 +642,15 @@ function DesktopMessageActions({
       icon: 'memory' as const,
       onPress: () => run(() => onRemember(message.id, !message.remembered)),
     },
+    ...(message.role !== 'assistant' && message.edited
+      ? [
+          {
+            label: t('messageList.editHistory'),
+            icon: 'history' as const,
+            onPress: onRevisionsRequest,
+          },
+        ]
+      : []),
     {
       label: t('messageList.deleteMessage'),
       icon: 'trash' as const,
@@ -1029,6 +1056,8 @@ function MessageListComponent({
   onContinue,
   onSelectVariant,
   onRateVariant,
+  onListMessageRevisions,
+  onRestoreMessageRevision,
 }: {
   chatId: string;
   messages: Message[];
@@ -1068,6 +1097,11 @@ function MessageListComponent({
     rating: number | null,
     note: string | null,
   ) => Promise<void>;
+  onListMessageRevisions: (messageId: string) => Promise<EntityRevision[]>;
+  onRestoreMessageRevision: (
+    messageId: string,
+    revisionId: string,
+  ) => Promise<void>;
 }) {
   const { t, i18n } = useTranslation('chats');
   const isMobile = isMobilePlatform();
@@ -1078,6 +1112,9 @@ function MessageListComponent({
   const [historyMessageId, setHistoryMessageId] = useState<string | null>(null);
   const [inspectMessageId, setInspectMessageId] = useState<string | null>(null);
   const [compareMessageId, setCompareMessageId] = useState<string | null>(null);
+  const [revisionsMessageId, setRevisionsMessageId] = useState<string | null>(
+    null,
+  );
   const [working, setWorking] = useState(false);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [selectedMessageIds, setSelectedMessageIds] = useState<Set<string>>(
@@ -2348,6 +2385,10 @@ function MessageListComponent({
     () => messages.find((message) => message.id === compareMessageId) ?? null,
     [compareMessageId, messages],
   );
+  const revisionsMessage = useMemo(
+    () => messages.find((message) => message.id === revisionsMessageId) ?? null,
+    [revisionsMessageId, messages],
+  );
   const selectedMessages = useMemo(
     () => messages.filter((message) => selectedMessageIds.has(message.id)),
     [messages, selectedMessageIds],
@@ -2760,6 +2801,7 @@ function MessageListComponent({
                   const history = () => setHistoryMessageId(message.id);
                   const inspect = () => setInspectMessageId(message.id);
                   const compare = () => setCompareMessageId(message.id);
+                  const revisions = () => setRevisionsMessageId(message.id);
                   const isGenerating =
                     effectiveMessageGeneration?.messageId === message.id;
                   const isRegenerating =
@@ -2798,6 +2840,7 @@ function MessageListComponent({
                           onHistoryRequest={history}
                           onInspectRequest={inspect}
                           onCompareRequest={compare}
+                          onRevisionsRequest={revisions}
                           onError={reportError}
                           readOnly={readOnly}
                         >
@@ -2922,6 +2965,7 @@ function MessageListComponent({
                                   onHistoryRequest={history}
                                   onInspectRequest={inspect}
                                   onCompareRequest={compare}
+                                  onRevisionsRequest={revisions}
                                   onError={reportError}
                                 />
                               ) : !readOnly && !isPendingAssistant ? (
@@ -3202,6 +3246,16 @@ function MessageListComponent({
           selectVariant(messageId, variantIndex)
         }
         onClose={() => setCompareMessageId(null)}
+      />
+
+      <MessageRevisionsModal
+        message={revisionsMessage}
+        working={working}
+        onList={onListMessageRevisions}
+        onRestore={(messageId, revisionId) =>
+          onRestoreMessageRevision(messageId, revisionId)
+        }
+        onClose={() => setRevisionsMessageId(null)}
       />
     </>
   );
