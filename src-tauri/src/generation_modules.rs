@@ -102,6 +102,8 @@ mod tests {
                 created_at: 0,
                 edited: false,
                 report: None,
+                rating: None,
+                note: None,
             }],
         }
     }

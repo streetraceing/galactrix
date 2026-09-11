@@ -41,6 +41,7 @@ import {
   runDatabaseDiagnostics,
   saveProvider,
   selectMessageVariant,
+  rateMessageVariant,
   sendChatMessage,
   setMessageRemembered,
   setChatArchived,
@@ -851,6 +852,38 @@ export function useAppController() {
     [ensureChatIdle, haptic, snapshot.messages],
   );
 
+  const rateMessageVariantFeedback = useCallback(
+    async (
+      messageId: string,
+      variantIndex: number,
+      rating: number | null,
+      note: string | null,
+    ) => {
+      await rateMessageVariant(messageId, variantIndex, rating, note);
+      setSnapshot((current) => ({
+        ...current,
+        messages: current.messages.map((message) =>
+          message.id === messageId
+            ? {
+                ...message,
+                variants: message.variants.map((variant) =>
+                  variant.index === variantIndex
+                    ? {
+                        ...variant,
+                        rating: rating ?? undefined,
+                        note: note?.trim() ? note.trim() : undefined,
+                      }
+                    : variant,
+                ),
+              }
+            : message,
+        ),
+      }));
+      haptic();
+    },
+    [haptic],
+  );
+
   const saveGalaxyItem = useCallback(
     async (input: GalaxyItemInput) => {
       const saved = await upsertGalaxyItem(input);
@@ -1020,6 +1053,7 @@ export function useAppController() {
     regenerateExistingMessage,
     continueExistingMessage,
     chooseMessageVariant,
+    rateMessageVariantFeedback,
     saveGalaxyItem,
     importGalaxyLibrary,
     removeGalaxyItem,

@@ -274,6 +274,21 @@ export async function selectMessageVariant(
   });
 }
 
+export async function rateMessageVariant(
+  messageId: string,
+  variantIndex: number,
+  rating: number | null,
+  note: string | null,
+) {
+  requireTauri();
+  return invokeBackend<void>('rate_message_variant', {
+    messageId,
+    variantIndex,
+    rating,
+    note,
+  });
+}
+
 export async function regenerateMessage(
   messageId: string,
   generationId: string,

@@ -73,6 +73,7 @@ export function ChatsScreen({
   onRegenerateMessage,
   onContinueMessage,
   onSelectMessageVariant,
+  onRateMessageVariant,
   onSend,
   onCancelGeneration,
   sendOnEnter,
@@ -611,6 +612,7 @@ export function ChatsScreen({
                     onRegenerate={onRegenerateMessage}
                     onContinue={onContinueMessage}
                     onSelectVariant={onSelectMessageVariant}
+                    onRateVariant={onRateMessageVariant}
                   />
                 </div>
               ) : null}

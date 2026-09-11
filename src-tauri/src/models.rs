@@ -344,6 +344,10 @@ pub struct MessageVariant {
     pub edited: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub report: Option<GenerationReport>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rating: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
 }
 
 /// Explains how one generation request was composed and what it cost. Attached

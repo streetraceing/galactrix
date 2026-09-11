@@ -186,8 +186,9 @@ pub(crate) fn replace_with_backup(
                 .transpose()?;
             connection.execute(
                 r#"INSERT INTO message_variants (
-                        id, message_id, position, content, created_at, edited, report_json
-                   ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)"#,
+                        id, message_id, position, content, created_at, edited, report_json,
+                        rating, note
+                   ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)"#,
                 params![
                     variant.id,
                     message.id,
@@ -196,6 +197,8 @@ pub(crate) fn replace_with_backup(
                     variant.created_at,
                     variant.edited as i64,
                     report_json,
+                    variant.rating,
+                    variant.note,
                 ],
             )?;
         }
@@ -344,6 +347,16 @@ fn validate_structure(data: &AppBackupData) -> CommandResult<()> {
                 }
                 if variant.index == message.active_variant_index {
                     active_content = Some(variant.content.as_str());
+                }
+                if let Some(rating) = variant.rating {
+                    if !(0..=5).contains(&rating) {
+                        return Err(CommandError::new(keys::BACKUP_INVALID));
+                    }
+                }
+                if let Some(note) = &variant.note {
+                    if note.trim().is_empty() || note.chars().count() > 500 {
+                        return Err(CommandError::new(keys::BACKUP_INVALID));
+                    }
                 }
             }
             if active_content != Some(message.content.as_str()) {

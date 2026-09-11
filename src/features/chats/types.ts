@@ -73,6 +73,12 @@ export type ChatsScreenProps = {
     messageId: string,
     variantIndex: number,
   ) => Promise<void>;
+  onRateMessageVariant: (
+    messageId: string,
+    variantIndex: number,
+    rating: number | null,
+    note: string | null,
+  ) => Promise<void>;
   onSend: (content: string) => Promise<void>;
   onCancelGeneration: (chatId: string) => Promise<void>;
   sendOnEnter: boolean;

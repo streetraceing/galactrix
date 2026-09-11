@@ -1346,3 +1346,87 @@ fn generation_reports_round_trip_through_variants() {
         .expect("second message must load");
     assert!(second.variants[0].report.is_none());
 }
+
+#[test]
+fn variant_feedback_round_trips_and_validates() {
+    let connection = test_database();
+    create_test_chat(&connection, "chat-1");
+    add_user_message(&connection, "chat-1", "chat-1-user", "Hello")
+        .expect("user message must be created");
+    add_assistant_message(&connection, "chat-1", "chat-1-assistant", "First reply")
+        .expect("assistant message must be created");
+    append_message_variant(
+        &connection,
+        "chat-1-assistant",
+        "chat-1-v1",
+        "Second reply",
+        false,
+    )
+    .expect("second variant must be created");
+
+    set_variant_feedback(
+        &connection,
+        "chat-1-assistant",
+        1,
+        Some(4),
+        Some("  Better tone.  "),
+    )
+    .expect("feedback must save");
+
+    let state = chat_state(&connection, "chat-1").expect("chat state must load");
+    let second = state
+        .messages
+        .iter()
+        .find(|message| message.id == "chat-1-assistant")
+        .expect("assistant message must load")
+        .variants
+        .iter()
+        .find(|variant| variant.index == 1)
+        .expect("variant must exist")
+        .clone();
+    assert_eq!(second.rating, Some(4));
+    assert_eq!(second.note.as_deref(), Some("Better tone."));
+
+    // Clearing with both None resets the feedback.
+    set_variant_feedback(&connection, "chat-1-assistant", 1, None, None)
+        .expect("feedback must clear");
+    let state = chat_state(&connection, "chat-1").expect("chat state must load");
+    let cleared = state
+        .messages
+        .iter()
+        .find(|message| message.id == "chat-1-assistant")
+        .expect("assistant message must load")
+        .variants
+        .iter()
+        .find(|variant| variant.index == 1)
+        .expect("variant must exist")
+        .clone();
+    assert_eq!(cleared.rating, None);
+    assert_eq!(cleared.note, None);
+
+    let error = set_variant_feedback(&connection, "chat-1-assistant", 1, Some(6), None)
+        .expect_err("out-of-range ratings must be rejected");
+    assert_eq!(error.key, keys::MESSAGE_VARIANT_RATING_RANGE);
+
+    let long_note = "x".repeat(501);
+    let error = set_variant_feedback(&connection, "chat-1-assistant", 1, None, Some(&long_note))
+        .expect_err("oversized notes must be rejected");
+    assert_eq!(error.key, keys::MESSAGE_VARIANT_NOTE_TOO_LONG);
+
+    let error = set_variant_feedback(&connection, "missing-message", 0, Some(1), None)
+        .expect_err("missing messages must be rejected");
+    assert_eq!(error.key, keys::MESSAGE_NOT_FOUND);
+}
+
+#[test]
+fn variant_feedback_is_rejected_on_archived_chats() {
+    let connection = test_database();
+    create_test_chat(&connection, "chat-1");
+    add_assistant_message(&connection, "chat-1", "chat-1-assistant", "Reply")
+        .expect("assistant message must be created");
+    set_chat_archived(&connection, "chat-1", true).expect("chat must archive");
+
+    let error = set_variant_feedback(&connection, "chat-1-assistant", 0, Some(3), None)
+        .expect_err("archived chats must reject feedback");
+    assert_eq!(error.key, keys::CHAT_ARCHIVED_READ_ONLY);
+}

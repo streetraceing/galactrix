@@ -351,6 +351,25 @@ fn select_message_variant(
 }
 
 #[tauri::command]
+fn rate_message_variant(
+    message_id: String,
+    variant_index: i64,
+    rating: Option<i64>,
+    note: Option<String>,
+    state: State<'_, AppState>,
+) -> CommandResult<()> {
+    let database = state.database.lock().map_err(CommandError::internal)?;
+    db::set_variant_feedback(
+        &database,
+        &message_id,
+        variant_index,
+        rating,
+        note.as_deref(),
+    )?;
+    Ok(())
+}
+
+#[tauri::command]
 fn preview_prompt(input: PromptPreviewInput) -> PromptPreviewResult {
     prompt_preview::build(input)
 }
@@ -1104,6 +1123,7 @@ pub fn run() {
             rewind_chat_to_message,
             set_message_remembered,
             select_message_variant,
+            rate_message_variant,
             preview_prompt,
             regenerate_message,
             continue_message,

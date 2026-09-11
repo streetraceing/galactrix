@@ -147,6 +147,8 @@ export type MessageVariant = {
   createdAt: number;
   edited?: boolean;
   report?: ContextReport;
+  rating?: number;
+  note?: string;
 };
 
 export type Message = {

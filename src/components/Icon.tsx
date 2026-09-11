@@ -53,6 +53,8 @@ export type IconName =
   | 'download'
   | 'upload'
   | 'tag'
+  | 'star'
+  | 'compare'
   | 'chevron-left'
   | 'chevron-right';
 
@@ -356,6 +358,15 @@ function createIconPaths(): Record<IconName, ReactNode> {
       <>
         <path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8Z" />
         <circle cx="7.5" cy="7.5" r="0.5" fill="currentColor" />
+      </>
+    ),
+    star: (
+      <path d="M12 2.8 14.7 8.4 20.9 9.3 16.4 13.6 17.5 19.8 12 16.9 6.5 19.8 7.6 13.6 3.1 9.3 9.3 8.4Z" />
+    ),
+    compare: (
+      <>
+        <rect x="3" y="4" width="7.5" height="16" rx="1.5" />
+        <rect x="13.5" y="4" width="7.5" height="16" rx="1.5" />
       </>
     ),
     info: (

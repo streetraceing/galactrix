@@ -90,6 +90,8 @@ pub(crate) fn migrate(connection: &Connection) -> CommandResult<()> {
                 created_at INTEGER NOT NULL,
                 edited INTEGER NOT NULL DEFAULT 0,
                 report_json TEXT,
+                rating INTEGER,
+                note TEXT,
                 UNIQUE(message_id, position),
                 FOREIGN KEY(message_id) REFERENCES messages(id) ON DELETE CASCADE
             );
@@ -292,6 +294,8 @@ pub(crate) fn migrate(connection: &Connection) -> CommandResult<()> {
         "INTEGER NOT NULL DEFAULT 0",
     )?;
     ensure_column(connection, "message_variants", "report_json", "TEXT")?;
+    ensure_column(connection, "message_variants", "rating", "INTEGER")?;
+    ensure_column(connection, "message_variants", "note", "TEXT")?;
     connection.execute(
         "UPDATE messages SET updated_at = created_at WHERE updated_at = 0",
         [],
@@ -840,11 +844,21 @@ pub fn get_chat(connection: &Connection, chat_id: &str) -> CommandResult<Chat> {
     })
 }
 
-type MessageVariantRow = (String, String, i64, String, i64, bool, Option<String>);
+type MessageVariantRow = (
+    String,
+    String,
+    i64,
+    String,
+    i64,
+    bool,
+    Option<String>,
+    Option<i64>,
+    Option<String>,
+);
 
 fn variants_from_rows(rows: Vec<MessageVariantRow>) -> HashMap<String, Vec<MessageVariant>> {
     let mut result: HashMap<String, Vec<MessageVariant>> = HashMap::new();
-    for (message_id, id, index, content, created_at, edited, report_json) in rows {
+    for (message_id, id, index, content, created_at, edited, report_json, rating, note) in rows {
         result.entry(message_id).or_default().push(MessageVariant {
             id,
             index,
@@ -852,6 +866,8 @@ fn variants_from_rows(rows: Vec<MessageVariantRow>) -> HashMap<String, Vec<Messa
             created_at,
             edited,
             report: report_json.and_then(|raw| serde_json::from_str(&raw).ok()),
+            rating,
+            note,
         });
     }
     result
@@ -861,7 +877,7 @@ fn all_message_variants(
     connection: &Connection,
 ) -> CommandResult<HashMap<String, Vec<MessageVariant>>> {
     let mut statement = connection.prepare(
-        "SELECT message_id, id, position, content, created_at, edited, report_json
+        "SELECT message_id, id, position, content, created_at, edited, report_json, rating, note
          FROM message_variants ORDER BY message_id, position ASC",
     )?;
     let rows = statement
@@ -874,6 +890,8 @@ fn all_message_variants(
                 row.get(4)?,
                 row.get::<_, i64>(5)? != 0,
                 row.get::<_, Option<String>>(6)?,
+                row.get::<_, Option<i64>>(7)?,
+                row.get::<_, Option<String>>(8)?,
             ))
         })?
         .collect::<Result<Vec<_>, _>>()?;
@@ -885,7 +903,7 @@ fn message_variants_for_chat(
     chat_id: &str,
 ) -> CommandResult<HashMap<String, Vec<MessageVariant>>> {
     let mut statement = connection.prepare(
-        "SELECT variants.message_id, variants.id, variants.position, variants.content, variants.created_at, variants.edited, variants.report_json
+        "SELECT variants.message_id, variants.id, variants.position, variants.content, variants.created_at, variants.edited, variants.report_json, variants.rating, variants.note
          FROM message_variants variants
          INNER JOIN messages ON messages.id = variants.message_id
          WHERE messages.chat_id = ?1
@@ -901,6 +919,8 @@ fn message_variants_for_chat(
                 row.get(4)?,
                 row.get::<_, i64>(5)? != 0,
                 row.get::<_, Option<String>>(6)?,
+                row.get::<_, Option<i64>>(7)?,
+                row.get::<_, Option<String>>(8)?,
             ))
         })?
         .collect::<Result<Vec<_>, _>>()?;
@@ -914,7 +934,7 @@ fn message_variants_before(
     message_rowid: i64,
 ) -> CommandResult<HashMap<String, Vec<MessageVariant>>> {
     let mut statement = connection.prepare(
-        "SELECT variants.message_id, variants.id, variants.position, variants.content, variants.created_at, variants.edited, variants.report_json
+        "SELECT variants.message_id, variants.id, variants.position, variants.content, variants.created_at, variants.edited, variants.report_json, variants.rating, variants.note
          FROM message_variants variants
          INNER JOIN messages ON messages.id = variants.message_id
          WHERE messages.chat_id = ?1
@@ -932,6 +952,8 @@ fn message_variants_before(
                 row.get(4)?,
                 row.get::<_, i64>(5)? != 0,
                 row.get::<_, Option<String>>(6)?,
+                row.get::<_, Option<i64>>(7)?,
+                row.get::<_, Option<String>>(8)?,
             ))
         })?
         .collect::<Result<Vec<_>, _>>()?;
@@ -2357,6 +2379,39 @@ pub fn set_message_remembered(
         params![remembered as i64, updated_at, message_id],
     )?;
     invalidate_chat_ai_context(connection, &chat_id)
+}
+
+const MAX_VARIANT_NOTE_LENGTH: usize = 500;
+
+/// Stores or clears the user's rating and annotation for one response variant.
+/// The active variant content is never touched, so alternatives are preserved.
+pub fn set_variant_feedback(
+    connection: &Connection,
+    message_id: &str,
+    position: i64,
+    rating: Option<i64>,
+    note: Option<&str>,
+) -> CommandResult<()> {
+    if let Some(rating) = rating {
+        if !(0..=5).contains(&rating) {
+            return Err(CommandError::new(keys::MESSAGE_VARIANT_RATING_RANGE));
+        }
+    }
+    let note = note.map(str::trim).filter(|value| !value.is_empty());
+    if let Some(note) = note {
+        if note.chars().count() > MAX_VARIANT_NOTE_LENGTH {
+            return Err(CommandError::new(keys::MESSAGE_VARIANT_NOTE_TOO_LONG));
+        }
+    }
+    ensure_message_chat_mutable(connection, message_id)?;
+    let changed = connection.execute(
+        "UPDATE message_variants SET rating = ?1, note = ?2 WHERE message_id = ?3 AND position = ?4",
+        params![rating, note, message_id, position],
+    )?;
+    if changed == 0 {
+        return Err(CommandError::new(keys::MESSAGE_VARIANT_NOT_FOUND));
+    }
+    Ok(())
 }
 
 /// Persists the generation report for an existing variant. Best-effort by

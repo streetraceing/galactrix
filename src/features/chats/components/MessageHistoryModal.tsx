@@ -1,5 +1,6 @@
 import { Button, Chip, Surface } from '@heroui/react';
 import { MarkdownContent } from '../../../components/ui/MarkdownContent';
+import { Icon } from '../../../components/Icon';
 import { UiModal } from '../../../components/ui/UiModal';
 import type { Message } from '../../../types';
 import { formatMessageTime } from '../messageTime';
@@ -60,6 +61,16 @@ export function MessageHistoryModal({
                       className="bg-transparent text-accent"
                     >
                       {t('messageHistoryModal.selected')}
+                    </Chip>
+                  ) : null}
+                  {variant.rating != null ? (
+                    <Chip
+                      size="sm"
+                      variant="soft"
+                      className="bg-transparent text-warning"
+                    >
+                      <Icon name="star" className="size-3 fill-current" />
+                      {variant.rating}
                     </Chip>
                   ) : null}
                 </div>
