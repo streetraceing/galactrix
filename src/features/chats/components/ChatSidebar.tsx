@@ -315,7 +315,7 @@ function ChatSidebarComponent({
                   role="tab"
                   aria-selected={isActive}
                   onClick={() => setCollectionId(collection.id)}
-                  className={`shrink-0 cursor-pointer rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+                  className={`inline-flex shrink-0 cursor-pointer items-center rounded-full border px-3 py-1.5 text-xs font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-focus ${
                     isActive
                       ? 'border-accent bg-accent/15 text-accent'
                       : 'border-default bg-transparent text-muted hover:bg-surface'

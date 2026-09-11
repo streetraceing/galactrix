@@ -42,7 +42,7 @@ test('the compare modal stays usable on phones', async () => {
   // Stacked panes on phones, side by side only from sm: upwards.
   assert.match(modal, /grid grid-cols-1 gap-3 sm:grid-cols-2/);
   // Star targets are large enough for touch input.
-  assert.match(modal, /rounded-lg p-1\.5/);
+  assert.match(modal, /rounded-lg p-2 outline-none/);
   // Promoting keeps the alternatives: it maps to the existing variant select.
   assert.match(modal, /onPromote/);
   assert.match(messageList, /VariantCompareModal\s+message=\{compareMessage\}/);

@@ -208,14 +208,20 @@ export function DataHealthCenter({
         ) : null}
 
         {running && !report ? (
-          <div className="mt-4 rounded-xl border border-default bg-background/55 px-3 py-2.5 text-sm text-muted">
+          <div
+            role="status"
+            className="mt-4 rounded-xl border border-default bg-background/55 px-3 py-2.5 text-sm text-muted"
+          >
             {t('dataHealth.checking')}
           </div>
         ) : null}
 
         {report ? (
           healthy ? (
-            <div className="mt-4 flex items-start gap-3 rounded-xl border border-success/35 bg-success/10 px-3 py-2.5">
+            <div
+              role="status"
+              className="mt-4 flex items-start gap-3 rounded-xl border border-success/35 bg-success/10 px-3 py-2.5"
+            >
               <Icon
                 name="check"
                 className="mt-0.5 size-4 shrink-0 text-success"
@@ -230,7 +236,10 @@ export function DataHealthCenter({
               </div>
             </div>
           ) : (
-            <div className="mt-4 flex items-start gap-3 rounded-xl border border-warning/35 bg-warning/10 px-3 py-2.5">
+            <div
+              role="status"
+              className="mt-4 flex items-start gap-3 rounded-xl border border-warning/35 bg-warning/10 px-3 py-2.5"
+            >
               <Icon
                 name="info"
                 className="mt-0.5 size-4 shrink-0 text-warning"

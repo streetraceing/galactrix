@@ -94,7 +94,7 @@ function VariantPane({
                 type="button"
                 disabled={busy}
                 aria-label={t('compareModal.rate', { value })}
-                className={`cursor-pointer rounded-lg p-1.5 transition-colors disabled:cursor-default ${
+                className={`cursor-pointer rounded-lg p-2 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-focus disabled:cursor-default ${
                   active ? 'text-warning' : 'text-default hover:text-warning'
                 }`}
                 onClick={() => onRate(variant.index, value)}
@@ -111,7 +111,7 @@ function VariantPane({
           <button
             type="button"
             disabled={busy}
-            className="cursor-pointer rounded-lg px-2 py-1 text-xs text-muted hover:text-danger disabled:cursor-default"
+            className="inline-flex min-h-9 cursor-pointer items-center rounded-lg px-2 text-xs text-muted outline-none hover:text-danger focus-visible:ring-2 focus-visible:ring-focus disabled:cursor-default"
             onClick={() => onRate(variant.index, null)}
           >
             {t('compareModal.clearRating')}

@@ -150,7 +150,7 @@ export function ChatTagsModal({
                   type="button"
                   onClick={() => toggleTag(tag)}
                   aria-pressed={isSelected}
-                  className={`cursor-pointer rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                  className={`inline-flex cursor-pointer items-center rounded-full border px-3 py-1.5 text-xs font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-focus ${
                     isSelected
                       ? 'border-accent bg-accent/15 text-accent'
                       : 'border-default bg-transparent text-muted hover:bg-surface'
@@ -210,7 +210,7 @@ export function ChatTagsModal({
                 <button
                   type="button"
                   aria-label={t('tagsModal.removePendingTag', { tag })}
-                  className="cursor-pointer"
+                  className="cursor-pointer rounded p-1 outline-none focus-visible:ring-2 focus-visible:ring-focus"
                   onClick={() =>
                     setNewTags((current) =>
                       current.filter((candidate) => candidate !== tag),

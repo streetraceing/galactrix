@@ -70,7 +70,7 @@ export function MessageContextInspectorModal({
       footer={
         <button
           type="button"
-          className="cursor-pointer rounded-lg px-3 py-2 text-sm font-medium text-muted hover:bg-surface"
+          className="cursor-pointer rounded-lg px-3 py-2 text-sm font-medium text-muted outline-none hover:bg-surface focus-visible:ring-2 focus-visible:ring-focus"
           onClick={onClose}
         >
           {t('inspector.close')}
