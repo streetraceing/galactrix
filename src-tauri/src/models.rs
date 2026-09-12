@@ -821,6 +821,9 @@ pub struct AppSettings {
     pub language: String,
     #[serde(default)]
     pub ai_modules: AiModuleSettings,
+    /// False until the first-run setup wizard has been completed or skipped.
+    #[serde(default)]
+    pub setup_complete: bool,
 }
 
 impl Default for AppSettings {
@@ -842,6 +845,7 @@ impl Default for AppSettings {
             sidebar_width: 248,
             chat_sidebar_width: 320,
             sidebar_collapsed: false,
+            setup_complete: false,
             theme_mode: "system".into(),
             theme_variant: "default".into(),
             language: "system".into(),

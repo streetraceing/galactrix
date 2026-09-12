@@ -4,6 +4,7 @@ import enCommon from './locales/en/common.json';
 import enGalaxies from './locales/en/galaxies.json';
 import enProfile from './locales/en/profile.json';
 import enSettings from './locales/en/settings.json';
+import enSetup from './locales/en/setup.json';
 import enTelescope from './locales/en/telescope.json';
 import ruBackend from './locales/ru/backend.json';
 import ruChats from './locales/ru/chats.json';
@@ -11,12 +12,14 @@ import ruCommon from './locales/ru/common.json';
 import ruGalaxies from './locales/ru/galaxies.json';
 import ruProfile from './locales/ru/profile.json';
 import ruSettings from './locales/ru/settings.json';
+import ruSetup from './locales/ru/setup.json';
 import ruTelescope from './locales/ru/telescope.json';
 
 export const namespaces = [
   'common',
   'chats',
   'galaxies',
+  'setup',
   'telescope',
   'profile',
   'settings',
@@ -31,6 +34,7 @@ export const resources = {
     telescope: enTelescope,
     profile: enProfile,
     settings: enSettings,
+    setup: enSetup,
     backend: enBackend,
   },
   ru: {
@@ -40,6 +44,7 @@ export const resources = {
     telescope: ruTelescope,
     profile: ruProfile,
     settings: ruSettings,
+    setup: ruSetup,
     backend: ruBackend,
   },
 } as const;

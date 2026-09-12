@@ -16,7 +16,7 @@ pub(crate) fn get_settings(connection: &Connection) -> CommandResult<AppSettings
                     sidebar_collapsed, theme_mode, theme_variant, language,
                     chat_view_mode, show_message_avatars,
                     show_message_timestamps, response_language, ai_modules_json,
-                    focus_composer_after_send
+                    focus_composer_after_send, setup_complete
              FROM app_settings WHERE id = 1",
             [],
             |row| {
@@ -44,6 +44,7 @@ pub(crate) fn get_settings(connection: &Connection) -> CommandResult<AppSettings
                     )
                     .unwrap_or_default(),
                     focus_composer_after_send: row.get::<_, i64>(19)? != 0,
+                    setup_complete: row.get::<_, i64>(20)? != 0,
                 })
             },
         )
@@ -116,7 +117,7 @@ pub(crate) fn update_settings(
              language = ?14, chat_view_mode = ?15,
              show_message_avatars = ?16, show_message_timestamps = ?17,
              response_language = ?18, ai_modules_json = ?19,
-             focus_composer_after_send = ?20
+             focus_composer_after_send = ?20, setup_complete = ?21
          WHERE id = 1",
         params![
             settings.profile_name,
@@ -138,7 +139,8 @@ pub(crate) fn update_settings(
             settings.show_message_timestamps as i64,
             settings.response_language,
             serde_json::to_string(&settings.ai_modules)?,
-            settings.focus_composer_after_send as i64
+            settings.focus_composer_after_send as i64,
+            settings.setup_complete as i64
         ],
     )?;
     Ok(())

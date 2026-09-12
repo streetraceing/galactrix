@@ -1545,3 +1545,19 @@ fn orphan_revisions_are_pruned_on_open() {
         .expect("must list")
         .is_empty());
 }
+
+#[test]
+fn setup_complete_round_trips_through_settings() {
+    let connection = test_database();
+    let settings = get_settings(&connection).expect("settings must load");
+    assert!(!settings.setup_complete);
+
+    let mut updated = settings;
+    updated.setup_complete = true;
+    updated.profile_name = "Explorer".into();
+    update_settings(&connection, &updated).expect("settings must save");
+
+    let reloaded = get_settings(&connection).expect("settings must load");
+    assert!(reloaded.setup_complete);
+    assert_eq!(reloaded.profile_name, "Explorer");
+}

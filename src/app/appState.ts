@@ -10,6 +10,7 @@ export function createDefaultSettings(): AppSettings {
     compactMode: false,
     sendOnEnter: true,
     focusComposerAfterSend: true,
+    setupComplete: false,
     saveDrafts: true,
     chatViewMode: 'conversation',
     showMessageAvatars: true,

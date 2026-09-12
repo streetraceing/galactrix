@@ -1,3 +1,5 @@
+import { Button } from '@heroui/react';
+import { Icon } from '../../../components/Icon';
 import type { AppSettings } from '../../../types';
 import { AppInfo } from './AppInfo';
 import { ChatPreferences } from './ChatPreferences';
@@ -85,6 +87,19 @@ export function ProfilePreferences({
             })
           }
         />
+      </div>
+
+      <div className="w-full">
+        <Button
+          variant="secondary"
+          fullWidth
+          onPress={() =>
+            void onChangeSettings({ ...settings, setupComplete: false })
+          }
+        >
+          <Icon name="sparkles" className="size-4" />
+          {t('profilePreferences.runSetupAgain')}
+        </Button>
       </div>
 
       <div className="pb-5 sm:pb-6">

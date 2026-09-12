@@ -1,4 +1,5 @@
 import { ChatsScreen } from '../features/chats/ChatsScreen';
+import { SetupWizard } from '../features/setup/SetupWizard';
 import { GalaxiesScreen } from '../features/galaxies/GalaxiesScreen';
 import { ProfileScreen } from '../features/profile/ProfileScreen';
 import { SettingsScreen } from '../features/settings/SettingsScreen';
@@ -18,6 +19,20 @@ export function AppScreenRouter({
   onChatMaximizedChange: (maximized: boolean) => void;
 }) {
   const { activeTab, snapshot } = controller;
+
+  // First-run setup: shown until the wizard is completed or skipped.
+  if (!snapshot.settings.setupComplete) {
+    return (
+      <SetupWizard
+        settings={snapshot.settings}
+        providers={snapshot.providers}
+        onChangeSettings={controller.saveSettings}
+        onFetchModels={controller.fetchProviderModels}
+        onTestEmbeddings={controller.testProviderEmbeddingConnection}
+        onSaveProvider={controller.saveProviderConnection}
+      />
+    );
+  }
 
   if (activeTab === 'chats') {
     return (

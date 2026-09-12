@@ -445,6 +445,7 @@ export type AppSettings = {
   showMessageAvatars: boolean;
   showMessageTimestamps: boolean;
   responseLanguage: 'app' | 'auto';
+  setupComplete: boolean;
   interfaceScale: number;
   sidebarWidth: number;
   chatSidebarWidth: number;

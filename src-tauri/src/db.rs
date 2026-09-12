@@ -152,6 +152,7 @@ pub(crate) fn migrate(connection: &Connection) -> CommandResult<()> {
                 compact_mode INTEGER NOT NULL DEFAULT 0,
                 send_on_enter INTEGER NOT NULL DEFAULT 1,
                 focus_composer_after_send INTEGER NOT NULL DEFAULT 1,
+                setup_complete INTEGER NOT NULL DEFAULT 0,
                 save_drafts INTEGER NOT NULL DEFAULT 1,
                 chat_view_mode TEXT NOT NULL DEFAULT 'conversation',
                 show_message_avatars INTEGER NOT NULL DEFAULT 1,
@@ -370,6 +371,12 @@ pub(crate) fn migrate(connection: &Connection) -> CommandResult<()> {
         "app_settings",
         "focus_composer_after_send",
         "INTEGER NOT NULL DEFAULT 1",
+    )?;
+    ensure_column(
+        connection,
+        "app_settings",
+        "setup_complete",
+        "INTEGER NOT NULL DEFAULT 0",
     )?;
     ensure_column(
         connection,
