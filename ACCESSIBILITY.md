@@ -60,8 +60,10 @@ Work through this checklist with the screen open on desktop **and** on an Androi
 14. On a phone (~360px width): no control overflows the viewport; primary actions are full width;
     side-by-side layouts only appear from the `sm:`/`md:` breakpoints.
 15. Interactive targets are at least ~40px tall (chips use `min-h-9`/`py-1.5`, stars use `p-2`).
-16. With the keyboard open on Android the layout must not resize or jitter — the keyboard
-    overlays the content (`adjustPan`) and the system pans to the focused input.
+16. With the keyboard open on Android the layout must not resize, pan or jitter — the window
+    stays fixed (`SOFT_INPUT_ADJUST_NOTHING`, enforced programmatically) and the keyboard
+    overlays the content. The chat composer rides above the keyboard through visual-viewport
+    metrics; modal content stays reachable by scrolling the modal body.
 
 ### Recording results
 

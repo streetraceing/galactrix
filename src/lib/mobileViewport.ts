@@ -1,3 +1,5 @@
+import { isAndroidPlatform } from './platform';
+
 export interface LayoutViewportSize {
   width: number;
   height: number;
@@ -86,10 +88,11 @@ export function resolveExpandedLayoutViewport() {
 }
 
 /**
- * Keeps a full-height modal stable while the browser chrome changes, but makes
- * its actual dialog no taller than the visible viewport while an editable
- * field has the keyboard open. This prevents a focused textarea from being
- * covered by the Android/iOS software keyboard.
+ * Keeps a full-height modal stable while the browser chrome changes, and on
+ * iOS makes its actual dialog no taller than the visible viewport while an
+ * editable field has the keyboard open. Android intentionally keeps the
+ * full-height layout: the keyboard overlays the content there instead of
+ * resizing it, so clamping would only make the interface jump.
  */
 export function constrainMobileModalViewport(
   layoutViewport: LayoutViewportSize | undefined,
@@ -101,6 +104,7 @@ export function constrainMobileModalViewport(
   const visibleHeight = Math.round(visualViewport?.height ?? 0);
   const visibleTop = Math.max(0, Math.round(visualViewport?.offsetTop ?? 0));
   const usesVisibleViewport =
+    !isAndroidPlatform() &&
     hasFocusedKeyboardInput &&
     visibleHeight > 0 &&
     (visibleHeight < layoutViewport.height || visibleTop > 0);

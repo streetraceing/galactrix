@@ -15,7 +15,7 @@ import {
   consumeChatQuickCreate,
   subscribeChatQuickCreate,
 } from '../../lib/chatQuickCreate';
-import { isAndroidPlatform, isMobilePlatform } from '../../lib/platform';
+import { isMobilePlatform } from '../../lib/platform';
 import { resolveProfileName } from '../../lib/profile';
 import { removeStorageItem } from '../../lib/storage';
 import type { Chat, ChatConfigInput, Message } from '../../types';
@@ -89,7 +89,6 @@ export function ChatsScreen({
 }: ChatsScreenProps) {
   const { t } = useTranslation(['chats', 'common']);
   const isMobile = isMobilePlatform();
-  const usesNativeImeInsets = isAndroidPlatform();
   const isNarrowDesktop = useMediaQuery('(max-width: 820px)');
   const isSinglePane = isMobile || isNarrowDesktop;
   const { bottomInset: keyboardInset, viewportHeight: keyboardViewportHeight } =
@@ -549,7 +548,7 @@ export function ChatsScreen({
       <section
         className={`${isSinglePane && !isChatOpen ? 'hidden' : 'flex'} ${isSinglePane && isChatOpen ? 'mobile-chat-enter' : ''} min-h-0 min-w-0 flex-1 flex-col overflow-hidden`}
         style={
-          keyboardInset > 0 && !usesNativeImeInsets
+          keyboardInset > 0
             ? {
                 paddingBottom: keyboardInset,
               }

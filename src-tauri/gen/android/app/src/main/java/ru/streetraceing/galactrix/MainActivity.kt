@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Bundle
 import android.util.Log
 import android.view.View
+import android.view.WindowManager
 import androidx.activity.enableEdgeToEdge
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -20,6 +21,12 @@ class MainActivity : TauriActivity() {
       .onFailure { error -> Log.e(TAG, "Failed to initialize Android secure storage", error) }
     enableEdgeToEdge()
     super.onCreate(savedInstanceState)
+
+    // The software keyboard must overlay the content instead of resizing or
+    // panning it: input visibility is handled inside the webview itself, and
+    // any window-level movement reads as the whole interface jumping. Set
+    // programmatically so no manifest merge can silently revert it.
+    window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING)
 
     val contentView = findViewById<View>(android.R.id.content)
     // The keyboard overlays the content instead of squeezing it: adjustPan

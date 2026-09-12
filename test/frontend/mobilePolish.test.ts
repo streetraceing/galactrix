@@ -31,16 +31,30 @@ test('mobile screens keep banners readable and actions inside the viewport', asy
 });
 
 test('the android keyboard overlays the content instead of resizing it', async () => {
-  const [manifest, mainActivity] = await Promise.all([
-    read('src-tauri/gen/android/app/src/main/AndroidManifest.xml'),
-    read(
-      'src-tauri/gen/android/app/src/main/java/ru/streetraceing/galactrix/MainActivity.kt',
-    ),
-  ]);
+  const [manifest, mainActivity, mobileViewport, chatsScreen] =
+    await Promise.all([
+      read('src-tauri/gen/android/app/src/main/AndroidManifest.xml'),
+      read(
+        'src-tauri/gen/android/app/src/main/java/ru/streetraceing/galactrix/MainActivity.kt',
+      ),
+      read('src/lib/mobileViewport.ts'),
+      read('src/features/chats/ChatsScreen.tsx'),
+    ]);
 
-  assert.match(manifest, /windowSoftInputMode="adjustPan"/);
-  assert.doesNotMatch(manifest, /adjustResize/);
+  assert.match(manifest, /windowSoftInputMode="adjustNothing"/);
+  assert.doesNotMatch(manifest, /adjustResize|adjustPan/);
+  // The mode is also enforced programmatically so no manifest merge or build
+  // artifact can silently revert it.
+  assert.match(mainActivity, /SOFT_INPUT_ADJUST_NOTHING/);
   // The insets listener must not pad the content by the keyboard height.
   assert.doesNotMatch(mainActivity, /Type\.ime\(\)/);
   assert.doesNotMatch(mainActivity, /keyboardArea/);
+  // Modals stay full-height on Android; the keyboard overlays them.
+  assert.match(
+    mobileViewport,
+    /!isAndroidPlatform\(\) &&\s*\n\s*hasFocusedKeyboardInput/,
+  );
+  // The chat composer rides above the keyboard through visualViewport metrics.
+  assert.match(chatsScreen, /keyboardInset > 0\s*\n\s*\? \{/);
+  assert.doesNotMatch(chatsScreen, /usesNativeImeInsets/);
 });
