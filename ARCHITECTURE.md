@@ -11,8 +11,8 @@ The frontend follows one-way dependencies:
 The Rust backend keeps Tauri commands thin and separates infrastructure from domain work:
 
 1. `src-tauri/src/lib.rs` is the application composition root and the stable Tauri command boundary.
-2. `runtime.rs` owns shared state and generation cancellation; `generation_context.rs` owns AI-context preparation and resolves per-chat module overrides; `generation_modules.rs` contains pure context/repetition transformations.
-3. `db.rs` coordinates persistence, while `db/galaxy.rs`, `db/settings.rs` and `db/ai_memory.rs` own focused storage domains.
+2. `runtime.rs` owns shared state and generation cancellation; `generation_context.rs` owns AI-context preparation, resolves per-chat module overrides and emits a per-response composition report (context sections, truncation steps, active modules) that is persisted on the produced message variant; `generation_modules.rs` contains pure context/repetition transformations.
+3. `db.rs` coordinates persistence, while `db/galaxy.rs`, `db/settings.rs`, `db/ai_memory.rs`, `db/health.rs` (integrity reports and safe repairs) and `db/revisions.rs` (bounded edit history with undoable restores) own focused storage domains.
 4. `provider_client.rs` owns provider operations; endpoint policy and retry/rate-limit transport live in dedicated submodules.
 5. `provider_support.rs`, `app_settings.rs` and `prompt_preview.rs` contain testable validation and transformation rules without Tauri state. `prompt_builder.rs` is the single source of truth for deterministic prompt sections and token-economy filtering.
 
@@ -39,6 +39,9 @@ The Rust backend keeps Tauri commands thin and separates infrastructure from dom
 - Keep Tauri command names and serialized camelCase contracts stable; move implementation behind them instead of coupling domain modules to Tauri.
 - Keep SQLite transactions inside the storage domain that owns the invariant. Cross-domain orchestration belongs above `db`.
 - Return structured `CommandError` translation keys from Rust. User-facing text is resolved by the frontend i18n boundary.
+- On Android the software keyboard must overlay the content: `SOFT_INPUT_ADJUST_NOTHING` is enforced programmatically in `MainActivity`, and input visibility is handled in the web layer (the chat composer rides above the keyboard via visual-viewport metrics). Never reintroduce window-level resize or pan for the keyboard.
+- Every user-facing surface must pass the accessibility guards in `test/frontend/accessibility.test.ts` (visible focus rings, accessible names for icon-only controls, readable text on translucent tints, compact touch targets); run the manual pass in `ACCESSIBILITY.md` per screen.
+- The first-run setup wizard gates the app on `settings.setupComplete`; completing or skipping it persists the flag, and it can be re-run from Settings → Parameters.
 
 ## Required checks
 

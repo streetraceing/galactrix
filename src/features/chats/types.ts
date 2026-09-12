@@ -19,6 +19,7 @@ export type ChatAction =
   | 'archive'
   | 'unarchive'
   | 'tags'
+  | 'export'
   | 'clear'
   | 'delete';
 

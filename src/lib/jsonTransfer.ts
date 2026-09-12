@@ -69,15 +69,28 @@ export function defaultExportDestination(): ExportDestination {
   return 'downloads';
 }
 
-export async function exportJsonFile(
+export type TextExportOptions = {
+  mime: string;
+  filterName: string;
+  extension: string;
+};
+
+const JSON_EXPORT_OPTIONS: TextExportOptions = {
+  mime: 'application/json;charset=utf-8',
+  filterName: 'Galactrix JSON',
+  extension: 'json',
+};
+
+export async function exportTextFile(
   filename: string,
-  value: unknown,
+  text: string,
+  options: TextExportOptions = JSON_EXPORT_OPTIONS,
   destination: ExportDestination = defaultExportDestination(),
 ) {
-  const json = JSON.stringify(value, null, 2);
-  const file = new File([json], filename, {
-    type: 'application/json;charset=utf-8',
+  const file = new File([text], filename, {
+    type: `${options.mime};charset=utf-8`,
   });
+  const mimeType = options.mime.split(';')[0];
 
   if (
     isTauri() &&
@@ -91,13 +104,13 @@ export async function exportJsonFile(
       defaultPath: filename,
       filters: [
         {
-          name: 'Galactrix JSON',
-          extensions: isAndroidPlatform() ? ['application/json'] : ['json'],
+          name: options.filterName,
+          extensions: isAndroidPlatform() ? [mimeType] : [options.extension],
         },
       ],
     });
     if (!path) return false;
-    await writeTextFile(path, json);
+    await writeTextFile(path, text);
     return true;
   }
 
@@ -109,8 +122,8 @@ export async function exportJsonFile(
         suggestedName: filename,
         types: [
           {
-            description: 'Galactrix JSON',
-            accept: { 'application/json': ['.json'] },
+            description: options.filterName,
+            accept: { [mimeType]: [`.${options.extension}`] },
           },
         ],
       });
@@ -149,6 +162,19 @@ export async function exportJsonFile(
   link.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
   return true;
+}
+
+export async function exportJsonFile(
+  filename: string,
+  value: unknown,
+  destination: ExportDestination = defaultExportDestination(),
+) {
+  return exportTextFile(
+    filename,
+    JSON.stringify(value, null, 2),
+    JSON_EXPORT_OPTIONS,
+    destination,
+  );
 }
 
 export async function importJsonFile(): Promise<unknown | null> {

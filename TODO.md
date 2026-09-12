@@ -13,7 +13,6 @@ This file is the canonical backlog for product improvements. The planning baseli
 ## Now
 
 - [ ] **TODO-011 - Stream responses token by token.** Render provider replies incrementally as they arrive instead of waiting for the full completion, keep cancellation working on partial text, and fall back to the current behavior when a provider cannot stream.
-- [ ] **TODO-012 - Export a single chat.** Share or save one conversation as Markdown or JSON (optionally with variants and metadata), complementing the full-app backup with a lightweight per-chat flow.
 - [ ] **TODO-013 - Add usage budgets and alerts.** Let users set per-provider or global token and request budgets per day or month, show progress against them in usage statistics, and warn before costs run away.
 - [ ] **TODO-014 - Add reusable composer snippets.** Let users save frequently used prompts as named snippets and insert them into the composer from a picker, with editing and reordering in settings.
 - [ ] **TODO-015 - Reuse variant feedback when tuning characters and styles.** Surface rated and annotated response variants as tuning hints when editing a character, style or prompt set, so winning responses can shape future generation instead of staying isolated in one chat.
@@ -23,7 +22,8 @@ This file is the canonical backlog for product improvements. The planning baseli
 
 ## Completed
 
-- [x] ~~**TODO-010 - Add a first-run setup and health wizard.** Guide users through locale and profile setup, provider connection, model selection, optional embeddings, and actionable diagnostics when configuration is incomplete.~~ - Implemented in v1.7.0
+- [x] ~~**TODO-012 - Export a single chat.** Share or save one conversation as Markdown or JSON (optionally with variants and metadata), complementing the full-app backup with a lightweight per-chat flow.~~ - Implemented in v1.8.0
+- [x] ~~**TODO-010 - Add a first-run setup and health wizard.** Guide users through locale and profile setup, provider connection, model selection, optional embeddings, and actionable diagnostics when configuration is incomplete.~~ - Implemented in v1.8.0
 - [x] ~~**TODO-009 - Complete an accessibility quality pass.** Cover keyboard-only navigation, focus restoration, screen-reader names, contrast, reduced motion, scalable text, and touch targets with repeatable automated and manual checks.~~ - Implemented in v1.7.0
 - [x] ~~**TODO-008 - Add revision history and undo for long-form editors.** Autosave recoverable revisions for messages, character definitions, styles, worldbooks, and prompt sets, with clear restore and conflict behavior.~~ - Implemented in v1.7.0
 - [x] ~~**TODO-007 - Improve response variant comparison.** Let users compare variants side by side, annotate or rate them, promote one without losing alternatives~~ (feedback reuse split into TODO-015) - Implemented in v1.7.0

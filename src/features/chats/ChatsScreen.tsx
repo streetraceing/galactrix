@@ -26,6 +26,7 @@ import { ChatDialogs } from './components/ChatDialogs';
 import { ChatSetupModal } from './components/ChatSetupModal';
 import { ChatSidebar } from './components/ChatSidebar';
 import { ChatTagsModal } from './components/ChatTagsModal';
+import { ExportChatModal } from './components/ExportChatModal';
 import { ConversationHeader } from './components/ConversationHeader';
 import {
   MessageList,
@@ -98,6 +99,7 @@ export function ChatsScreen({
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [tagsModalOpen, setTagsModalOpen] = useState(false);
   const [tagsModalChatIds, setTagsModalChatIds] = useState<string[]>([]);
+  const [exportTarget, setExportTarget] = useState<Chat | null>(null);
   const archiveScopeIds = useMemo(
     () =>
       chats
@@ -273,6 +275,10 @@ export function ChatsScreen({
       if (action === 'tags') {
         setTagsModalChatIds([chat.id]);
         setTagsModalOpen(true);
+        return;
+      }
+      if (action === 'export') {
+        setExportTarget(chat);
         return;
       }
       if (action === 'pin') {
@@ -696,6 +702,16 @@ export function ChatsScreen({
           setNewChatCharacterId(undefined);
         }}
         onSubmit={(input) => void saveConfig(input)}
+      />
+
+      <ExportChatModal
+        chat={exportTarget}
+        messages={
+          exportTarget
+            ? (messagesByChat.get(exportTarget.id) ?? EMPTY_MESSAGES)
+            : EMPTY_MESSAGES
+        }
+        onClose={() => setExportTarget(null)}
       />
 
       <ChatTagsModal

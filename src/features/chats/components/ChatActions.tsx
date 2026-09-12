@@ -82,6 +82,10 @@ export function ChatActions({
               <Icon name="tag" className="size-4" />
               {t('chatActions.tags')}
             </ContextMenuItem>
+            <ContextMenuItem onClick={() => onAction('export', chat)}>
+              <Icon name="download" className="size-4" />
+              {t('chatActions.export')}
+            </ContextMenuItem>
             <ContextMenuItem onClick={() => onAction('archive', chat)}>
               <Icon name="archive" className="size-4" />
               {t('chatActions.archive')}
@@ -211,6 +215,15 @@ export function ChatActionsButton({
             >
               <Icon name="pin" className="size-4" />
               {chat.pinned ? t('chatActions.unpin') : t('chatActions.pin')}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="justify-start"
+              onPress={() => run('export')}
+            >
+              <Icon name="download" className="size-4" />
+              {t('chatActions.export')}
             </Button>
             <Button
               size="sm"

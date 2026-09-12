@@ -12,6 +12,7 @@
   - `minor` — new user-facing functionality: new features, screens, commands, settings, or notable behavior additions.
   - `major` — breaking changes: incompatible data or backup formats, removed features, or workflows that stop working as before.
 - When a change could justify two levels, recommend the smaller one. For several changes in one release, recommend the highest level among them.
+- Base every recommendation on the actual repository state, not on memory: read the current version from `package.json` (or `git log`) before suggesting a bump, never recommend a version that already exists or has shipped, and when work has already been released under a different version than suggested, correct the `TODO.md` entries to the actually released one.
 - In `TODO.md`, append `Implemented in vX.Y.Z` using the version you recommended in chat; the maintainer applies the actual bump when releasing, so never bump the version just to make the entry true.
 
 ## Task quality and device adaptation
