@@ -26,13 +26,30 @@ use models::{
     CompletionResult, CreatedChat, DatabaseHealthReport, EmbeddingProbeResult, EntityRestoreResult,
     EntityRevision, GalaxyItem, GalaxyItemInput, GenerationJob, GenerationMode, GenerationReport,
     HealthRepairReport, PromptPreviewInput, PromptPreviewResult, Provider, ProviderImportInput,
-    ProviderInput, ProviderModelResult, ReportedTokenUsage, UsagePoint,
+    ProviderInput, ProviderModelResult, ReportedTokenUsage, StreamDelta, UsagePoint,
 };
 use serde_json::Value;
 use tauri::{Manager, State};
 use uuid::Uuid;
 
-use runtime::{await_cancellable, complete_cancellable, AppState};
+use provider_client::complete_streaming;
+use runtime::{await_cancellable, AppState};
+
+/// Resolves a streamed attempt: a cancelled stream keeps the partial text,
+/// but a cancellation with no text at all is reported as a cancellation.
+fn resolve_streamed(
+    streamed: CommandResult<crate::provider_client::StreamedCompletion>,
+) -> CommandResult<(crate::models::CompletionResult, bool)> {
+    match streamed {
+        Ok(result) => {
+            if result.cancelled && result.completion.content.trim().is_empty() {
+                return Err(CommandError::new(keys::PROVIDER_REQUEST_CANCELLED));
+            }
+            Ok((result.completion, result.cancelled))
+        }
+        Err(error) => Err(error),
+    }
+}
 
 /// Attaches the completion outcome to the request report. Reported token
 /// counts are dropped when the provider did not disclose any usage.
@@ -400,6 +417,7 @@ async fn regenerate_message(
     message_id: String,
     generation_id: String,
     response_language: Option<String>,
+    channel: tauri::ipc::Channel<StreamDelta>,
     state: State<'_, AppState>,
 ) -> CommandResult<()> {
     let (chat_id, provider, full_history, regeneration_mode) = {
@@ -442,7 +460,8 @@ async fn regenerate_message(
     )
     .await?;
     let secret = provider_support::saved_secret(&provider)?;
-    let completion = complete_cancellable(
+    let stream_message_id = message_id.clone();
+    let streamed = complete_streaming(
         &provider,
         secret.as_deref(),
         &prepared.history,
@@ -450,10 +469,16 @@ async fn regenerate_message(
         regeneration_instruction,
         &prepared.retry,
         cancellation,
+        |delta| {
+            let _ = channel.send(StreamDelta {
+                message_id: stream_message_id.clone(),
+                delta: delta.to_owned(),
+            });
+        },
     )
     .await;
-    let completion = match completion {
-        Ok(completion) => completion,
+    let (completion, cancelled) = match resolve_streamed(streamed) {
+        Ok(pair) => pair,
         Err(error) => {
             if error.key != keys::PROVIDER_REQUEST_CANCELLED {
                 if let Ok(database) = state.database.lock() {
@@ -473,6 +498,24 @@ async fn regenerate_message(
             let _ = db::update_provider_health(&database, &provider.id, "error", None);
         }
         return Err(CommandError::new(keys::PROVIDER_EMPTY_RESPONSE));
+    }
+    if cancelled {
+        // Partial text was persisted below; nothing else to stream.
+        let database = state.database.lock().map_err(CommandError::internal)?;
+        let variant_position = db::append_message_variant(
+            &database,
+            &message_id,
+            &Uuid::new_v4().to_string(),
+            &response_content,
+            false,
+        )?;
+        let _ = db::save_message_variant_report(
+            &database,
+            &message_id,
+            variant_position,
+            &finalize_report(prepared.report, &completion),
+        );
+        return Ok(());
     }
 
     let database = state.database.lock().map_err(CommandError::internal)?;
@@ -511,6 +554,7 @@ async fn continue_message(
     message_id: String,
     generation_id: String,
     response_language: Option<String>,
+    channel: tauri::ipc::Channel<StreamDelta>,
     state: State<'_, AppState>,
 ) -> CommandResult<()> {
     let (chat_id, provider, full_history) = {
@@ -552,7 +596,9 @@ async fn continue_message(
     )
     .await?;
     let secret = provider_support::saved_secret(&provider)?;
-    let completion = complete_cancellable(
+    let continuation_message_id = Uuid::new_v4().to_string();
+    let stream_message_id = continuation_message_id.clone();
+    let streamed = complete_streaming(
         &provider,
         secret.as_deref(),
         &prepared.history,
@@ -560,10 +606,16 @@ async fn continue_message(
         instruction,
         &prepared.retry,
         cancellation,
+        |delta| {
+            let _ = channel.send(StreamDelta {
+                message_id: stream_message_id.clone(),
+                delta: delta.to_owned(),
+            });
+        },
     )
     .await;
-    let completion = match completion {
-        Ok(completion) => completion,
+    let (completion, cancelled) = match resolve_streamed(streamed) {
+        Ok(pair) => pair,
         Err(error) => {
             if error.key != keys::PROVIDER_REQUEST_CANCELLED {
                 if let Ok(database) = state.database.lock() {
@@ -584,8 +636,19 @@ async fn continue_message(
         }
         return Err(CommandError::new(keys::PROVIDER_EMPTY_RESPONSE));
     }
+    if cancelled {
+        let database = state.database.lock().map_err(CommandError::internal)?;
+        db::add_assistant_message(&database, &chat_id, &continuation_message_id, &continuation)
+            .map_err(CommandError::internal)?;
+        let _ = db::save_message_variant_report(
+            &database,
+            &continuation_message_id,
+            0,
+            &finalize_report(prepared.report, &completion),
+        );
+        return Ok(());
+    }
     let database = state.database.lock().map_err(CommandError::internal)?;
-    let continuation_message_id = Uuid::new_v4().to_string();
     db::add_assistant_message(&database, &chat_id, &continuation_message_id, &continuation)?;
     let _ = db::save_message_variant_report(
         &database,
@@ -611,6 +674,7 @@ async fn continue_message(
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 async fn send_chat_message(
     chat_id: String,
     content: String,
@@ -618,6 +682,7 @@ async fn send_chat_message(
     user_message_id: Option<String>,
     assistant_message_id: Option<String>,
     response_language: Option<String>,
+    channel: tauri::ipc::Channel<StreamDelta>,
     state: State<'_, AppState>,
 ) -> CommandResult<()> {
     let content = content.trim().to_owned();
@@ -673,7 +738,8 @@ async fn send_chat_message(
     .await
     .map_err(persisted)?;
     let secret = provider_support::saved_secret(&provider).map_err(persisted)?;
-    let completion = complete_cancellable(
+    let stream_message_id = assistant_message_id.clone();
+    let streamed = complete_streaming(
         &provider,
         secret.as_deref(),
         &prepared.history,
@@ -681,10 +747,16 @@ async fn send_chat_message(
         None,
         &prepared.retry,
         cancellation,
+        |delta| {
+            let _ = channel.send(StreamDelta {
+                message_id: stream_message_id.clone(),
+                delta: delta.to_owned(),
+            });
+        },
     )
     .await;
-    let completion = match completion {
-        Ok(completion) => completion,
+    let (completion, cancelled) = match resolve_streamed(streamed) {
+        Ok(pair) => pair,
         Err(error) => {
             if error.key != keys::PROVIDER_REQUEST_CANCELLED {
                 if let Ok(database) = state.database.lock() {
@@ -704,6 +776,23 @@ async fn send_chat_message(
             let _ = db::update_provider_health(&database, &provider.id, "error", None);
         }
         return Err(persisted(CommandError::new(keys::PROVIDER_EMPTY_RESPONSE)));
+    }
+    if cancelled {
+        let database = state.database.lock().map_err(CommandError::internal)?;
+        db::add_assistant_message(
+            &database,
+            &chat_id,
+            &assistant_message_id,
+            &response_content,
+        )
+        .map_err(persisted)?;
+        let _ = db::save_message_variant_report(
+            &database,
+            &assistant_message_id,
+            0,
+            &finalize_report(prepared.report, &completion),
+        );
+        return Ok(());
     }
 
     let database = state

@@ -5,13 +5,12 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use futures_util::future::{select, Either};
 use rusqlite::Connection;
-use tokio::sync::{oneshot, oneshot::error::TryRecvError};
+use tokio::sync::oneshot;
+#[cfg(test)]
+use tokio::sync::oneshot::error::TryRecvError;
 
 use crate::i18n::{keys, CommandError, CommandResult};
-use crate::models::{
-    CompletionResult, GenerationJob, GenerationStatus, Message, Provider, RetrySettings,
-};
-use crate::provider_client;
+use crate::models::{GenerationJob, GenerationStatus};
 
 const PRE_CANCEL_TTL_SECONDS: i64 = 60;
 const MAX_PRE_CANCELLED_GENERATIONS: usize = 64;
@@ -239,37 +238,6 @@ fn prune_pre_cancelled(generations: &mut HashMap<String, GenerationEntry>) {
         GenerationControl::PreCancelled { requested_at } => requested_at >= oldest_allowed,
         _ => true,
     });
-}
-
-pub(crate) async fn complete_cancellable(
-    provider: &Provider,
-    secret: Option<&str>,
-    history: &[Message],
-    system_prompt: Option<&str>,
-    appended_user_message: Option<&str>,
-    retry: &RetrySettings,
-    mut cancellation: oneshot::Receiver<()>,
-) -> CommandResult<CompletionResult> {
-    match cancellation.try_recv() {
-        Ok(()) | Err(TryRecvError::Closed) => {
-            return Err(CommandError::new(keys::PROVIDER_REQUEST_CANCELLED));
-        }
-        Err(TryRecvError::Empty) => {}
-    }
-
-    let completion = Box::pin(provider_client::complete(
-        provider,
-        secret,
-        history,
-        system_prompt,
-        appended_user_message,
-        retry,
-    ));
-    let cancellation = Box::pin(cancellation);
-    match select(completion, cancellation).await {
-        Either::Left((result, _)) => result,
-        Either::Right((_, _)) => Err(CommandError::new(keys::PROVIDER_REQUEST_CANCELLED)),
-    }
 }
 
 pub(crate) async fn await_cancellable<T, F>(

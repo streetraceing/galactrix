@@ -88,10 +88,16 @@ import {
   sortGenerationJobs,
 } from '../features/chats/generationJobs';
 
+type GenerationStreamDelta = {
+  messageId: string;
+  delta: string;
+};
+
 type MessageGenerationCommand = (
   messageId: string,
   generationId: string,
   responseLanguage?: 'en' | 'ru',
+  onDelta?: (delta: GenerationStreamDelta) => void,
 ) => Promise<void>;
 
 export function useAppController() {
@@ -181,6 +187,46 @@ export function useAppController() {
     setSnapshot((current) => ({ ...current, usage }));
     return usage;
   }, []);
+
+  const applyStreamedText = useCallback(
+    (chatId: string, messageId: string, text: string) => {
+      setSnapshot((current) => {
+        const exists = current.messages.some(
+          (message) => message.id === messageId,
+        );
+        const streamedAt = Math.floor(Date.now() / 1_000);
+        return {
+          ...current,
+          chats: current.chats.map((chat) =>
+            chat.id === chatId
+              ? { ...chat, preview: text, updatedAt: streamedAt }
+              : chat,
+          ),
+          messages: exists
+            ? current.messages.map((message) =>
+                message.id === messageId
+                  ? { ...message, content: text }
+                  : message,
+              )
+            : [
+                ...current.messages,
+                {
+                  id: messageId,
+                  chatId,
+                  role: 'assistant' as const,
+                  content: text,
+                  createdAt: streamedAt,
+                  remembered: false,
+                  activeVariantIndex: 0,
+                  variants: [],
+                  pending: true,
+                },
+              ],
+        };
+      });
+    },
+    [],
+  );
 
   const markChatReadLocally = useCallback((chatId: string, readAt: number) => {
     setSnapshot((current) => ({
@@ -551,6 +597,7 @@ export function useAppController() {
         ],
       }));
       try {
+        let streamed = '';
         await sendChatMessage(
           chatId,
           content,
@@ -558,6 +605,11 @@ export function useAppController() {
           userMessageId,
           assistantMessageId,
           getResponseLocale(snapshot.settings.responseLanguage),
+          (delta) => {
+            if (delta.messageId !== assistantMessageId) return;
+            streamed += delta.delta;
+            applyStreamedText(chatId, assistantMessageId, streamed);
+          },
         );
         await refreshChat(chatId);
         await refreshUsage().catch(() => undefined);
@@ -575,6 +627,7 @@ export function useAppController() {
     },
     [
       activeChatId,
+      applyStreamedText,
       haptic,
       refreshChat,
       refreshUsage,
@@ -792,11 +845,18 @@ export function useAppController() {
         status: 'running',
         startedAt: Math.floor(Date.now() / 1_000),
       });
+      const streamedByMessage = new Map<string, string>();
       try {
         await command(
           messageId,
           generationId,
           getResponseLocale(snapshot.settings.responseLanguage),
+          (delta) => {
+            const text =
+              (streamedByMessage.get(delta.messageId) ?? '') + delta.delta;
+            streamedByMessage.set(delta.messageId, text);
+            applyStreamedText(chatId, delta.messageId, text);
+          },
         );
         if (chatId) await refreshChat(chatId);
         await refreshUsage().catch(() => undefined);
@@ -813,6 +873,7 @@ export function useAppController() {
       }
     },
     [
+      applyStreamedText,
       haptic,
       refreshChat,
       refreshUsage,

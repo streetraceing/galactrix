@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { Channel, invoke } from '@tauri-apps/api/core';
 import { i18next } from '../i18n';
 import { getBackendErrorPayload, localizeBackendError } from '../i18n/backend';
 import type {
@@ -192,6 +192,19 @@ export async function clearChat(chatId: string) {
   return invokeBackend<void>('clear_chat', { chatId });
 }
 
+export type GenerationStreamDelta = {
+  messageId: string;
+  delta: string;
+};
+
+function streamChannel(
+  onDelta: ((delta: GenerationStreamDelta) => void) | undefined,
+): Channel<GenerationStreamDelta> {
+  const channel = new Channel<GenerationStreamDelta>();
+  if (onDelta) channel.onmessage = onDelta;
+  return channel;
+}
+
 export async function sendChatMessage(
   chatId: string,
   content: string,
@@ -199,9 +212,11 @@ export async function sendChatMessage(
   userMessageId: string,
   assistantMessageId: string,
   responseLanguage?: 'en' | 'ru',
+  onDelta?: (delta: GenerationStreamDelta) => void,
 ) {
   requireTauri();
   return invokeBackend<void>('send_chat_message', {
+    channel: streamChannel(onDelta),
     chatId,
     content,
     generationId,
@@ -295,9 +310,11 @@ export async function regenerateMessage(
   messageId: string,
   generationId: string,
   responseLanguage?: 'en' | 'ru',
+  onDelta?: (delta: GenerationStreamDelta) => void,
 ) {
   requireTauri();
   return invokeBackend<void>('regenerate_message', {
+    channel: streamChannel(onDelta),
     messageId,
     generationId,
     responseLanguage: responseLanguage ?? null,
@@ -308,9 +325,11 @@ export async function continueMessage(
   messageId: string,
   generationId: string,
   responseLanguage?: 'en' | 'ru',
+  onDelta?: (delta: GenerationStreamDelta) => void,
 ) {
   requireTauri();
   return invokeBackend<void>('continue_message', {
+    channel: streamChannel(onDelta),
     messageId,
     generationId,
     responseLanguage: responseLanguage ?? null,

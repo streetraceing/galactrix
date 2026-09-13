@@ -140,7 +140,7 @@ where
     }
 }
 
-async fn buffer_json_response(response: Response) -> CommandResult<JsonResponse> {
+pub(super) async fn buffer_json_response(response: Response) -> CommandResult<JsonResponse> {
     let status = response.status().as_u16();
     let body = match response.bytes().await {
         Ok(body) => body,
@@ -544,4 +544,130 @@ pub(super) fn is_retryable_status(status: u16) -> bool {
 
 fn is_retryable_request_error(error: &reqwest::Error) -> bool {
     error.is_timeout() || error.is_connect() || error.is_request() || error.is_body()
+}
+
+pub(super) struct RawResponse {
+    pub(super) response: Response,
+}
+
+/// Streaming variant of [`send_with_retry`]: the same key-pool and retry
+/// policy, but a 2xx response is returned with its body unread so the caller
+/// can consume the stream incrementally. Final failures still buffer the body
+/// to build the standard HTTP error.
+pub(super) async fn send_with_retry_raw<F>(
+    pool_id: &str,
+    api_key: Option<&str>,
+    mut build_request: F,
+    settings: &RetrySettings,
+    error_key: &'static str,
+) -> CommandResult<RawResponse>
+where
+    F: FnMut(Option<&str>) -> RequestBuilder,
+{
+    let keys = parse_api_keys(api_key);
+    let attempts = if settings.enabled {
+        settings.max_attempts.clamp(1, 8)
+    } else {
+        1
+    };
+    let initial_delay = settings.initial_delay_ms.clamp(100, 60_000);
+    let max_delay = settings.max_delay_ms.clamp(initial_delay, 300_000);
+    let mut retry_round = 0_u32;
+    let mut tried_keys = HashSet::new();
+
+    loop {
+        let selected_index = if keys.is_empty() {
+            None
+        } else if let Some(index) = select_available_key(pool_id, &keys, &tried_keys) {
+            Some(index)
+        } else {
+            let (index, wait) = earliest_key_release(pool_id, &keys).unwrap_or((0, Duration::ZERO));
+            if settings.enabled && retry_round + 1 < attempts && wait > Duration::ZERO {
+                tokio::time::sleep(wait).await;
+                tried_keys.clear();
+                continue;
+            }
+            Some(index)
+        };
+        let selected_key = selected_index.map(|index| keys[index].as_str());
+
+        match build_request(selected_key).send().await {
+            Ok(response) => {
+                let status = response.status().as_u16();
+                let rate_limit = rate_limit_state(&response);
+                if let Some(index) = selected_index {
+                    if status == 429 || rate_limit.exhausted {
+                        block_api_key(
+                            pool_id,
+                            &keys[index],
+                            rate_limit
+                                .reset_after
+                                .unwrap_or_else(|| Duration::from_secs(60)),
+                        );
+                    }
+                }
+
+                if status == 429 {
+                    if let Some(index) = selected_index {
+                        tried_keys.insert(index);
+                    }
+                    if first_available_key(pool_id, &keys, &tried_keys).is_some() {
+                        continue;
+                    }
+                    if settings.enabled && retry_round + 1 < attempts {
+                        let delay = rate_limit
+                            .reset_after
+                            .or_else(|| earliest_key_release(pool_id, &keys).map(|(_, wait)| wait))
+                            .unwrap_or_else(|| {
+                                exponential_delay(initial_delay, max_delay, retry_round + 1)
+                            });
+                        tokio::time::sleep(delay).await;
+                        retry_round += 1;
+                        tried_keys.clear();
+                        continue;
+                    }
+                    return Err(http_error_from(buffer_json_response(response).await?));
+                }
+
+                if retry_round + 1 < attempts && is_retryable_status(status) {
+                    let delay = retry_after_delay(&response).unwrap_or_else(|| {
+                        exponential_delay(initial_delay, max_delay, retry_round + 1)
+                    });
+                    tokio::time::sleep(delay).await;
+                    retry_round += 1;
+                    tried_keys.clear();
+                    continue;
+                }
+                if (200..300).contains(&status) {
+                    return Ok(RawResponse { response });
+                }
+                return Err(http_error_from(buffer_json_response(response).await?));
+            }
+            Err(error) => {
+                if retry_round + 1 >= attempts || !is_retryable_request_error(&error) {
+                    return Err(CommandError::with_detail(error_key, error));
+                }
+                tokio::time::sleep(exponential_delay(initial_delay, max_delay, retry_round + 1))
+                    .await;
+                retry_round += 1;
+                tried_keys.clear();
+            }
+        }
+    }
+}
+
+pub(super) fn http_error_from(response: JsonResponse) -> CommandError {
+    let JsonResponse { status, value } = response;
+    let detail = value
+        .pointer("/error/message")
+        .or_else(|| value.get("error"))
+        .or_else(|| value.get("message"))
+        .and_then(Value::as_str)
+        .or_else(|| value.get("raw").and_then(Value::as_str))
+        .map(str::trim)
+        .filter(|message| !message.is_empty())
+        .unwrap_or("-");
+    CommandError::new(keys::PROVIDER_HTTP_ERROR)
+        .with_variable("status", status)
+        .with_variable("detail", detail)
 }

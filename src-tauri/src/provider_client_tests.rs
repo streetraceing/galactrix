@@ -2,7 +2,7 @@ use super::{
     block_api_key, embedding_endpoint_saved, exponential_delay, first_available_key, is_empty_json,
     is_retryable_status, parse_api_keys, parse_embedding_response, parse_rate_limit_delay,
     rate_limit_state_from_headers, select_available_key, send_with_retry,
-    uses_ollama_embedding_api,
+    uses_ollama_embedding_api, StreamChunkParser,
 };
 use reqwest::header::{HeaderMap, HeaderValue};
 use serde_json::json;
@@ -306,4 +306,58 @@ fn available_api_keys_rotate_instead_of_burning_the_first_key() {
     block_api_key(&pool, &keys[1], Duration::from_secs(1));
     assert_eq!(select_available_key(&pool, &keys, &excluded), Some(2));
     assert_eq!(select_available_key(&pool, &keys, &excluded), Some(0));
+}
+
+#[test]
+fn sse_parser_accumulates_deltas_across_chunk_boundaries() {
+    let mut parser = StreamChunkParser::new(false);
+
+    let first = "data: {\"choices\":[{\"delta\":{\"content\":\"П\"}}]}\n\ndata: {\"choi";
+    let parsed = parser.push(first.as_bytes());
+    assert_eq!(parsed.delta, "П");
+    assert!(!parsed.finished);
+    assert_eq!(parsed.usage, None);
+
+    let second = "ces\": [{\"delta\": {\"content\": \"и\"}}]}\n\ndata: [DONE]\n";
+    let parsed = parser.push(second.as_bytes());
+    assert_eq!(parsed.delta, "и");
+    assert!(parsed.finished);
+}
+
+#[test]
+fn sse_parser_extracts_final_usage_and_reports_errors() {
+    let mut parser = StreamChunkParser::new(false);
+    let payload = "data: {\"choices\":[{\"delta\":{\"content\":\"Hi\"}}]}\ndata: {\"choices\": [], \"usage\": {\"prompt_tokens\": 12, \"completion_tokens\": 34}}\ndata: {\"error\": {\"message\": \"overloaded\"}}\n";
+    let parsed = parser.push(payload.as_bytes());
+    assert_eq!(parsed.delta, "Hi");
+    assert_eq!(parsed.usage, Some((12, 34)));
+    assert_eq!(parsed.error.as_deref(), Some("overloaded"));
+}
+
+#[test]
+fn sse_parser_ignores_keepalives_and_stops_after_done() {
+    let mut parser = StreamChunkParser::new(false);
+    assert_eq!(parser.push(b": keep-alive\n\n").delta, "");
+    assert!(parser.push(b"data: [DONE]\n").finished);
+    assert!(parser
+        .push(b"data: {\"choices\":[{\"delta\":{\"content\":\"late\"}}]}\n")
+        .delta
+        .is_empty());
+}
+
+#[test]
+fn ollama_parser_reads_ndjson_lines_and_final_counts() {
+    let mut parser = StreamChunkParser::new(true);
+    let parsed = parser.push(
+        "{\"message\":{\"content\":\"He\"}}\n{\"message\":{\"content\":\"y\"}}\n{\"done\":true,\"prompt_eval_count\":7,\"eval_count\":19}\n"
+            .as_bytes(),
+    );
+    assert_eq!(parsed.delta, "Hey");
+    assert!(parsed.finished);
+    assert_eq!(parsed.usage, Some((7, 19)));
+
+    // After the stream is finished, later bytes are ignored.
+    let parsed = parser.push(b"{}\n");
+    assert_eq!(parsed.delta, "");
+    assert!(!parsed.finished);
 }

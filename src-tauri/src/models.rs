@@ -1078,6 +1078,15 @@ pub struct PromptPreviewResult {
     pub runtime_variable_sections: Vec<String>,
 }
 
+/// One incremental batch of streamed response text, delivered to the
+/// webview while the request is still running.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StreamDelta {
+    pub message_id: String,
+    pub delta: String,
+}
+
 #[derive(Debug, Clone)]
 pub struct CompletionResult {
     pub content: String,
