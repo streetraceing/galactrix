@@ -12,6 +12,7 @@ export function createDefaultSettings(): AppSettings {
     focusComposerAfterSend: true,
     setupComplete: false,
     budgets: [],
+    snippets: [],
     saveDrafts: true,
     chatViewMode: 'conversation',
     showMessageAvatars: true,

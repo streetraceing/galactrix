@@ -86,3 +86,27 @@ export function insertOocAside(
     addSpaceAtEnd: true,
   });
 }
+export function insertSnippetText(
+  value: string,
+  selectionStart: number,
+  selectionEnd: number,
+  snippetContent: string,
+): ComposerInsertion {
+  const start = Math.max(0, Math.min(selectionStart, value.length));
+  const end = Math.max(start, Math.min(selectionEnd, value.length));
+  const before = value.slice(0, start);
+  const after = value.slice(end);
+  const trimmed = snippetContent.trim();
+  // Separate the snippet from surrounding text with a blank line so it stays
+  // readable as its own block.
+  const needsSpaceBefore = before && !/\n$/.test(before) ? '\n\n' : '';
+  const prefix = `${before}${needsSpaceBefore}`;
+  const needsSpaceAfter = after && !after.startsWith('\n') ? '\n\n' : '';
+  const nextValue = `${prefix}${trimmed}${needsSpaceAfter}${after}`;
+  const selectionStartNext = prefix.length + trimmed.length;
+  return {
+    value: nextValue,
+    selectionStart: selectionStartNext,
+    selectionEnd: selectionStartNext,
+  };
+}

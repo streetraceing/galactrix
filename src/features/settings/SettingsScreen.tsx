@@ -15,11 +15,14 @@ import { ProfilePreferences } from '../profile/components/ProfilePreferences';
 import { AiModulesSettings } from './components/AiModulesSettings';
 import { DataHealthCenter } from './components/DataHealthCenter';
 import { DataManagement } from './components/DataManagement';
+import { SnippetsPanel } from './components/SnippetsPanel';
 
-type SettingsSection = 'parameters' | 'modules' | 'data' | 'health';
+type SettingsSection =
+  'parameters' | 'snippets' | 'modules' | 'data' | 'health';
 
 const settingsSections: readonly SettingsSection[] = [
   'parameters',
+  'snippets',
   'modules',
   'data',
   'health',
@@ -75,6 +78,7 @@ export function SettingsScreen({
             label={t('settingsScreen.settingsSections')}
             items={[
               { id: 'parameters', label: t('settingsScreen.parameters') },
+              { id: 'snippets', label: t('settingsScreen.snippets') },
               { id: 'modules', label: t('settingsScreen.modules') },
               { id: 'data', label: t('settingsScreen.data') },
               { id: 'health', label: t('settingsScreen.health') },
@@ -85,6 +89,12 @@ export function SettingsScreen({
             <ProfilePreferences
               settings={settings}
               appVersion={appVersion}
+              onChangeSettings={onChangeSettings}
+            />
+          </Tabs.Panel>
+          <Tabs.Panel id="snippets" className="pt-5 sm:pt-6">
+            <SnippetsPanel
+              settings={settings}
               onChangeSettings={onChangeSettings}
             />
           </Tabs.Panel>

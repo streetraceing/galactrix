@@ -1,7 +1,7 @@
 use super::*;
 use crate::models::{
-    BudgetSettings, DynamicContextState, GalaxyItemInput, GenerationReport, ReportModules,
-    ReportSection, ReportTokenEstimate, ReportTruncation, ReportedTokenUsage,
+    BudgetSettings, DynamicContextState, GalaxyItemInput, GenerationReport, PromptSnippet,
+    ReportModules, ReportSection, ReportTokenEstimate, ReportTruncation, ReportedTokenUsage,
     SemanticMemoryCandidate,
 };
 
@@ -1682,4 +1682,49 @@ fn budget_normalization_drops_incomplete_rules() {
     assert_eq!(normalized.budgets.len(), 1);
     assert_eq!(normalized.budgets[0].id, "valid");
     assert_eq!(normalized.budgets[0].period, "month");
+}
+
+#[test]
+fn snippet_normalization_trims_caps_and_dedupes() {
+    let connection = test_database();
+    let mut settings = get_settings(&connection).expect("settings must load");
+    settings.snippets = vec![
+        PromptSnippet {
+            id: "s1".into(),
+            title: "  Greeting  ".into(),
+            content: "  Hello there  ".into(),
+        },
+        PromptSnippet {
+            id: "s1".into(),
+            title: "Duplicate".into(),
+            content: "Dup".into(),
+        },
+        PromptSnippet {
+            id: "s2".into(),
+            title: String::new(),
+            content: "No title".into(),
+        },
+        PromptSnippet {
+            id: "s3".into(),
+            title: "Empty content".into(),
+            content: "   ".into(),
+        },
+        PromptSnippet {
+            id: "s4".into(),
+            title: "Too long".into(),
+            content: "x".repeat(12_001),
+        },
+    ];
+    let normalized =
+        crate::app_settings::normalize(settings, &HashSet::new()).expect("settings must normalize");
+    assert_eq!(normalized.snippets.len(), 1);
+    assert_eq!(normalized.snippets[0].id, "s1");
+    assert_eq!(normalized.snippets[0].title, "Greeting");
+    assert_eq!(normalized.snippets[0].content, "Hello there");
+
+    // The trimmed list round-trips through the database.
+    update_settings(&connection, &normalized).expect("settings must save");
+    let reloaded = get_settings(&connection).expect("settings must load");
+    assert_eq!(reloaded.snippets.len(), 1);
+    assert_eq!(reloaded.snippets[0].content, "Hello there");
 }

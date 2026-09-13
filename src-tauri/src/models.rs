@@ -826,6 +826,8 @@ pub struct AppSettings {
     pub setup_complete: bool,
     #[serde(default)]
     pub budgets: Vec<BudgetSettings>,
+    #[serde(default)]
+    pub snippets: Vec<PromptSnippet>,
 }
 
 impl Default for AppSettings {
@@ -849,6 +851,7 @@ impl Default for AppSettings {
             sidebar_collapsed: false,
             setup_complete: false,
             budgets: Vec::new(),
+            snippets: Vec::new(),
             theme_mode: "system".into(),
             theme_variant: "default".into(),
             language: "system".into(),
@@ -1079,6 +1082,16 @@ pub struct PromptPreviewResult {
     pub saved_approximate_tokens: i64,
     pub characters: i64,
     pub runtime_variable_sections: Vec<String>,
+}
+
+/// A named reusable prompt text that can be inserted into the composer
+/// from a picker and managed in settings.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PromptSnippet {
+    pub id: String,
+    pub title: String,
+    pub content: String,
 }
 
 /// A usage budget rule: token and request ceilings per day or month,

@@ -432,6 +432,12 @@ export type AiModuleSettings = {
   responseCleanup: ResponseCleanupSettings;
 };
 
+export type PromptSnippet = {
+  id: string;
+  title: string;
+  content: string;
+};
+
 export type BudgetSettings = {
   id: string;
   providerId?: string;
@@ -462,6 +468,7 @@ export type AppSettings = {
   responseLanguage: 'app' | 'auto';
   setupComplete: boolean;
   budgets: BudgetSettings[];
+  snippets: PromptSnippet[];
   interfaceScale: number;
   sidebarWidth: number;
   chatSidebarWidth: number;

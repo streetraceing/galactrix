@@ -27,7 +27,7 @@ import {
   removeStorageItem,
   writeStorageItem,
 } from '../../../lib/storage';
-import type { Provider } from '../../../types';
+import type { PromptSnippet, Provider } from '../../../types';
 import { copyChatText } from '../chatClipboard';
 import { useTranslation } from 'react-i18next';
 import {
@@ -38,6 +38,8 @@ import {
   type ComposerInsertion,
 } from '../composerTools';
 import { draftKey } from '../utils';
+import { SnippetPickerModal } from './SnippetPickerModal';
+import { insertSnippetText } from '../composerTools';
 
 function readDraft(chatId: string, saveDrafts: boolean) {
   return saveDrafts ? (readStorageItem(draftKey(chatId)) ?? '') : '';
@@ -49,7 +51,14 @@ function persistDraft(chatId: string, value: string) {
 }
 
 type ComposerToolAction =
-  'roleplay' | 'bold' | 'quote' | 'ooc' | 'fullscreen' | 'copy' | 'clear';
+  | 'roleplay'
+  | 'bold'
+  | 'quote'
+  | 'ooc'
+  | 'snippets'
+  | 'fullscreen'
+  | 'copy'
+  | 'clear';
 
 const CHAT_COMPOSER_MAX_HEIGHT = 192;
 
@@ -64,6 +73,7 @@ function ChatComposerComponent({
   shouldAutoFocus,
   focusKey,
   wide,
+  snippets,
   onSend,
   onCancel,
 }: {
@@ -77,6 +87,7 @@ function ChatComposerComponent({
   shouldAutoFocus: boolean;
   focusKey: string;
   wide: boolean;
+  snippets: PromptSnippet[];
   onSend: (value: string) => Promise<void>;
   onCancel: () => Promise<void>;
 }) {
@@ -85,6 +96,7 @@ function ChatComposerComponent({
   const [draft, setDraft] = useState(() => readDraft(chatId, saveDrafts));
   const [fullscreenOpen, setFullscreenOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [snippetPickerOpen, setSnippetPickerOpen] = useState(false);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
   const fullscreenTextAreaRef = useRef<HTMLTextAreaElement>(null);
   const draftRef = useRef(draft);
@@ -158,6 +170,9 @@ function ChatComposerComponent({
           break;
         case 'ooc':
           applyInsertion(insertOocAside, target);
+          break;
+        case 'snippets':
+          setSnippetPickerOpen(true);
           break;
         case 'fullscreen':
           openFullscreen();
@@ -429,6 +444,15 @@ function ChatComposerComponent({
             <Icon name="info" className="size-4" />
             <Label>{t('chatComposer.insertOoc')}</Label>
           </Dropdown.Item>
+          {snippets.length > 0 ? (
+            <Dropdown.Item
+              id="snippets"
+              textValue={t('chatComposer.insertSnippet')}
+            >
+              <Icon name="book" className="size-4 text-accent" />
+              <Label>{t('chatComposer.insertSnippet')}</Label>
+            </Dropdown.Item>
+          ) : null}
           <Dropdown.Item
             id="fullscreen"
             textValue={t('chatComposer.openFullscreen')}
@@ -510,6 +534,14 @@ function ChatComposerComponent({
           <Icon name="info" className="size-4" />
           {t('chatComposer.insertOoc')}
         </ContextMenuItem>
+        {snippets.length > 0 ? (
+          <ContextMenuItem
+            onClick={() => runToolAction('snippets', textAreaRef.current)}
+          >
+            <Icon name="book" className="size-4 text-accent" />
+            {t('chatComposer.insertSnippet')}
+          </ContextMenuItem>
+        ) : null}
         <ContextMenuItem onClick={() => runToolAction('fullscreen')}>
           <Icon name="screen-full" className="size-4" />
           {t('chatComposer.openFullscreen')}
@@ -735,6 +767,24 @@ function ChatComposerComponent({
           </div>
         </div>
       </UiModal>
+
+      <SnippetPickerModal
+        isOpen={snippetPickerOpen}
+        snippets={snippets}
+        onPick={(snippet) =>
+          applyInsertion(
+            (value, selectionStart, selectionEnd) =>
+              insertSnippetText(
+                value,
+                selectionStart,
+                selectionEnd,
+                snippet.content,
+              ),
+            textAreaRef.current,
+          )
+        }
+        onClose={() => setSnippetPickerOpen(false)}
+      />
     </>
   );
 }

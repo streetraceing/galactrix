@@ -3,7 +3,9 @@ use std::collections::{HashMap, HashSet};
 use rusqlite::{params, Connection};
 
 use crate::i18n::{CommandError, CommandResult};
-use crate::models::{AiModuleSettings, AppSettings, BudgetSettings, BudgetStatus, UsagePoint};
+use crate::models::{
+    AiModuleSettings, AppSettings, BudgetSettings, BudgetStatus, PromptSnippet, UsagePoint,
+};
 
 use super::now_unix;
 
@@ -16,7 +18,8 @@ pub(crate) fn get_settings(connection: &Connection) -> CommandResult<AppSettings
                     sidebar_collapsed, theme_mode, theme_variant, language,
                     chat_view_mode, show_message_avatars,
                     show_message_timestamps, response_language, ai_modules_json,
-                    focus_composer_after_send, setup_complete, budgets_json
+                    focus_composer_after_send, setup_complete, budgets_json,
+                    snippets_json
              FROM app_settings WHERE id = 1",
             [],
             |row| {
@@ -47,6 +50,10 @@ pub(crate) fn get_settings(connection: &Connection) -> CommandResult<AppSettings
                     setup_complete: row.get::<_, i64>(20)? != 0,
                     budgets: serde_json::from_str::<Vec<BudgetSettings>>(
                         &row.get::<_, String>(21)?,
+                    )
+                    .unwrap_or_default(),
+                    snippets: serde_json::from_str::<Vec<PromptSnippet>>(
+                        &row.get::<_, String>(22)?,
                     )
                     .unwrap_or_default(),
                 })
@@ -122,7 +129,7 @@ pub(crate) fn update_settings(
              show_message_avatars = ?16, show_message_timestamps = ?17,
              response_language = ?18, ai_modules_json = ?19,
              focus_composer_after_send = ?20, setup_complete = ?21,
-             budgets_json = ?22
+             budgets_json = ?22, snippets_json = ?23
          WHERE id = 1",
         params![
             settings.profile_name,
@@ -146,7 +153,8 @@ pub(crate) fn update_settings(
             serde_json::to_string(&settings.ai_modules)?,
             settings.focus_composer_after_send as i64,
             settings.setup_complete as i64,
-            serde_json::to_string(&settings.budgets)?
+            serde_json::to_string(&settings.budgets)?,
+            serde_json::to_string(&settings.snippets)?
         ],
     )?;
     Ok(())

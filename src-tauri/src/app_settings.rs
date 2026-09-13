@@ -66,11 +66,35 @@ pub(crate) fn normalize(
     }
 
     normalize_budgets(&mut settings, provider_ids);
+    normalize_snippets(&mut settings);
     normalize_ai_settings(&mut settings, provider_ids);
     Ok(settings)
 }
 
 const MAX_BUDGET_RULES: usize = 16;
+const MAX_SNIPPETS: usize = 50;
+const MAX_SNIPPET_TITLE_LENGTH: usize = 80;
+const MAX_SNIPPET_CONTENT_LENGTH: usize = 12_000;
+
+fn normalize_snippets(settings: &mut AppSettings) {
+    let mut seen = HashSet::new();
+    let mut position = 0_usize;
+    settings.snippets.retain_mut(|snippet| {
+        snippet.id = snippet.id.trim().to_owned();
+        snippet.title = snippet.title.trim().to_owned();
+        snippet.content = snippet.content.trim().to_owned();
+        let valid = !snippet.id.is_empty()
+            && snippet.id.chars().count() <= 120
+            && !snippet.title.is_empty()
+            && snippet.title.chars().count() <= MAX_SNIPPET_TITLE_LENGTH
+            && !snippet.content.is_empty()
+            && snippet.content.chars().count() <= MAX_SNIPPET_CONTENT_LENGTH
+            && seen.insert(snippet.id.clone())
+            && position < MAX_SNIPPETS;
+        position += 1;
+        valid
+    });
+}
 
 fn normalize_budgets(settings: &mut AppSettings, provider_ids: &HashSet<String>) {
     let mut seen = HashSet::new();

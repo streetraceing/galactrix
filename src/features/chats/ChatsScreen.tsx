@@ -76,6 +76,7 @@ export function ChatsScreen({
   onSelectMessageVariant,
   onRateMessageVariant,
   onListMessageRevisions,
+  snippets,
   onRestoreMessageRevision,
   onSend,
   onCancelGeneration,
@@ -662,6 +663,7 @@ export function ChatsScreen({
                     shouldAutoFocus={shouldAutoFocusComposer}
                     focusKey={`${canvasChat.id}:${isChatOpen}`}
                     wide={chatMaximized}
+                    snippets={snippets}
                     onSend={send}
                     onCancel={cancelGeneration}
                   />

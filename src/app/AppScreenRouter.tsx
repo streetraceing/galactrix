@@ -86,6 +86,7 @@ export function AppScreenRouter({
         onRestoreMessageRevision={controller.restoreMessageRevision}
         onSend={controller.sendMessage}
         onCancelGeneration={controller.cancelChatGeneration}
+        snippets={snapshot.settings.snippets}
         sendOnEnter={snapshot.settings.sendOnEnter}
         focusComposerAfterSend={snapshot.settings.focusComposerAfterSend}
         saveDrafts={snapshot.settings.saveDrafts}

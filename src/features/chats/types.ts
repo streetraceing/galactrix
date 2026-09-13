@@ -6,6 +6,7 @@ import type {
   EntityRevision,
   GalaxyItem,
   Message,
+  PromptSnippet,
   Provider,
   GenerationJob,
 } from '../../types';
@@ -76,6 +77,7 @@ export type ChatsScreenProps = {
     variantIndex: number,
   ) => Promise<void>;
   onListMessageRevisions: (messageId: string) => Promise<EntityRevision[]>;
+  snippets: PromptSnippet[];
   onRestoreMessageRevision: (
     messageId: string,
     revisionId: string,

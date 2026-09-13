@@ -55,6 +55,7 @@ export type IconName =
   | 'tag'
   | 'star'
   | 'compare'
+  | 'insert'
   | 'chevron-left'
   | 'chevron-right';
 
@@ -362,6 +363,13 @@ function createIconPaths(): Record<IconName, ReactNode> {
     ),
     star: (
       <path d="M12 2.8 14.7 8.4 20.9 9.3 16.4 13.6 17.5 19.8 12 16.9 6.5 19.8 7.6 13.6 3.1 9.3 9.3 8.4Z" />
+    ),
+    insert: (
+      <>
+        <path d="M12 5v14" />
+        <path d="m5 12 7 7 7-7" />
+        <path d="M4 3h16" />
+      </>
     ),
     compare: (
       <>

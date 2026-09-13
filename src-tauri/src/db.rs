@@ -156,6 +156,7 @@ pub(crate) fn migrate(connection: &Connection) -> CommandResult<()> {
                 focus_composer_after_send INTEGER NOT NULL DEFAULT 1,
                 setup_complete INTEGER NOT NULL DEFAULT 0,
                 budgets_json TEXT NOT NULL DEFAULT '[]',
+                snippets_json TEXT NOT NULL DEFAULT '[]',
                 save_drafts INTEGER NOT NULL DEFAULT 1,
                 chat_view_mode TEXT NOT NULL DEFAULT 'conversation',
                 show_message_avatars INTEGER NOT NULL DEFAULT 1,
@@ -385,6 +386,12 @@ pub(crate) fn migrate(connection: &Connection) -> CommandResult<()> {
         connection,
         "app_settings",
         "budgets_json",
+        "TEXT NOT NULL DEFAULT '[]'",
+    )?;
+    ensure_column(
+        connection,
+        "app_settings",
+        "snippets_json",
         "TEXT NOT NULL DEFAULT '[]'",
     )?;
     ensure_column(
