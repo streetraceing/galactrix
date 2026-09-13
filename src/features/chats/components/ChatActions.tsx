@@ -82,6 +82,10 @@ export function ChatActions({
               <Icon name="tag" className="size-4" />
               {t('chatActions.tags')}
             </ContextMenuItem>
+            <ContextMenuItem onClick={() => onAction('stats', chat)}>
+              <Icon name="database" className="size-4" />
+              {t('chatActions.stats')}
+            </ContextMenuItem>
             <ContextMenuItem onClick={() => onAction('export', chat)}>
               <Icon name="download" className="size-4" />
               {t('chatActions.export')}
@@ -215,6 +219,15 @@ export function ChatActionsButton({
             >
               <Icon name="pin" className="size-4" />
               {chat.pinned ? t('chatActions.unpin') : t('chatActions.pin')}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="justify-start"
+              onPress={() => run('stats')}
+            >
+              <Icon name="database" className="size-4" />
+              {t('chatActions.stats')}
             </Button>
             <Button
               size="sm"

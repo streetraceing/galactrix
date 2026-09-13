@@ -25,7 +25,9 @@ import { ChatComposer } from './components/ChatComposer';
 import { ChatDialogs } from './components/ChatDialogs';
 import { ChatSetupModal } from './components/ChatSetupModal';
 import { ChatSidebar } from './components/ChatSidebar';
+import { BackupReminderBanner } from './components/BackupReminderBanner';
 import { ChatTagsModal } from './components/ChatTagsModal';
+import { ChatStatsModal } from './components/ChatStatsModal';
 import { ExportChatModal } from './components/ExportChatModal';
 import { ConversationHeader } from './components/ConversationHeader';
 import {
@@ -77,6 +79,7 @@ export function ChatsScreen({
   onRateMessageVariant,
   onListMessageRevisions,
   snippets,
+  onExportBackup,
   onRestoreMessageRevision,
   onSend,
   onCancelGeneration,
@@ -101,6 +104,7 @@ export function ChatsScreen({
   const [tagsModalOpen, setTagsModalOpen] = useState(false);
   const [tagsModalChatIds, setTagsModalChatIds] = useState<string[]>([]);
   const [exportTarget, setExportTarget] = useState<Chat | null>(null);
+  const [statsTarget, setStatsTarget] = useState<Chat | null>(null);
   const archiveScopeIds = useMemo(
     () =>
       chats
@@ -311,6 +315,10 @@ export function ChatsScreen({
           .finally(() => setWorking(false));
         return;
       }
+      if (action === 'stats') {
+        setStatsTarget(chat);
+        return;
+      }
       if (chat.archived && action !== 'delete') return;
       setConfirmTarget({ type: action, chat });
     },
@@ -506,280 +514,298 @@ export function ChatsScreen({
   };
 
   return (
-    <div className="flex flex-1 h-full min-w-0 overflow-hidden bg-background">
-      {!chatMaximized ? (
-        <ChatSidebar
-          chats={chats}
-          messages={messages}
-          galaxyItems={galaxyItems}
-          providers={providers}
-          activeChatId={activeChat?.id ?? ''}
-          width={chatSidebarWidth}
-          isVisibleMobile={!isChatOpen}
-          isSinglePane={isSinglePane}
-          archiveMode={archiveMode}
-          archivedCount={chats.filter((chat) => chat.archived).length}
-          generatingChatIds={generatingChatIds}
-          selectedIds={chatSelection.selectedIds}
-          selectionActive={chatSelection.active}
-          onSelect={selectChat}
-          onNewChat={openNewChat}
-          onAction={handleAction}
-          onToggleSelection={chatSelection.toggle}
-          onStartSelection={chatSelection.start}
-          onClearSelection={chatSelection.clear}
-          onSelectAll={chatSelection.selectAll}
-          onArchiveSelected={() => void archiveSelectedChats()}
-          onDeleteSelected={() => setBulkDeleteOpen(true)}
-          onTagsSelected={() => {
-            setTagsModalChatIds([...chatSelection.selectedIds]);
-            setTagsModalOpen(true);
-          }}
-          onArchiveModeChange={changeArchiveMode}
-        />
-      ) : null}
+    <div className="flex h-full min-w-0 flex-1 flex-col overflow-hidden bg-background">
+      <BackupReminderBanner
+        messageCount={messages.length}
+        onExportBackup={onExportBackup}
+      />
+      <div className="flex min-h-0 flex-1">
+        {!chatMaximized ? (
+          <ChatSidebar
+            chats={chats}
+            messages={messages}
+            galaxyItems={galaxyItems}
+            providers={providers}
+            activeChatId={activeChat?.id ?? ''}
+            width={chatSidebarWidth}
+            isVisibleMobile={!isChatOpen}
+            isSinglePane={isSinglePane}
+            archiveMode={archiveMode}
+            archivedCount={chats.filter((chat) => chat.archived).length}
+            generatingChatIds={generatingChatIds}
+            selectedIds={chatSelection.selectedIds}
+            selectionActive={chatSelection.active}
+            onSelect={selectChat}
+            onNewChat={openNewChat}
+            onAction={handleAction}
+            onToggleSelection={chatSelection.toggle}
+            onStartSelection={chatSelection.start}
+            onClearSelection={chatSelection.clear}
+            onSelectAll={chatSelection.selectAll}
+            onArchiveSelected={() => void archiveSelectedChats()}
+            onDeleteSelected={() => setBulkDeleteOpen(true)}
+            onTagsSelected={() => {
+              setTagsModalChatIds([...chatSelection.selectedIds]);
+              setTagsModalOpen(true);
+            }}
+            onArchiveModeChange={changeArchiveMode}
+          />
+        ) : null}
 
-      {!isSinglePane && !chatMaximized ? (
-        <ResizeHandle
-          value={chatSidebarWidth}
-          min={260}
-          max={520}
-          className="max-[1300px]:hidden"
-          label={t('chatsScreen.changeChatListWidth')}
-          onChange={onChatSidebarWidthPreview}
-          onCommit={onChatSidebarWidthCommit}
-          shift
-        />
-      ) : null}
+        {!isSinglePane && !chatMaximized ? (
+          <ResizeHandle
+            value={chatSidebarWidth}
+            min={260}
+            max={520}
+            className="max-[1300px]:hidden"
+            label={t('chatsScreen.changeChatListWidth')}
+            onChange={onChatSidebarWidthPreview}
+            onCommit={onChatSidebarWidthCommit}
+            shift
+          />
+        ) : null}
 
-      <section
-        className={`${isSinglePane && !isChatOpen ? 'hidden' : 'flex'} ${isSinglePane && isChatOpen ? 'mobile-chat-enter' : ''} min-h-0 min-w-0 flex-1 flex-col overflow-hidden`}
-        style={
-          keyboardInset > 0
-            ? {
-                paddingBottom: keyboardInset,
-              }
-            : undefined
-        }
-      >
-        {activeChat ? (
-          <>
-            <ConversationHeader
-              chat={activeChat}
-              provider={activeProvider}
-              galaxyItems={galaxyItems}
-              showBack={isSinglePane}
-              maximized={chatMaximized}
-              onBack={handleConversationBack}
-              onToggleMaximized={toggleChatMaximized}
-              onAction={handleAction}
-              canUseResponseActions={
-                !activeChat.archived && latestAssistantMessage != null
-              }
-              responseActionsBusy={
-                canvasGenerationActive || activeChat.archived
-              }
-              onRegenerateLast={() => requestLatestResponseAction('regenerate')}
-              onContinueLast={() => requestLatestResponseAction('continue')}
-            />
-            <div className="relative flex min-h-0 flex-1">
+        <section
+          className={`${isSinglePane && !isChatOpen ? 'hidden' : 'flex'} ${isSinglePane && isChatOpen ? 'mobile-chat-enter' : ''} min-h-0 min-w-0 flex-1 flex-col overflow-hidden`}
+          style={
+            keyboardInset > 0
+              ? {
+                  paddingBottom: keyboardInset,
+                }
+              : undefined
+          }
+        >
+          {activeChat ? (
+            <>
+              <ConversationHeader
+                chat={activeChat}
+                provider={activeProvider}
+                galaxyItems={galaxyItems}
+                showBack={isSinglePane}
+                maximized={chatMaximized}
+                onBack={handleConversationBack}
+                onToggleMaximized={toggleChatMaximized}
+                onAction={handleAction}
+                canUseResponseActions={
+                  !activeChat.archived && latestAssistantMessage != null
+                }
+                responseActionsBusy={
+                  canvasGenerationActive || activeChat.archived
+                }
+                onRegenerateLast={() =>
+                  requestLatestResponseAction('regenerate')
+                }
+                onContinueLast={() => requestLatestResponseAction('continue')}
+              />
+              <div className="relative flex min-h-0 flex-1">
+                {canvasChat ? (
+                  <div className="flex min-h-0 flex-1">
+                    <MessageList
+                      chatId={canvasChat.id}
+                      messages={canvasMessages}
+                      provider={canvasProvider}
+                      assistantName={canvasAssistantName}
+                      assistantAvatar={galaxyItemAvatar(canvasCharacter)}
+                      userName={canvasUserName}
+                      userAvatar={
+                        galaxyItemAvatar(canvasPersona) ?? profileAvatar
+                      }
+                      sending={canvasGenerationActive}
+                      activeMessageGeneration={canvasGeneration ?? null}
+                      viewActive={!isSinglePane || isChatOpen}
+                      viewMode={chatViewMode}
+                      showAvatars={showMessageAvatars}
+                      showTimestamps={showMessageTimestamps}
+                      providersAvailable={providers.length > 0}
+                      wide={chatMaximized}
+                      scrollRef={messageScrollRef}
+                      scrollToBottomRequest={scrollToBottomRequest}
+                      viewportHeight={keyboardViewportHeight}
+                      clearSelectionRequest={clearMessageSelectionRequest}
+                      responseActionRequest={responseActionRequest}
+                      onGenerationComplete={requestComposerFocusAfterGeneration}
+                      onSelectionActiveChange={setMessageSelectionActive}
+                      readOnly={canvasChat.archived}
+                      onBranch={onBranchMessage}
+                      onRewind={onRewindMessage}
+                      onEdit={onEditMessage}
+                      onDelete={onDeleteMessage}
+                      onDeleteMany={onDeleteMessages}
+                      onRemember={onRememberMessage}
+                      onRegenerate={onRegenerateMessage}
+                      onContinue={onContinueMessage}
+                      onSelectVariant={onSelectMessageVariant}
+                      onRateVariant={onRateMessageVariant}
+                      onListMessageRevisions={onListMessageRevisions}
+                      onRestoreMessageRevision={onRestoreMessageRevision}
+                    />
+                  </div>
+                ) : null}
+              </div>
               {canvasChat ? (
-                <div className="flex min-h-0 flex-1">
-                  <MessageList
-                    chatId={canvasChat.id}
-                    messages={canvasMessages}
-                    provider={canvasProvider}
-                    assistantName={canvasAssistantName}
-                    assistantAvatar={galaxyItemAvatar(canvasCharacter)}
-                    userName={canvasUserName}
-                    userAvatar={
-                      galaxyItemAvatar(canvasPersona) ?? profileAvatar
-                    }
-                    sending={canvasGenerationActive}
-                    activeMessageGeneration={canvasGeneration ?? null}
-                    viewActive={!isSinglePane || isChatOpen}
-                    viewMode={chatViewMode}
-                    showAvatars={showMessageAvatars}
-                    showTimestamps={showMessageTimestamps}
-                    providersAvailable={providers.length > 0}
-                    wide={chatMaximized}
-                    scrollRef={messageScrollRef}
-                    scrollToBottomRequest={scrollToBottomRequest}
-                    viewportHeight={keyboardViewportHeight}
-                    clearSelectionRequest={clearMessageSelectionRequest}
-                    responseActionRequest={responseActionRequest}
-                    onGenerationComplete={requestComposerFocusAfterGeneration}
-                    onSelectionActiveChange={setMessageSelectionActive}
-                    readOnly={canvasChat.archived}
-                    onBranch={onBranchMessage}
-                    onRewind={onRewindMessage}
-                    onEdit={onEditMessage}
-                    onDelete={onDeleteMessage}
-                    onDeleteMany={onDeleteMessages}
-                    onRemember={onRememberMessage}
-                    onRegenerate={onRegenerateMessage}
-                    onContinue={onContinueMessage}
-                    onSelectVariant={onSelectMessageVariant}
-                    onRateVariant={onRateMessageVariant}
-                    onListMessageRevisions={onListMessageRevisions}
-                    onRestoreMessageRevision={onRestoreMessageRevision}
-                  />
+                <div className="shrink-0">
+                  {canvasChat.archived ? (
+                    <div className="border-t border-separator bg-background px-4 py-3 sm:px-6">
+                      <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 rounded-2xl bg-default/45 px-4 py-3">
+                        <span className="flex min-w-0 items-center gap-2 text-sm text-muted">
+                          <Icon
+                            name="archive"
+                            className="size-4 shrink-0 text-accent"
+                          />
+                          {t('chatsScreen.archivedReadOnly')}
+                        </span>
+                        <Button
+                          size="sm"
+                          variant="tertiary"
+                          isDisabled={working}
+                          onPress={() => handleAction('unarchive', canvasChat)}
+                        >
+                          <Icon name="unarchive" className="size-4" />
+                          {t('chatActions.unarchive')}
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <ChatComposer
+                      key={canvasChat.id}
+                      chatId={canvasChat.id}
+                      provider={canvasProvider}
+                      sending={canvasGenerationActive}
+                      sendOnEnter={sendOnEnter}
+                      focusAfterSend={focusComposerAfterSend}
+                      focusAfterActionRequest={focusComposerRequest}
+                      saveDrafts={saveDrafts}
+                      shouldAutoFocus={shouldAutoFocusComposer}
+                      focusKey={`${canvasChat.id}:${isChatOpen}`}
+                      wide={chatMaximized}
+                      snippets={snippets}
+                      onSend={send}
+                      onCancel={cancelGeneration}
+                    />
+                  )}
                 </div>
               ) : null}
-            </div>
-            {canvasChat ? (
-              <div className="shrink-0">
-                {canvasChat.archived ? (
-                  <div className="border-t border-separator bg-background px-4 py-3 sm:px-6">
-                    <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 rounded-2xl bg-default/45 px-4 py-3">
-                      <span className="flex min-w-0 items-center gap-2 text-sm text-muted">
-                        <Icon
-                          name="archive"
-                          className="size-4 shrink-0 text-accent"
-                        />
-                        {t('chatsScreen.archivedReadOnly')}
-                      </span>
-                      <Button
-                        size="sm"
-                        variant="tertiary"
-                        isDisabled={working}
-                        onPress={() => handleAction('unarchive', canvasChat)}
-                      >
-                        <Icon name="unarchive" className="size-4" />
-                        {t('chatActions.unarchive')}
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <ChatComposer
-                    key={canvasChat.id}
-                    chatId={canvasChat.id}
-                    provider={canvasProvider}
-                    sending={canvasGenerationActive}
-                    sendOnEnter={sendOnEnter}
-                    focusAfterSend={focusComposerAfterSend}
-                    focusAfterActionRequest={focusComposerRequest}
-                    saveDrafts={saveDrafts}
-                    shouldAutoFocus={shouldAutoFocusComposer}
-                    focusKey={`${canvasChat.id}:${isChatOpen}`}
-                    wide={chatMaximized}
-                    snippets={snippets}
-                    onSend={send}
-                    onCancel={cancelGeneration}
-                  />
+            </>
+          ) : (
+            <div className="grid h-full place-items-center p-4 sm:p-6">
+              <EmptyState
+                icon="chats"
+                title={t('chatsScreen.noChats')}
+                description={t(
+                  'chatsScreen.createAChatAndChooseItsRoleplayContextImmediately',
                 )}
-              </div>
-            ) : null}
-          </>
-        ) : (
-          <div className="grid h-full place-items-center p-4 sm:p-6">
-            <EmptyState
-              icon="chats"
-              title={t('chatsScreen.noChats')}
-              description={t(
-                'chatsScreen.createAChatAndChooseItsRoleplayContextImmediately',
-              )}
-            />
-          </div>
-        )}
-      </section>
+              />
+            </div>
+          )}
+        </section>
 
-      <ChatSetupModal
-        isOpen={configTarget != null}
-        chat={configTarget === 'new' ? null : configTarget}
-        chats={chats}
-        galaxyItems={galaxyItems}
-        aiModules={aiModules}
-        providers={providers}
-        profileName={displayProfileName}
-        responseLanguage={responseLanguage}
-        messages={configMessages}
-        saving={working}
-        initialCharacterId={
-          configTarget === 'new' ? newChatCharacterId : undefined
-        }
-        onOpenChange={(open) => {
-          if (open) return;
-          setConfigTarget(null);
-          setNewChatCharacterId(undefined);
-        }}
-        onSubmit={(input) => void saveConfig(input)}
-      />
+        <ChatSetupModal
+          isOpen={configTarget != null}
+          chat={configTarget === 'new' ? null : configTarget}
+          chats={chats}
+          galaxyItems={galaxyItems}
+          aiModules={aiModules}
+          providers={providers}
+          profileName={displayProfileName}
+          responseLanguage={responseLanguage}
+          messages={configMessages}
+          saving={working}
+          initialCharacterId={
+            configTarget === 'new' ? newChatCharacterId : undefined
+          }
+          onOpenChange={(open) => {
+            if (open) return;
+            setConfigTarget(null);
+            setNewChatCharacterId(undefined);
+          }}
+          onSubmit={(input) => void saveConfig(input)}
+        />
 
-      <ExportChatModal
-        chat={exportTarget}
-        messages={
-          exportTarget
-            ? (messagesByChat.get(exportTarget.id) ?? EMPTY_MESSAGES)
-            : EMPTY_MESSAGES
-        }
-        onClose={() => setExportTarget(null)}
-      />
+        <ChatStatsModal
+          chat={statsTarget}
+          messages={
+            statsTarget
+              ? (messagesByChat.get(statsTarget.id) ?? EMPTY_MESSAGES)
+              : EMPTY_MESSAGES
+          }
+          onClose={() => setStatsTarget(null)}
+        />
 
-      <ChatTagsModal
-        isOpen={tagsModalOpen}
-        chatIds={tagsModalChatIds}
-        chats={chats}
-        working={working}
-        onApply={(chatIds, addTags, removeTags) =>
-          assignTagsToSelected(chatIds, addTags, removeTags)
-        }
-        onClose={() => setTagsModalOpen(false)}
-      />
+        <ExportChatModal
+          chat={exportTarget}
+          messages={
+            exportTarget
+              ? (messagesByChat.get(exportTarget.id) ?? EMPTY_MESSAGES)
+              : EMPTY_MESSAGES
+          }
+          onClose={() => setExportTarget(null)}
+        />
 
-      <UiModal
-        isOpen={bulkDeleteOpen}
-        onOpenChange={(open) => !open && !working && setBulkDeleteOpen(false)}
-        onConfirm={() => void deleteSelectedChats()}
-        isConfirmDisabled={chatSelection.selectedIds.size === 0 || working}
-        title={t('selection.deleteSelectedChats', {
-          count: chatSelection.selectedIds.size,
-        })}
-        description={t('selection.deleteSelectedChatsDescription')}
-        footer={
-          <>
-            <Button
-              variant="ghost"
-              isDisabled={working}
-              onPress={() => setBulkDeleteOpen(false)}
-            >
-              {t('chatDialogs.cancel')}
-            </Button>
-            <Button
-              variant="danger"
-              isPending={working}
-              onPress={() => void deleteSelectedChats()}
-            >
-              {t('chatDialogs.delete')}
-            </Button>
-          </>
-        }
-      >
-        <div className="max-h-[min(50dvh,24rem)] space-y-2 overflow-y-auto overscroll-contain">
-          {chats
-            .filter((chat) => chatSelection.selectedIds.has(chat.id))
-            .map((chat) => (
-              <div
-                key={chat.id}
-                className="rounded-xl bg-default/45 px-3 py-2 text-sm"
+        <ChatTagsModal
+          isOpen={tagsModalOpen}
+          chatIds={tagsModalChatIds}
+          chats={chats}
+          working={working}
+          onApply={(chatIds, addTags, removeTags) =>
+            assignTagsToSelected(chatIds, addTags, removeTags)
+          }
+          onClose={() => setTagsModalOpen(false)}
+        />
+
+        <UiModal
+          isOpen={bulkDeleteOpen}
+          onOpenChange={(open) => !open && !working && setBulkDeleteOpen(false)}
+          onConfirm={() => void deleteSelectedChats()}
+          isConfirmDisabled={chatSelection.selectedIds.size === 0 || working}
+          title={t('selection.deleteSelectedChats', {
+            count: chatSelection.selectedIds.size,
+          })}
+          description={t('selection.deleteSelectedChatsDescription')}
+          footer={
+            <>
+              <Button
+                variant="ghost"
+                isDisabled={working}
+                onPress={() => setBulkDeleteOpen(false)}
               >
-                {chat.title}
-              </div>
-            ))}
-        </div>
-      </UiModal>
+                {t('chatDialogs.cancel')}
+              </Button>
+              <Button
+                variant="danger"
+                isPending={working}
+                onPress={() => void deleteSelectedChats()}
+              >
+                {t('chatDialogs.delete')}
+              </Button>
+            </>
+          }
+        >
+          <div className="max-h-[min(50dvh,24rem)] space-y-2 overflow-y-auto overscroll-contain">
+            {chats
+              .filter((chat) => chatSelection.selectedIds.has(chat.id))
+              .map((chat) => (
+                <div
+                  key={chat.id}
+                  className="rounded-xl bg-default/45 px-3 py-2 text-sm"
+                >
+                  {chat.title}
+                </div>
+              ))}
+          </div>
+        </UiModal>
 
-      <ChatDialogs
-        renameTarget={renameTarget}
-        renameValue={renameValue}
-        confirmTarget={confirmTarget}
-        working={working}
-        onRenameValueChange={setRenameValue}
-        onCommitRename={() => void commitRename()}
-        onCommitDestructive={() => void commitDestructiveAction()}
-        onCloseRename={() => setRenameTarget(null)}
-        onCloseConfirm={() => setConfirmTarget(null)}
-      />
+        <ChatDialogs
+          renameTarget={renameTarget}
+          renameValue={renameValue}
+          confirmTarget={confirmTarget}
+          working={working}
+          onRenameValueChange={setRenameValue}
+          onCommitRename={() => void commitRename()}
+          onCommitDestructive={() => void commitDestructiveAction()}
+          onCloseRename={() => setRenameTarget(null)}
+          onCloseConfirm={() => setConfirmTarget(null)}
+        />
+      </div>
     </div>
   );
 }

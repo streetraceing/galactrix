@@ -67,6 +67,10 @@ import type {
 } from '../types';
 import { useMobileBackEntry } from '../hooks/useMobileBackEntry';
 import { useMobileTabHistory } from '../hooks/useMobileTabHistory';
+import {
+  noteBackupCompleted,
+  writeBackupReminderState,
+} from '../lib/backupReminder';
 import { getResponseLocale, i18next } from '../i18n';
 import { budgetsExceeded } from '../features/profile/budgets';
 import { toast } from '../i18n/toast';
@@ -1115,8 +1119,17 @@ export function useAppController() {
   );
 
   const createFullAppBackup = useCallback(
-    (includeCredentials: boolean) => createAppBackup(includeCredentials),
-    [],
+    (includeCredentials: boolean) =>
+      createAppBackup(includeCredentials).then((archive) => {
+        writeBackupReminderState(
+          noteBackupCompleted(
+            snapshot.messages.length,
+            Math.floor(Date.now() / 1_000),
+          ),
+        );
+        return archive;
+      }),
+    [snapshot.messages.length],
   );
 
   const inspectFullAppBackup = useCallback(

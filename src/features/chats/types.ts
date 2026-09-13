@@ -21,6 +21,7 @@ export type ChatAction =
   | 'unarchive'
   | 'tags'
   | 'export'
+  | 'stats'
   | 'clear'
   | 'delete';
 
@@ -78,6 +79,7 @@ export type ChatsScreenProps = {
   ) => Promise<void>;
   onListMessageRevisions: (messageId: string) => Promise<EntityRevision[]>;
   snippets: PromptSnippet[];
+  onExportBackup: () => Promise<unknown>;
   onRestoreMessageRevision: (
     messageId: string,
     revisionId: string,

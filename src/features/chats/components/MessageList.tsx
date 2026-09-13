@@ -1,4 +1,4 @@
-import { Button, Surface, Tooltip } from '@heroui/react';
+import { Input, Button, Surface, Tooltip } from '@heroui/react';
 import {
   memo,
   startTransition,
@@ -49,6 +49,7 @@ import type {
   Provider,
 } from '../../../types';
 import { MessageContextInspectorModal } from './MessageContextInspectorModal';
+import { findMessageMatches } from '../findInChat';
 import { MessageRevisionsModal } from './MessageRevisionsModal';
 import { VariantCompareModal } from './VariantCompareModal';
 import { MessageHistoryModal } from './MessageHistoryModal';
@@ -1115,6 +1116,11 @@ function MessageListComponent({
   const [revisionsMessageId, setRevisionsMessageId] = useState<string | null>(
     null,
   );
+  const [findOpen, setFindOpen] = useState(false);
+  const [findQuery, setFindQuery] = useState('');
+  const [findIndex, setFindIndex] = useState(0);
+  const [findFlashId, setFindFlashId] = useState<string | null>(null);
+  const findFlashTimeoutRef = useRef<number | null>(null);
   const [working, setWorking] = useState(false);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [selectedMessageIds, setSelectedMessageIds] = useState<Set<string>>(
@@ -2389,6 +2395,10 @@ function MessageListComponent({
     () => messages.find((message) => message.id === revisionsMessageId) ?? null,
     [revisionsMessageId, messages],
   );
+  const findMatches = useMemo(
+    () => (findOpen ? findMessageMatches(messages, findQuery) : []),
+    [findOpen, findQuery, messages],
+  );
   const selectedMessages = useMemo(
     () => messages.filter((message) => selectedMessageIds.has(message.id)),
     [messages, selectedMessageIds],
@@ -2621,11 +2631,56 @@ function MessageListComponent({
   const rewindRemovedCount =
     rewindMessageIndex >= 0 ? messages.length - rewindMessageIndex - 1 : 0;
   const relatedModalMessageId =
-    editing?.id ?? deleting?.id ?? rewinding?.id ?? historyMessageId;
+    editing?.id ??
+    deleting?.id ??
+    rewinding?.id ??
+    historyMessageId ??
+    inspectMessageId ??
+    null;
+  const findFlashActive = findFlashId;
 
   const selectAllMessages = useCallback(() => {
     setSelectedMessageIds(new Set(messages.map((message) => message.id)));
   }, [messages]);
+
+  const flashFindMatch = useCallback((messageId: string) => {
+    setFindFlashId(messageId);
+    if (findFlashTimeoutRef.current != null) {
+      window.clearTimeout(findFlashTimeoutRef.current);
+    }
+    findFlashTimeoutRef.current = window.setTimeout(() => {
+      setFindFlashId(null);
+      findFlashTimeoutRef.current = null;
+    }, 1_600);
+  }, []);
+
+  const goToFindMatch = useCallback(
+    (index: number) => {
+      if (findMatches.length === 0) return;
+      const next =
+        ((index % findMatches.length) + findMatches.length) %
+        findMatches.length;
+      setFindIndex(next);
+      const messageId = findMatches[next].messageId;
+      const element = scrollRef.current?.querySelector(
+        `[data-message-id="${CSS.escape(messageId)}"]`,
+      );
+      element?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      flashFindMatch(messageId);
+    },
+    [findMatches, flashFindMatch, scrollRef],
+  );
+
+  const closeFind = useCallback(() => {
+    setFindOpen(false);
+    setFindQuery('');
+    setFindIndex(0);
+    setFindFlashId(null);
+    if (findFlashTimeoutRef.current != null) {
+      window.clearTimeout(findFlashTimeoutRef.current);
+      findFlashTimeoutRef.current = null;
+    }
+  }, []);
 
   const selectMessage = useCallback((messageId: string) => {
     setSelectedMessageIds((current) => addMessageSelection(current, messageId));
@@ -2820,7 +2875,9 @@ function MessageListComponent({
                       data-message-id={message.id}
                       data-selected={isSelected}
                       data-related={
-                        relatedModalMessageId === message.id || undefined
+                        relatedModalMessageId === message.id ||
+                        findFlashActive === message.id ||
+                        undefined
                       }
                       className="chat-message-virtual-item relative isolate rounded-2xl"
                     >
@@ -3102,6 +3159,101 @@ function MessageListComponent({
           >
             <Icon name="chevron-left" className="size-5 -rotate-90" />
           </Button>
+        ) : null}
+        {!readOnly ? (
+          <Button
+            isIconOnly
+            size="sm"
+            variant={findOpen ? 'primary' : 'secondary'}
+            className={`absolute bottom-3 right-[4.25rem] z-20 size-9 min-w-9 rounded-full bg-overlay/95 shadow-overlay backdrop-blur-xl sm:bottom-4 sm:right-[4.75rem] ${
+              findOpen ? 'motion-floating-enter' : ''
+            }`}
+            aria-label={t('messageList.findInChat')}
+            onPress={() => (findOpen ? closeFind() : setFindOpen(true))}
+          >
+            <Icon name="search" className="size-4" />
+          </Button>
+        ) : null}
+        {findOpen ? (
+          <div
+            role="search"
+            className="motion-floating-enter absolute left-1/2 top-3 z-30 w-[min(26rem,calc(100%-1.5rem))] -translate-x-1/2"
+          >
+            <div className="flex items-center gap-2 rounded-2xl border border-separator bg-overlay/95 p-2 shadow-overlay backdrop-blur-xl">
+              <Input
+                aria-label={t('messageList.findInChat')}
+                autoComplete="off"
+                fullWidth
+                variant="secondary"
+                value={findQuery}
+                placeholder={t('messageList.findPlaceholder')}
+                onChange={(event) => {
+                  setFindQuery(event.target.value);
+                  setFindIndex(0);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === 'Escape') {
+                    event.preventDefault();
+                    closeFind();
+                    return;
+                  }
+                  if (event.key !== 'Enter') return;
+                  event.preventDefault();
+                  goToFindMatch(event.shiftKey ? findIndex - 1 : findIndex + 1);
+                }}
+              />
+              <span
+                aria-live="polite"
+                className="shrink-0 text-xs tabular-nums text-muted"
+              >
+                {findMatches.length === 0
+                  ? findQuery.trim()
+                    ? '0/0'
+                    : '—'
+                  : `${findIndex + 1}/${findMatches.length}`}
+              </span>
+              <Button
+                isIconOnly
+                size="sm"
+                variant="ghost"
+                className="size-8 min-w-8 shrink-0"
+                aria-label={t('messageList.findPrevious')}
+                isDisabled={findMatches.length === 0}
+                onPress={() => goToFindMatch(findIndex - 1)}
+              >
+                <Icon name="chevron-left" className="size-4" />
+              </Button>
+              <Button
+                isIconOnly
+                size="sm"
+                variant="ghost"
+                className="size-8 min-w-8 shrink-0"
+                aria-label={t('messageList.findNext')}
+                isDisabled={findMatches.length === 0}
+                onPress={() => goToFindMatch(findIndex + 1)}
+              >
+                <Icon name="chevron-right" className="size-4" />
+              </Button>
+              <Button
+                isIconOnly
+                size="sm"
+                variant="ghost"
+                className="size-8 min-w-8 shrink-0"
+                aria-label={t('messageList.findClose')}
+                onPress={closeFind}
+              >
+                <Icon name="close" className="size-4" />
+              </Button>
+            </div>
+            {findMatches.length === 0 && findQuery.trim() ? (
+              <p
+                role="status"
+                className="mt-1.5 rounded-xl border border-default bg-overlay/95 px-3 py-1.5 text-xs text-muted shadow-overlay backdrop-blur-xl"
+              >
+                {t('messageList.findNoMatches')}
+              </p>
+            ) : null}
+          </div>
         ) : null}
       </div>
 
