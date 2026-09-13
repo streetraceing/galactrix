@@ -31,7 +31,9 @@ use galaxy::get_galaxy_item;
 pub(crate) use galaxy::{delete_galaxy_item, upsert_galaxy_item};
 pub(crate) use health::{build_health_report, repair_health_issues};
 pub use revisions::{list_entity_revisions, restore_entity_revision};
-pub(crate) use settings::{get_settings, provider_ids, update_settings, usage_history};
+pub(crate) use settings::{
+    budget_status, get_settings, provider_ids, update_settings, usage_history,
+};
 
 pub fn open(path: &Path) -> CommandResult<Connection> {
     let connection = Connection::open(path)?;
@@ -153,6 +155,7 @@ pub(crate) fn migrate(connection: &Connection) -> CommandResult<()> {
                 send_on_enter INTEGER NOT NULL DEFAULT 1,
                 focus_composer_after_send INTEGER NOT NULL DEFAULT 1,
                 setup_complete INTEGER NOT NULL DEFAULT 0,
+                budgets_json TEXT NOT NULL DEFAULT '[]',
                 save_drafts INTEGER NOT NULL DEFAULT 1,
                 chat_view_mode TEXT NOT NULL DEFAULT 'conversation',
                 show_message_avatars INTEGER NOT NULL DEFAULT 1,
@@ -377,6 +380,12 @@ pub(crate) fn migrate(connection: &Connection) -> CommandResult<()> {
         "app_settings",
         "setup_complete",
         "INTEGER NOT NULL DEFAULT 0",
+    )?;
+    ensure_column(
+        connection,
+        "app_settings",
+        "budgets_json",
+        "TEXT NOT NULL DEFAULT '[]'",
     )?;
     ensure_column(
         connection,

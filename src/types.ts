@@ -432,6 +432,21 @@ export type AiModuleSettings = {
   responseCleanup: ResponseCleanupSettings;
 };
 
+export type BudgetSettings = {
+  id: string;
+  providerId?: string;
+  period: 'day' | 'month';
+  tokenLimit: number;
+  requestLimit: number;
+};
+
+export type BudgetStatus = BudgetSettings & {
+  ruleId: string;
+  usedTokens: number;
+  usedRequests: number;
+  exceeded: boolean;
+};
+
 export type AppSettings = {
   profileName: string;
   profileAvatar?: string;
@@ -446,6 +461,7 @@ export type AppSettings = {
   showMessageTimestamps: boolean;
   responseLanguage: 'app' | 'auto';
   setupComplete: boolean;
+  budgets: BudgetSettings[];
   interfaceScale: number;
   sidebarWidth: number;
   chatSidebarWidth: number;

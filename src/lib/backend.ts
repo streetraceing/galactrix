@@ -7,6 +7,7 @@ import type {
   AppSnapshot,
   ChatConfigInput,
   ChatState,
+  BudgetStatus,
   DatabaseHealthReport,
   EntityRestoreResult,
   EntityRevision,
@@ -90,6 +91,11 @@ export async function loadSnapshot(): Promise<AppSnapshot> {
 export async function loadUsageHistory(): Promise<UsagePoint[]> {
   requireTauri();
   return invokeBackend<UsagePoint[]>('get_usage_history');
+}
+
+export async function getBudgetStatus(): Promise<BudgetStatus[]> {
+  requireTauri();
+  return invokeBackend<BudgetStatus[]>('get_budget_status');
 }
 
 export async function createAppBackup(includeCredentials: boolean) {

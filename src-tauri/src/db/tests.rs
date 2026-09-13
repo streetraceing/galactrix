@@ -1,7 +1,8 @@
 use super::*;
 use crate::models::{
-    DynamicContextState, GalaxyItemInput, GenerationReport, ReportModules, ReportSection,
-    ReportTokenEstimate, ReportTruncation, ReportedTokenUsage, SemanticMemoryCandidate,
+    BudgetSettings, DynamicContextState, GalaxyItemInput, GenerationReport, ReportModules,
+    ReportSection, ReportTokenEstimate, ReportTruncation, ReportedTokenUsage,
+    SemanticMemoryCandidate,
 };
 
 fn test_database() -> Connection {
@@ -1560,4 +1561,125 @@ fn setup_complete_round_trips_through_settings() {
     let reloaded = get_settings(&connection).expect("settings must load");
     assert!(reloaded.setup_complete);
     assert_eq!(reloaded.profile_name, "Explorer");
+}
+
+#[test]
+fn budget_status_sums_usage_per_period_and_provider() {
+    let connection = test_database();
+    connection
+        .execute(
+            "INSERT INTO providers (id, name, kind, model, status, created_at, updated_at)
+             VALUES ('provider-1', 'Lab', 'openai', 'gpt-test', 'disabled', 0, 0)",
+            [],
+        )
+        .expect("provider must be created");
+
+    let now = crate::db::now_unix();
+    let day_start = now.div_euclid(86_400) * 86_400;
+    let mut settings = get_settings(&connection).expect("settings must load");
+    settings.budgets = vec![
+        BudgetSettings {
+            id: "global-day".into(),
+            provider_id: None,
+            period: "day".into(),
+            token_limit: 1_000,
+            request_limit: 5,
+        },
+        BudgetSettings {
+            id: "provider-month".into(),
+            provider_id: Some("provider-1".into()),
+            period: "month".into(),
+            token_limit: 10_000,
+            request_limit: 0,
+        },
+    ];
+    update_settings(&connection, &settings).expect("settings must save");
+
+    // Inside the current day/month for provider-1.
+    for (id, input, output, requests, provider) in [
+        ("u1", 100_i64, 50_i64, 1_i64, Some("provider-1")),
+        ("u2", 200, 30, 1, Some("provider-1")),
+        ("u3", 400, 10, 2, None),
+        // Outside the current day but inside the current month.
+        ("old", 5_000, 500, 1, Some("provider-1")),
+    ] {
+        let created = if id == "old" {
+            day_start - 3 * 86_400 + 100
+        } else {
+            day_start + 100
+        };
+        connection
+            .execute(
+                "INSERT INTO usage_events
+                        (id, provider_id, model, input_tokens, output_tokens, request_count, created_at)
+                 VALUES (?1, ?2, 'model', ?3, ?4, ?5, ?6)",
+                params![id, provider, input, output, requests, created],
+            )
+            .expect("usage event must be created");
+    }
+
+    let statuses = budget_status(&connection).expect("status must compute");
+    assert_eq!(statuses.len(), 2);
+
+    let global = statuses.iter().find(|s| s.rule_id == "global-day").unwrap();
+    // Global day rule counts every event of the day: (150 + 230 + 410) tokens, 4 requests.
+    assert_eq!(global.used_tokens, 790);
+    assert_eq!(global.used_requests, 4);
+    assert!(!global.exceeded);
+
+    let per_provider = statuses
+        .iter()
+        .find(|s| s.rule_id == "provider-month")
+        .unwrap();
+    // Month rule for provider-1: (150 + 230 + 5500) tokens.
+    assert_eq!(per_provider.used_tokens, 5_880);
+    assert_eq!(per_provider.used_requests, 3);
+    assert!(!per_provider.exceeded);
+
+    // Crossing the request ceiling flips the flag.
+    connection
+        .execute(
+            "INSERT INTO usage_events
+                    (id, provider_id, model, input_tokens, output_tokens, request_count, created_at)
+             VALUES ('u9', 'provider-1', 'model', 1, 1, 2, ?1)",
+            params![day_start + 200],
+        )
+        .expect("usage event must be created");
+    let statuses = budget_status(&connection).expect("status must compute");
+    let global = statuses.iter().find(|s| s.rule_id == "global-day").unwrap();
+    assert!(global.exceeded);
+}
+
+#[test]
+fn budget_normalization_drops_incomplete_rules() {
+    let connection = test_database();
+    let mut settings = get_settings(&connection).expect("settings must load");
+    settings.budgets = vec![
+        BudgetSettings {
+            id: "valid".into(),
+            provider_id: None,
+            period: "month".into(),
+            token_limit: 100,
+            request_limit: 0,
+        },
+        BudgetSettings {
+            id: "no-limits".into(),
+            provider_id: None,
+            period: "day".into(),
+            token_limit: 0,
+            request_limit: 0,
+        },
+        BudgetSettings {
+            id: String::new(),
+            provider_id: None,
+            period: "week".into(),
+            token_limit: 10,
+            request_limit: 10,
+        },
+    ];
+    let normalized =
+        crate::app_settings::normalize(settings, &HashSet::new()).expect("settings must normalize");
+    assert_eq!(normalized.budgets.len(), 1);
+    assert_eq!(normalized.budgets[0].id, "valid");
+    assert_eq!(normalized.budgets[0].period, "month");
 }

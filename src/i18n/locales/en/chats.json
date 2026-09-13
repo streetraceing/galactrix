@@ -1,4 +1,5 @@
 {
+  "budgets.exceeded": "Budget exceeded: {{tokens}}/{{tokenLimit}} tokens, {{requests}}/{{requestLimit}} requests",
   "chatActions.archive": "Archive",
   "chatActions.chatActions": "Chat actions",
   "chatActions.clearHistory": "Clear history",

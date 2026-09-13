@@ -11,6 +11,7 @@ export function createDefaultSettings(): AppSettings {
     sendOnEnter: true,
     focusComposerAfterSend: true,
     setupComplete: false,
+    budgets: [],
     saveDrafts: true,
     chatViewMode: 'conversation',
     showMessageAvatars: true,

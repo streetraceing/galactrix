@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use rusqlite::{params, Connection};
 
 use crate::i18n::{CommandError, CommandResult};
-use crate::models::{AiModuleSettings, AppSettings, UsagePoint};
+use crate::models::{AiModuleSettings, AppSettings, BudgetSettings, BudgetStatus, UsagePoint};
 
 use super::now_unix;
 
@@ -16,7 +16,7 @@ pub(crate) fn get_settings(connection: &Connection) -> CommandResult<AppSettings
                     sidebar_collapsed, theme_mode, theme_variant, language,
                     chat_view_mode, show_message_avatars,
                     show_message_timestamps, response_language, ai_modules_json,
-                    focus_composer_after_send, setup_complete
+                    focus_composer_after_send, setup_complete, budgets_json
              FROM app_settings WHERE id = 1",
             [],
             |row| {
@@ -45,6 +45,10 @@ pub(crate) fn get_settings(connection: &Connection) -> CommandResult<AppSettings
                     .unwrap_or_default(),
                     focus_composer_after_send: row.get::<_, i64>(19)? != 0,
                     setup_complete: row.get::<_, i64>(20)? != 0,
+                    budgets: serde_json::from_str::<Vec<BudgetSettings>>(
+                        &row.get::<_, String>(21)?,
+                    )
+                    .unwrap_or_default(),
                 })
             },
         )
@@ -117,7 +121,8 @@ pub(crate) fn update_settings(
              language = ?14, chat_view_mode = ?15,
              show_message_avatars = ?16, show_message_timestamps = ?17,
              response_language = ?18, ai_modules_json = ?19,
-             focus_composer_after_send = ?20, setup_complete = ?21
+             focus_composer_after_send = ?20, setup_complete = ?21,
+             budgets_json = ?22
          WHERE id = 1",
         params![
             settings.profile_name,
@@ -140,7 +145,8 @@ pub(crate) fn update_settings(
             settings.response_language,
             serde_json::to_string(&settings.ai_modules)?,
             settings.focus_composer_after_send as i64,
-            settings.setup_complete as i64
+            settings.setup_complete as i64,
+            serde_json::to_string(&settings.budgets)?
         ],
     )?;
     Ok(())
@@ -152,4 +158,69 @@ pub(crate) fn provider_ids(connection: &Connection) -> CommandResult<HashSet<Str
         .query_map([], |row| row.get::<_, String>(0))?
         .collect::<Result<HashSet<_>, _>>()?;
     Ok(ids)
+}
+
+/// Start of the current UTC period for a budget rule, aligned with the
+/// day buckets used by [`usage_history`].
+fn period_start(period: &str, now: i64) -> i64 {
+    let days = now.div_euclid(86_400);
+    if period == "month" {
+        // civil_from_days (Hinnant): convert UTC day number to y/m/d.
+        let z = days + 719_468;
+        let era = z.div_euclid(146_097);
+        let doe = z - era * 146_097;
+        let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+        let y = yoe + era * 400;
+        let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+        let mp = (5 * doy + 2) / 153;
+        let month = if mp < 10 { mp + 3 } else { mp - 9 };
+        let year = if month <= 2 { y + 1 } else { y };
+        return days_from_civil(year, month, 1) * 86_400;
+    }
+    days * 86_400
+}
+
+fn days_from_civil(year: i64, month: i64, day: i64) -> i64 {
+    let y = year - if month <= 2 { 1 } else { 0 };
+    let era = y.div_euclid(400);
+    let yoe = y - era * 400;
+    let mp = if month > 2 { month - 3 } else { month + 9 };
+    let doy = (153 * mp + 2) / 5 + day - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    era * 146_097 + doe - 719_468
+}
+
+pub(crate) fn budget_status(connection: &Connection) -> CommandResult<Vec<BudgetStatus>> {
+    let settings = get_settings(connection)?;
+    if settings.budgets.is_empty() {
+        return Ok(Vec::new());
+    }
+    let now = now_unix();
+    let mut statuses = Vec::with_capacity(settings.budgets.len());
+    for rule in &settings.budgets {
+        let start = period_start(&rule.period, now);
+        let (used_tokens, used_requests): (i64, i64) = connection
+            .query_row(
+                "SELECT COALESCE(SUM(input_tokens + output_tokens), 0),
+                        COALESCE(SUM(request_count), 0)
+                 FROM usage_events
+                 WHERE created_at >= ?1 AND (?2 IS NULL OR provider_id = ?2)",
+                params![start, rule.provider_id],
+                |row| Ok((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?)),
+            )
+            .map_err(CommandError::internal)?;
+        let exceeded = (rule.token_limit > 0 && used_tokens >= rule.token_limit)
+            || (rule.request_limit > 0 && used_requests >= rule.request_limit);
+        statuses.push(BudgetStatus {
+            rule_id: rule.id.clone(),
+            provider_id: rule.provider_id.clone(),
+            period: rule.period.clone(),
+            token_limit: rule.token_limit,
+            request_limit: rule.request_limit,
+            used_tokens,
+            used_requests,
+            exceeded,
+        });
+    }
+    Ok(statuses)
 }

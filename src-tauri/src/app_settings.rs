@@ -65,8 +65,35 @@ pub(crate) fn normalize(
         settings.response_language = "app".into();
     }
 
+    normalize_budgets(&mut settings, provider_ids);
     normalize_ai_settings(&mut settings, provider_ids);
     Ok(settings)
+}
+
+const MAX_BUDGET_RULES: usize = 16;
+
+fn normalize_budgets(settings: &mut AppSettings, provider_ids: &HashSet<String>) {
+    let mut seen = HashSet::new();
+    let mut count = settings.budgets.len();
+    settings.budgets.retain_mut(|rule| {
+        rule.id = rule.id.trim().to_owned();
+        if rule.id.is_empty()
+            || rule.id.chars().count() > 120
+            || !seen.insert(rule.id.clone())
+            || count > MAX_BUDGET_RULES
+        {
+            count = count.saturating_sub(1);
+            return false;
+        }
+        if !matches!(rule.period.as_str(), "day" | "month") {
+            rule.period = "day".into();
+        }
+        rule.provider_id = valid_provider_id(rule.provider_id.take(), provider_ids);
+        rule.token_limit = rule.token_limit.clamp(0, 10_000_000_000);
+        rule.request_limit = rule.request_limit.clamp(0, 10_000_000);
+        // A rule without any ceiling is meaningless.
+        rule.token_limit > 0 || rule.request_limit > 0
+    });
 }
 
 fn normalize_ai_settings(settings: &mut AppSettings, provider_ids: &HashSet<String>) {

@@ -24,6 +24,7 @@ import {
   editMessage,
   exportProviderSecrets,
   fetchProviderModels,
+  getBudgetStatus,
   importProviderConnections,
   importGalaxyItems,
   listEntityRevisions,
@@ -66,6 +67,8 @@ import type {
 import { useMobileBackEntry } from '../hooks/useMobileBackEntry';
 import { useMobileTabHistory } from '../hooks/useMobileTabHistory';
 import { getResponseLocale, i18next } from '../i18n';
+import { budgetsExceeded } from '../features/profile/budgets';
+import { toast } from '../i18n/toast';
 import {
   forgetChatNavigationState,
   readChatNavigationState,
@@ -226,6 +229,32 @@ export function useAppController() {
       });
     },
     [],
+  );
+
+  const warnIfBudgetExceeded = useCallback(
+    async (chatId: string) => {
+      try {
+        const statuses = await getBudgetStatus();
+        const chat = snapshot.chats.find(
+          (candidate) => candidate.id === chatId,
+        );
+        const exceeded = budgetsExceeded(statuses, chat?.providerId);
+        for (const status of exceeded) {
+          toast.danger(
+            i18next.t('budgets.exceeded', {
+              ns: 'chats',
+              tokens: status.usedTokens,
+              tokenLimit: status.tokenLimit,
+              requests: status.usedRequests,
+              requestLimit: status.requestLimit,
+            }),
+          );
+        }
+      } catch {
+        // Budget warnings are best-effort; never block a chat on them.
+      }
+    },
+    [snapshot.chats],
   );
 
   const markChatReadLocally = useCallback((chatId: string, readAt: number) => {
@@ -549,6 +578,7 @@ export function useAppController() {
       const userMessageId = createRuntimeId();
       const assistantMessageId = createRuntimeId();
       const createdAt = Math.floor(Date.now() / 1_000);
+      await warnIfBudgetExceeded(chatId);
       startLocalGeneration({
         id: generationId,
         chatId,
@@ -631,6 +661,7 @@ export function useAppController() {
       haptic,
       refreshChat,
       refreshUsage,
+      warnIfBudgetExceeded,
       snapshot.chats,
       snapshot.settings.responseLanguage,
       finishLocalGeneration,
@@ -837,6 +868,7 @@ export function useAppController() {
         );
       }
       const generationId = createRuntimeId();
+      await warnIfBudgetExceeded(chatId);
       startLocalGeneration({
         id: generationId,
         chatId,
@@ -877,6 +909,7 @@ export function useAppController() {
       haptic,
       refreshChat,
       refreshUsage,
+      warnIfBudgetExceeded,
       snapshot.messages,
       snapshot.settings.responseLanguage,
       finishLocalGeneration,
@@ -1168,6 +1201,7 @@ export function useAppController() {
     saveProviderConnection,
     checkProviderConnection,
     removeProviderConnection,
+    getBudgetStatus,
     createFullAppBackup,
     inspectFullAppBackup,
     restoreFullAppBackup,

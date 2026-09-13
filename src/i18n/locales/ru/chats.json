@@ -1,4 +1,5 @@
 {
+  "budgets.exceeded": "Бюджет исчерпан: {{tokens}}/{{tokenLimit}} токенов, {{requests}}/{{requestLimit}} запросов",
   "chatActions.archive": "В архив",
   "chatActions.chatActions": "Действия с чатом",
   "chatActions.clearHistory": "Очистить историю",

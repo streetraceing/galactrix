@@ -5,21 +5,26 @@ import { PageHeader } from '../../components/ui/PageHeader';
 import { useSwipeableTabs } from '../../hooks/useSwipeableTabs';
 import type {
   AppSettings,
+  BudgetStatus,
   GalaxyItem,
   GalaxyItemInput,
+  Provider,
   UsagePoint,
 } from '../../types';
+import { BudgetsPanel } from './components/BudgetsPanel';
 import { IdentitySettings } from './components/IdentitySettings';
 import { ProfileOverview } from './components/ProfileOverview';
 import { UsageTimeline } from './components/UsageTimeline';
 import { useTranslation } from 'react-i18next';
 
-type ProfileSection = 'overview' | 'tokens' | 'requests' | 'identities';
+type ProfileSection =
+  'overview' | 'tokens' | 'requests' | 'budgets' | 'identities';
 
 const profileSections: readonly ProfileSection[] = [
   'overview',
   'tokens',
   'requests',
+  'budgets',
   'identities',
 ];
 
@@ -27,18 +32,22 @@ export function ProfileScreen({
   usage,
   settings,
   galaxyItems,
+  providers,
   chatCount,
   messageCount,
   providerCount,
+  onGetBudgetStatus,
   onChangeSettings,
   onSaveGalaxyItem,
 }: {
   usage: UsagePoint[];
   settings: AppSettings;
   galaxyItems: GalaxyItem[];
+  providers: Provider[];
   chatCount: number;
   messageCount: number;
   providerCount: number;
+  onGetBudgetStatus: () => Promise<BudgetStatus[]>;
   onChangeSettings: (settings: AppSettings) => Promise<boolean>;
   onSaveGalaxyItem: (item: GalaxyItemInput) => Promise<void>;
 }) {
@@ -82,6 +91,11 @@ export function ProfileScreen({
                 icon: 'send',
               },
               {
+                id: 'budgets',
+                label: t('profileScreen.budgets'),
+                icon: 'shield',
+              },
+              {
                 id: 'identities',
                 label: t('profileScreen.identities'),
                 icon: 'user',
@@ -103,6 +117,14 @@ export function ProfileScreen({
           </Tabs.Panel>
           <Tabs.Panel id="requests" className="pt-5 sm:pt-6">
             <UsageTimeline usage={usage} metric="requests" />
+          </Tabs.Panel>
+          <Tabs.Panel id="budgets" className="pt-5 sm:pt-6">
+            <BudgetsPanel
+              settings={settings}
+              providers={providers}
+              onGetStatus={onGetBudgetStatus}
+              onChangeSettings={onChangeSettings}
+            />
           </Tabs.Panel>
           <Tabs.Panel id="identities" className="pt-5 sm:pt-6">
             <IdentitySettings

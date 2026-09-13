@@ -150,9 +150,11 @@ export function AppScreenRouter({
       usage={snapshot.usage}
       settings={snapshot.settings}
       galaxyItems={snapshot.galaxyItems}
+      providers={snapshot.providers}
       chatCount={snapshot.chats.length}
       messageCount={snapshot.messages.length}
       providerCount={snapshot.providers.length}
+      onGetBudgetStatus={controller.getBudgetStatus}
       onChangeSettings={controller.saveSettings}
       onSaveGalaxyItem={controller.saveGalaxyItem}
     />

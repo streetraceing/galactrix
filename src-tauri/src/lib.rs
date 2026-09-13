@@ -22,11 +22,12 @@ use std::collections::HashMap;
 
 use i18n::{keys, CommandError, CommandResult};
 use models::{
-    AppBackupArchive, AppBackupPreview, AppSettings, AppSnapshot, ChatConfigInput, ChatState,
-    CompletionResult, CreatedChat, DatabaseHealthReport, EmbeddingProbeResult, EntityRestoreResult,
-    EntityRevision, GalaxyItem, GalaxyItemInput, GenerationJob, GenerationMode, GenerationReport,
-    HealthRepairReport, PromptPreviewInput, PromptPreviewResult, Provider, ProviderImportInput,
-    ProviderInput, ProviderModelResult, ReportedTokenUsage, StreamDelta, UsagePoint,
+    AppBackupArchive, AppBackupPreview, AppSettings, AppSnapshot, BudgetStatus, ChatConfigInput,
+    ChatState, CompletionResult, CreatedChat, DatabaseHealthReport, EmbeddingProbeResult,
+    EntityRestoreResult, EntityRevision, GalaxyItem, GalaxyItemInput, GenerationJob,
+    GenerationMode, GenerationReport, HealthRepairReport, PromptPreviewInput, PromptPreviewResult,
+    Provider, ProviderImportInput, ProviderInput, ProviderModelResult, ReportedTokenUsage,
+    StreamDelta, UsagePoint,
 };
 use serde_json::Value;
 use tauri::{Manager, State};
@@ -113,6 +114,12 @@ fn get_app_snapshot(state: State<'_, AppState>) -> CommandResult<AppSnapshot> {
 fn get_usage_history(state: State<'_, AppState>) -> CommandResult<Vec<UsagePoint>> {
     let database = state.database.lock().map_err(CommandError::internal)?;
     db::usage_history(&database)
+}
+
+#[tauri::command]
+fn get_budget_status(state: State<'_, AppState>) -> CommandResult<Vec<BudgetStatus>> {
+    let database = state.database.lock().map_err(CommandError::internal)?;
+    db::budget_status(&database)
 }
 
 #[tauri::command]
@@ -1207,6 +1214,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_app_snapshot,
             get_usage_history,
+            get_budget_status,
             create_app_backup,
             inspect_app_backup,
             restore_app_backup,
