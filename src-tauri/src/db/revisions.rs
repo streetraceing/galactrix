@@ -2,7 +2,7 @@ use rusqlite::{params, Connection, OptionalExtension};
 use serde_json::Value;
 
 use crate::i18n::{keys, CommandError, CommandResult};
-use crate::models::{EntityRestoreResult, EntityRevision};
+use crate::models::{EntityRestoreResult, EntityRevision, VariantFeedback};
 
 use super::{clear_chat_ai_context, get_galaxy_item, now_unix, refresh_chat_summary};
 
@@ -249,4 +249,69 @@ pub(crate) fn prune_orphan_revisions(connection: &Connection) -> CommandResult<(
         "#,
     )?;
     Ok(())
+}
+
+const MAX_FEEDBACK_CONTENT_CHARS: usize = 1_200;
+const MAX_FEEDBACK_ITEMS: i64 = 20;
+
+/// Highly rated or annotated response variants from chats that use the given
+/// entity (character, style or prompt set), newest and best first. Prompts
+/// and worldbooks get no hints: they are not generation personas.
+pub fn list_variant_feedback(
+    connection: &Connection,
+    entity_id: &str,
+) -> CommandResult<Vec<VariantFeedback>> {
+    let kind: String = connection
+        .query_row(
+            "SELECT kind FROM galaxy_items WHERE id = ?1",
+            params![entity_id],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()?
+        .ok_or_else(|| CommandError::new(keys::GALAXY_NOT_FOUND))?;
+    if !matches!(kind.as_str(), "character" | "style" | "prompt-set") {
+        return Ok(Vec::new());
+    }
+
+    // Prompt sets are referenced inside chat prompt_config_json; a parameter
+    // binding with the raw id is safe here because ids are generated UUIDs.
+    let mut statement = connection.prepare(
+        "SELECT c.title, v.rating, v.note, v.content, v.created_at
+         FROM message_variants v
+         INNER JOIN messages m ON m.id = v.message_id
+         INNER JOIN chats c ON c.id = m.chat_id
+         WHERE m.role = 'assistant'
+           AND (v.rating >= 4 OR (v.note IS NOT NULL AND TRIM(v.note) <> ''))
+           AND (
+             c.character_id = ?1
+             OR c.style_item_id = ?1
+             OR c.prompt_config_json LIKE '%' || ?1 || '%'
+           )
+         ORDER BY v.rating IS NULL, v.rating DESC, v.created_at DESC
+         LIMIT ?2",
+    )?;
+    let rows = statement
+        .query_map(params![entity_id, MAX_FEEDBACK_ITEMS], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, Option<i64>>(1)?,
+                row.get::<_, Option<String>>(2)?,
+                row.get::<_, String>(3)?,
+                row.get::<_, i64>(4)?,
+            ))
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+
+    Ok(rows
+        .into_iter()
+        .map(
+            |(chat_title, rating, note, content, created_at)| VariantFeedback {
+                content: content.chars().take(MAX_FEEDBACK_CONTENT_CHARS).collect(),
+                chat_title,
+                rating,
+                note,
+                created_at,
+            },
+        )
+        .collect())
 }

@@ -1084,6 +1084,20 @@ pub struct PromptPreviewResult {
     pub runtime_variable_sections: Vec<String>,
 }
 
+/// A highly rated or annotated response variant from chats that use a given
+/// entity, surfaced as a tuning hint while editing that entity.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VariantFeedback {
+    pub chat_title: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rating: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
+    pub content: String,
+    pub created_at: i64,
+}
+
 /// A named reusable prompt text that can be inserted into the composer
 /// from a picker and managed in settings.
 #[derive(Debug, Clone, Serialize, Deserialize)]

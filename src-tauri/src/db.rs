@@ -30,7 +30,7 @@ pub(crate) use backup::{backup_data, replace_with_backup, validate_backup_data};
 use galaxy::get_galaxy_item;
 pub(crate) use galaxy::{delete_galaxy_item, upsert_galaxy_item};
 pub(crate) use health::{build_health_report, repair_health_issues};
-pub use revisions::{list_entity_revisions, restore_entity_revision};
+pub use revisions::{list_entity_revisions, list_variant_feedback, restore_entity_revision};
 pub(crate) use settings::{
     budget_status, get_settings, provider_ids, update_settings, usage_history,
 };

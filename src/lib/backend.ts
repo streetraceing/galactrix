@@ -11,6 +11,7 @@ import type {
   DatabaseHealthReport,
   EntityRestoreResult,
   EntityRevision,
+  VariantFeedback,
   GenerationJob,
   GalaxyItem,
   EmbeddingProbeResult,
@@ -349,6 +350,15 @@ export async function listEntityRevisions(
   requireTauri();
   return invokeBackend<EntityRevision[]>('list_entity_revisions', {
     kind,
+    entityId,
+  });
+}
+
+export async function listVariantFeedback(
+  entityId: string,
+): Promise<VariantFeedback[]> {
+  requireTauri();
+  return invokeBackend<VariantFeedback[]>('list_variant_feedback', {
     entityId,
   });
 }

@@ -21,7 +21,7 @@ test('variant feedback persists per variant through the command boundary', async
   assert.match(lib, /fn rate_message_variant/);
   assert.match(
     lib,
-    /rate_message_variant,\s*\n\s*list_entity_revisions,\s*\n\s*restore_entity_revision,\s*\n\s*preview_prompt/,
+    /rate_message_variant,\s*\n\s*list_entity_revisions,\s*\n\s*list_variant_feedback,\s*\n\s*restore_entity_revision,\s*\n\s*preview_prompt/,
   );
   assert.match(backend, /invokeBackend<void>\('rate_message_variant'/);
   assert.match(controller, /rateMessageVariantFeedback/);

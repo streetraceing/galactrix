@@ -36,6 +36,7 @@ import {
 import type {
   CharacterData,
   EntityRevision,
+  VariantFeedback,
   GalaxyItem,
   GalaxyItemInput,
   GalaxyKind,
@@ -62,6 +63,7 @@ export function GalaxiesScreen({
   onDelete,
   onListRevisions,
   onRestoreRevision,
+  onListFeedback,
 }: {
   items: GalaxyItem[];
   onSave: (item: GalaxyItemInput) => Promise<void>;
@@ -69,6 +71,7 @@ export function GalaxiesScreen({
   onDelete: (id: string) => Promise<void>;
   onListRevisions: (entityId: string) => Promise<EntityRevision[]>;
   onRestoreRevision: (entityId: string, revisionId: string) => Promise<unknown>;
+  onListFeedback: (entityId: string) => Promise<VariantFeedback[]>;
 }) {
   const { t } = useTranslation(['galaxies', 'common']);
   const [section, setSection] = useState<GalaxyKind>('persona');
@@ -525,6 +528,7 @@ export function GalaxiesScreen({
             ? (revisionId) => onRestoreRevision(editing.id, revisionId)
             : undefined
         }
+        onListFeedback={editing ? () => onListFeedback(editing.id) : undefined}
       />
 
       <UiModal

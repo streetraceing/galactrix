@@ -8,6 +8,7 @@ import {
 import { Icon } from '../../../components/Icon';
 import { toast } from '../../../i18n/toast';
 import { errorMessage } from '../../../lib/errors';
+import { copyChatText } from '../../chats/chatClipboard';
 import { UiModal } from '../../../components/ui/UiModal';
 import { PromptPreviewCard } from '../../../components/ui/PromptPreviewCard';
 import { RequiredMark } from '../../../components/ui/RequiredMark';
@@ -19,6 +20,7 @@ import type { TranslationKey } from '../../../i18n';
 import type {
   CharacterData,
   EntityRevision,
+  VariantFeedback,
   GalaxyItem,
   GalaxyItemInput,
   PersonaData,
@@ -52,6 +54,7 @@ export function GalaxyEditorModal({
   onSave,
   onListRevisions,
   onRestoreRevision,
+  onListFeedback,
 }: {
   isOpen: boolean;
   editing: GalaxyItem | null;
@@ -64,6 +67,7 @@ export function GalaxyEditorModal({
   onSave: (draft: GalaxyItemInput) => void;
   onListRevisions?: () => Promise<EntityRevision[]>;
   onRestoreRevision?: (revisionId: string) => Promise<unknown>;
+  onListFeedback?: () => Promise<VariantFeedback[]>;
 }) {
   const autoFocus = !isMobilePlatform();
   const { t } = useTranslation(['galaxies', 'common']);
@@ -71,13 +75,19 @@ export function GalaxyEditorModal({
   const [showRevisions, setShowRevisions] = useState(false);
   const [revisionRows, setRevisionRows] = useState<EntityRevisionRow[]>([]);
   const [revisionsBusy, setRevisionsBusy] = useState(false);
+  const [showHints, setShowHints] = useState(false);
+  const [hints, setHints] = useState<VariantFeedback[]>([]);
+  const [hintsBusy, setHintsBusy] = useState(false);
 
   useEffect(() => {
     if (isOpen) setDraft(initialDraft);
   }, [initialDraft, isOpen]);
 
   useEffect(() => {
-    if (!isOpen) setShowRevisions(false);
+    if (!isOpen) {
+      setShowRevisions(false);
+      setShowHints(false);
+    }
   }, [isOpen]);
 
   const revisionsBadgeKeys: Record<string, TranslationKey<'common'>> = {
@@ -117,6 +127,25 @@ export function GalaxyEditorModal({
       });
     } finally {
       setRevisionsBusy(false);
+    }
+  };
+
+  const toggleHints = async () => {
+    if (!onListFeedback || !editing) return;
+    if (showHints) {
+      setShowHints(false);
+      return;
+    }
+    setHintsBusy(true);
+    try {
+      setHints(await onListFeedback());
+      setShowHints(true);
+    } catch (caught) {
+      toast.danger(t('hints.loadFailed'), {
+        description: errorMessage(caught),
+      });
+    } finally {
+      setHintsBusy(false);
     }
   };
 
@@ -162,7 +191,7 @@ export function GalaxyEditorModal({
           {editing && onListRevisions ? (
             <Button
               variant={showRevisions ? 'secondary' : 'ghost'}
-              className="mr-auto w-full sm:w-auto"
+              className="w-full sm:w-auto"
               isPending={revisionsBusy}
               isDisabled={saving}
               onPress={() => void toggleRevisions()}
@@ -171,6 +200,20 @@ export function GalaxyEditorModal({
               {showRevisions
                 ? t('galaxyEditorModal.backToEditor')
                 : t('galaxyEditorModal.history')}
+            </Button>
+          ) : null}
+          {editing && onListFeedback ? (
+            <Button
+              variant={showHints ? 'secondary' : 'ghost'}
+              className="w-full sm:w-auto"
+              isPending={hintsBusy}
+              isDisabled={saving}
+              onPress={() => void toggleHints()}
+            >
+              <Icon name="star" className="size-4" />
+              {showHints
+                ? t('galaxyEditorModal.backToEditor')
+                : t('galaxyEditorModal.tuningHints')}
             </Button>
           ) : null}
           <Button
@@ -194,7 +237,54 @@ export function GalaxyEditorModal({
         </>
       }
     >
-      {showRevisions ? (
+      {showHints ? (
+        <div className="max-h-[min(60dvh,36rem)] space-y-2.5 overflow-y-auto overscroll-contain">
+          {hints.length === 0 ? (
+            <p className="rounded-xl border border-default bg-background/55 px-3 py-2.5 text-sm text-muted">
+              {t('hints.empty')}
+            </p>
+          ) : (
+            hints.map((hint, index) => (
+              <div
+                key={`${hint.chatTitle}-${hint.createdAt}-${index}`}
+                className="rounded-2xl border border-separator p-3"
+              >
+                <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                  <strong className="min-w-0 truncate text-sm font-semibold">
+                    {hint.chatTitle}
+                  </strong>
+                  <span className="flex shrink-0 items-center gap-1.5">
+                    {hint.rating != null ? (
+                      <span className="flex items-center gap-0.5 text-warning">
+                        <Icon name="star" className="size-3.5 fill-current" />
+                        <span className="text-xs font-semibold">
+                          {hint.rating}
+                        </span>
+                      </span>
+                    ) : null}
+                    <button
+                      type="button"
+                      aria-label={t('hints.copy')}
+                      className="cursor-pointer rounded-lg p-1.5 text-muted outline-none transition-colors hover:bg-surface hover:text-accent focus-visible:ring-2 focus-visible:ring-focus"
+                      onClick={() => void copyChatText(hint.content)}
+                    >
+                      <Icon name="copy" className="size-4" />
+                    </button>
+                  </span>
+                </div>
+                {hint.note ? (
+                  <p className="mt-1 rounded-lg bg-warning/10 px-2.5 py-1.5 text-xs leading-5 text-warning">
+                    {hint.note}
+                  </p>
+                ) : null}
+                <p className="mt-1.5 line-clamp-4 whitespace-pre-wrap text-xs leading-5 text-muted">
+                  {hint.content}
+                </p>
+              </div>
+            ))
+          )}
+        </div>
+      ) : showRevisions ? (
         <div className="max-h-[min(60dvh,36rem)] overflow-y-auto overscroll-contain">
           <EntityRevisionsList
             rows={revisionRows}

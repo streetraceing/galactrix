@@ -1728,3 +1728,64 @@ fn snippet_normalization_trims_caps_and_dedupes() {
     assert_eq!(reloaded.snippets.len(), 1);
     assert_eq!(reloaded.snippets[0].content, "Hello there");
 }
+
+#[test]
+fn variant_feedback_surfaces_only_top_rated_variants_for_the_entity() {
+    let connection = test_database();
+    let character = GalaxyItemInput {
+        id: None,
+        kind: "character".into(),
+        name: "Nova".into(),
+        description: String::new(),
+        data: serde_json::json!({}),
+    };
+    upsert_galaxy_item(&connection, "char-nova", &character).expect("character must exist");
+    create_test_chat(&connection, "chat-1");
+    connection
+        .execute(
+            "UPDATE chats SET character_id = 'char-nova' WHERE id = 'chat-1'",
+            [],
+        )
+        .expect("chat must reference character");
+
+    add_assistant_message(&connection, "chat-1", "msg-1", "Weak reply")
+        .expect("message must be created");
+    set_variant_feedback(&connection, "msg-1", 0, Some(2), None).expect("rating must save");
+
+    add_assistant_message(&connection, "chat-1", "msg-2", "Great reply")
+        .expect("message must be created");
+    set_variant_feedback(&connection, "msg-2", 0, Some(5), Some("Perfect tone"))
+        .expect("rating must save");
+
+    let hints = list_variant_feedback(&connection, "char-nova").expect("hints must list");
+    assert_eq!(hints.len(), 1);
+    assert_eq!(hints[0].content, "Great reply");
+    assert_eq!(hints[0].rating, Some(5));
+    assert_eq!(hints[0].note.as_deref(), Some("Perfect tone"));
+    assert_eq!(hints[0].chat_title, "Test chat");
+
+    // Notes alone (without a high rating) also qualify.
+    add_assistant_message(&connection, "chat-1", "msg-3", "Noted reply")
+        .expect("message must be created");
+    set_variant_feedback(&connection, "msg-3", 0, None, Some("Watch the pacing"))
+        .expect("note must save");
+    let hints = list_variant_feedback(&connection, "char-nova").expect("hints must list");
+    assert_eq!(hints.len(), 2);
+
+    // Persona/worldbook entities get no hints.
+    upsert_galaxy_item(
+        &connection,
+        "persona-1",
+        &GalaxyItemInput {
+            id: None,
+            kind: "persona".into(),
+            name: "Explorer".into(),
+            description: String::new(),
+            data: serde_json::json!({}),
+        },
+    )
+    .expect("persona must exist");
+    assert!(list_variant_feedback(&connection, "persona-1")
+        .expect("must list")
+        .is_empty());
+}

@@ -27,7 +27,7 @@ use models::{
     EntityRestoreResult, EntityRevision, GalaxyItem, GalaxyItemInput, GenerationJob,
     GenerationMode, GenerationReport, HealthRepairReport, PromptPreviewInput, PromptPreviewResult,
     Provider, ProviderImportInput, ProviderInput, ProviderModelResult, ReportedTokenUsage,
-    StreamDelta, UsagePoint,
+    StreamDelta, UsagePoint, VariantFeedback,
 };
 use serde_json::Value;
 use tauri::{Manager, State};
@@ -406,6 +406,15 @@ fn list_entity_revisions(
 ) -> CommandResult<Vec<EntityRevision>> {
     let database = state.database.lock().map_err(CommandError::internal)?;
     db::list_entity_revisions(&database, &kind, &entity_id)
+}
+
+#[tauri::command]
+fn list_variant_feedback(
+    entity_id: String,
+    state: State<'_, AppState>,
+) -> CommandResult<Vec<VariantFeedback>> {
+    let database = state.database.lock().map_err(CommandError::internal)?;
+    db::list_variant_feedback(&database, &entity_id)
 }
 
 #[tauri::command]
@@ -1243,6 +1252,7 @@ pub fn run() {
             select_message_variant,
             rate_message_variant,
             list_entity_revisions,
+            list_variant_feedback,
             restore_entity_revision,
             preview_prompt,
             regenerate_message,

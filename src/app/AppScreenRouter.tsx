@@ -110,6 +110,7 @@ export function AppScreenRouter({
           controller.listRevisions('galaxy', entityId)
         }
         onRestoreRevision={controller.restoreGalaxyRevision}
+        onListFeedback={(entityId) => controller.listVariantFeedback(entityId)}
       />
     );
   }

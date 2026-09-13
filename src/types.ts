@@ -582,6 +582,14 @@ export type EntityRestoreResult = {
   item?: GalaxyItem;
 };
 
+export type VariantFeedback = {
+  chatTitle: string;
+  rating?: number;
+  note?: string;
+  content: string;
+  createdAt: number;
+};
+
 export type ProviderModelResult = {
   models: string[];
   latencyMs: number;
