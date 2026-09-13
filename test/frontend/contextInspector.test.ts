@@ -34,10 +34,7 @@ test('generation reports are composed during context preparation and persisted p
   assert.match(promptBuilder, /Some\("contextBudget".to_owned\(\)\)/);
   // Every generation path persists the report against the produced variant.
   assert.match(lib, /fn finalize_report/);
-  assert.match(
-    lib,
-    /save_message_variant_report\([\s\S]{0,160}finalize_report\(prepared\.report/,
-  );
+  assert.match(lib, /finalize_report\(report, &completion\)/);
   assert.match(lib, /GenerationMode::Regenerate/);
   assert.match(lib, /GenerationMode::Continue/);
   assert.match(lib, /GenerationMode::Send/);

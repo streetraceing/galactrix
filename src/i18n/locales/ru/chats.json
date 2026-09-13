@@ -77,6 +77,8 @@
   "chatDialogs.save": "Сохранить",
   "chatDialogs.thisActionCannotBeUndone": "Это действие нельзя отменить.",
   "chatGenerationSettings.description": "Точная настройка только этого чата без изменения параметров подключения.",
+  "chatGenerationSettings.fallbacks": "Резервные подключения",
+  "chatGenerationSettings.fallbacksHint": "Если основное подключение не сработало, используются эти — по порядку. В отчёте ответа видно, какое сработало.",
   "chatGenerationSettings.inheritHint": "Оставьте поле пустым, чтобы использовать значение выбранного подключения.",
   "chatGenerationSettings.maxOutput": "Максимум ответа",
   "chatGenerationSettings.reset": "Сбросить",

@@ -268,7 +268,7 @@ pub async fn complete_streaming(
     system_prompt: Option<&str>,
     user_content: Option<&str>,
     retry: &RetrySettings,
-    cancellation: oneshot::Receiver<()>,
+    cancellation: &mut oneshot::Receiver<()>,
     mut on_delta: impl FnMut(&str),
 ) -> CommandResult<StreamedCompletion> {
     validate_saved_provider(provider, api_key)?;

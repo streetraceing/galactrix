@@ -850,6 +850,7 @@ fn chat_generation_overrides_persist_update_and_clone() {
             temperature: Some(0.25),
             top_p: Some(0.8),
             max_tokens: Some(2048),
+            fallback_provider_ids: vec!["provider-2".into()],
         },
         module_overrides: Default::default(),
     };
@@ -859,6 +860,10 @@ fn chat_generation_overrides_persist_update_and_clone() {
     assert_eq!(saved.generation_settings.temperature, Some(0.25));
     assert_eq!(saved.generation_settings.top_p, Some(0.8));
     assert_eq!(saved.generation_settings.max_tokens, Some(2048));
+    assert_eq!(
+        saved.generation_settings.fallback_provider_ids,
+        vec!["provider-2".to_owned()]
+    );
 
     input.generation_settings.top_p = None;
     input.generation_settings.max_tokens = Some(4096);

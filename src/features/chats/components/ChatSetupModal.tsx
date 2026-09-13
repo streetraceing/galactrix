@@ -387,6 +387,7 @@ export function ChatSetupModal({
                 provider={providers.find(
                   (provider) => provider.id === form.providerId,
                 )}
+                providers={providers}
                 onChange={(generationSettings) =>
                   setForm((current) => ({
                     ...current,

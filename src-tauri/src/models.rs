@@ -42,6 +42,10 @@ pub struct ChatGenerationSettings {
     pub top_p: Option<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_tokens: Option<i64>,
+    /// Ordered provider ids tried in turn when the chat's primary provider
+    /// fails before any text was streamed.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub fallback_provider_ids: Vec<String>,
 }
 
 impl ChatGenerationSettings {

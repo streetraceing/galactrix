@@ -27,6 +27,7 @@ export type ChatGenerationSettings = {
   temperature?: number;
   topP?: number;
   maxTokens?: number;
+  fallbackProviderIds?: string[];
 };
 
 export type PromptPresetId =

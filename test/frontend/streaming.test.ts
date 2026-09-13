@@ -21,7 +21,8 @@ test('provider client streams SSE and Ollama payloads with cancellation support'
   // A cancelled stream keeps the partial text instead of dropping it.
   assert.match(client, /cancelled = true;/);
   assert.match(retry, /pub\(super\) async fn send_with_retry_raw/);
-  assert.match(lib, /fn resolve_streamed/);
+  assert.match(lib, /fn stream_with_fallback/);
+  assert.match(lib, /fn resolve_completion_chain/);
   assert.match(
     lib,
     /result\.cancelled && result\.completion\.content\.trim\(\)\.is_empty\(\)/,

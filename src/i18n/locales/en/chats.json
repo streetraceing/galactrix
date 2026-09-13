@@ -77,6 +77,8 @@
   "chatDialogs.save": "Save",
   "chatDialogs.thisActionCannotBeUndone": "This action cannot be undone.",
   "chatGenerationSettings.description": "Fine-tune this chat without changing the connection defaults.",
+  "chatGenerationSettings.fallbacks": "Fallback connections",
+  "chatGenerationSettings.fallbacksHint": "If the main connection fails, these are tried in order. The response report shows which one served the reply.",
   "chatGenerationSettings.inheritHint": "Leave a field empty to inherit it from the selected connection.",
   "chatGenerationSettings.maxOutput": "Max output",
   "chatGenerationSettings.reset": "Reset",

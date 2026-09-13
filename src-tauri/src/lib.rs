@@ -29,8 +29,10 @@ use models::{
     Provider, ProviderImportInput, ProviderInput, ProviderModelResult, ReportedTokenUsage,
     StreamDelta, UsagePoint, VariantFeedback,
 };
+use models::{Message, RetrySettings};
 use serde_json::Value;
 use tauri::{Manager, State};
+use tokio::sync::oneshot;
 use uuid::Uuid;
 
 use provider_client::complete_streaming;
@@ -38,18 +40,105 @@ use runtime::{await_cancellable, AppState};
 
 /// Resolves a streamed attempt: a cancelled stream keeps the partial text,
 /// but a cancellation with no text at all is reported as a cancellation.
-fn resolve_streamed(
-    streamed: CommandResult<crate::provider_client::StreamedCompletion>,
-) -> CommandResult<(crate::models::CompletionResult, bool)> {
-    match streamed {
-        Ok(result) => {
-            if result.cancelled && result.completion.content.trim().is_empty() {
-                return Err(CommandError::new(keys::PROVIDER_REQUEST_CANCELLED));
-            }
-            Ok((result.completion, result.cancelled))
+/// Builds the ordered completion chain: the chat's primary provider first,
+/// then configured fallbacks (deduplicated, existing, non-Character.AI).
+fn resolve_completion_chain(
+    database: &rusqlite::Connection,
+    chat_provider: &Provider,
+    fallback_provider_ids: &[String],
+) -> CommandResult<Vec<Provider>> {
+    let mut chain = vec![chat_provider.clone()];
+    for id in fallback_provider_ids {
+        let id = id.trim();
+        if id.is_empty() || id == chat_provider.id || chain.iter().any(|p| p.id == id) {
+            continue;
         }
-        Err(error) => Err(error),
+        if let Some(provider) = db::provider_optional(database, id)? {
+            if provider.kind != "character-ai" {
+                chain.push(provider);
+            }
+        }
     }
+    Ok(chain)
+}
+
+/// Streams a completion over the provider chain: the primary provider first,
+/// then fallbacks while no text was streamed. Cancellation never falls
+/// back; a cancelled stream keeps its partial text. Provider health is
+/// updated here for every attempt.
+#[allow(clippy::too_many_arguments)]
+async fn stream_with_fallback(
+    state: &AppState,
+    chain: &[Provider],
+    history: &[Message],
+    system_prompt: Option<&str>,
+    user_content: Option<&str>,
+    retry: &RetrySettings,
+    cancellation: &mut oneshot::Receiver<()>,
+    channel: &tauri::ipc::Channel<StreamDelta>,
+    stream_message_id: &str,
+) -> CommandResult<(CompletionResult, bool, Provider)> {
+    let mut last_error: Option<CommandError> = None;
+    for attempt in chain {
+        let secret = match provider_support::saved_secret(attempt) {
+            Ok(secret) => secret,
+            Err(error) => {
+                last_error = Some(error);
+                continue;
+            }
+        };
+        let mut delta_sent = false;
+        let stream_message_id = stream_message_id.to_owned();
+        let attempt_id = attempt.id.clone();
+        let streamed = complete_streaming(
+            attempt,
+            secret.as_deref(),
+            history,
+            system_prompt,
+            user_content,
+            retry,
+            cancellation,
+            |delta| {
+                delta_sent = true;
+                let _ = channel.send(StreamDelta {
+                    message_id: stream_message_id.clone(),
+                    delta: delta.to_owned(),
+                });
+            },
+        )
+        .await;
+        match streamed {
+            Ok(result) => {
+                if result.cancelled && result.completion.content.trim().is_empty() {
+                    return Err(CommandError::new(keys::PROVIDER_REQUEST_CANCELLED));
+                }
+                if let Ok(database) = state.database.lock() {
+                    let _ = db::update_provider_health(
+                        &database,
+                        &attempt_id,
+                        "connected",
+                        Some(result.completion.latency_ms),
+                    );
+                }
+                return Ok((result.completion, result.cancelled, attempt.clone()));
+            }
+            Err(error) => {
+                if error.key == keys::PROVIDER_REQUEST_CANCELLED {
+                    return Err(error);
+                }
+                if let Ok(database) = state.database.lock() {
+                    let _ = db::update_provider_health(&database, &attempt_id, "error", None);
+                }
+                // A mid-stream failure already produced visible text: falling
+                // back would restart the response from scratch.
+                if delta_sent {
+                    return Err(error);
+                }
+                last_error = Some(error);
+            }
+        }
+    }
+    Err(last_error.unwrap_or_else(|| CommandError::new(keys::PROVIDER_EMPTY_RESPONSE)))
 }
 
 /// Attaches the completion outcome to the request report. Reported token
@@ -436,7 +525,7 @@ async fn regenerate_message(
     channel: tauri::ipc::Channel<StreamDelta>,
     state: State<'_, AppState>,
 ) -> CommandResult<()> {
-    let (chat_id, provider, full_history, regeneration_mode) = {
+    let (chat_id, provider, chain, full_history, regeneration_mode) = {
         let database = state.database.lock().map_err(CommandError::internal)?;
         db::ensure_message_chat_mutable(&database, &message_id)?;
         let (chat_id, history) = db::messages_before_message(&database, &message_id)?;
@@ -445,9 +534,15 @@ async fn regenerate_message(
                 .ok_or_else(|| CommandError::new(keys::MESSAGE_USER_BEFORE_ASSISTANT_MISSING))?;
         let provider_id = db::chat_provider_id(&database, &chat_id)?;
         let mut provider = db::get_provider(&database, &provider_id)?;
-        db::chat_generation_settings(&database, &chat_id)?.apply_to(&mut provider);
+        let generation_settings = db::chat_generation_settings(&database, &chat_id)?;
+        generation_settings.apply_to(&mut provider);
+        let chain = resolve_completion_chain(
+            &database,
+            &provider,
+            &generation_settings.fallback_provider_ids,
+        )?;
         db::invalidate_chat_ai_context(&database, &chat_id)?;
-        (chat_id, provider, history, regeneration_mode)
+        (chat_id, provider, chain, history, regeneration_mode)
     };
     let (cancellation, _generation_lease) = state.register_generation(GenerationJob::new(
         generation_id.clone(),
@@ -462,7 +557,7 @@ async fn regenerate_message(
         .map(|message| message.content.as_str())
         .or(regeneration_instruction)
         .unwrap_or("Regenerate the response");
-    let (prepared, cancellation) = await_cancellable(
+    let (prepared, mut cancellation) = await_cancellable(
         generation_context::prepare(
             &state,
             &chat_id,
@@ -475,44 +570,25 @@ async fn regenerate_message(
         cancellation,
     )
     .await?;
-    let secret = provider_support::saved_secret(&provider)?;
     let stream_message_id = message_id.clone();
-    let streamed = complete_streaming(
-        &provider,
-        secret.as_deref(),
+    let (completion, cancelled, serving) = stream_with_fallback(
+        state.inner(),
+        &chain,
         &prepared.history,
         prepared.system_prompt.as_deref(),
         regeneration_instruction,
         &prepared.retry,
-        cancellation,
-        |delta| {
-            let _ = channel.send(StreamDelta {
-                message_id: stream_message_id.clone(),
-                delta: delta.to_owned(),
-            });
-        },
+        &mut cancellation,
+        &channel,
+        &stream_message_id,
     )
-    .await;
-    let (completion, cancelled) = match resolve_streamed(streamed) {
-        Ok(pair) => pair,
-        Err(error) => {
-            if error.key != keys::PROVIDER_REQUEST_CANCELLED {
-                if let Ok(database) = state.database.lock() {
-                    let _ = db::update_provider_health(&database, &provider.id, "error", None);
-                }
-            }
-            return Err(error);
-        }
-    };
+    .await?;
 
     let response_content = response_rules::normalize_response_with_cleanup(
         &completion.content,
         &prepared.response_cleanup,
     );
     if response_content.is_empty() {
-        if let Ok(database) = state.database.lock() {
-            let _ = db::update_provider_health(&database, &provider.id, "error", None);
-        }
         return Err(CommandError::new(keys::PROVIDER_EMPTY_RESPONSE));
     }
     if cancelled {
@@ -525,11 +601,15 @@ async fn regenerate_message(
             &response_content,
             false,
         )?;
+        let mut report = prepared.report;
+        report.provider_id = serving.id.clone();
+        report.provider_name = serving.name.clone();
+        report.model = serving.model.clone();
         let _ = db::save_message_variant_report(
             &database,
             &message_id,
             variant_position,
-            &finalize_report(prepared.report, &completion),
+            &finalize_report(report, &completion),
         );
         return Ok(());
     }
@@ -542,25 +622,23 @@ async fn regenerate_message(
         &response_content,
         false,
     )?;
+    let mut report = prepared.report;
+    report.provider_id = serving.id.clone();
+    report.provider_name = serving.name.clone();
+    report.model = serving.model.clone();
     let _ = db::save_message_variant_report(
         &database,
         &message_id,
         variant_position,
-        &finalize_report(prepared.report, &completion),
+        &finalize_report(report, &completion),
     );
     db::record_usage(
         &database,
         &Uuid::new_v4().to_string(),
-        &provider.id,
-        &provider.model,
+        &serving.id,
+        &serving.model,
         completion.input_tokens,
         completion.output_tokens,
-    )?;
-    db::update_provider_health(
-        &database,
-        &provider.id,
-        "connected",
-        Some(completion.latency_ms),
     )?;
     Ok(())
 }
@@ -573,15 +651,21 @@ async fn continue_message(
     channel: tauri::ipc::Channel<StreamDelta>,
     state: State<'_, AppState>,
 ) -> CommandResult<()> {
-    let (chat_id, provider, full_history) = {
+    let (chat_id, provider, chain, full_history) = {
         let database = state.database.lock().map_err(CommandError::internal)?;
         db::ensure_message_chat_mutable(&database, &message_id)?;
         let chat_id = db::message_chat_id(&database, &message_id, "assistant")?;
         let history = db::messages_for_chat(&database, &chat_id)?;
         let provider_id = db::chat_provider_id(&database, &chat_id)?;
         let mut provider = db::get_provider(&database, &provider_id)?;
-        db::chat_generation_settings(&database, &chat_id)?.apply_to(&mut provider);
-        (chat_id, provider, history)
+        let generation_settings = db::chat_generation_settings(&database, &chat_id)?;
+        generation_settings.apply_to(&mut provider);
+        let chain = resolve_completion_chain(
+            &database,
+            &provider,
+            &generation_settings.fallback_provider_ids,
+        )?;
+        (chat_id, provider, chain, history)
     };
     let (cancellation, _generation_lease) = state.register_generation(GenerationJob::new(
         generation_id.clone(),
@@ -598,7 +682,7 @@ async fn continue_message(
         .map(|message| message.content.as_str())
         .or(instruction)
         .unwrap_or("Continue the conversation");
-    let (prepared, cancellation) = await_cancellable(
+    let (prepared, mut cancellation) = await_cancellable(
         generation_context::prepare(
             &state,
             &chat_id,
@@ -611,80 +695,63 @@ async fn continue_message(
         cancellation,
     )
     .await?;
-    let secret = provider_support::saved_secret(&provider)?;
     let continuation_message_id = Uuid::new_v4().to_string();
     let stream_message_id = continuation_message_id.clone();
-    let streamed = complete_streaming(
-        &provider,
-        secret.as_deref(),
+    let (completion, cancelled, serving) = stream_with_fallback(
+        state.inner(),
+        &chain,
         &prepared.history,
         prepared.system_prompt.as_deref(),
         instruction,
         &prepared.retry,
-        cancellation,
-        |delta| {
-            let _ = channel.send(StreamDelta {
-                message_id: stream_message_id.clone(),
-                delta: delta.to_owned(),
-            });
-        },
+        &mut cancellation,
+        &channel,
+        &stream_message_id,
     )
-    .await;
-    let (completion, cancelled) = match resolve_streamed(streamed) {
-        Ok(pair) => pair,
-        Err(error) => {
-            if error.key != keys::PROVIDER_REQUEST_CANCELLED {
-                if let Ok(database) = state.database.lock() {
-                    let _ = db::update_provider_health(&database, &provider.id, "error", None);
-                }
-            }
-            return Err(error);
-        }
-    };
+    .await?;
 
     let continuation = response_rules::normalize_response_with_cleanup(
         &completion.content,
         &prepared.response_cleanup,
     );
     if continuation.is_empty() {
-        if let Ok(database) = state.database.lock() {
-            let _ = db::update_provider_health(&database, &provider.id, "error", None);
-        }
         return Err(CommandError::new(keys::PROVIDER_EMPTY_RESPONSE));
     }
     if cancelled {
         let database = state.database.lock().map_err(CommandError::internal)?;
         db::add_assistant_message(&database, &chat_id, &continuation_message_id, &continuation)
             .map_err(CommandError::internal)?;
+        let mut report = prepared.report;
+        report.provider_id = serving.id.clone();
+        report.provider_name = serving.name.clone();
+        report.model = serving.model.clone();
         let _ = db::save_message_variant_report(
             &database,
             &continuation_message_id,
             0,
-            &finalize_report(prepared.report, &completion),
+            &finalize_report(report, &completion),
         );
         return Ok(());
     }
     let database = state.database.lock().map_err(CommandError::internal)?;
     db::add_assistant_message(&database, &chat_id, &continuation_message_id, &continuation)?;
+    let mut report = prepared.report;
+    report.provider_id = serving.id.clone();
+    report.provider_name = serving.name.clone();
+    report.model = serving.model.clone();
     let _ = db::save_message_variant_report(
         &database,
         &continuation_message_id,
         0,
-        &finalize_report(prepared.report, &completion),
+        &finalize_report(report, &completion),
     );
     db::record_usage(
         &database,
         &Uuid::new_v4().to_string(),
-        &provider.id,
-        &provider.model,
+        &serving.id,
+        &serving.model,
         completion.input_tokens,
         completion.output_tokens,
-    )?;
-    db::update_provider_health(
-        &database,
-        &provider.id,
-        "connected",
-        Some(completion.latency_ms),
     )?;
     Ok(())
 }
@@ -727,19 +794,25 @@ async fn send_chat_message(
         assistant_message_id.clone(),
         GenerationMode::Send,
     ))?;
-    let (provider, full_history) = {
+    let (provider, chain, full_history) = {
         let database = state.database.lock().map_err(CommandError::internal)?;
         db::add_user_message(&database, &chat_id, &user_message_id, &content)?;
         (|| -> CommandResult<_> {
             let provider_id = db::chat_provider_id(&database, &chat_id)?;
             let mut provider = db::get_provider(&database, &provider_id)?;
-            db::chat_generation_settings(&database, &chat_id)?.apply_to(&mut provider);
+            let generation_settings = db::chat_generation_settings(&database, &chat_id)?;
+            generation_settings.apply_to(&mut provider);
+            let chain = resolve_completion_chain(
+                &database,
+                &provider,
+                &generation_settings.fallback_provider_ids,
+            )?;
             let history = db::messages_for_chat(&database, &chat_id)?;
-            Ok((provider, history))
+            Ok((provider, chain, history))
         })()
         .map_err(persisted)?
     };
-    let (prepared, cancellation) = await_cancellable(
+    let (prepared, mut cancellation) = await_cancellable(
         generation_context::prepare(
             &state,
             &chat_id,
@@ -753,44 +826,26 @@ async fn send_chat_message(
     )
     .await
     .map_err(persisted)?;
-    let secret = provider_support::saved_secret(&provider).map_err(persisted)?;
     let stream_message_id = assistant_message_id.clone();
-    let streamed = complete_streaming(
-        &provider,
-        secret.as_deref(),
+    let (completion, cancelled, serving) = stream_with_fallback(
+        state.inner(),
+        &chain,
         &prepared.history,
         prepared.system_prompt.as_deref(),
         None,
         &prepared.retry,
-        cancellation,
-        |delta| {
-            let _ = channel.send(StreamDelta {
-                message_id: stream_message_id.clone(),
-                delta: delta.to_owned(),
-            });
-        },
+        &mut cancellation,
+        &channel,
+        &stream_message_id,
     )
-    .await;
-    let (completion, cancelled) = match resolve_streamed(streamed) {
-        Ok(pair) => pair,
-        Err(error) => {
-            if error.key != keys::PROVIDER_REQUEST_CANCELLED {
-                if let Ok(database) = state.database.lock() {
-                    let _ = db::update_provider_health(&database, &provider.id, "error", None);
-                }
-            }
-            return Err(persisted(error));
-        }
-    };
+    .await
+    .map_err(persisted)?;
 
     let response_content = response_rules::normalize_response_with_cleanup(
         &completion.content,
         &prepared.response_cleanup,
     );
     if response_content.is_empty() {
-        if let Ok(database) = state.database.lock() {
-            let _ = db::update_provider_health(&database, &provider.id, "error", None);
-        }
         return Err(persisted(CommandError::new(keys::PROVIDER_EMPTY_RESPONSE)));
     }
     if cancelled {
@@ -802,11 +857,15 @@ async fn send_chat_message(
             &response_content,
         )
         .map_err(persisted)?;
+        let mut report = prepared.report;
+        report.provider_id = serving.id.clone();
+        report.provider_name = serving.name.clone();
+        report.model = serving.model.clone();
         let _ = db::save_message_variant_report(
             &database,
             &assistant_message_id,
             0,
-            &finalize_report(prepared.report, &completion),
+            &finalize_report(report, &completion),
         );
         return Ok(());
     }
@@ -822,17 +881,21 @@ async fn send_chat_message(
         &response_content,
     )
     .map_err(persisted)?;
+    let mut report = prepared.report;
+    report.provider_id = serving.id.clone();
+    report.provider_name = serving.name.clone();
+    report.model = serving.model.clone();
     let _ = db::save_message_variant_report(
         &database,
         &assistant_message_id,
         0,
-        &finalize_report(prepared.report, &completion),
+        &finalize_report(report, &completion),
     );
     db::record_usage(
         &database,
         &Uuid::new_v4().to_string(),
-        &provider.id,
-        &provider.model,
+        &serving.id,
+        &serving.model,
         completion.input_tokens,
         completion.output_tokens,
     )

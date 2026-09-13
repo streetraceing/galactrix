@@ -12,12 +12,12 @@ This file is the canonical backlog for product improvements. The planning baseli
 
 ## Now
 
-- [ ] **TODO-016 - Add provider fallback chains.** Let users group providers into an ordered fallback list per chat so a failed or rate-limited request automatically retries the next connection, with the active provider and failure reason visible in the response inspector.
 - [ ] **TODO-017 - Add find-in-chat with highlighted matches.** Search inside the open conversation with match highlighting, next/previous navigation and a match counter, complementing the cross-chat search in the sidebar.
 - [ ] **TODO-018 - Add backup reminders.** Nudge users to export a full backup after a week or a set number of new messages, with a one-tap export action and a snooze option, so local-only data stays recoverable.
 
 ## Completed
 
+- [x] ~~**TODO-016 - Add provider fallback chains.** Let users group providers into an ordered fallback list per chat so a failed or rate-limited request automatically retries the next connection, with the active provider and failure reason visible in the response inspector.~~ - Implemented in v1.9.0
 - [x] ~~**TODO-015 - Reuse variant feedback when tuning characters and styles.** Surface rated and annotated response variants as tuning hints when editing a character, style or prompt set, so winning responses can shape future generation instead of staying isolated in one chat.~~ - Implemented in v1.9.0
 - [x] ~~**TODO-014 - Add reusable composer snippets.** Let users save frequently used prompts as named snippets and insert them into the composer from a picker, with editing and reordering in settings.~~ - Implemented in v1.8.0
 - [x] ~~**TODO-013 - Add usage budgets and alerts.** Let users set per-provider or global token and request budgets per day or month, show progress against them in usage statistics, and warn before costs run away.~~ - Implemented in v1.8.0

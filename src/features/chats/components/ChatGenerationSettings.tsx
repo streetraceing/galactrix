@@ -86,10 +86,12 @@ function GenerationOverrideInput({
 export function ChatGenerationSettingsPanel({
   value,
   provider,
+  providers,
   onChange,
 }: {
   value: ChatGenerationSettings;
   provider?: Provider;
+  providers: Provider[];
   onChange: (value: ChatGenerationSettings) => void;
 }) {
   const { t } = useTranslation('chats');
@@ -102,7 +104,22 @@ export function ChatGenerationSettingsPanel({
     }
     onChange({ ...value, [key]: nextValue });
   };
-  const hasOverrides = Object.values(value).some((entry) => entry != null);
+  const hasOverrides =
+    value.temperature != null ||
+    value.topP != null ||
+    value.maxTokens != null ||
+    (value.fallbackProviderIds?.length ?? 0) > 0;
+  const fallbacks = value.fallbackProviderIds ?? [];
+  const candidates = providers.filter((entry) => entry.id !== provider?.id);
+
+  const toggleFallback = (providerId: string) => {
+    const index = fallbacks.indexOf(providerId);
+    const next =
+      index >= 0
+        ? fallbacks.filter((id) => id !== providerId)
+        : [...fallbacks, providerId];
+    onChange({ ...value, fallbackProviderIds: next });
+  };
 
   return (
     <Surface className="min-w-0 rounded-2xl border border-separator bg-surface-secondary/50 p-3 sm:p-4">
@@ -171,6 +188,40 @@ export function ChatGenerationSettingsPanel({
           />
         </div>
       </div>
+      {candidates.length > 0 ? (
+        <div className="mt-3 border-t border-separator pt-3">
+          <p className="text-sm font-medium">
+            {t('chatGenerationSettings.fallbacks')}
+          </p>
+          <p className="mt-1 text-xs leading-5 text-muted">
+            {t('chatGenerationSettings.fallbacksHint')}
+          </p>
+          <div className="mt-2 grid grid-cols-1 gap-2">
+            {candidates.map((candidate) => {
+              const index = fallbacks.indexOf(candidate.id);
+              const active = index >= 0;
+              return (
+                <button
+                  key={candidate.id}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => toggleFallback(candidate.id)}
+                  className={`inline-flex min-h-9 w-full cursor-pointer items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-focus ${
+                    active
+                      ? 'border-accent bg-accent/10 text-accent'
+                      : 'border-default bg-transparent text-muted hover:bg-surface'
+                  }`}
+                >
+                  <span className="min-w-0 truncate">{candidate.name}</span>
+                  {active ? (
+                    <span className="text-xs font-semibold">#{index + 1}</span>
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
       <p className="mt-2 text-xs leading-5 text-muted">
         {t('chatGenerationSettings.inheritHint')}
       </p>
