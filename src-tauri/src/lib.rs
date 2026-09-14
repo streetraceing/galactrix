@@ -498,6 +498,72 @@ fn list_entity_revisions(
 }
 
 #[tauri::command]
+async fn translate_message(
+    message_id: String,
+    target_language: String,
+    state: State<'_, AppState>,
+) -> CommandResult<String> {
+    let (chat_id, content) = {
+        let database = state.database.lock().map_err(CommandError::internal)?;
+        let (chat_id, content): (String, String) = connection_query(&database, &message_id)?;
+        (chat_id, content)
+    };
+    let provider_id = {
+        let database = state.database.lock().map_err(CommandError::internal)?;
+        db::chat_provider_id(&database, &chat_id)?
+    };
+    let provider = {
+        let database = state.database.lock().map_err(CommandError::internal)?;
+        db::get_provider(&database, &provider_id)?
+    };
+    let retry = {
+        let database = state.database.lock().map_err(CommandError::internal)?;
+        db::get_settings(&database)?.ai_modules.retry
+    };
+
+    let language_name = match target_language.as_str() {
+        "ru" => "Russian",
+        "en" => "English",
+        other => other,
+    };
+    let instruction = format!(
+        "Translate the following text to {language_name}. Return only the translation, preserving the original tone, formatting and line breaks. Do not add explanations.\n\nText: {{}}",
+    );
+
+    // Reuse the buffered completion path: translations are short and the
+    // caller shows a spinner.
+    let completion = provider_client::complete(
+        &provider,
+        provider_support::saved_secret(&provider)?.as_deref(),
+        &[],
+        None,
+        Some(&instruction.replace("{}", &content)),
+        &retry,
+    )
+    .await?;
+
+    let translated = completion.content.trim().to_owned();
+    if translated.is_empty() {
+        return Err(CommandError::new(keys::PROVIDER_EMPTY_RESPONSE));
+    }
+    Ok(translated)
+}
+
+fn connection_query(
+    database: &rusqlite::Connection,
+    message_id: &str,
+) -> CommandResult<(String, String)> {
+    use rusqlite::params;
+    database
+        .query_row(
+            "SELECT chat_id, content FROM messages WHERE id = ?1",
+            params![message_id],
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+        )
+        .map_err(|_| CommandError::new(keys::MESSAGE_NOT_FOUND))
+}
+
+#[tauri::command]
 fn list_variant_feedback(
     entity_id: String,
     state: State<'_, AppState>,
@@ -522,6 +588,7 @@ async fn regenerate_message(
     message_id: String,
     generation_id: String,
     response_language: Option<String>,
+    custom_instruction: Option<String>,
     channel: tauri::ipc::Channel<StreamDelta>,
     state: State<'_, AppState>,
 ) -> CommandResult<()> {
@@ -550,12 +617,19 @@ async fn regenerate_message(
         message_id.clone(),
         GenerationMode::Regenerate,
     ))?;
-    let regeneration_instruction =
-        response_rules::regeneration_instruction(regeneration_mode, response_language.as_deref());
+    let custom = custom_instruction
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_owned);
+    let regeneration_instruction: Option<String> = custom.or_else(|| {
+        response_rules::regeneration_instruction(regeneration_mode, response_language.as_deref())
+            .map(str::to_owned)
+    });
     let query_text = full_history
         .last()
         .map(|message| message.content.as_str())
-        .or(regeneration_instruction)
+        .or(regeneration_instruction.as_deref())
         .unwrap_or("Regenerate the response");
     let (prepared, mut cancellation) = await_cancellable(
         generation_context::prepare(
@@ -576,7 +650,7 @@ async fn regenerate_message(
         &chain,
         &prepared.history,
         prepared.system_prompt.as_deref(),
-        regeneration_instruction,
+        regeneration_instruction.as_deref(),
         &prepared.retry,
         &mut cancellation,
         &channel,
@@ -1317,6 +1391,7 @@ pub fn run() {
             list_entity_revisions,
             list_variant_feedback,
             restore_entity_revision,
+            translate_message,
             preview_prompt,
             regenerate_message,
             continue_message,

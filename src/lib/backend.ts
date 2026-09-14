@@ -318,6 +318,7 @@ export async function regenerateMessage(
   generationId: string,
   responseLanguage?: 'en' | 'ru',
   onDelta?: (delta: GenerationStreamDelta) => void,
+  customInstruction?: string,
 ) {
   requireTauri();
   return invokeBackend<void>('regenerate_message', {
@@ -325,6 +326,7 @@ export async function regenerateMessage(
     messageId,
     generationId,
     responseLanguage: responseLanguage ?? null,
+    customInstruction: customInstruction ?? null,
   });
 }
 
@@ -373,6 +375,17 @@ export async function restoreEntityRevision(
     kind,
     entityId,
     revisionId,
+  });
+}
+
+export async function translateMessage(
+  messageId: string,
+  targetLanguage: string,
+): Promise<string> {
+  requireTauri();
+  return invokeBackend<string>('translate_message', {
+    messageId,
+    targetLanguage,
   });
 }
 

@@ -50,6 +50,7 @@ import type {
 } from '../../../types';
 import { MessageContextInspectorModal } from './MessageContextInspectorModal';
 import { findMessageMatches } from '../findInChat';
+import { TranslateMessageModal } from './TranslateMessageModal';
 import { MessageRevisionsModal } from './MessageRevisionsModal';
 import { VariantCompareModal } from './VariantCompareModal';
 import { MessageHistoryModal } from './MessageHistoryModal';
@@ -93,6 +94,7 @@ type MessageActionProps = {
   onBranch: (messageId: string) => Promise<void>;
   onRemember: (messageId: string, remembered: boolean) => Promise<void>;
   onRegenerate: (messageId: string) => Promise<void>;
+  onRegenerateWith: (messageId: string, instruction: string) => Promise<void>;
   onContinue: (messageId: string) => Promise<void>;
   onSelectVariant: (messageId: string, variantIndex: number) => Promise<void>;
   onEditRequest: () => void;
@@ -101,6 +103,7 @@ type MessageActionProps = {
   onInspectRequest: () => void;
   onCompareRequest: () => void;
   onRevisionsRequest: () => void;
+  onTranslateRequest: () => void;
   onError: (message: string) => void;
 };
 
@@ -114,6 +117,15 @@ export type MessageResponseActionRequest = {
 };
 
 const MESSAGE_SELECTION_DRAG_THRESHOLD = 6;
+
+const EDIT_TEMPLATE_INSTRUCTIONS = {
+  shorten:
+    'Rewrite your previous reply shorter: keep the meaning and tone, cut filler and repetition.',
+  expand:
+    'Rewrite your previous reply with more detail and depth where the context supports it, without inventing new facts.',
+  grammar:
+    'Rewrite your previous reply with corrected grammar, spelling and punctuation, keeping the original tone and wording otherwise.',
+} as const;
 const MESSAGE_SELECTION_RETURN_THRESHOLD = 28;
 const TOUCH_SELECTION_MOVE_THRESHOLD = 10;
 const MESSAGE_ENTRY_ANIMATION_MS = MOTION_DURATION_MS.standard;
@@ -160,6 +172,7 @@ function MessageMenu({
   onDeleteRequest,
   onRemember,
   onRegenerate,
+  onRegenerateWith,
   onContinue,
   onSelectVariant,
   onSelectMessage,
@@ -168,6 +181,7 @@ function MessageMenu({
   onInspectRequest,
   onCompareRequest,
   onRevisionsRequest,
+  onTranslateRequest,
   onError,
   readOnly,
 }: MessageActionProps & {
@@ -215,6 +229,15 @@ function MessageMenu({
             ? t('messageList.assistantResponse')
             : t('chatComposer.label')}
         </ContextMenuLabel>
+        {isAssistant ? (
+          <>
+            <ContextMenuItem onClick={onTranslateRequest}>
+              <Icon name="planet" className="size-4 text-accent" />
+              {t('messageList.translate')}
+            </ContextMenuItem>
+            <ContextMenuSeparator />
+          </>
+        ) : null}
         {isAssistant &&
         message.variants[message.activeVariantIndex]?.report != null ? (
           <>
@@ -255,6 +278,50 @@ function MessageMenu({
               <Icon name="sparkles" className="size-4 text-accent" />
               {t('messageList.continueResponse')}
             </ContextMenuItem>
+            <ContextMenuSub>
+              <ContextMenuSubTrigger>
+                <Icon name="edit" className="size-4" />
+                {t('messageList.editTemplates')}
+              </ContextMenuSubTrigger>
+              <ContextMenuSubContent>
+                <ContextMenuItem
+                  onClick={() =>
+                    run(() =>
+                      onRegenerateWith(
+                        message.id,
+                        EDIT_TEMPLATE_INSTRUCTIONS.shorten,
+                      ),
+                    )
+                  }
+                >
+                  {t('messageList.templateShorten')}
+                </ContextMenuItem>
+                <ContextMenuItem
+                  onClick={() =>
+                    run(() =>
+                      onRegenerateWith(
+                        message.id,
+                        EDIT_TEMPLATE_INSTRUCTIONS.expand,
+                      ),
+                    )
+                  }
+                >
+                  {t('messageList.templateExpand')}
+                </ContextMenuItem>
+                <ContextMenuItem
+                  onClick={() =>
+                    run(() =>
+                      onRegenerateWith(
+                        message.id,
+                        EDIT_TEMPLATE_INSTRUCTIONS.grammar,
+                      ),
+                    )
+                  }
+                >
+                  {t('messageList.templateGrammar')}
+                </ContextMenuItem>
+              </ContextMenuSubContent>
+            </ContextMenuSub>
             {isMobile ? (
               <ContextMenuItem onClick={onHistoryRequest}>
                 <Icon name="history" className="size-4" />
@@ -1054,9 +1121,11 @@ function MessageListComponent({
   onDeleteMany,
   onRemember,
   onRegenerate,
+  onRegenerateWith,
   onContinue,
   onSelectVariant,
   onRateVariant,
+  onTranslateMessage,
   onListMessageRevisions,
   onRestoreMessageRevision,
 }: {
@@ -1090,8 +1159,13 @@ function MessageListComponent({
   onDeleteMany: (messageIds: string[]) => Promise<void>;
   onRemember: (messageId: string, remembered: boolean) => Promise<void>;
   onRegenerate: (messageId: string) => Promise<void>;
+  onRegenerateWith: (messageId: string, instruction: string) => Promise<void>;
   onContinue: (messageId: string) => Promise<void>;
   onSelectVariant: (messageId: string, variantIndex: number) => Promise<void>;
+  onTranslateMessage: (
+    messageId: string,
+    targetLanguage: string,
+  ) => Promise<string>;
   onRateVariant: (
     messageId: string,
     variantIndex: number,
@@ -1120,6 +1194,9 @@ function MessageListComponent({
   const [findQuery, setFindQuery] = useState('');
   const [findIndex, setFindIndex] = useState(0);
   const [findFlashId, setFindFlashId] = useState<string | null>(null);
+  const [translateMessageId, setTranslateMessageId] = useState<string | null>(
+    null,
+  );
   const findFlashTimeoutRef = useRef<number | null>(null);
   const [working, setWorking] = useState(false);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
@@ -2395,6 +2472,10 @@ function MessageListComponent({
     () => messages.find((message) => message.id === revisionsMessageId) ?? null,
     [revisionsMessageId, messages],
   );
+  const translateMessage = useMemo(
+    () => messages.find((message) => message.id === translateMessageId) ?? null,
+    [translateMessageId, messages],
+  );
   const findMatches = useMemo(
     () => (findOpen ? findMessageMatches(messages, findQuery) : []),
     [findOpen, findQuery, messages],
@@ -2682,6 +2763,10 @@ function MessageListComponent({
     }
   }, []);
 
+  useEffect(() => {
+    if (readOnly && findOpen) closeFind();
+  }, [closeFind, findOpen, readOnly]);
+
   const selectMessage = useCallback((messageId: string) => {
     setSelectedMessageIds((current) => addMessageSelection(current, messageId));
   }, []);
@@ -2856,7 +2941,12 @@ function MessageListComponent({
                   const history = () => setHistoryMessageId(message.id);
                   const inspect = () => setInspectMessageId(message.id);
                   const compare = () => setCompareMessageId(message.id);
+                  const regenerateWith = (instruction: string) =>
+                    onRegenerateWith(message.id, instruction).catch(
+                      reportError,
+                    );
                   const revisions = () => setRevisionsMessageId(message.id);
+                  const translate = () => setTranslateMessageId(message.id);
                   const isGenerating =
                     effectiveMessageGeneration?.messageId === message.id;
                   const isRegenerating =
@@ -2898,8 +2988,10 @@ function MessageListComponent({
                           onInspectRequest={inspect}
                           onCompareRequest={compare}
                           onRevisionsRequest={revisions}
+                          onTranslateRequest={translate}
                           onError={reportError}
                           readOnly={readOnly}
+                          onRegenerateWith={regenerateWith}
                         >
                           <article
                             className={`chat-message-row group flex items-start gap-2.5 sm:gap-3 ${
@@ -3023,6 +3115,8 @@ function MessageListComponent({
                                   onInspectRequest={inspect}
                                   onCompareRequest={compare}
                                   onRevisionsRequest={revisions}
+                                  onRegenerateWith={regenerateWith}
+                                  onTranslateRequest={translate}
                                   onError={reportError}
                                 />
                               ) : !readOnly && !isPendingAssistant ? (
@@ -3398,6 +3492,13 @@ function MessageListComponent({
           selectVariant(messageId, variantIndex)
         }
         onClose={() => setCompareMessageId(null)}
+      />
+
+      <TranslateMessageModal
+        message={translateMessage}
+        targetLanguage={i18n.resolvedLanguage ?? 'en'}
+        onTranslate={onTranslateMessage}
+        onClose={() => setTranslateMessageId(null)}
       />
 
       <MessageRevisionsModal

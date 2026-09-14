@@ -29,6 +29,7 @@ import {
   importGalaxyItems,
   listEntityRevisions,
   listVariantFeedback,
+  translateMessage,
   inspectAppBackup,
   isBackendCommandError,
   loadChatState,
@@ -106,6 +107,7 @@ type MessageGenerationCommand = (
   generationId: string,
   responseLanguage?: 'en' | 'ru',
   onDelta?: (delta: GenerationStreamDelta) => void,
+  customInstruction?: string,
 ) => Promise<void>;
 
 export function useAppController() {
@@ -864,6 +866,7 @@ export function useAppController() {
       messageId: string,
       mode: ActiveMessageGeneration['mode'],
       command: MessageGenerationCommand,
+      customInstruction?: string,
     ) => {
       const chatId = findMessageChatId(snapshot.messages, messageId);
       if (!chatId) return;
@@ -894,6 +897,7 @@ export function useAppController() {
             streamedByMessage.set(delta.messageId, text);
             applyStreamedText(chatId, delta.messageId, text);
           },
+          customInstruction,
         );
         if (chatId) await refreshChat(chatId);
         await refreshUsage().catch(() => undefined);
@@ -923,8 +927,13 @@ export function useAppController() {
   );
 
   const regenerateExistingMessage = useCallback(
-    (messageId: string) =>
-      runExistingMessageGeneration(messageId, 'regenerate', regenerateMessage),
+    (messageId: string, customInstruction?: string) =>
+      runExistingMessageGeneration(
+        messageId,
+        'regenerate',
+        regenerateMessage,
+        customInstruction,
+      ),
     [runExistingMessageGeneration],
   );
 
@@ -1217,6 +1226,7 @@ export function useAppController() {
     removeProviderConnection,
     getBudgetStatus,
     listVariantFeedback,
+    translateMessage,
     createFullAppBackup,
     inspectFullAppBackup,
     restoreFullAppBackup,

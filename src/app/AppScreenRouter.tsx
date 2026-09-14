@@ -80,6 +80,7 @@ export function AppScreenRouter({
         onContinueMessage={controller.continueExistingMessage}
         onSelectMessageVariant={controller.chooseMessageVariant}
         onRateMessageVariant={controller.rateMessageVariantFeedback}
+        onTranslateMessage={controller.translateMessage}
         onListMessageRevisions={(messageId) =>
           controller.listRevisions('message', messageId)
         }

@@ -77,6 +77,7 @@ export function ChatsScreen({
   onContinueMessage,
   onSelectMessageVariant,
   onRateMessageVariant,
+  onTranslateMessage,
   onListMessageRevisions,
   snippets,
   onExportBackup,
@@ -633,9 +634,11 @@ export function ChatsScreen({
                       onDeleteMany={onDeleteMessages}
                       onRemember={onRememberMessage}
                       onRegenerate={onRegenerateMessage}
+                      onRegenerateWith={onRegenerateMessage}
                       onContinue={onContinueMessage}
                       onSelectVariant={onSelectMessageVariant}
                       onRateVariant={onRateMessageVariant}
+                      onTranslateMessage={onTranslateMessage}
                       onListMessageRevisions={onListMessageRevisions}
                       onRestoreMessageRevision={onRestoreMessageRevision}
                     />

@@ -90,6 +90,10 @@ export type ChatsScreenProps = {
     rating: number | null,
     note: string | null,
   ) => Promise<void>;
+  onTranslateMessage: (
+    messageId: string,
+    targetLanguage: string,
+  ) => Promise<string>;
   onSend: (content: string) => Promise<void>;
   onCancelGeneration: (chatId: string) => Promise<void>;
   sendOnEnter: boolean;

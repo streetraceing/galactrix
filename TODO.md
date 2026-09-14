@@ -12,11 +12,15 @@ This file is the canonical backlog for product improvements. The planning baseli
 
 ## Now
 
-- [ ] **TODO-019 - Add message-level translation.** Let users translate any received message into the interface language or a chosen target language via the message menu, showing the translation alongside the original with a clear "translated" badge and a copy action.
-- [ ] **TODO-021 - Add quick prompt templates for common edits.** Offer built-in one-tap actions in the message menu (shorten, expand, fix grammar, translate) that regenerate or edit the selected message with a prompt template.
+- [ ] **TODO-022 - Add conversation branching tree.** Visualise branched chats as a tree so users can see where each branch diverged, switch between branches, and merge content from one branch into another.
+- [ ] **TODO-023 - Add character voice presets for text-to-speech.** Let users attach TTS voice settings per character, read replies aloud from the message bubble, and generate audio on demand using browser or provider TTS engines.
+- [ ] **TODO-024 - Add smart reply suggestions.** Show three short suggested replies above the composer based on the latest context, generated locally from recent conversation patterns without a provider call.
+- [ ] **TODO-025 - Add cross-device settings sync via export.** Let users export and import settings (theme, budgets, snippets, generation defaults) as a portable file, separate from the full backup, for quick device migration.
 
 ## Completed
 
+- [x] ~~**TODO-019 - Add message-level translation.** Let users translate any received message into the interface language or a chosen target language via the message menu, showing the translation alongside the original with a clear "translated" badge and a copy action.~~ - Implemented in v1.10.0
+- [x] ~~**TODO-021 - Add quick prompt templates for common edits.** Offer built-in one-tap actions in the message menu (shorten, expand, fix grammar, translate) that regenerate or edit the selected message with a prompt template.~~ - Implemented in v1.10.0
 - [x] ~~**TODO-020 - Add chat statistics.** Show per-chat statistics (message counts by role, tokens, average response latency, most active days) in the chat settings or a dedicated panel, reusing the existing usage aggregation.~~ - Implemented in v1.10.0
 - [x] ~~**TODO-018 - Add backup reminders.** Nudge users to export a full backup after a week or a set number of new messages, with a one-tap export action and a snooze option, so local-only data stays recoverable.~~ - Implemented in v1.10.0
 - [x] ~~**TODO-017 - Add find-in-chat with highlighted matches.** Search inside the open conversation with match highlighting, next/previous navigation and a match counter, complementing the cross-chat search in the sidebar.~~ - Implemented in v1.10.0
