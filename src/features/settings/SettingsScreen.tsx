@@ -35,6 +35,7 @@ export function SettingsScreen({
   onChangeSettings,
   generationActive,
   onCreateBackup,
+  onBackupExported,
   onInspectBackup,
   onRestoreBackup,
   onRunDiagnostics,
@@ -46,6 +47,7 @@ export function SettingsScreen({
   onChangeSettings: (settings: AppSettings) => Promise<boolean>;
   generationActive: boolean;
   onCreateBackup: (includeCredentials: boolean) => Promise<unknown>;
+  onBackupExported: () => void;
   onInspectBackup: (archive: unknown) => Promise<AppBackupPreview>;
   onRestoreBackup: (archive: unknown) => Promise<unknown>;
   onRunDiagnostics: () => Promise<DatabaseHealthReport>;
@@ -112,6 +114,7 @@ export function SettingsScreen({
               providerCount={providers.length}
               generationActive={generationActive}
               onCreateBackup={onCreateBackup}
+              onBackupExported={onBackupExported}
               onInspectBackup={onInspectBackup}
               onRestoreBackup={onRestoreBackup}
             />

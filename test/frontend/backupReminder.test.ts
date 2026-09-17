@@ -61,11 +61,14 @@ test('backup completion is recorded in settings storage and the reminder banner 
     /BACKUP_REMINDER_STORAGE_KEY = 'galactrix-backup-reminder-v1'/,
   );
   assert.match(hook, /snoozeBackup\(readBackupReminderState\(\)/);
-  // The controller records a backup as soon as the archive is created.
-  assert.match(
+  // Building the archive is not a backup: the reminder is recorded only after
+  // the file reached the user, so a cancelled save dialog does not count.
+  assert.doesNotMatch(
     controller,
     /createAppBackup\(includeCredentials\)\.then\(\(archive\) => \{[\s\S]{0,200}noteBackupCompleted/,
   );
+  assert.match(controller, /const recordBackupExported = useCallback/);
+  assert.match(controller, /recordBackupExported,/);
   // The banner renders on the chats screen with export + snooze actions.
   assert.match(chats, /<BackupReminderBanner/);
   assert.match(
@@ -74,4 +77,13 @@ test('backup completion is recorded in settings storage and the reminder banner 
   );
   assert.match(banner, /role="status"/);
   assert.match(banner, /exportJsonFile\(/);
+
+  // The settings export records the same reminder once the file is written.
+  const dataManagement = await read(
+    'src/features/settings/components/DataManagement.tsx',
+  );
+  assert.match(
+    dataManagement,
+    /if \(!exported\) return;[\s\S]{0,120}onBackupExported\(\);/,
+  );
 });

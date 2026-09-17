@@ -23,6 +23,12 @@ export const EMPTY_BACKUP_REMINDER_STATE: BackupReminderState = {
   snoozedAt: null,
 };
 
+/// The reminder compares against the unix-second timestamps the backend uses.
+/// Callers must not mix in millisecond clocks.
+export function backupReminderNow() {
+  return Math.floor(Date.now() / 1_000);
+}
+
 export function readBackupReminderState(): BackupReminderState {
   const raw = readStorageItem(BACKUP_REMINDER_STORAGE_KEY);
   if (!raw) return EMPTY_BACKUP_REMINDER_STATE;

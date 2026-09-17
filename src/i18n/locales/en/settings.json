@@ -146,7 +146,7 @@
   "dataHealth.issue.strayMessageVariantsDescription": "Variants are only used for assistant responses. Repairing removes them from other messages.",
   "dataHealth.issuesTitle": "Detected issues",
   "dataHealth.noIssues": "No issues found. Your data is consistent.",
-  "dataHealth.privacyNote": "Diagnostics reads structure and counters only — message content and provider keys are never read.",
+  "dataHealth.privacyNote": "Diagnostics read structure and counters only. Message content and provider keys are never read.",
   "dataHealth.repair": "Repair",
   "dataHealth.repairBackupNote": "Creating a backup in the Data tab before repairing is recommended.",
   "dataHealth.repairComplete_one": "Repaired {{count}} issue",

@@ -23,11 +23,11 @@ use std::collections::HashMap;
 use i18n::{keys, CommandError, CommandResult};
 use models::{
     AppBackupArchive, AppBackupPreview, AppSettings, AppSnapshot, BudgetStatus, ChatConfigInput,
-    ChatState, CompletionResult, CreatedChat, DatabaseHealthReport, EmbeddingProbeResult,
-    EntityRestoreResult, EntityRevision, GalaxyItem, GalaxyItemInput, GenerationJob,
-    GenerationMode, GenerationReport, HealthRepairReport, PromptPreviewInput, PromptPreviewResult,
-    Provider, ProviderImportInput, ProviderInput, ProviderModelResult, ReportedTokenUsage,
-    StreamDelta, UsagePoint, VariantFeedback,
+    ChatGenerationSettings, ChatState, CompletionResult, CreatedChat, DatabaseHealthReport,
+    EmbeddingProbeResult, EntityRestoreResult, EntityRevision, GalaxyItem, GalaxyItemInput,
+    GenerationJob, GenerationMode, GenerationReport, HealthRepairReport, PromptPreviewInput,
+    PromptPreviewResult, Provider, ProviderImportInput, ProviderInput, ProviderModelResult,
+    ReportedTokenUsage, StreamDelta, UsagePoint, VariantFeedback,
 };
 use models::{Message, RetrySettings};
 use serde_json::Value;
@@ -38,17 +38,16 @@ use uuid::Uuid;
 use provider_client::complete_streaming;
 use runtime::{await_cancellable, AppState};
 
-/// Resolves a streamed attempt: a cancelled stream keeps the partial text,
-/// but a cancellation with no text at all is reported as a cancellation.
 /// Builds the ordered completion chain: the chat's primary provider first,
 /// then configured fallbacks (deduplicated, existing, non-Character.AI).
+/// Sparse chat generation overrides apply to every provider in the chain.
 fn resolve_completion_chain(
     database: &rusqlite::Connection,
     chat_provider: &Provider,
-    fallback_provider_ids: &[String],
+    generation_settings: &ChatGenerationSettings,
 ) -> CommandResult<Vec<Provider>> {
     let mut chain = vec![chat_provider.clone()];
-    for id in fallback_provider_ids {
+    for id in &generation_settings.fallback_provider_ids {
         let id = id.trim();
         if id.is_empty() || id == chat_provider.id || chain.iter().any(|p| p.id == id) {
             continue;
@@ -59,7 +58,19 @@ fn resolve_completion_chain(
             }
         }
     }
+    for provider in &mut chain {
+        generation_settings.apply_to(provider);
+    }
     Ok(chain)
+}
+
+fn ensure_not_cancelled(cancellation: &mut oneshot::Receiver<()>) -> CommandResult<()> {
+    match cancellation.try_recv() {
+        Err(oneshot::error::TryRecvError::Empty) => Ok(()),
+        Ok(()) | Err(oneshot::error::TryRecvError::Closed) => {
+            Err(CommandError::new(keys::PROVIDER_REQUEST_CANCELLED))
+        }
+    }
 }
 
 /// Streams a completion over the provider chain: the primary provider first,
@@ -80,7 +91,10 @@ async fn stream_with_fallback(
 ) -> CommandResult<(CompletionResult, bool, Provider)> {
     let mut last_error: Option<CommandError> = None;
     for attempt in chain {
-        let secret = match provider_support::saved_secret(attempt) {
+        ensure_not_cancelled(cancellation)?;
+        let secret = provider_support::saved_secret(attempt);
+        ensure_not_cancelled(cancellation)?;
+        let secret = match secret {
             Ok(secret) => secret,
             Err(error) => {
                 last_error = Some(error);
@@ -123,6 +137,7 @@ async fn stream_with_fallback(
                 return Ok((result.completion, result.cancelled, attempt.clone()));
             }
             Err(error) => {
+                ensure_not_cancelled(cancellation)?;
                 if error.key == keys::PROVIDER_REQUEST_CANCELLED {
                     return Err(error);
                 }
@@ -138,6 +153,7 @@ async fn stream_with_fallback(
             }
         }
     }
+    ensure_not_cancelled(cancellation)?;
     Err(last_error.unwrap_or_else(|| CommandError::new(keys::PROVIDER_EMPTY_RESPONSE)))
 }
 
@@ -603,11 +619,7 @@ async fn regenerate_message(
         let mut provider = db::get_provider(&database, &provider_id)?;
         let generation_settings = db::chat_generation_settings(&database, &chat_id)?;
         generation_settings.apply_to(&mut provider);
-        let chain = resolve_completion_chain(
-            &database,
-            &provider,
-            &generation_settings.fallback_provider_ids,
-        )?;
+        let chain = resolve_completion_chain(&database, &provider, &generation_settings)?;
         db::invalidate_chat_ai_context(&database, &chat_id)?;
         (chat_id, provider, chain, history, regeneration_mode)
     };
@@ -734,11 +746,7 @@ async fn continue_message(
         let mut provider = db::get_provider(&database, &provider_id)?;
         let generation_settings = db::chat_generation_settings(&database, &chat_id)?;
         generation_settings.apply_to(&mut provider);
-        let chain = resolve_completion_chain(
-            &database,
-            &provider,
-            &generation_settings.fallback_provider_ids,
-        )?;
+        let chain = resolve_completion_chain(&database, &provider, &generation_settings)?;
         (chat_id, provider, chain, history)
     };
     let (cancellation, _generation_lease) = state.register_generation(GenerationJob::new(
@@ -876,11 +884,7 @@ async fn send_chat_message(
             let mut provider = db::get_provider(&database, &provider_id)?;
             let generation_settings = db::chat_generation_settings(&database, &chat_id)?;
             generation_settings.apply_to(&mut provider);
-            let chain = resolve_completion_chain(
-                &database,
-                &provider,
-                &generation_settings.fallback_provider_ids,
-            )?;
+            let chain = resolve_completion_chain(&database, &provider, &generation_settings)?;
             let history = db::messages_for_chat(&database, &chat_id)?;
             Ok((provider, chain, history))
         })()

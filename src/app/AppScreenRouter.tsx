@@ -141,6 +141,7 @@ export function AppScreenRouter({
         onChangeSettings={controller.saveSettings}
         generationActive={controller.generationJobs.length > 0}
         onCreateBackup={controller.createFullAppBackup}
+        onBackupExported={controller.recordBackupExported}
         onInspectBackup={controller.inspectFullAppBackup}
         onRestoreBackup={controller.restoreFullAppBackup}
         onRunDiagnostics={controller.runHealthDiagnostics}

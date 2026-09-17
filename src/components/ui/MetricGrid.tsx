@@ -1,4 +1,4 @@
-import { MOTION_STAGGER_MS } from '../../lib/motion';
+import { staggerDelayMs } from '../../lib/motion';
 import { AppPanel } from './AppPanel';
 
 export type Metric = {
@@ -14,7 +14,7 @@ export function MetricGrid({ metrics }: { metrics: Metric[] }) {
         <div
           key={metric.label}
           className={`metric-enter min-w-0 p-5 ${index % 2 === 1 ? 'border-l border-default' : ''} ${index >= 2 ? 'border-t border-default md:border-t-0' : ''} ${index > 0 ? 'md:border-l md:border-default' : ''}`}
-          style={{ animationDelay: `${index * MOTION_STAGGER_MS}ms` }}
+          style={{ animationDelay: `${staggerDelayMs(index)}ms` }}
         >
           <span className="block text-xs font-medium leading-5 text-muted">
             {metric.label}

@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import {
+  backupReminderNow,
   noteBackupCompleted,
   readBackupReminderState,
   shouldSuggestBackup,
@@ -13,18 +14,22 @@ export function useBackupReminder(messageCount: number) {
   const [sessionDismissed, setSessionDismissed] = useState(false);
   const show =
     !sessionDismissed &&
-    shouldSuggestBackup(readBackupReminderState(), messageCount, Date.now());
+    shouldSuggestBackup(
+      readBackupReminderState(),
+      messageCount,
+      backupReminderNow(),
+    );
 
   const snooze = useCallback(() => {
     writeBackupReminderState(
-      snoozeBackup(readBackupReminderState(), Math.floor(Date.now() / 1_000)),
+      snoozeBackup(readBackupReminderState(), backupReminderNow()),
     );
     setSessionDismissed(true);
   }, []);
 
   const markBackupDone = useCallback(() => {
     writeBackupReminderState(
-      noteBackupCompleted(messageCount, Math.floor(Date.now() / 1_000)),
+      noteBackupCompleted(messageCount, backupReminderNow()),
     );
     setSessionDismissed(true);
   }, [messageCount]);

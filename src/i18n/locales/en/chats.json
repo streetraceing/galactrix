@@ -26,7 +26,7 @@
   "chatComposer.ctrlEnterSend": "Ctrl/⌘ + Enter - send",
   "chatComposer.enterSend": "Enter - send",
   "chatComposer.fullscreenDescription": "More room for a long message, roleplay text, or formatting.",
-  "chatComposer.fullscreenHint": "Ctrl/⌘ + Enter — send · Shift + Enter — new line",
+  "chatComposer.fullscreenHint": "Ctrl/⌘ + Enter to send, Shift + Enter for a new line",
   "chatComposer.fullscreenPlaceholder": "Write a message…",
   "chatComposer.fullscreenTitle": "Message editor",
   "chatComposer.generationInAnotherChat": "Wait for the response in the other chat",

@@ -1,17 +1,17 @@
 import { Button, Chip, Input } from '@heroui/react';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Icon } from '../../../components/Icon';
 import { AppPanel } from '../../../components/ui/AppPanel';
 import { SectionHeader } from '../../../components/ui/SectionHeader';
-import { toast } from '../../../i18n/toast';
 import { errorMessage } from '../../../lib/errors';
 import type {
   AppSettings,
   BudgetSettings,
   BudgetStatus,
   Provider,
+  UsagePoint,
 } from '../../../types';
 import { budgetPercent } from '../budgets';
 
@@ -21,6 +21,30 @@ type DraftRule = {
   tokenLimit: string;
   requestLimit: string;
 };
+
+type BudgetLoadState =
+  | { phase: 'loading' }
+  | { phase: 'error'; detail: string }
+  | { phase: 'loaded'; statuses: BudgetStatus[] };
+
+export function budgetUsageForRule(
+  state: BudgetLoadState,
+  rule: BudgetSettings,
+): BudgetStatus | undefined {
+  if (state.phase !== 'loaded') return undefined;
+  return state.statuses.find(
+    (status) =>
+      status.ruleId === rule.id &&
+      status.period === rule.period &&
+      (status.providerId || undefined) === (rule.providerId || undefined) &&
+      status.tokenLimit === rule.tokenLimit &&
+      status.requestLimit === rule.requestLimit &&
+      Number.isFinite(status.usedTokens) &&
+      status.usedTokens >= 0 &&
+      Number.isFinite(status.usedRequests) &&
+      status.usedRequests >= 0,
+  );
+}
 
 function ProgressRow({
   label,
@@ -36,7 +60,7 @@ function ProgressRow({
   const percent = budgetPercent(used, limit);
   return (
     <div className="min-w-0">
-      <div className="flex items-baseline justify-between gap-3">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         <span className="text-xs text-muted">{label}</span>
         <span
           className={`text-xs tabular-nums ${percent >= 100 ? 'font-semibold text-danger' : 'text-muted'}`}
@@ -46,12 +70,11 @@ function ProgressRow({
       </div>
       <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-default">
         <div
-          className={`h-full rounded-full transition-[width] duration-(--motion-standard) ease-(--motion-ease) ${
-            percent >= 100 ? 'bg-danger' : 'bg-accent'
-          }`}
+          className={`h-full rounded-full transition-[width] duration-(--motion-standard) ease-(--motion-ease) ${percent >= 100 ? 'bg-danger' : 'bg-accent'}`}
           style={{ width: `${percent}%` }}
           role="progressbar"
           aria-valuenow={percent}
+          aria-valuetext={usedLabel}
           aria-valuemin={0}
           aria-valuemax={100}
           aria-label={label}
@@ -62,26 +85,45 @@ function ProgressRow({
 }
 
 function createRuleId(): string {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
     return crypto.randomUUID();
-  }
   return `budget-${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`;
 }
 
 export function BudgetsPanel({
   settings,
   providers,
+  usage,
   onGetStatus,
   onChangeSettings,
 }: {
   settings: AppSettings;
   providers: Provider[];
+  usage?: readonly UsagePoint[];
   onGetStatus: () => Promise<BudgetStatus[]>;
   onChangeSettings: (settings: AppSettings) => Promise<boolean>;
 }) {
   const { t } = useTranslation('profile');
-  const [statuses, setStatuses] = useState<BudgetStatus[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [retry, setRetry] = useState(0);
+  const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
+  const loadingRef = useRef(true);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const tokenLimitId = useId();
+  const requestLimitId = useId();
+  const rules = settings.budgets;
+  const source = useMemo(
+    () => ({ rules, providers, usage, onGetStatus, retry }),
+    [rules, providers, usage, onGetStatus, retry],
+  );
+  const [result, setResult] = useState<{
+    source: typeof source;
+    state: BudgetLoadState;
+  } | null>(null);
+  // Never render the previous request's values against new rules or usage.
+  const loadState: BudgetLoadState =
+    result?.source === source ? result.state : { phase: 'loading' };
+  const loading = loadState.phase === 'loading';
   const [draft, setDraft] = useState<DraftRule>({
     providerId: '',
     period: 'day',
@@ -89,22 +131,62 @@ export function BudgetsPanel({
     requestLimit: '',
   });
 
-  const loadStatuses = useCallback(async () => {
-    setLoading(true);
-    try {
-      setStatuses(await onGetStatus());
-    } catch (caught) {
-      toast.danger(t('budgets.loadFailed'), {
-        description: errorMessage(caught),
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [onGetStatus, t]);
-
   useEffect(() => {
-    void loadStatuses();
-  }, [loadStatuses]);
+    let active = true;
+    loadingRef.current = true;
+    void (async () => {
+      try {
+        const statuses = await source.onGetStatus();
+        if (active) setResult({ source, state: { phase: 'loaded', statuses } });
+      } catch (caught) {
+        if (active)
+          setResult({
+            source,
+            state: { phase: 'error', detail: errorMessage(caught) },
+          });
+      } finally {
+        if (active) loadingRef.current = false;
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [source]);
+
+  const retryStatuses = () => {
+    if (loadingRef.current || loading) return;
+    loadingRef.current = true;
+    setRetry((current) => current + 1);
+  };
+
+  const statusUnavailable =
+    loadState.phase === 'error' ||
+    (loadState.phase === 'loaded' &&
+      rules.some((rule) => !budgetUsageForRule(loadState, rule)));
+
+  const persist = async (budgets: BudgetSettings[]): Promise<boolean> => {
+    if (savingRef.current) return false;
+    savingRef.current = true;
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const saved = await onChangeSettings({ ...settings, budgets });
+      if (!saved) {
+        setSaveError(t('errors.chatActionFailed', { ns: 'common' }));
+        return false;
+      }
+      setRetry((current) => current + 1);
+      return true;
+    } catch (caught) {
+      setSaveError(
+        `${t('errors.chatActionFailed', { ns: 'common' })}: ${errorMessage(caught)}`,
+      );
+      return false;
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
+    }
+  };
 
   const providerName = (providerId: string | undefined | null) => {
     if (!providerId) return t('budgets.allProviders');
@@ -121,7 +203,7 @@ export function BudgetsPanel({
     (Number.isFinite(draftRequestLimit) && draftRequestLimit > 0);
 
   const addRule = async () => {
-    if (!canAdd) return;
+    if (!canAdd || savingRef.current) return;
     const rule: BudgetSettings = {
       id: createRuleId(),
       providerId: draft.providerId || undefined,
@@ -129,48 +211,65 @@ export function BudgetsPanel({
       tokenLimit: Number.isFinite(draftTokenLimit) ? draftTokenLimit : 0,
       requestLimit: Number.isFinite(draftRequestLimit) ? draftRequestLimit : 0,
     };
-    await onChangeSettings({
-      ...settings,
-      budgets: [...settings.budgets, rule],
-    });
-    setDraft((current) => ({ ...current, tokenLimit: '', requestLimit: '' }));
-    void loadStatuses();
+    const saved = await persist([...settings.budgets, rule]);
+    if (saved)
+      setDraft((current) => ({ ...current, tokenLimit: '', requestLimit: '' }));
   };
 
   const deleteRule = async (ruleId: string) => {
-    await onChangeSettings({
-      ...settings,
-      budgets: settings.budgets.filter((rule) => rule.id !== ruleId),
-    });
-    void loadStatuses();
+    await persist(settings.budgets.filter((rule) => rule.id !== ruleId));
   };
 
   return (
     <div className="space-y-4 pb-5 sm:space-y-5 sm:pb-6">
+      {saveError ? (
+        <p role="alert" className="break-words text-sm text-danger">
+          {saveError}
+        </p>
+      ) : null}
       <AppPanel className="p-4 sm:p-5">
         <SectionHeader
           title={t('budgets.title')}
           description={t('budgets.description')}
         />
-
+        <div role="status" aria-live="polite" aria-atomic="true">
+          {loading ? (
+            <p className="mt-3 text-sm text-muted">{t('budgets.loading')}</p>
+          ) : null}
+        </div>
+        {statusUnavailable ? (
+          <div className="mt-3 space-y-2">
+            <p role="alert" className="break-words text-sm text-danger">
+              {t('budgets.loadFailed')}
+              {loadState.phase === 'error' ? `: ${loadState.detail}` : ''}
+            </p>
+            <Button
+              variant="secondary"
+              className="min-h-[44px] w-full sm:w-auto"
+              onPress={retryStatuses}
+              isDisabled={loading}
+            >
+              {t('actions.retry', { ns: 'common' })}
+            </Button>
+          </div>
+        ) : null}
         {settings.budgets.length === 0 ? (
           <p
             role="status"
             className="mt-4 rounded-xl border border-default bg-background/55 px-3 py-2.5 text-sm text-muted"
           >
-            {loading ? t('budgets.loading') : t('budgets.empty')}
+            {t('budgets.empty')}
           </p>
         ) : (
           <div className="mt-4 space-y-2.5">
             {settings.budgets.map((rule) => {
-              const status = statuses.find(
-                (candidate) => candidate.ruleId === rule.id,
-              );
-              const usedTokens = status?.usedTokens ?? 0;
-              const usedRequests = status?.usedRequests ?? 0;
+              const status = budgetUsageForRule(loadState, rule);
               const exceeded =
-                (rule.tokenLimit > 0 && usedTokens >= rule.tokenLimit) ||
-                (rule.requestLimit > 0 && usedRequests >= rule.requestLimit);
+                status &&
+                ((rule.tokenLimit > 0 &&
+                  status.usedTokens >= rule.tokenLimit) ||
+                  (rule.requestLimit > 0 &&
+                    status.usedRequests >= rule.requestLimit));
               return (
                 <div
                   key={rule.id}
@@ -183,9 +282,7 @@ export function BudgetsPanel({
                     <Chip
                       size="sm"
                       variant="soft"
-                      className={`bg-transparent ${
-                        exceeded ? 'text-danger' : 'text-muted'
-                      }`}
+                      className={`bg-transparent ${exceeded ? 'text-danger' : 'text-muted'}`}
                     >
                       {rule.period === 'month'
                         ? t('budgets.periodMonth')
@@ -193,34 +290,41 @@ export function BudgetsPanel({
                       {exceeded ? ` · ${t('budgets.exceededBadge')}` : ''}
                     </Chip>
                   </div>
-                  <div className="mt-2 space-y-2">
-                    {rule.tokenLimit > 0 ? (
-                      <ProgressRow
-                        label={t('budgets.tokens')}
-                        used={usedTokens}
-                        limit={rule.tokenLimit}
-                        usedLabel={t('budgets.used', {
-                          used: usedTokens,
-                          limit: rule.tokenLimit,
-                        })}
-                      />
-                    ) : null}
-                    {rule.requestLimit > 0 ? (
-                      <ProgressRow
-                        label={t('budgets.requests')}
-                        used={usedRequests}
-                        limit={rule.requestLimit}
-                        usedLabel={t('budgets.used', {
-                          used: usedRequests,
-                          limit: rule.requestLimit,
-                        })}
-                      />
-                    ) : null}
-                  </div>
+                  {status ? (
+                    <div className="mt-2 space-y-2">
+                      {rule.tokenLimit > 0 ? (
+                        <ProgressRow
+                          label={t('budgets.tokens')}
+                          used={status.usedTokens}
+                          limit={rule.tokenLimit}
+                          usedLabel={t('budgets.used', {
+                            used: status.usedTokens,
+                            limit: rule.tokenLimit,
+                          })}
+                        />
+                      ) : null}
+                      {rule.requestLimit > 0 ? (
+                        <ProgressRow
+                          label={t('budgets.requests')}
+                          used={status.usedRequests}
+                          limit={rule.requestLimit}
+                          usedLabel={t('budgets.used', {
+                            used: status.usedRequests,
+                            limit: rule.requestLimit,
+                          })}
+                        />
+                      ) : null}
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-sm text-muted">
+                      {loading ? t('budgets.loading') : t('budgets.loadFailed')}
+                    </p>
+                  )}
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="mt-2 w-full text-danger sm:w-auto"
+                    className="mt-2 min-h-[44px] w-full text-danger sm:w-auto"
+                    isDisabled={saving}
                     onPress={() => void deleteRule(rule.id)}
                   >
                     <Icon name="trash" className="size-4" />
@@ -235,20 +339,19 @@ export function BudgetsPanel({
 
       <AppPanel className="p-4 sm:p-5">
         <SectionHeader title={t('budgets.addRule')} />
-
-        <div className="mt-4 space-y-3">
+        <fieldset disabled={saving} className="mt-4 min-w-0 space-y-3">
           <div>
             <p className="text-sm font-medium">{t('budgets.provider')}</p>
-            <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <div
+              role="group"
+              aria-label={t('budgets.provider')}
+              className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2"
+            >
               <button
                 type="button"
                 aria-pressed={draft.providerId === ''}
                 onClick={() => setDraft((c) => ({ ...c, providerId: '' }))}
-                className={`inline-flex min-h-9 cursor-pointer items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-focus ${
-                  draft.providerId === ''
-                    ? 'border-accent bg-accent/10 text-accent'
-                    : 'border-default bg-transparent text-muted hover:bg-surface'
-                }`}
+                className={`inline-flex min-h-[44px] cursor-pointer items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-focus ${draft.providerId === '' ? 'border-accent bg-accent/10 text-accent' : 'border-default bg-transparent text-muted hover:bg-surface'}`}
               >
                 {t('budgets.allProviders')}
                 {draft.providerId === '' ? (
@@ -265,11 +368,7 @@ export function BudgetsPanel({
                     onClick={() =>
                       setDraft((c) => ({ ...c, providerId: provider.id }))
                     }
-                    className={`inline-flex min-h-9 w-full cursor-pointer items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-focus ${
-                      active
-                        ? 'border-accent bg-accent/10 text-accent'
-                        : 'border-default bg-transparent text-muted hover:bg-surface'
-                    }`}
+                    className={`inline-flex min-h-[44px] w-full cursor-pointer items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-focus ${active ? 'border-accent bg-accent/10 text-accent' : 'border-default bg-transparent text-muted hover:bg-surface'}`}
                   >
                     <span className="min-w-0 truncate">{provider.name}</span>
                     {active ? <Icon name="check" className="size-4" /> : null}
@@ -278,15 +377,21 @@ export function BudgetsPanel({
               })}
             </div>
           </div>
-
           <div>
             <p className="text-sm font-medium">{t('budgets.period')}</p>
-            <div className="mt-2 grid grid-cols-2 gap-2">
+            <div
+              role="group"
+              aria-label={t('budgets.period')}
+              className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2"
+            >
               {(['day', 'month'] as const).map((period) => (
                 <Button
                   key={period}
                   variant={draft.period === period ? 'primary' : 'secondary'}
                   fullWidth
+                  className="min-h-[44px]"
+                  aria-pressed={draft.period === period}
+                  isDisabled={saving}
                   onPress={() => setDraft((c) => ({ ...c, period }))}
                 >
                   {t(
@@ -298,12 +403,14 @@ export function BudgetsPanel({
               ))}
             </div>
           </div>
-
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
-              <p className="text-sm font-medium">{t('budgets.tokenLimit')}</p>
+              <label htmlFor={tokenLimitId} className="text-sm font-medium">
+                {t('budgets.tokenLimit')}
+              </label>
               <Input
-                aria-label={t('budgets.tokenLimit')}
+                id={tokenLimitId}
+                disabled={saving}
                 autoComplete="off"
                 fullWidth
                 variant="secondary"
@@ -319,9 +426,12 @@ export function BudgetsPanel({
               />
             </div>
             <div>
-              <p className="text-sm font-medium">{t('budgets.requestLimit')}</p>
+              <label htmlFor={requestLimitId} className="text-sm font-medium">
+                {t('budgets.requestLimit')}
+              </label>
               <Input
-                aria-label={t('budgets.requestLimit')}
+                id={requestLimitId}
+                disabled={saving}
                 autoComplete="off"
                 fullWidth
                 variant="secondary"
@@ -337,11 +447,12 @@ export function BudgetsPanel({
               />
             </div>
           </div>
-
           <Button
             variant="primary"
             fullWidth
-            isDisabled={!canAdd}
+            className="min-h-[44px]"
+            isDisabled={saving || !canAdd}
+            isPending={saving}
             onPress={() => void addRule()}
           >
             <Icon name="plus" className="size-4" />
@@ -350,7 +461,7 @@ export function BudgetsPanel({
           {!canAdd && (draft.tokenLimit !== '' || draft.requestLimit !== '') ? (
             <p className="text-xs text-warning">{t('budgets.limitRequired')}</p>
           ) : null}
-        </div>
+        </fieldset>
       </AppPanel>
     </div>
   );

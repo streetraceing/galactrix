@@ -29,3 +29,4 @@ dist-ssr
 *.zip
 .package-backups/
 artifacts/
+.workbuddy-ai

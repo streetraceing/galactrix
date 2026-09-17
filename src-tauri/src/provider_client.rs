@@ -1,9 +1,10 @@
 mod endpoints;
 mod retry;
 
+use std::future::Future;
 use std::time::{Duration, Instant};
 
-use futures_util::StreamExt;
+use futures_util::{Stream, StreamExt};
 use reqwest::{Client, RequestBuilder};
 use serde_json::{json, Value};
 use tokio::sync::oneshot;
@@ -269,61 +270,57 @@ pub async fn complete_streaming(
     user_content: Option<&str>,
     retry: &RetrySettings,
     cancellation: &mut oneshot::Receiver<()>,
-    mut on_delta: impl FnMut(&str),
+    on_delta: impl FnMut(&str),
 ) -> CommandResult<StreamedCompletion> {
-    validate_saved_provider(provider, api_key)?;
-    let client = streaming_http_client()?;
-    let messages = build_request_messages(history, system_prompt, user_content);
     let started = Instant::now();
-    let pool_id = provider.id.clone();
     let is_ollama = matches!(provider.kind.as_str(), "ollama" | "ollama-cloud");
-
-    let response = match provider.kind.as_str() {
-        "ollama" | "ollama-cloud" => {
-            let url = format!("{}/chat", ollama_base_saved(provider));
-            let body = json!({
-                "model": provider.model,
-                "messages": messages,
-                "stream": true,
-                "options": {
+    let send = async {
+        validate_saved_provider(provider, api_key)?;
+        let client = streaming_http_client()?;
+        let messages = build_request_messages(history, system_prompt, user_content);
+        let (url, body) = match provider.kind.as_str() {
+            "ollama" | "ollama-cloud" => (
+                format!("{}/chat", ollama_base_saved(provider)),
+                json!({
+                    "model": provider.model,
+                    "messages": messages,
+                    "stream": true,
+                    "options": {
+                        "temperature": provider.temperature,
+                        "top_p": provider.top_p,
+                        "num_predict": provider.max_tokens,
+                    }
+                }),
+            ),
+            "character-ai" => {
+                return Err(CommandError::new(keys::PROVIDER_CHARACTER_AI_UNSUPPORTED));
+            }
+            _ => (
+                format!("{}/chat/completions", openai_base_saved(provider)?),
+                json!({
+                    "model": provider.model,
+                    "messages": messages,
                     "temperature": provider.temperature,
                     "top_p": provider.top_p,
-                    "num_predict": provider.max_tokens,
-                }
-            });
-            send_with_retry_raw(
-                &pool_id,
-                api_key,
-                |selected_key| authenticated(client.post(&url), selected_key).json(&body),
-                retry,
-                keys::PROVIDER_REQUEST_FAILED,
-            )
-            .await?
-        }
-        "character-ai" => {
-            return Err(CommandError::new(keys::PROVIDER_CHARACTER_AI_UNSUPPORTED));
-        }
-        _ => {
-            let url = format!("{}/chat/completions", openai_base_saved(provider)?);
-            let body = json!({
-                "model": provider.model,
-                "messages": messages,
-                "temperature": provider.temperature,
-                "top_p": provider.top_p,
-                "max_tokens": provider.max_tokens,
-                "stream": true,
-                "stream_options": { "include_usage": true },
-            });
-            send_with_retry_raw(
-                &pool_id,
-                api_key,
-                |selected_key| authenticated(client.post(&url), selected_key).json(&body),
-                retry,
-                keys::PROVIDER_REQUEST_FAILED,
-            )
-            .await?
-        }
+                    "max_tokens": provider.max_tokens,
+                    "stream": true,
+                    "stream_options": { "include_usage": true },
+                }),
+            ),
+        };
+        send_with_retry_raw(
+            &provider.id,
+            api_key,
+            |selected_key| authenticated(client.post(&url), selected_key).json(&body),
+            retry,
+            keys::PROVIDER_REQUEST_FAILED,
+        )
+        .await
     };
+    let Some(response) = until_cancelled(send, cancellation).await else {
+        return Ok(cancelled_completion(started.elapsed()));
+    };
+    let response = response?;
 
     let content_type = response
         .response
@@ -336,7 +333,12 @@ pub async fn complete_streaming(
     if !streams_sse && !is_ollama {
         // The provider ignored `stream: true` and answered with plain JSON:
         // fall back to the buffered completion path.
-        let JsonResponse { value, .. } = buffer_json_response(response.response).await?;
+        let Some(buffered) =
+            until_cancelled(buffer_json_response(response.response), cancellation).await
+        else {
+            return Ok(cancelled_completion(started.elapsed()));
+        };
+        let JsonResponse { value, .. } = buffered?;
         let completion = finalize_json_completion(provider, value, started.elapsed())?;
         return Ok(StreamedCompletion {
             completion,
@@ -344,55 +346,95 @@ pub async fn complete_streaming(
         });
     }
 
-    let mut stream = response.response.bytes_stream();
+    read_completion_stream(
+        response.response.bytes_stream(),
+        is_ollama,
+        started,
+        cancellation,
+        on_delta,
+    )
+    .await
+}
+
+async fn until_cancelled<F: Future>(
+    operation: F,
+    cancellation: &mut oneshot::Receiver<()>,
+) -> Option<F::Output> {
+    tokio::select! {
+        biased;
+        _ = cancellation => None,
+        result = operation => Some(result),
+    }
+}
+
+fn cancelled_completion(elapsed: Duration) -> StreamedCompletion {
+    StreamedCompletion {
+        completion: CompletionResult {
+            content: String::new(),
+            input_tokens: 0,
+            output_tokens: 0,
+            latency_ms: elapsed.as_millis().min(i64::MAX as u128) as i64,
+        },
+        cancelled: true,
+    }
+}
+
+async fn read_completion_stream<S, B, E>(
+    stream: S,
+    is_ollama: bool,
+    started: Instant,
+    cancellation: &mut oneshot::Receiver<()>,
+    mut on_delta: impl FnMut(&str),
+) -> CommandResult<StreamedCompletion>
+where
+    S: Stream<Item = Result<B, E>>,
+    B: AsRef<[u8]>,
+    E: std::fmt::Display,
+{
+    futures_util::pin_mut!(stream);
     let mut parser = StreamChunkParser::new(is_ollama);
     let mut accumulated = String::new();
     let mut pending = String::new();
     let mut usage: Option<(i64, i64)> = None;
-    let mut finished = false;
     let mut cancelled = false;
+    let mut failure = None;
     let mut last_flush = Instant::now();
-    let mut cancellation = cancellation;
 
     loop {
-        let chunk = tokio::select! {
-            biased;
-            result = &mut cancellation => {
-                let _ = result;
-                cancelled = true;
-                None
-            }
-            chunk = stream.next() => match chunk {
-                Some(Ok(bytes)) => Some(bytes),
-                Some(Err(error)) => {
-                    return Err(CommandError::with_detail(
-                        keys::PROVIDER_RESPONSE_READ_FAILED,
-                        error,
-                    ));
-                }
-                None => None,
-            }
-        };
-
-        let Some(bytes) = chunk else {
+        let Some(chunk) = until_cancelled(stream.next(), cancellation).await else {
+            cancelled = true;
             break;
         };
-        let parsed = parser.push(&bytes);
-        if let Some(error) = parsed.error {
-            return Err(CommandError::with_detail(
-                keys::PROVIDER_REQUEST_FAILED,
-                error,
-            ));
-        }
-        if !parsed.delta.is_empty() {
-            accumulated.push_str(&parsed.delta);
-            pending.push_str(&parsed.delta);
-        }
+        let eof = chunk.is_none();
+        let parsed = match chunk {
+            Some(Ok(bytes)) => parser.push(bytes.as_ref()),
+            Some(Err(error)) => {
+                failure = Some(CommandError::with_detail(
+                    keys::PROVIDER_RESPONSE_READ_FAILED,
+                    error,
+                ));
+                break;
+            }
+            None => parser.finish(),
+        };
+        accumulated.push_str(&parsed.delta);
+        pending.push_str(&parsed.delta);
         if parsed.usage.is_some() {
             usage = parsed.usage;
         }
-        if parsed.finished {
-            finished = true;
+        if let Some(error) = parsed.error {
+            failure = Some(CommandError::with_detail(
+                keys::PROVIDER_REQUEST_FAILED,
+                error,
+            ));
+            break;
+        }
+        if eof && !parsed.finished {
+            failure = Some(CommandError::with_detail(
+                keys::PROVIDER_RESPONSE_READ_FAILED,
+                "stream ended before a completion marker",
+            ));
+            break;
         }
         if !pending.is_empty()
             && (pending.len() >= 120 || last_flush.elapsed() >= Duration::from_millis(60))
@@ -401,13 +443,18 @@ pub async fn complete_streaming(
             pending.clear();
             last_flush = Instant::now();
         }
-        if finished {
+        if parsed.finished {
             break;
         }
     }
 
+    // Flush even on failure: the fallback layer must know that this provider
+    // already produced content, including content preceding an error in one chunk.
     if !pending.is_empty() {
         on_delta(&pending);
+    }
+    if let Some(error) = failure {
+        return Err(error);
     }
 
     let content = accumulated.trim().to_owned();
@@ -429,11 +476,14 @@ pub async fn complete_streaming(
 /// Incremental parser for streamed provider payloads: OpenAI-compatible SSE
 /// (`data: {...}` lines with a `[DONE]` terminator) and Ollama ndjson lines.
 /// Chunks may split lines and multi-byte characters anywhere, so the parser
-/// buffers bytes and only processes complete lines.
+/// buffers bytes until a newline or EOF. A finish reason also completes SSE
+/// at EOF, after any trailing usage frame has been read.
 pub(crate) struct StreamChunkParser {
     is_ollama: bool,
     buffer: Vec<u8>,
     finished: bool,
+    failed: bool,
+    finish_reason_received: bool,
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
@@ -450,32 +500,83 @@ impl StreamChunkParser {
             is_ollama,
             buffer: Vec::new(),
             finished: false,
+            failed: false,
+            finish_reason_received: false,
         }
     }
 
     pub(crate) fn push(&mut self, bytes: &[u8]) -> ParsedStreamChunk {
         let mut parsed = ParsedStreamChunk::default();
-        if self.finished {
+        if self.finished || self.failed {
             return parsed;
         }
         self.buffer.extend_from_slice(bytes);
 
         while let Some(position) = self.buffer.iter().position(|byte| *byte == b'\n') {
             let line_bytes: Vec<u8> = self.buffer.drain(..=position).collect();
-            let line = String::from_utf8_lossy(&line_bytes[..line_bytes.len() - 1])
-                .trim()
-                .to_owned();
-            if line.is_empty() {
-                continue;
-            }
-            if self.is_ollama {
-                self.parse_ollama_line(&line, &mut parsed);
-            } else {
-                self.parse_sse_line(&line, &mut parsed);
+            self.parse_line(&line_bytes, &mut parsed);
+            if self.finished || self.failed {
+                self.buffer.clear();
+                break;
             }
         }
         parsed.finished = self.finished;
         parsed
+    }
+
+    fn finish(&mut self) -> ParsedStreamChunk {
+        let mut parsed = ParsedStreamChunk::default();
+        if !self.finished && !self.failed {
+            let trailing = std::mem::take(&mut self.buffer);
+            self.parse_line(&trailing, &mut parsed);
+            // Some SSE servers close after finish_reason instead of [DONE].
+            // Keep reading until EOF so a subsequent usage frame is not lost.
+            if self.finish_reason_received && !self.failed {
+                self.finished = true;
+            }
+        }
+        parsed.finished = self.finished;
+        parsed
+    }
+
+    fn parse_line(&mut self, bytes: &[u8], parsed: &mut ParsedStreamChunk) {
+        let line = match std::str::from_utf8(bytes) {
+            Ok(line) => line.trim(),
+            Err(error) => {
+                parsed.error = Some(error.to_string());
+                self.failed = true;
+                return;
+            }
+        };
+        if line.is_empty() {
+            return;
+        }
+        if self.is_ollama {
+            self.parse_ollama_line(line, parsed);
+        } else {
+            self.parse_sse_line(line, parsed);
+        }
+    }
+
+    fn parse_payload(&mut self, payload: &str, parsed: &mut ParsedStreamChunk) -> Option<Value> {
+        let value = match serde_json::from_str::<Value>(payload) {
+            Ok(value) => value,
+            Err(error) => {
+                parsed.error = Some(error.to_string());
+                self.failed = true;
+                return None;
+            }
+        };
+        if let Some(message) = value
+            .pointer("/error/message")
+            .or_else(|| value.get("error"))
+            .and_then(Value::as_str)
+        {
+            parsed.error = Some(message.to_owned());
+            self.failed = true;
+            return None;
+        }
+        Some(value)
     }
 
     fn parse_sse_line(&mut self, line: &str, parsed: &mut ParsedStreamChunk) {
@@ -490,13 +591,15 @@ impl StreamChunkParser {
         if payload.is_empty() {
             return;
         }
-        let Ok(value) = serde_json::from_str::<Value>(payload) else {
+        let Some(value) = self.parse_payload(payload, parsed) else {
             return;
         };
-        if let Some(message) = value.pointer("/error/message").and_then(Value::as_str) {
-            parsed.error = Some(message.to_owned());
-            self.finished = true;
-            return;
+        if value
+            .pointer("/choices/0/finish_reason")
+            .and_then(Value::as_str)
+            .is_some_and(|reason| !reason.is_empty())
+        {
+            self.finish_reason_received = true;
         }
         if let Some(text) = value
             .pointer("/choices/0/delta/content")
@@ -504,7 +607,7 @@ impl StreamChunkParser {
         {
             parsed.delta.push_str(text);
         }
-        if let Some(usage) = value.get("usage") {
+        if let Some(usage) = value.get("usage").filter(|usage| usage.is_object()) {
             parsed.usage = Some((
                 usage
                     .get("prompt_tokens")
@@ -519,14 +622,9 @@ impl StreamChunkParser {
     }
 
     fn parse_ollama_line(&mut self, line: &str, parsed: &mut ParsedStreamChunk) {
-        let Ok(value) = serde_json::from_str::<Value>(line) else {
+        let Some(value) = self.parse_payload(line, parsed) else {
             return;
         };
-        if let Some(message) = value.pointer("/error/message").and_then(Value::as_str) {
-            parsed.error = Some(message.to_owned());
-            self.finished = true;
-            return;
-        }
         if let Some(text) = value.pointer("/message/content").and_then(Value::as_str) {
             parsed.delta.push_str(text);
         }

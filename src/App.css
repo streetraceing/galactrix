@@ -278,11 +278,23 @@
     @apply select-none;
   }
 
+  /* The accordion header is a full-width row, so the default ring reads as a
+     box around the whole panel. Keep the element focusable and draw the focus
+     indicator on the row itself instead of removing it. */
   .accordion__trigger {
-    @apply outline-none! border-none! ring-transparent! ring-0! ring-offset-0;
-    --tw-ring-offset-width: 0px !important;
-    --tw-ring-offset-shadow: none !important;
-    --tw-ring-offset-color: transparent !important;
+    @apply border-none! outline-none!;
+  }
+
+  .accordion__trigger:focus-visible {
+    @apply outline-none! ring-2 ring-focus ring-offset-0;
+  }
+
+  /* Stagger delays are inline styles; when animations are off they must not
+     keep later rows invisible while they wait. */
+  [data-animations='off'] .collection-item-enter,
+  [data-animations='off'] .metric-enter,
+  [data-animations='off'] .mobile-card-enter {
+    animation-delay: 0ms !important;
   }
 }
 

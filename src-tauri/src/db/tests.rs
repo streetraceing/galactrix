@@ -121,6 +121,164 @@ fn editing_or_deleting_the_initial_message_keeps_chat_greeting_in_sync() {
     );
 }
 
+fn greeting_config() -> ChatConfigInput {
+    ChatConfigInput {
+        title: "Greeting chat".into(),
+        auto_title: false,
+        automatic_title_base: None,
+        greeting_message: Some("hello".into()),
+        provider_id: None,
+        persona_id: None,
+        character_id: None,
+        style_item_id: None,
+        universe_id: None,
+        worldbook_ids: Vec::new(),
+        tags: Vec::new(),
+        prompt_config: PromptConfig::default(),
+        generation_settings: Default::default(),
+        module_overrides: Default::default(),
+    }
+}
+
+fn create_edited_greeting(connection: &Connection) {
+    create_chat(connection, "greeting", &greeting_config()).unwrap();
+    let report = serde_json::from_value(serde_json::json!({
+        "createdAt": 42, "providerId": "historical", "providerName": "Lab", "model": "model"
+    }))
+    .unwrap();
+    save_message_variant_report(connection, "greeting-greeting", 0, &report).unwrap();
+    set_variant_feedback(
+        connection,
+        "greeting-greeting",
+        0,
+        Some(5),
+        Some("Original"),
+    )
+    .unwrap();
+    edit_message(
+        connection,
+        "greeting-greeting",
+        "edited-greeting",
+        "welcome",
+    )
+    .unwrap();
+}
+
+#[test]
+fn unchanged_greeting_settings_preserve_edited_and_selected_variants() {
+    let connection = test_database();
+    create_edited_greeting(&connection);
+    for index in [1, 0, 1] {
+        select_message_variant(&connection, "greeting-greeting", index).unwrap();
+        let before = chat_state(&connection, "greeting").unwrap();
+        let mut input = greeting_config();
+        input.title = "Renamed chat".into();
+        input.greeting_message = before.chat.greeting_message.clone();
+        input.generation_settings.temperature = Some(0.4);
+        update_chat_config(&connection, "greeting", &input).unwrap();
+        let after = chat_state(&connection, "greeting").unwrap();
+        assert_eq!(
+            serde_json::to_value(&after.messages).unwrap(),
+            serde_json::to_value(&before.messages).unwrap()
+        );
+        assert_eq!(after.chat.preview, after.messages[0].content);
+        assert_eq!(after.chat.message_count, 1);
+        validate_backup_data(&backup_data(&connection).unwrap()).unwrap();
+    }
+}
+
+#[test]
+fn changed_greeting_appends_variant_and_round_trips_without_losing_history() {
+    let source = test_database();
+    create_edited_greeting(&source);
+    let before = chat_state(&source, "greeting").unwrap().messages.remove(0);
+    save_dynamic_context(&source, "greeting", &DynamicContextState::default()).unwrap();
+    source
+        .execute_batch(
+            "INSERT INTO providers (id, name, kind, model, status, created_at, updated_at)
+         VALUES ('embedding', 'Embedding', 'ollama', 'model', 'disabled', 0, 0)",
+        )
+        .unwrap();
+    upsert_semantic_memories(
+        &source,
+        "greeting",
+        "embedding",
+        "embed",
+        &[(
+            SemanticMemoryCandidate {
+                source_kind: "context-summary".into(),
+                source_id: "summary".into(),
+                content: "old greeting".into(),
+            },
+            vec![0.1, 0.2],
+        )],
+    )
+    .unwrap();
+
+    let mut input = greeting_config();
+    input.greeting_message = Some("  intentional new greeting  ".into());
+    update_chat_config(&source, "greeting", &input).unwrap();
+    let state = chat_state(&source, "greeting").unwrap();
+    let message = &state.messages[0];
+    assert_eq!(message.variants.len(), 3);
+    assert_eq!(message.active_variant_index, 2);
+    assert_eq!(message.content, "intentional new greeting");
+    assert_eq!(message.variants[2].content, message.content);
+    assert!(message.edited && message.variants[2].edited);
+    assert!(message.variants[2].report.is_none());
+    assert!(message.variants[2].rating.is_none());
+    assert!(message.variants[2].note.is_none());
+    assert_eq!(
+        serde_json::to_value(&message.variants[..2]).unwrap(),
+        serde_json::to_value(&before.variants).unwrap()
+    );
+    assert_eq!(state.chat.preview, message.content);
+    assert_eq!(
+        state.chat.greeting_message.as_deref(),
+        Some(message.content.as_str())
+    );
+    assert_eq!(state.chat.message_count, 1);
+    assert!(get_dynamic_context(&source, "greeting").unwrap().is_none());
+    assert!(
+        list_semantic_memories(&source, "greeting", "embedding", "embed")
+            .unwrap()
+            .is_empty()
+    );
+
+    let data = backup_data(&source).unwrap();
+    validate_backup_data(&data).unwrap();
+    let restored = test_database();
+    let transaction = restored.unchecked_transaction().unwrap();
+    replace_with_backup(&transaction, &data).unwrap();
+    transaction.commit().unwrap();
+    assert_eq!(
+        serde_json::to_value(chat_state(&restored, "greeting").unwrap().messages).unwrap(),
+        serde_json::to_value(state.messages).unwrap()
+    );
+    validate_backup_data(&backup_data(&restored).unwrap()).unwrap();
+}
+
+#[test]
+fn greeting_variant_and_config_changes_roll_back_together() {
+    let connection = test_database();
+    create_edited_greeting(&connection);
+    let before = chat_state(&connection, "greeting").unwrap();
+    connection
+        .execute_batch(
+            "CREATE TRIGGER reject_greeting_variant BEFORE INSERT ON message_variants
+         BEGIN SELECT RAISE(ABORT, 'test failure'); END;",
+        )
+        .unwrap();
+    let mut input = greeting_config();
+    input.title = "Must roll back".into();
+    input.greeting_message = Some("Must roll back too".into());
+    assert!(update_chat_config(&connection, "greeting", &input).is_err());
+    assert_eq!(
+        serde_json::to_value(chat_state(&connection, "greeting").unwrap()).unwrap(),
+        serde_json::to_value(before).unwrap()
+    );
+}
+
 #[test]
 fn user_message_is_durable_before_assistant_response() {
     let connection = test_database();
@@ -1793,4 +1951,143 @@ fn variant_feedback_surfaces_only_top_rated_variants_for_the_entity() {
     assert!(list_variant_feedback(&connection, "persona-1")
         .expect("must list")
         .is_empty());
+}
+
+#[test]
+fn deleting_a_provider_clears_every_reference_to_it() {
+    let connection = test_database();
+    create_test_chat(&connection, "chat-1");
+
+    for id in ["provider-keep", "provider-drop"] {
+        save_provider(
+            &connection,
+            &Provider {
+                id: id.into(),
+                name: id.into(),
+                kind: "openai".into(),
+                model: "gpt-test".into(),
+                status: "connected".into(),
+                base_url: None,
+                account_id: None,
+                latency_ms: None,
+                temperature: 0.7,
+                top_p: 0.95,
+                max_tokens: 4096,
+                embedding_model: None,
+                embedding_base_url: None,
+                has_secret: false,
+            },
+        )
+        .expect("provider must save");
+    }
+
+    // The deleted provider is both the primary connection and a fallback.
+    update_chat_config(
+        &connection,
+        "chat-1",
+        &ChatConfigInput {
+            title: "Test chat".into(),
+            auto_title: false,
+            automatic_title_base: None,
+            greeting_message: None,
+            provider_id: Some("provider-drop".into()),
+            persona_id: None,
+            character_id: None,
+            style_item_id: None,
+            universe_id: None,
+            worldbook_ids: Vec::new(),
+            tags: Vec::new(),
+            prompt_config: PromptConfig::default(),
+            generation_settings: ChatGenerationSettings {
+                fallback_provider_ids: vec!["provider-keep".into(), "provider-drop".into()],
+                ..ChatGenerationSettings::default()
+            },
+            module_overrides: Default::default(),
+        },
+    )
+    .expect("chat config must save");
+
+    let mut settings = get_settings(&connection).expect("settings must load");
+    settings.ai_modules.dynamic_context.enabled = true;
+    settings.ai_modules.dynamic_context.provider_id = Some("provider-drop".into());
+    settings.ai_modules.semantic_memory.enabled = true;
+    settings.ai_modules.semantic_memory.provider_id = Some("provider-drop".into());
+    settings.budgets = vec![
+        BudgetSettings {
+            id: "budget-global".into(),
+            provider_id: None,
+            period: "day".into(),
+            token_limit: 1_000,
+            request_limit: 0,
+        },
+        BudgetSettings {
+            id: "budget-drop".into(),
+            provider_id: Some("provider-drop".into()),
+            period: "day".into(),
+            token_limit: 0,
+            request_limit: 50,
+        },
+    ];
+    update_settings(&connection, &settings).expect("settings must save");
+
+    delete_provider(&connection, "provider-drop").expect("provider must delete");
+
+    // The chat keeps its fallback order minus the deleted entry.
+    let chat = chat_generation_settings(&connection, "chat-1").expect("settings must load");
+    assert_eq!(
+        chat.fallback_provider_ids,
+        vec!["provider-keep".to_string()]
+    );
+    assert_eq!(
+        chat_provider_id(&connection, "chat-1").ok(),
+        None,
+        "the primary provider reference must be cleared"
+    );
+
+    // Auxiliary modules lose the provider and stop claiming to be enabled.
+    let settings = get_settings(&connection).expect("settings must load");
+    assert_eq!(settings.ai_modules.dynamic_context.provider_id, None);
+    assert!(!settings.ai_modules.dynamic_context.enabled);
+    assert_eq!(settings.ai_modules.semantic_memory.provider_id, None);
+    assert!(!settings.ai_modules.semantic_memory.enabled);
+
+    // A provider-scoped budget disappears; an unscoped one survives.
+    assert_eq!(settings.budgets.len(), 1);
+    assert_eq!(settings.budgets[0].id, "budget-global");
+}
+
+#[test]
+fn a_backup_exported_after_a_provider_deletion_still_validates() {
+    let connection = test_database();
+    create_test_chat(&connection, "chat-1");
+    save_provider(
+        &connection,
+        &Provider {
+            id: "provider-drop".into(),
+            name: "Temporary".into(),
+            kind: "openai".into(),
+            model: "gpt-test".into(),
+            status: "connected".into(),
+            base_url: None,
+            account_id: None,
+            latency_ms: None,
+            temperature: 0.7,
+            top_p: 0.95,
+            max_tokens: 4096,
+            embedding_model: Some("text-embedding-3-small".into()),
+            embedding_base_url: None,
+            has_secret: false,
+        },
+    )
+    .expect("provider must save");
+
+    let mut settings = get_settings(&connection).expect("settings must load");
+    settings.ai_modules.semantic_memory.enabled = true;
+    settings.ai_modules.semantic_memory.provider_id = Some("provider-drop".into());
+    update_settings(&connection, &settings).expect("settings must save");
+
+    delete_provider(&connection, "provider-drop").expect("provider must delete");
+
+    let data = backup_data(&connection).expect("backup must export");
+    validate_backup_data(&data).expect("an export after deletion must stay restorable");
 }

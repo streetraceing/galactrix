@@ -38,7 +38,7 @@ export function ContextSelectionToolbar({
       data-context-selection-toolbar
       className={`motion-floating-enter z-40 flex flex-wrap items-center justify-center gap-2 ${className}`}
     >
-      <Surface className="flex h-10 items-center gap-2 rounded-full bg-overlay/95 py-1.5 pl-3 pr-1.5 shadow-overlay backdrop-blur-xl">
+      <Surface className="flex h-12 items-center gap-2 rounded-full bg-overlay/95 pl-4 pr-1 shadow-overlay backdrop-blur-xl">
         <Icon name="check" className="size-4 text-accent" />
         <span className="text-sm font-medium" role="status" aria-live="polite">
           {selectedLabel}
@@ -47,22 +47,22 @@ export function ContextSelectionToolbar({
           isIconOnly
           size="sm"
           variant="ghost"
-          className="size-7 min-w-7 rounded-full"
+          className="size-10 min-w-10 rounded-full"
           aria-label={clearLabel}
           onPress={onClear}
         >
-          <Icon name="close" className="size-3.5" />
+          <Icon name="close" className="size-4" />
         </Button>
       </Surface>
 
-      <Surface className="flex h-10 items-center gap-0.5 rounded-full bg-overlay/95 p-1 shadow-overlay backdrop-blur-xl">
+      <Surface className="flex h-12 items-center gap-0.5 rounded-full bg-overlay/95 p-1 shadow-overlay backdrop-blur-xl">
         <Tooltip>
           <Tooltip.Trigger>
             <Button
               isIconOnly
               size="sm"
               variant="ghost"
-              className="size-8 min-w-8 rounded-full"
+              className="size-10 min-w-10 rounded-full"
               aria-label={selectAllLabel}
               isDisabled={count === total}
               onPress={onSelectAll}
@@ -79,7 +79,7 @@ export function ContextSelectionToolbar({
                 isIconOnly
                 size="sm"
                 variant={action.danger ? 'danger' : 'ghost'}
-                className={`size-8 min-w-8 rounded-full ${
+                className={`size-10 min-w-10 rounded-full ${
                   action.danger ? '' : 'text-foreground'
                 }`}
                 aria-label={action.label}

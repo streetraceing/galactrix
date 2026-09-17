@@ -29,7 +29,7 @@ export function ChatStatsModal({
   const numberFormatter = useMemo(() => new Intl.NumberFormat(), []);
   const span =
     stats.firstMessageAt != null && stats.lastMessageAt != null
-      ? `${dateFormatter.format(new Date(stats.firstMessageAt * 1_000))} — ${dateFormatter.format(new Date(stats.lastMessageAt * 1_000))}`
+      ? `${dateFormatter.format(new Date(stats.firstMessageAt * 1_000))} – ${dateFormatter.format(new Date(stats.lastMessageAt * 1_000))}`
       : null;
 
   return (

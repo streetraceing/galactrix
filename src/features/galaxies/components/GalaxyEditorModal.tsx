@@ -154,7 +154,7 @@ export function GalaxyEditorModal({
     try {
       await onRestoreRevision(revisionId);
       toast.success(t('revisions.restored', { ns: 'common' }));
-      await toggleRevisions(); // close the list; the draft re-syncs from props
+      // Back to the editor, which now holds the restored draft.
       setShowRevisions(false);
     } catch (caught) {
       toast.danger(t('errors.chatActionFailed', { ns: 'common' }), {

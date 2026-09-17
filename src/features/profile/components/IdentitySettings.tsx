@@ -6,7 +6,7 @@ import { AppPanel } from '../../../components/ui/AppPanel';
 import { AvatarPicker } from '../../../components/ui/AvatarPicker';
 import { toast } from '../../../i18n/toast';
 import { galaxyItemAvatar, withAvatar } from '../../../lib/avatar';
-import { MOTION_STAGGER_MS } from '../../../lib/motion';
+import { staggerDelayMs } from '../../../lib/motion';
 import { resolveProfileName } from '../../../lib/profile';
 import type { AppSettings, GalaxyItem, GalaxyItemInput } from '../../../types';
 import { galaxyKindLabelKeys } from '../../galaxies/catalog';
@@ -198,9 +198,7 @@ export function IdentitySettings({
                 <AppPanel
                   key={item.id}
                   className="mobile-card-enter flex min-w-0 items-start gap-3 p-3 sm:p-4"
-                  style={{
-                    animationDelay: `${index * MOTION_STAGGER_MS}ms`,
-                  }}
+                  style={{ animationDelay: `${staggerDelayMs(index)}ms` }}
                 >
                   <AppAvatar
                     src={avatar}

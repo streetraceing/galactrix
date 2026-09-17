@@ -69,6 +69,7 @@ import type {
 import { useMobileBackEntry } from '../hooks/useMobileBackEntry';
 import { useMobileTabHistory } from '../hooks/useMobileTabHistory';
 import {
+  backupReminderNow,
   noteBackupCompleted,
   writeBackupReminderState,
 } from '../lib/backupReminder';
@@ -1033,6 +1034,9 @@ export function useAppController() {
         }));
       }
       haptic();
+      // The caller owns any open editor draft: without the restored item it
+      // would keep showing the pre-restore content and save it back.
+      return restored;
     },
     [haptic],
   );
@@ -1115,31 +1119,26 @@ export function useAppController() {
   const removeProviderConnection = useCallback(
     async (id: string) => {
       await deleteProvider(id);
-      setSnapshot((current) => ({
-        ...current,
-        providers: current.providers.filter((provider) => provider.id !== id),
-        chats: current.chats.map((chat) =>
-          chat.providerId === id ? { ...chat, providerId: undefined } : chat,
-        ),
-      }));
+      // Deleting also clears fallback chains, AI-module references and
+      // provider-scoped budgets, so reload instead of patching by hand.
+      await refresh();
       haptic();
     },
-    [haptic],
+    [haptic, refresh],
   );
 
+  /// Builds the archive only. The backup reminder is recorded once the file
+  /// actually reaches the user, so a cancelled save dialog is not counted.
   const createFullAppBackup = useCallback(
-    (includeCredentials: boolean) =>
-      createAppBackup(includeCredentials).then((archive) => {
-        writeBackupReminderState(
-          noteBackupCompleted(
-            snapshot.messages.length,
-            Math.floor(Date.now() / 1_000),
-          ),
-        );
-        return archive;
-      }),
-    [snapshot.messages.length],
+    (includeCredentials: boolean) => createAppBackup(includeCredentials),
+    [],
   );
+
+  const recordBackupExported = useCallback(() => {
+    writeBackupReminderState(
+      noteBackupCompleted(snapshot.messages.length, backupReminderNow()),
+    );
+  }, [snapshot.messages.length]);
 
   const inspectFullAppBackup = useCallback(
     (archive: unknown) => inspectAppBackup(archive),
@@ -1228,6 +1227,7 @@ export function useAppController() {
     listVariantFeedback,
     translateMessage,
     createFullAppBackup,
+    recordBackupExported,
     inspectFullAppBackup,
     restoreFullAppBackup,
     runHealthDiagnostics,

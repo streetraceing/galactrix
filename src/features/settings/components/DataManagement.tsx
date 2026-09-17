@@ -21,12 +21,14 @@ export function DataManagement({
   providerCount,
   generationActive,
   onCreateBackup,
+  onBackupExported,
   onInspectBackup,
   onRestoreBackup,
 }: {
   providerCount: number;
   generationActive: boolean;
   onCreateBackup: (includeCredentials: boolean) => Promise<unknown>;
+  onBackupExported: () => void;
   onInspectBackup: (archive: unknown) => Promise<AppBackupPreview>;
   onRestoreBackup: (archive: unknown) => Promise<unknown>;
 }) {
@@ -70,6 +72,8 @@ export function DataManagement({
         destination,
       );
       if (!exported) return;
+      // Only a file that actually reached the user counts as a backup.
+      onBackupExported();
       setExportOpen(false);
       toast.success(t('dataManagement.backupSaved'), {
         description: includeCredentials

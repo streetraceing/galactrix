@@ -13,8 +13,16 @@ export const MOTION_EASING = {
 } as const;
 
 export const MOTION_STAGGER_MS = 40;
+/// Staggering is a decorative cue for the first rows only. Capping it keeps a
+/// long library from holding later items transparent for seconds.
+export const MOTION_STAGGER_MAX_STEPS = 8;
 export const TYPING_DOT_CYCLE_MS = 1_400;
 export const TYPING_DOT_STAGGER_MS = 140;
+
+export function staggerDelayMs(index: number) {
+  const step = Math.min(Math.max(index, 0), MOTION_STAGGER_MAX_STEPS);
+  return step * MOTION_STAGGER_MS;
+}
 
 export function animationsEnabled() {
   if (typeof document === 'undefined') return false;

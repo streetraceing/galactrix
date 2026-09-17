@@ -120,6 +120,7 @@ export function ProfileScreen({
           </Tabs.Panel>
           <Tabs.Panel id="budgets" className="pt-5 sm:pt-6">
             <BudgetsPanel
+              usage={usage}
               settings={settings}
               providers={providers}
               onGetStatus={onGetBudgetStatus}

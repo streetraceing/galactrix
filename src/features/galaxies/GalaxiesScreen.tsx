@@ -12,7 +12,7 @@ import { ContextSelectionToolbar } from '../../components/ui/ContextSelectionToo
 import { EmptyState } from '../../components/ui/EmptyState';
 import { toast } from '../../i18n/toast';
 import { errorMessage } from '../../lib/errors';
-import { MOTION_STAGGER_MS } from '../../lib/motion';
+import { staggerDelayMs } from '../../lib/motion';
 import {
   consumeGalaxyQuickCreate,
   subscribeGalaxyQuickCreate,
@@ -70,7 +70,10 @@ export function GalaxiesScreen({
   onImport: (items: GalaxyItemInput[]) => Promise<number>;
   onDelete: (id: string) => Promise<void>;
   onListRevisions: (entityId: string) => Promise<EntityRevision[]>;
-  onRestoreRevision: (entityId: string, revisionId: string) => Promise<unknown>;
+  onRestoreRevision: (
+    entityId: string,
+    revisionId: string,
+  ) => Promise<GalaxyItem | undefined>;
   onListFeedback: (entityId: string) => Promise<VariantFeedback[]>;
 }) {
   const { t } = useTranslation(['galaxies', 'common']);
@@ -460,9 +463,7 @@ export function GalaxiesScreen({
                       <div
                         key={item.id}
                         className="collection-item-enter"
-                        style={{
-                          animationDelay: `${index * MOTION_STAGGER_MS}ms`,
-                        }}
+                        style={{ animationDelay: `${staggerDelayMs(index)}ms` }}
                       >
                         <GalaxyCard
                           item={item}
@@ -525,7 +526,19 @@ export function GalaxiesScreen({
         }
         onRestoreRevision={
           editing
-            ? (revisionId) => onRestoreRevision(editing.id, revisionId)
+            ? async (revisionId) => {
+                const restored = await onRestoreRevision(
+                  editing.id,
+                  revisionId,
+                );
+                // Replace the editor draft with the restored content so the
+                // next save cannot write the stale pre-restore version back.
+                if (restored) {
+                  setEditing(restored);
+                  setDraft(draftFromItem(restored));
+                }
+                return restored;
+              }
             : undefined
         }
         onListFeedback={editing ? () => onListFeedback(editing.id) : undefined}

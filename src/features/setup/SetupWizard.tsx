@@ -1,5 +1,5 @@
 import { Button } from '@heroui/react';
-import { useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AvatarPicker } from '../../components/ui/AvatarPicker';
 import { Icon } from '../../components/Icon';
@@ -26,24 +26,34 @@ const LANGUAGE_CHOICES = [
   { value: 'en', labelKey: 'welcome.languageEnglish' },
 ] as const;
 
+const STEP_TITLE_KEYS = {
+  1: 'welcome.title',
+  2: 'provider.title',
+  3: 'embeddings.title',
+  4: 'ready.title',
+} as const;
+
 function StepHeader({ step }: { step: WizardStep }) {
   const { t } = useTranslation('setup');
   return (
     <div
       className="flex items-center justify-center gap-2"
-      aria-label={t('title')}
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
     >
+      <span className="sr-only">
+        {t('stepProgress', {
+          current: step,
+          total: 4,
+          title: t(STEP_TITLE_KEYS[step]),
+        })}
+      </span>
       {([1, 2, 3, 4] as const).map((index) => (
         <span
           key={index}
           aria-hidden
-          className={`h-1.5 rounded-full transition-all duration-(--motion-standard) ease-(--motion-ease) ${
-            index === step
-              ? 'w-8 bg-accent'
-              : index < step
-                ? 'w-4 bg-accent/40'
-                : 'w-4 bg-default'
-          }`}
+          className={`h-1.5 rounded-full transition-all duration-(--motion-standard) ease-(--motion-ease) ${index === step ? 'w-8 bg-accent' : index < step ? 'w-4 bg-accent/40' : 'w-4 bg-default'}`}
         />
       ))}
     </div>
@@ -57,6 +67,7 @@ function ChecklistRow({
   hint,
   actionLabel,
   onAction,
+  isDisabled,
 }: {
   done: boolean;
   skipped?: boolean;
@@ -64,17 +75,16 @@ function ChecklistRow({
   hint?: string;
   actionLabel?: string;
   onAction?: () => void;
+  isDisabled?: boolean;
 }) {
   return (
-    <div className="flex items-start justify-between gap-3 rounded-2xl border border-separator p-3">
+    <div className="flex flex-col items-start justify-between gap-3 rounded-2xl border border-separator p-3 sm:flex-row">
       <div className="flex min-w-0 items-start gap-2.5">
         <Icon
           name={done ? 'check' : skipped ? 'info' : 'close'}
-          className={`mt-0.5 size-4 shrink-0 ${
-            done ? 'text-success' : skipped ? 'text-warning' : 'text-danger'
-          }`}
+          className={`mt-0.5 size-4 shrink-0 ${done ? 'text-success' : skipped ? 'text-warning' : 'text-danger'}`}
         />
-        <span className="min-w-0">
+        <span className="min-w-0 break-words">
           <strong className="block text-sm">{label}</strong>
           {hint ? (
             <span className="mt-0.5 block text-xs leading-5 text-muted">
@@ -87,7 +97,8 @@ function ChecklistRow({
         <Button
           size="sm"
           variant="secondary"
-          className="shrink-0"
+          className="min-h-[44px] w-full shrink-0 sm:w-auto"
+          isDisabled={isDisabled}
           onPress={onAction}
         >
           {actionLabel}
@@ -133,18 +144,35 @@ export function SetupWizard({
   const [testing, setTesting] = useState(false);
   const [probe, setProbe] = useState<EmbeddingProbeResult | null>(null);
   const [busy, setBusy] = useState(false);
+  const operationRef = useRef(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const nameId = useId();
+  const modelId = useId();
+  const languageId = useId();
+  const headingRef = useRef<HTMLHeadingElement>(null);
 
   const editor = useProviderEditor({
     onFetchModels,
     onTestEmbeddings,
     onSave: async (input, apiKey) => {
-      const saved = await onSaveProvider(input, apiKey);
-      setEmbeddingProviderId(saved.id);
-      setStep(3);
-      return saved;
+      if (operationRef.current) throw new Error(t('errors.actionFailed'));
+      operationRef.current = true;
+      try {
+        const saved = await onSaveProvider(input, apiKey);
+        setEmbeddingProviderId(saved.id);
+        setActionError(null);
+        setStep(3);
+        return saved;
+      } finally {
+        operationRef.current = false;
+      }
     },
     onReadSecrets: async () => '',
   });
+
+  useEffect(() => {
+    if (!editor.isOpen) headingRef.current?.focus();
+  }, [step, editor.isOpen]);
 
   const embeddingsProvider = useMemo(
     () =>
@@ -153,42 +181,78 @@ export function SetupWizard({
     [embeddingProviderId, providers],
   );
 
+  const blocked =
+    busy ||
+    testing ||
+    editor.isOpen ||
+    editor.saving ||
+    editor.loadingModels ||
+    editor.testingEmbeddings ||
+    editor.loadingCredentials;
+
+  const goToStep = (next: WizardStep) => {
+    if (operationRef.current || blocked) return;
+    setActionError(null);
+    setStep(next);
+  };
+
   const saveWelcome = async () => {
-    if (busy) return;
+    if (operationRef.current || blocked) return;
+    operationRef.current = true;
+    setActionError(null);
     setBusy(true);
     try {
-      await onChangeSettings({
+      const saved = await onChangeSettings({
         ...settings,
         language,
         profileName: profileName.trim().slice(0, 80),
-        profileAvatar: profileAvatar,
+        profileAvatar,
       });
+      if (!saved) {
+        setActionError(t('errors.actionFailed'));
+        return;
+      }
       setStep(2);
     } catch (caught) {
-      toast.danger(t('errors.actionFailed'), {
-        description: errorMessage(caught),
-      });
+      setActionError(`${t('errors.actionFailed')}: ${errorMessage(caught)}`);
     } finally {
+      operationRef.current = false;
       setBusy(false);
     }
   };
 
   const finish = async () => {
-    if (busy) return;
+    if (operationRef.current || blocked) return;
+    operationRef.current = true;
+    setActionError(null);
     setBusy(true);
     try {
-      await onChangeSettings({ ...settings, setupComplete: true });
-    } catch (caught) {
-      toast.danger(t('errors.actionFailed'), {
-        description: errorMessage(caught),
+      const saved = await onChangeSettings({
+        ...settings,
+        setupComplete: true,
       });
+      if (!saved) {
+        setActionError(t('errors.actionFailed'));
+        return;
+      }
+    } catch (caught) {
+      setActionError(`${t('errors.actionFailed')}: ${errorMessage(caught)}`);
     } finally {
+      operationRef.current = false;
       setBusy(false);
     }
   };
 
   const testEmbeddings = async () => {
-    if (!embeddingsProvider || testing || !embeddingModel.trim()) return;
+    if (
+      !embeddingsProvider ||
+      operationRef.current ||
+      blocked ||
+      !embeddingModel.trim()
+    )
+      return;
+    operationRef.current = true;
+    setActionError(null);
     setTesting(true);
     setProbe(null);
     try {
@@ -199,23 +263,30 @@ export function SetupWizard({
       const result = await onTestEmbeddings(input);
       setProbe(result);
     } catch (caught) {
-      toast.danger(t('errors.actionFailed'), {
-        description: errorMessage(caught),
-      });
+      setActionError(`${t('errors.actionFailed')}: ${errorMessage(caught)}`);
     } finally {
+      operationRef.current = false;
       setTesting(false);
     }
   };
 
   const enableEmbeddings = async () => {
-    if (!embeddingsProvider || busy) return;
+    if (
+      !embeddingsProvider ||
+      operationRef.current ||
+      blocked ||
+      !embeddingModel.trim()
+    )
+      return;
+    operationRef.current = true;
+    setActionError(null);
     setBusy(true);
     try {
       await onSaveProvider({
         ...providerToInput(embeddingsProvider),
-        embeddingModel: embeddingModel.trim() || undefined,
+        embeddingModel: embeddingModel.trim(),
       });
-      await onChangeSettings({
+      const saved = await onChangeSettings({
         ...settings,
         aiModules: {
           ...settings.aiModules,
@@ -226,13 +297,16 @@ export function SetupWizard({
           },
         },
       });
+      if (!saved) {
+        setActionError(t('errors.actionFailed'));
+        return;
+      }
       toast.success(t('embeddings.enabled'));
       setStep(4);
     } catch (caught) {
-      toast.danger(t('errors.actionFailed'), {
-        description: errorMessage(caught),
-      });
+      setActionError(`${t('errors.actionFailed')}: ${errorMessage(caught)}`);
     } finally {
+      operationRef.current = false;
       setBusy(false);
     }
   };
@@ -244,16 +318,34 @@ export function SetupWizard({
       <div className="page-container mx-auto max-w-2xl">
         <PageHeader title={t('title')} description={t('description')} />
         <StepHeader step={step} />
-
+        {actionError ? (
+          <p
+            role="alert"
+            className="break-words rounded-xl border border-danger/35 bg-danger/10 px-3 py-2.5 text-sm text-danger"
+          >
+            {actionError}
+          </p>
+        ) : null}
         {step === 1 ? (
           <AppPanel className="p-4 sm:p-5">
-            <h2 className="section-title">{t('welcome.title')}</h2>
+            <h2
+              ref={headingRef}
+              tabIndex={-1}
+              className="section-title outline-none focus-visible:ring-2 focus-visible:ring-focus"
+            >
+              {t('welcome.title')}
+            </h2>
             <p className="section-description">{t('welcome.description')}</p>
-
-            <div className="mt-4 space-y-4">
+            <fieldset disabled={blocked} className="mt-4 min-w-0 space-y-4">
               <div>
-                <p className="text-sm font-medium">{t('welcome.language')}</p>
-                <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                <p id={languageId} className="text-sm font-medium">
+                  {t('welcome.language')}
+                </p>
+                <div
+                  role="group"
+                  aria-labelledby={languageId}
+                  className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3"
+                >
                   {LANGUAGE_CHOICES.map((choice) => (
                     <Button
                       key={choice.value}
@@ -261,6 +353,9 @@ export function SetupWizard({
                         language === choice.value ? 'primary' : 'secondary'
                       }
                       fullWidth
+                      className="min-h-[44px]"
+                      aria-pressed={language === choice.value}
+                      isDisabled={blocked}
                       onPress={() => setLanguage(choice.value)}
                     >
                       {t(choice.labelKey)}
@@ -269,16 +364,18 @@ export function SetupWizard({
                 </div>
               </div>
               <div>
-                <p className="text-sm font-medium">
+                <label htmlFor={nameId} className="text-sm font-medium">
                   {t('welcome.profileName')}
-                </p>
+                </label>
                 <input
+                  id={nameId}
+                  disabled={blocked}
                   value={profileName}
                   maxLength={80}
                   autoComplete="off"
                   placeholder={t('welcome.profileNamePlaceholder')}
                   onChange={(event) => setProfileName(event.target.value)}
-                  className="mt-2 min-h-11 w-full rounded-xl border border-separator bg-transparent px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                  className="mt-2 min-h-11 w-full min-h-[44px] rounded-xl border border-separator bg-transparent px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-focus"
                 />
               </div>
               <div>
@@ -287,29 +384,36 @@ export function SetupWizard({
                   <AvatarPicker
                     value={profileAvatar}
                     name={profileName || 'Galactrix'}
-                    onChange={setProfileAvatar}
+                    onChange={(value) => {
+                      if (!operationRef.current && !blocked)
+                        setProfileAvatar(value);
+                    }}
                   />
                 </div>
               </div>
-            </div>
-
+            </fieldset>
             <Button
               variant="primary"
               fullWidth
-              className="mt-5"
+              className="mt-5 min-h-[44px]"
               isPending={busy}
+              isDisabled={blocked}
               onPress={() => void saveWelcome()}
             >
               {t('actions.continue')}
             </Button>
           </AppPanel>
         ) : null}
-
         {step === 2 ? (
           <AppPanel className="p-4 sm:p-5">
-            <h2 className="section-title">{t('provider.title')}</h2>
+            <h2
+              ref={headingRef}
+              tabIndex={-1}
+              className="section-title outline-none focus-visible:ring-2 focus-visible:ring-focus"
+            >
+              {t('provider.title')}
+            </h2>
             <p className="section-description">{t('provider.description')}</p>
-
             <div className="mt-4 space-y-2">
               {providers.map((provider) => (
                 <div
@@ -326,37 +430,46 @@ export function SetupWizard({
                   </span>
                   <Icon
                     name={provider.status === 'connected' ? 'check' : 'info'}
-                    className={`size-4 shrink-0 ${
-                      provider.status === 'connected'
-                        ? 'text-success'
-                        : 'text-warning'
-                    }`}
+                    className={`size-4 shrink-0 ${provider.status === 'connected' ? 'text-success' : 'text-warning'}`}
                   />
                 </div>
               ))}
             </div>
-
             <div className="mt-4 flex flex-col gap-2 sm:flex-row">
               <Button
                 variant="primary"
                 fullWidth
-                onPress={() => editor.openCreate()}
+                className="min-h-[44px]"
+                isDisabled={blocked}
+                onPress={() => {
+                  if (!operationRef.current && !blocked) editor.openCreate();
+                }}
               >
                 <Icon name="plus" className="size-4" />
                 {t('provider.connect')}
               </Button>
-              <Button variant="ghost" fullWidth onPress={() => setStep(3)}>
+              <Button
+                variant="ghost"
+                fullWidth
+                className="min-h-[44px]"
+                isDisabled={blocked}
+                onPress={() => goToStep(3)}
+              >
                 {t('actions.skip')}
               </Button>
             </div>
           </AppPanel>
         ) : null}
-
         {step === 3 ? (
           <AppPanel className="p-4 sm:p-5">
-            <h2 className="section-title">{t('embeddings.title')}</h2>
+            <h2
+              ref={headingRef}
+              tabIndex={-1}
+              className="section-title outline-none focus-visible:ring-2 focus-visible:ring-focus"
+            >
+              {t('embeddings.title')}
+            </h2>
             <p className="section-description">{t('embeddings.description')}</p>
-
             {providers.length === 0 ? (
               <p className="mt-4 rounded-xl border border-default bg-background/55 px-3 py-2.5 text-sm text-muted">
                 {t('embeddings.noProvider')}
@@ -369,16 +482,13 @@ export function SetupWizard({
                       <button
                         key={provider.id}
                         type="button"
+                        disabled={blocked}
                         aria-pressed={embeddingsProvider?.id === provider.id}
                         onClick={() => {
                           setEmbeddingProviderId(provider.id);
                           setProbe(null);
                         }}
-                        className={`inline-flex min-h-9 w-full cursor-pointer items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-focus ${
-                          embeddingsProvider?.id === provider.id
-                            ? 'border-accent bg-accent/10 text-accent'
-                            : 'border-default bg-transparent text-muted hover:bg-surface'
-                        }`}
+                        className={`inline-flex min-h-[44px] w-full cursor-pointer items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-focus ${embeddingsProvider?.id === provider.id ? 'border-accent bg-accent/10 text-accent' : 'border-default bg-transparent text-muted hover:bg-surface'}`}
                       >
                         <span className="min-w-0 truncate">
                           {provider.name}
@@ -391,8 +501,12 @@ export function SetupWizard({
                   </div>
                 ) : null}
                 <div>
-                  <p className="text-sm font-medium">{t('embeddings.model')}</p>
+                  <label htmlFor={modelId} className="text-sm font-medium">
+                    {t('embeddings.model')}
+                  </label>
                   <input
+                    id={modelId}
+                    disabled={blocked}
                     value={embeddingModel}
                     maxLength={120}
                     autoComplete="off"
@@ -401,7 +515,7 @@ export function SetupWizard({
                       setEmbeddingModel(event.target.value);
                       setProbe(null);
                     }}
-                    className="mt-2 min-h-11 w-full rounded-xl border border-separator bg-transparent px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                    className="mt-2 min-h-11 w-full min-h-[44px] rounded-xl border border-separator bg-transparent px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-focus"
                   />
                 </div>
                 <div className="flex flex-col gap-2 sm:flex-row">
@@ -409,7 +523,8 @@ export function SetupWizard({
                     variant="secondary"
                     fullWidth
                     isPending={testing}
-                    isDisabled={!embeddingModel.trim()}
+                    className="min-h-[44px]"
+                    isDisabled={blocked || !embeddingModel.trim()}
                     onPress={() => void testEmbeddings()}
                   >
                     {t('embeddings.test')}
@@ -418,38 +533,44 @@ export function SetupWizard({
                     variant="primary"
                     fullWidth
                     isPending={busy}
-                    isDisabled={!embeddingModel.trim()}
+                    className="min-h-[44px]"
+                    isDisabled={blocked || !embeddingModel.trim()}
                     onPress={() => void enableEmbeddings()}
                   >
                     {t('embeddings.enable')}
                   </Button>
                 </div>
                 {probe ? (
-                  <p className="rounded-xl border border-success/35 bg-success/10 px-3 py-2.5 text-sm text-success">
-                    {t('embeddings.probeOk', {
-                      dimensions: probe.dimensions,
-                    })}
+                  <p
+                    role="status"
+                    className="rounded-xl border border-success/35 bg-success/10 px-3 py-2.5 text-sm text-success"
+                  >
+                    {t('embeddings.probeOk', { dimensions: probe.dimensions })}
                   </p>
                 ) : null}
               </div>
             )}
-
             <Button
               variant="ghost"
               fullWidth
-              className="mt-4"
-              onPress={() => setStep(4)}
+              className="mt-4 min-h-[44px]"
+              isDisabled={blocked}
+              onPress={() => goToStep(4)}
             >
               {t('actions.skip')}
             </Button>
           </AppPanel>
         ) : null}
-
         {step === 4 ? (
           <AppPanel className="p-4 sm:p-5">
-            <h2 className="section-title">{t('ready.title')}</h2>
+            <h2
+              ref={headingRef}
+              tabIndex={-1}
+              className="section-title outline-none focus-visible:ring-2 focus-visible:ring-focus"
+            >
+              {t('ready.title')}
+            </h2>
             <p className="section-description">{t('ready.description')}</p>
-
             <div className="mt-4 space-y-2">
               <ChecklistRow
                 done
@@ -467,7 +588,10 @@ export function SetupWizard({
                 actionLabel={
                   providers.length === 0 ? t('ready.fix') : undefined
                 }
-                onAction={providers.length === 0 ? () => setStep(2) : undefined}
+                isDisabled={blocked}
+                onAction={
+                  providers.length === 0 ? () => goToStep(2) : undefined
+                }
               />
               <ChecklistRow
                 done={embeddingsEnabled}
@@ -480,26 +604,30 @@ export function SetupWizard({
                 }
               />
             </div>
-
             <Button
               variant="primary"
               fullWidth
-              className="mt-5"
+              className="mt-5 min-h-[44px]"
               isPending={busy}
+              isDisabled={blocked}
               onPress={() => void finish()}
             >
               {t('ready.start')}
             </Button>
           </AppPanel>
         ) : null}
-
         <div className="flex justify-center pb-4">
-          <Button variant="ghost" size="sm" onPress={() => void finish()}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="min-h-[44px]"
+            isDisabled={blocked}
+            onPress={() => void finish()}
+          >
             {t('actions.skipAll')}
           </Button>
         </div>
       </div>
-
       <ProviderEditorModal
         isOpen={editor.isOpen}
         step={editor.step}

@@ -1223,12 +1223,12 @@ pub fn update_chat_config(
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .unwrap_or("");
-    let previous_greeting = connection.query_row(
+    let transaction = connection.unchecked_transaction()?;
+    let previous_greeting = transaction.query_row(
         "SELECT greeting_message FROM chats WHERE id = ?1",
         params![chat_id],
         |row| row.get::<_, String>(0),
     )?;
-    let transaction = connection.unchecked_transaction()?;
     let changed = transaction.execute(
         "UPDATE chats SET title = ?1, provider_id = ?2, persona_id = ?3,
                     character_id = ?4, style_item_id = ?5, universe_id = ?6,
@@ -1256,7 +1256,9 @@ pub fn update_chat_config(
     if changed == 0 {
         return Err(CommandError::new(keys::CHAT_NOT_FOUND));
     }
-    sync_chat_greeting(&transaction, chat_id, &previous_greeting, greeting)?;
+    if greeting != previous_greeting {
+        sync_chat_greeting(&transaction, chat_id, &previous_greeting, greeting)?;
+    }
     replace_chat_worldbooks(&transaction, chat_id, &input.worldbook_ids)?;
     refresh_chat_summary(&transaction, chat_id)?;
     clear_chat_ai_context(&transaction, chat_id)?;
@@ -1264,7 +1266,7 @@ pub fn update_chat_config(
 }
 
 fn sync_chat_greeting(
-    connection: &Connection,
+    connection: &rusqlite::Transaction<'_>,
     chat_id: &str,
     previous_greeting: &str,
     greeting: &str,
@@ -1287,14 +1289,12 @@ fn sync_chat_greeting(
             connection.execute("DELETE FROM messages WHERE id = ?1", params![message_id])?;
         }
         (Some(message_id), false) => {
-            let updated_at = message_update_timestamp(connection, &message_id)?;
-            connection.execute(
-                "UPDATE messages SET content = ?1, updated_at = ?2 WHERE id = ?3",
-                params![greeting, updated_at, &message_id],
-            )?;
-            connection.execute(
-                "UPDATE message_variants SET content = ?1, edited = 1 WHERE message_id = ?2 AND position = 0",
-                params![greeting, message_id],
+            append_message_variant_in_transaction(
+                connection,
+                &message_id,
+                &uuid::Uuid::new_v4().to_string(),
+                greeting,
+                true,
             )?;
         }
         (None, false) => {
@@ -1897,6 +1897,24 @@ pub fn append_message_variant(
 ) -> CommandResult<i64> {
     ensure_message_chat_mutable(connection, message_id)?;
     let transaction = connection.unchecked_transaction()?;
+    let position = append_message_variant_in_transaction(
+        &transaction,
+        message_id,
+        variant_id,
+        content,
+        edited,
+    )?;
+    transaction.commit()?;
+    Ok(position)
+}
+
+fn append_message_variant_in_transaction(
+    transaction: &rusqlite::Transaction<'_>,
+    message_id: &str,
+    variant_id: &str,
+    content: &str,
+    edited: bool,
+) -> CommandResult<i64> {
     let (chat_id, role) = transaction
         .query_row(
             "SELECT chat_id, role FROM messages WHERE id = ?1",
@@ -1914,7 +1932,7 @@ pub fn append_message_variant(
         params![message_id],
         |row| row.get::<_, i64>(0),
     )?;
-    let now = message_update_timestamp(&transaction, message_id)?;
+    let now = message_update_timestamp(transaction, message_id)?;
     transaction.execute(
         "INSERT INTO message_variants (
                 id, message_id, position, content, created_at, edited
@@ -1940,17 +1958,9 @@ pub fn append_message_variant(
             message_id
         ],
     )?;
-    sync_greeting_after_message_change(&transaction, &chat_id, message_id, content.trim())?;
-    refresh_chat_summary(&transaction, &chat_id)?;
-    transaction.execute(
-        "DELETE FROM chat_contexts WHERE chat_id = ?1",
-        params![chat_id],
-    )?;
-    transaction.execute(
-        "DELETE FROM semantic_memories WHERE chat_id = ?1",
-        params![chat_id],
-    )?;
-    transaction.commit()?;
+    sync_greeting_after_message_change(transaction, &chat_id, message_id, content.trim())?;
+    refresh_chat_summary(transaction, &chat_id)?;
+    clear_chat_ai_context(transaction, &chat_id)?;
     Ok(next_position)
 }
 
@@ -2712,12 +2722,72 @@ pub fn update_provider_health(
     Ok(())
 }
 
+/// Deletes a provider and every reference to it in the same transaction.
+/// Leaving a dangling reference behind would make a later backup export fail
+/// validation, because settings are validated against the surviving providers.
 pub fn delete_provider(connection: &Connection, id: &str) -> CommandResult<()> {
     let transaction = connection.unchecked_transaction()?;
     transaction.execute(
         "UPDATE chats SET provider_id = NULL WHERE provider_id = ?1",
         params![id],
     )?;
+
+    // Fallback chains: drop only the deleted entry and keep the rest in order.
+    let mut fallback_updates: Vec<(String, String)> = Vec::new();
+    {
+        let mut statement =
+            transaction.prepare("SELECT id, generation_settings_json FROM chats")?;
+        let rows = statement.query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })?;
+        for row in rows {
+            let (chat_id, raw) = row?;
+            let mut settings = parse_generation_settings(&raw);
+            let before = settings.fallback_provider_ids.len();
+            settings
+                .fallback_provider_ids
+                .retain(|candidate| candidate != id);
+            if settings.fallback_provider_ids.len() != before {
+                fallback_updates.push((chat_id, generation_settings_json(&settings)?));
+            }
+        }
+    }
+    for (chat_id, raw) in fallback_updates {
+        transaction.execute(
+            "UPDATE chats SET generation_settings_json = ?1 WHERE id = ?2",
+            params![raw, chat_id],
+        )?;
+    }
+
+    // Auxiliary AI modules and provider-scoped budgets point at providers too.
+    let mut settings = get_settings(&transaction)?;
+    let mut settings_changed = false;
+    let dynamic = &mut settings.ai_modules.dynamic_context;
+    if dynamic.provider_id.as_deref() == Some(id) {
+        dynamic.provider_id = None;
+        // An enabled module with no provider would silently do nothing.
+        dynamic.enabled = false;
+        settings_changed = true;
+    }
+    let semantic = &mut settings.ai_modules.semantic_memory;
+    if semantic.provider_id.as_deref() == Some(id) {
+        semantic.provider_id = None;
+        semantic.enabled = false;
+        settings_changed = true;
+    }
+    // A provider-scoped budget means that provider; deleting it removes the
+    // rule instead of turning it into a global budget by accident.
+    let budget_count = settings.budgets.len();
+    settings
+        .budgets
+        .retain(|rule| rule.provider_id.as_deref() != Some(id));
+    if settings.budgets.len() != budget_count {
+        settings_changed = true;
+    }
+    if settings_changed {
+        update_settings(&transaction, &settings)?;
+    }
+
     transaction.execute("DELETE FROM providers WHERE id = ?1", params![id])?;
     transaction.commit().map_err(CommandError::internal)
 }

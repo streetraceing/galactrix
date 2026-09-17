@@ -1198,6 +1198,14 @@ function MessageListComponent({
     null,
   );
   const findFlashTimeoutRef = useRef<number | null>(null);
+  /// A find jump that had to move the virtual window first. The target row is
+  /// not in the DOM until React commits the new window, so the scroll position
+  /// is applied once that row actually mounts.
+  const pendingFindJumpRef = useRef<{
+    messageId: string;
+    scrollTop: number;
+  } | null>(null);
+  const lastFindQueryRef = useRef('');
   const [working, setWorking] = useState(false);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [selectedMessageIds, setSelectedMessageIds] = useState<Set<string>>(
@@ -2735,6 +2743,65 @@ function MessageListComponent({
     }, 1_600);
   }, []);
 
+  /// Scrolls to a message by index. In a virtualized history the row may not
+  /// be mounted yet, so the virtual window is moved to cover it and the scroll
+  /// position is applied after the commit.
+  const scrollToMessageIndex = useCallback(
+    (messageIndex: number, messageId: string) => {
+      const scroller = scrollRef.current;
+      if (!scroller || messageIndex < 0) return;
+      // A jump leaves the reading position, so stop following the tail until
+      // the reader returns to the bottom.
+      followBottomRef.current = false;
+      nearBottomRef.current = false;
+
+      if (!virtualizationEnabled) {
+        const mounted = scroller.querySelector(
+          `[data-message-id="${CSS.escape(messageId)}"]`,
+        );
+        mounted?.scrollIntoView({
+          block: 'center',
+          behavior: animationsEnabled() ? 'smooth' : 'auto',
+        });
+        return;
+      }
+
+      const viewportHeight = scroller.clientHeight || 1;
+      const targetOffset = messageOffsets[messageIndex] ?? 0;
+      const targetHeight = Math.max(
+        1,
+        (messageOffsets[messageIndex + 1] ?? targetOffset) - targetOffset,
+      );
+      const scrollTop = Math.max(
+        0,
+        targetOffset - Math.max(0, (viewportHeight - targetHeight) / 2),
+      );
+      pendingFindJumpRef.current = { messageId, scrollTop };
+      const next = messageVirtualRange(
+        messageOffsets,
+        scrollTop,
+        viewportHeight,
+        virtualOverscan,
+        virtualMinimumItems,
+      );
+      setVirtualWindow((current) =>
+        current.layoutKey === virtualLayoutKey &&
+        current.start === next.start &&
+        current.end === next.end
+          ? current
+          : { layoutKey: virtualLayoutKey, ...next },
+      );
+    },
+    [
+      messageOffsets,
+      scrollRef,
+      virtualLayoutKey,
+      virtualMinimumItems,
+      virtualOverscan,
+      virtualizationEnabled,
+    ],
+  );
+
   const goToFindMatch = useCallback(
     (index: number) => {
       if (findMatches.length === 0) return;
@@ -2742,14 +2809,14 @@ function MessageListComponent({
         ((index % findMatches.length) + findMatches.length) %
         findMatches.length;
       setFindIndex(next);
-      const messageId = findMatches[next].messageId;
-      const element = scrollRef.current?.querySelector(
-        `[data-message-id="${CSS.escape(messageId)}"]`,
-      );
-      element?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      const { messageId } = findMatches[next];
       flashFindMatch(messageId);
+      scrollToMessageIndex(
+        messages.findIndex((message) => message.id === messageId),
+        messageId,
+      );
     },
-    [findMatches, flashFindMatch, scrollRef],
+    [findMatches, flashFindMatch, messages, scrollToMessageIndex],
   );
 
   const closeFind = useCallback(() => {
@@ -2757,15 +2824,41 @@ function MessageListComponent({
     setFindQuery('');
     setFindIndex(0);
     setFindFlashId(null);
+    pendingFindJumpRef.current = null;
     if (findFlashTimeoutRef.current != null) {
       window.clearTimeout(findFlashTimeoutRef.current);
       findFlashTimeoutRef.current = null;
     }
   }, []);
 
+  // Apply a deferred jump once the virtual window has mounted its target row.
+  useLayoutEffect(() => {
+    const pending = pendingFindJumpRef.current;
+    if (!pending) return;
+    const scroller = scrollRef.current;
+    if (!scroller) return;
+    const mounted = scroller.querySelector(
+      `[data-message-id="${CSS.escape(pending.messageId)}"]`,
+    );
+    if (!mounted) return;
+    pendingFindJumpRef.current = null;
+    scroller.scrollTop = pending.scrollTop;
+  }, [visibleEnd, visibleStart]);
+
+  // A new query starts at its first match instead of the second one.
   useEffect(() => {
-    if (readOnly && findOpen) closeFind();
-  }, [closeFind, findOpen, readOnly]);
+    if (!findOpen) {
+      lastFindQueryRef.current = '';
+      return;
+    }
+    if (lastFindQueryRef.current === findQuery) return;
+    lastFindQueryRef.current = findQuery;
+    if (!findQuery.trim() || findMatches.length === 0) {
+      setFindIndex(0);
+      return;
+    }
+    goToFindMatch(0);
+  }, [findMatches.length, findOpen, findQuery, goToFindMatch]);
 
   const selectMessage = useCallback((messageId: string) => {
     setSelectedMessageIds((current) => addMessageSelection(current, messageId));
@@ -3254,20 +3347,19 @@ function MessageListComponent({
             <Icon name="chevron-left" className="size-5 -rotate-90" />
           </Button>
         ) : null}
-        {!readOnly ? (
-          <Button
-            isIconOnly
-            size="sm"
-            variant={findOpen ? 'primary' : 'secondary'}
-            className={`absolute bottom-3 right-[4.25rem] z-20 size-9 min-w-9 rounded-full bg-overlay/95 shadow-overlay backdrop-blur-xl sm:bottom-4 sm:right-[4.75rem] ${
-              findOpen ? 'motion-floating-enter' : ''
-            }`}
-            aria-label={t('messageList.findInChat')}
-            onPress={() => (findOpen ? closeFind() : setFindOpen(true))}
-          >
-            <Icon name="search" className="size-4" />
-          </Button>
-        ) : null}
+        {/* Searching is read-only, so it stays available in archived chats. */}
+        <Button
+          isIconOnly
+          size="sm"
+          variant={findOpen ? 'primary' : 'secondary'}
+          className={`absolute bottom-3 right-[4.25rem] z-20 size-11 min-w-11 rounded-full bg-overlay/95 shadow-overlay backdrop-blur-xl sm:bottom-4 sm:right-[4.75rem] ${
+            findOpen ? 'motion-floating-enter' : ''
+          }`}
+          aria-label={t('messageList.findInChat')}
+          onPress={() => (findOpen ? closeFind() : setFindOpen(true))}
+        >
+          <Icon name="search" className="size-4" />
+        </Button>
         {findOpen ? (
           <div
             role="search"
@@ -3300,11 +3392,11 @@ function MessageListComponent({
                 aria-live="polite"
                 className="shrink-0 text-xs tabular-nums text-muted"
               >
-                {findMatches.length === 0
-                  ? findQuery.trim()
+                {!findQuery.trim()
+                  ? null
+                  : findMatches.length === 0
                     ? '0/0'
-                    : '—'
-                  : `${findIndex + 1}/${findMatches.length}`}
+                    : `${findIndex + 1}/${findMatches.length}`}
               </span>
               <Button
                 isIconOnly
