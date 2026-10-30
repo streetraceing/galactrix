@@ -135,7 +135,7 @@ function ProviderFact({ label, value }: { label: string; value: string }) {
       <span className="block text-[0.65rem] font-medium uppercase tracking-wide text-muted">
         {label}
       </span>
-      <span className="mt-1 block truncate text-xs font-medium text-foreground">
+      <span className="mt-1 block wrap-anywhere text-xs font-medium text-foreground">
         {value}
       </span>
     </span>

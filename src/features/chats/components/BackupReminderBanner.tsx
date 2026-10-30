@@ -8,6 +8,8 @@ import {
   exportJsonFile,
 } from '../../../lib/jsonTransfer';
 import { useBackupReminder } from '../../../hooks/useBackupReminder';
+import { toast } from '../../../i18n/toast';
+import { errorMessage } from '../../../lib/errors';
 
 export function BackupReminderBanner({
   messageCount,
@@ -16,8 +18,8 @@ export function BackupReminderBanner({
   messageCount: number;
   onExportBackup: () => Promise<unknown>;
 }) {
-  const { t } = useTranslation('chats');
-  const { show, snooze, markBackupDone } = useBackupReminder(messageCount);
+  const { t } = useTranslation(['chats', 'settings']);
+  const { show, dismiss, markBackupDone } = useBackupReminder(messageCount);
   const [exporting, setExporting] = useState(false);
 
   if (!show) return null;
@@ -33,9 +35,10 @@ export function BackupReminderBanner({
         defaultExportDestination(),
       );
       if (exported) markBackupDone();
-    } catch {
-      // Export failures surface through the settings flow; the reminder
-      // stays visible for another visit.
+    } catch (caught) {
+      toast.danger(t('dataManagement.exportFailed', { ns: 'settings' }), {
+        description: errorMessage(caught),
+      });
     } finally {
       setExporting(false);
     }
@@ -63,16 +66,16 @@ export function BackupReminderBanner({
         <Button
           size="sm"
           variant="secondary"
-          className="w-full sm:w-auto"
+          className="min-h-11 w-full whitespace-normal wrap-anywhere sm:w-auto"
           isDisabled={exporting}
-          onPress={snooze}
+          onPress={dismiss}
         >
           {t('backupReminder.notNow')}
         </Button>
         <Button
           size="sm"
           variant="primary"
-          className="w-full sm:w-auto"
+          className="min-h-11 w-full whitespace-normal wrap-anywhere sm:w-auto"
           isPending={exporting}
           onPress={() => void exportBackup()}
         >

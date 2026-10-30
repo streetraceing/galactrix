@@ -14,11 +14,13 @@ export function SettingSwitchRow({
   return (
     <div className="flex w-full min-w-0 max-w-full items-center gap-3 py-3 first:pt-0 last:pb-0 sm:gap-4">
       <div className="min-w-0 flex-1">
-        <strong className="block text-sm font-medium">{label}</strong>
+        <strong className="block wrap-anywhere text-sm font-medium">
+          {label}
+        </strong>
         <div
           className={`grid transition-[grid-template-rows,margin-top,opacity] duration-(--motion-standard) ease-(--motion-ease) motion-reduce:transition-none`}
         >
-          <p className="min-h-0 overflow-hidden text-xs leading-5 text-muted">
+          <p className="min-h-0 wrap-anywhere text-xs leading-5 text-muted">
             {description}
           </p>
         </div>

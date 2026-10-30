@@ -165,7 +165,7 @@ function ChatSidebarComponent({
       <header className="chat-sidebar__header">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-semibold tracking-tight">
+            <h1 className="min-w-0 wrap-anywhere text-xl font-semibold tracking-tight">
               {archiveMode ? t('chatSidebar.archive') : t('chatSidebar.chats')}
             </h1>
             {scopedChats.length > 0 ? (
@@ -174,7 +174,7 @@ function ChatSidebarComponent({
               </Chip>
             ) : null}
           </div>
-          <p className="mt-1 text-xs text-muted">
+          <p className="mt-1 wrap-anywhere text-xs text-muted">
             {archiveMode
               ? t('chatSidebar.archiveDescription')
               : t('chatSidebar.conversationHistory')}

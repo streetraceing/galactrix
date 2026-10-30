@@ -12,6 +12,33 @@ import { SettingsCard } from './SettingsCard';
 import { SettingSwitchRow } from './SettingSwitchRow';
 import { useTranslation } from 'react-i18next';
 
+const messageLayouts = [
+  {
+    id: 'conversation',
+    icon: 'layout-conversation',
+    titleKey: 'profilePreferences.conversationLayout',
+    hintKey: 'profilePreferences.conversationLayoutHint',
+  },
+  {
+    id: 'bubbles',
+    icon: 'layout-bubbles',
+    titleKey: 'profilePreferences.bubblesLayout',
+    hintKey: 'profilePreferences.bubblesLayoutHint',
+  },
+  {
+    id: 'messenger',
+    icon: 'layout-left',
+    titleKey: 'profilePreferences.messengerLayout',
+    hintKey: 'profilePreferences.messengerLayoutHint',
+  },
+  {
+    id: 'reading',
+    icon: 'layout-reading',
+    titleKey: 'profilePreferences.readingLayout',
+    hintKey: 'profilePreferences.readingLayoutHint',
+  },
+] as const;
+
 export function ChatPreferences({
   settings,
   onChange,
@@ -56,66 +83,24 @@ export function ChatPreferences({
             }
           }}
         >
-          <ToggleButton
-            id="conversation"
-            variant="default"
-            className="h-auto w-full min-w-0 justify-start gap-3 rounded-xl px-3 py-3 text-left"
-          >
-            <Icon name="layout-conversation" className="size-5 shrink-0" />
-            <span className="min-w-0">
-              <strong className="block truncate text-sm">
-                {t('profilePreferences.conversationLayout')}
-              </strong>
-              <span className="block text-xs leading-4 opacity-70">
-                {t('profilePreferences.conversationLayoutHint')}
+          {messageLayouts.map((layout) => (
+            <ToggleButton
+              key={layout.id}
+              id={layout.id}
+              variant="default"
+              className="h-auto w-full min-w-0 justify-start gap-3 whitespace-normal wrap-anywhere rounded-xl px-3 py-3 text-left"
+            >
+              <Icon name={layout.icon} className="size-5 shrink-0" />
+              <span className="min-w-0 flex-1">
+                <strong className="block wrap-anywhere text-sm">
+                  {t(layout.titleKey)}
+                </strong>
+                <span className="block wrap-anywhere text-xs leading-4 opacity-70">
+                  {t(layout.hintKey)}
+                </span>
               </span>
-            </span>
-          </ToggleButton>
-          <ToggleButton
-            id="bubbles"
-            variant="default"
-            className="h-auto w-full min-w-0 justify-start gap-3 rounded-xl px-3 py-3 text-left"
-          >
-            <Icon name="layout-bubbles" className="size-5 shrink-0" />
-            <span className="min-w-0">
-              <strong className="block truncate text-sm">
-                {t('profilePreferences.bubblesLayout')}
-              </strong>
-              <span className="block text-xs leading-4 opacity-70">
-                {t('profilePreferences.bubblesLayoutHint')}
-              </span>
-            </span>
-          </ToggleButton>
-          <ToggleButton
-            id="messenger"
-            variant="default"
-            className="h-auto w-full min-w-0 justify-start gap-3 rounded-xl px-3 py-3 text-left"
-          >
-            <Icon name="layout-left" className="size-5 shrink-0" />
-            <span className="min-w-0">
-              <strong className="block truncate text-sm">
-                {t('profilePreferences.messengerLayout')}
-              </strong>
-              <span className="block text-xs leading-4 opacity-70">
-                {t('profilePreferences.messengerLayoutHint')}
-              </span>
-            </span>
-          </ToggleButton>
-          <ToggleButton
-            id="reading"
-            variant="default"
-            className="h-auto w-full min-w-0 justify-start gap-3 rounded-xl px-3 py-3 text-left"
-          >
-            <Icon name="layout-reading" className="size-5 shrink-0" />
-            <span className="min-w-0">
-              <strong className="block truncate text-sm">
-                {t('profilePreferences.readingLayout')}
-              </strong>
-              <span className="block text-xs leading-4 opacity-70">
-                {t('profilePreferences.readingLayoutHint')}
-              </span>
-            </span>
-          </ToggleButton>
+            </ToggleButton>
+          ))}
         </ToggleButtonGroup>
       </div>
 

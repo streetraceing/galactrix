@@ -36,11 +36,15 @@ export function ContextSelectionToolbar({
   return (
     <div
       data-context-selection-toolbar
-      className={`motion-floating-enter z-40 flex flex-wrap items-center justify-center gap-2 ${className}`}
+      className={`motion-floating-enter z-40 flex min-w-0 max-w-full flex-wrap items-center justify-center gap-2 ${className}`}
     >
-      <Surface className="flex h-12 items-center gap-2 rounded-full bg-overlay/95 pl-4 pr-1 shadow-overlay backdrop-blur-xl">
+      <Surface className="flex min-h-12 min-w-0 max-w-full items-center gap-2 rounded-3xl bg-overlay/95 pl-4 pr-1 shadow-overlay backdrop-blur-xl">
         <Icon name="check" className="size-4 text-accent" />
-        <span className="text-sm font-medium" role="status" aria-live="polite">
+        <span
+          className="min-w-0 wrap-anywhere py-2 text-sm font-medium"
+          role="status"
+          aria-live="polite"
+        >
           {selectedLabel}
         </span>
         <Button
@@ -55,7 +59,7 @@ export function ContextSelectionToolbar({
         </Button>
       </Surface>
 
-      <Surface className="flex h-12 items-center gap-0.5 rounded-full bg-overlay/95 p-1 shadow-overlay backdrop-blur-xl">
+      <Surface className="flex min-h-12 min-w-0 max-w-full flex-wrap justify-center items-center gap-0.5 rounded-3xl bg-overlay/95 p-1 shadow-overlay backdrop-blur-xl">
         <Tooltip>
           <Tooltip.Trigger>
             <Button

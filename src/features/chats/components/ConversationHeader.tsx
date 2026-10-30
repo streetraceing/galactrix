@@ -33,7 +33,7 @@ function ContextItem({
           {label}
         </span>
         <strong
-          className={`mt-0.5 block truncate text-sm font-medium ${
+          className={`mt-0.5 block wrap-anywhere text-sm font-medium ${
             value ? 'text-foreground' : 'text-muted'
           }`}
         >
@@ -85,7 +85,9 @@ function ConversationOverview({
               square
             />
             <span className="min-w-0 flex-1">
-              <strong className="block truncate text-base">{chat.title}</strong>
+              <strong className="block wrap-anywhere text-base">
+                {chat.title}
+              </strong>
               <span className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5">
                 <Chip size="sm" variant="soft">
                   <Icon name="chats" className="size-3" />
@@ -117,7 +119,7 @@ function ConversationOverview({
       )}
 
       <div
-        className={`grid grid-cols-2 gap-2 ${
+        className={`grid grid-cols-1 gap-2 sm:grid-cols-2 ${
           showIdentityHeader ? 'border-b border-separator p-3' : 'mb-4'
         }`}
       >
@@ -126,11 +128,11 @@ function ConversationOverview({
             <Icon name="telescope" className="size-3.5" />
             {t('conversationHeader.connection')}
           </span>
-          <strong className="mt-1.5 block truncate text-sm">
+          <strong className="mt-1.5 block wrap-anywhere text-sm">
             {provider?.name || t('conversationHeader.noProviderSelected')}
           </strong>
           {provider?.model ? (
-            <span className="mt-0.5 block truncate text-xs text-muted">
+            <span className="mt-0.5 block wrap-anywhere text-xs text-muted">
               {provider.model}
             </span>
           ) : null}
@@ -140,7 +142,7 @@ function ConversationOverview({
             <Icon name="history" className="size-3.5" />
             {t('conversationHeader.lastActivity')}
           </span>
-          <strong className="mt-1.5 block truncate text-sm">
+          <strong className="mt-1.5 block wrap-anywhere text-sm">
             {relativeUpdatedAt}
           </strong>
         </div>

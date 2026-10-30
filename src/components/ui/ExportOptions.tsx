@@ -117,7 +117,7 @@ export function ExportSelectionList({
 
   return (
     <AppPanel emphasis="subtle" className="p-4 sm:p-5">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex min-w-0 flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h3 className="text-sm font-semibold">
           {t('exportOptions.whatToExport')}
         </h3>
@@ -139,7 +139,7 @@ export function ExportSelectionList({
             key={item.id}
             isSelected={selected.has(item.id)}
             variant="secondary"
-            className="w-full rounded-lg"
+            className="w-full min-w-0 max-w-full rounded-lg"
             onChange={(checked) =>
               onChange(
                 checked
@@ -152,12 +152,12 @@ export function ExportSelectionList({
               <Checkbox.Control className="mt-0.5">
                 <Checkbox.Indicator />
               </Checkbox.Control>
-              <span className="min-w-0">
-                <strong className="block truncate text-sm font-medium">
+              <span className="min-w-0 flex-1">
+                <strong className="block wrap-anywhere text-sm font-medium">
                   {item.title}
                 </strong>
                 {item.description ? (
-                  <span className="mt-0.5 block truncate text-xs text-muted">
+                  <span className="mt-0.5 block wrap-anywhere text-xs text-muted">
                     {item.description}
                   </span>
                 ) : null}

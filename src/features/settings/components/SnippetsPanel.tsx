@@ -167,10 +167,10 @@ export function SnippetsPanel({
                 className="rounded-2xl border border-separator p-3"
               >
                 <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-1">
-                  <strong className="min-w-0 truncate text-sm font-semibold">
+                  <strong className="min-w-0 max-w-full wrap-anywhere text-sm font-semibold">
                     {snippet.title}
                   </strong>
-                  <div className="flex shrink-0 items-center gap-1">
+                  <div className="flex min-w-0 max-w-full flex-wrap items-center gap-1">
                     <Button
                       isIconOnly
                       size="sm"

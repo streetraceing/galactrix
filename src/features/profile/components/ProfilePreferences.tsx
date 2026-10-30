@@ -93,6 +93,7 @@ export function ProfilePreferences({
         <Button
           variant="secondary"
           fullWidth
+          className="h-auto min-h-11 whitespace-normal wrap-anywhere py-2"
           onPress={() =>
             void onChangeSettings({ ...settings, setupComplete: false })
           }

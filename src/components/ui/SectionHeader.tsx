@@ -11,7 +11,7 @@ export function SectionHeader({
 }) {
   return (
     <div className="section-header">
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <h2 className="section-title">{title}</h2>
         {description ? (
           <p className="section-description">{description}</p>

@@ -150,7 +150,7 @@ function MarkdownContentComponent({
   return (
     <div
       className={cn(
-        'min-w-0 wrap-break-word text-sm leading-6 text-current',
+        'min-w-0 max-w-full wrap-anywhere text-sm leading-6 text-current',
         className,
       )}
     >

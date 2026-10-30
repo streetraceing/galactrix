@@ -195,10 +195,12 @@ export function UiModal({
           >
             <Modal.CloseTrigger />
             <div className="contents" onKeyDown={handleDialogKeyDown}>
-              <Modal.Header className="ui-modal-mobile-header shrink-0 border-b border-separator px-4 pb-4 pt-4 pr-14 sm:px-6 sm:pb-4 sm:pt-5">
-                <Modal.Heading>{title}</Modal.Heading>
+              <Modal.Header className="ui-modal-mobile-header min-h-0 max-h-[40%] shrink-0 overflow-y-auto wrap-anywhere border-b border-separator px-4 pb-4 pt-4 pr-14 sm:px-6 sm:pb-4 sm:pt-5">
+                <Modal.Heading className="min-w-0 wrap-anywhere">
+                  {title}
+                </Modal.Heading>
                 {description ? (
-                  <p className="mt-1 line-clamp-2 text-xs leading-4 text-muted sm:line-clamp-none sm:text-sm sm:leading-5">
+                  <p className="mt-1 wrap-anywhere text-xs leading-4 text-muted sm:text-sm sm:leading-5">
                     {description}
                   </p>
                 ) : null}
@@ -209,7 +211,7 @@ export function UiModal({
                 {children}
               </Modal.Body>
               {footer ? (
-                <Modal.Footer className="ui-modal-mobile-footer shrink-0 gap-2 border-t border-separator px-4 py-4 [&>button]:min-h-11 [&>button]:flex-1 sm:px-6 sm:[&>button]:flex-none">
+                <Modal.Footer className="ui-modal-mobile-footer min-h-0 max-h-[40%] shrink-0 flex-col overflow-y-auto gap-2 [&>button]:h-auto [&>button]:w-full [&>button]:whitespace-normal [&>button]:wrap-anywhere [&>button]:py-2 sm:flex-row sm:[&>button]:w-auto border-t border-separator px-4 py-4 [&>button]:min-h-11 [&>button]:flex-none sm:px-6">
                   {footer}
                 </Modal.Footer>
               ) : null}

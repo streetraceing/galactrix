@@ -71,6 +71,7 @@ import { useMobileTabHistory } from '../hooks/useMobileTabHistory';
 import {
   backupReminderNow,
   noteBackupCompleted,
+  readBackupReminderState,
   writeBackupReminderState,
 } from '../lib/backupReminder';
 import { getResponseLocale, i18next } from '../i18n';
@@ -1136,7 +1137,11 @@ export function useAppController() {
 
   const recordBackupExported = useCallback(() => {
     writeBackupReminderState(
-      noteBackupCompleted(snapshot.messages.length, backupReminderNow()),
+      noteBackupCompleted(
+        snapshot.messages.length,
+        backupReminderNow(),
+        readBackupReminderState(),
+      ),
     );
   }, [snapshot.messages.length]);
 

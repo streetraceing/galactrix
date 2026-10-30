@@ -4,12 +4,12 @@ import {
   noteBackupCompleted,
   readBackupReminderState,
   shouldSuggestBackup,
-  snoozeBackup,
+  dismissBackupReminder,
   writeBackupReminderState,
 } from '../lib/backupReminder';
 
-/// Non-persistent session dismissal: after an export the reminder is cleared
-/// via `markBackupDone`, "not now" only snoozes it for a few days.
+/// Persist the opt-out across restarts. Session state also hides the banner
+/// immediately when local storage is unavailable in a restricted webview.
 export function useBackupReminder(messageCount: number) {
   const [sessionDismissed, setSessionDismissed] = useState(false);
   const show =
@@ -20,19 +20,23 @@ export function useBackupReminder(messageCount: number) {
       backupReminderNow(),
     );
 
-  const snooze = useCallback(() => {
+  const dismiss = useCallback(() => {
     writeBackupReminderState(
-      snoozeBackup(readBackupReminderState(), backupReminderNow()),
+      dismissBackupReminder(readBackupReminderState(), backupReminderNow()),
     );
     setSessionDismissed(true);
   }, []);
 
   const markBackupDone = useCallback(() => {
     writeBackupReminderState(
-      noteBackupCompleted(messageCount, backupReminderNow()),
+      noteBackupCompleted(
+        messageCount,
+        backupReminderNow(),
+        readBackupReminderState(),
+      ),
     );
     setSessionDismissed(true);
   }, [messageCount]);
 
-  return { show, snooze, markBackupDone };
+  return { show, dismiss, markBackupDone };
 }

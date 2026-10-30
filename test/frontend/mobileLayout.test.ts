@@ -84,7 +84,7 @@ test('focused mobile modal uses the visible viewport above the keyboard', () => 
   );
 });
 
-test('mobile page headers share one compact centered title area', async () => {
+test('mobile page headers share a centered title area that grows with its content', async () => {
   const [componentSource, cssSource] = await Promise.all([
     readFile(pageHeaderPath, 'utf8'),
     readFile(appCssPath, 'utf8'),
@@ -95,7 +95,7 @@ test('mobile page headers share one compact centered title area', async () => {
   assert.match(componentSource, /text-center md:text-left/);
   assert.match(
     cssSource,
-    /\.page-header-copy\s*\{[\s\S]*?@apply h-22 min-h-22 max-h-22/,
+    /\.page-header-copy\s*\{[\s\S]*?@apply h-auto min-h-22/,
   );
   assert.match(
     cssSource,

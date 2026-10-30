@@ -57,7 +57,7 @@ test('chat appearance offers four distinct persistent layouts', async () => {
   ]);
 
   for (const mode of ['conversation', 'bubbles', 'messenger', 'reading']) {
-    assert.match(preferences, new RegExp(`id="${mode}"`));
+    assert.match(preferences, new RegExp(`id: '${mode}'`));
     assert.match(types, new RegExp(`'${mode}'`));
     assert.match(rustSettings, new RegExp(`"${mode}"`));
   }
@@ -68,7 +68,7 @@ test('chat appearance offers four distinct persistent layouts', async () => {
     'layout-reading',
   ]) {
     assert.match(icon, new RegExp(`'${iconName}'`));
-    assert.match(preferences, new RegExp(`name="${iconName}"`));
+    assert.match(preferences, new RegExp(`icon: '${iconName}'`));
   }
   assert.match(messages, /const bubblesMode = viewMode === 'bubbles'/);
   assert.match(messages, /const readingMode = viewMode === 'reading'/);
