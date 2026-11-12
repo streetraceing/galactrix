@@ -322,6 +322,34 @@ export type ProviderKind =
 
 export type ProviderStatus = 'connected' | 'disabled' | 'error';
 
+export type JsonValue =
+  string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+export type ProviderOptions = {
+  reasoningEffort?:
+    'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+  thinkingBudget?: number;
+  thinkingLevel?: 'minimal' | 'low' | 'medium' | 'high';
+  topK?: number;
+  seed?: number;
+  frequencyPenalty?: number;
+  presencePenalty?: number;
+  repetitionPenalty?: number;
+  stop?: string[];
+  maxTokensField?: 'max_tokens' | 'max_completion_tokens' | 'omit';
+  omitSampling?: boolean;
+  extraBody?: Record<string, JsonValue>;
+  chatPath?: string;
+  modelsPath?: string;
+  authHeader?: string;
+  authPrefix?: string;
+  noAuth?: boolean;
+  headers?: Record<string, string>;
+  streamUsage?: boolean;
+  embeddingFormat?: 'auto' | 'openai' | 'ollama';
+  embeddingDimensions?: number;
+  embeddingExtraBody?: Record<string, JsonValue>;
+};
+
 export type Provider = {
   id: string;
   name: string;
@@ -336,6 +364,7 @@ export type Provider = {
   maxTokens: number;
   embeddingModel?: string;
   embeddingBaseUrl?: string;
+  options?: ProviderOptions;
   hasSecret: boolean;
 };
 
@@ -351,6 +380,7 @@ export type ProviderInput = {
   maxTokens: number;
   embeddingModel?: string;
   embeddingBaseUrl?: string;
+  options?: ProviderOptions;
 };
 
 export type ProviderImportInput = {

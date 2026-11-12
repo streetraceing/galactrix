@@ -1,11 +1,13 @@
 mod endpoints;
 mod retry;
+mod request;
+use request::{completion_body, configured_request};
 
 use std::future::Future;
 use std::time::{Duration, Instant};
 
 use futures_util::{Stream, StreamExt};
-use reqwest::{Client, RequestBuilder};
+use reqwest::Client;
 use serde_json::{json, Value};
 use tokio::sync::oneshot;
 
@@ -15,8 +17,8 @@ use crate::models::{
     RetrySettings,
 };
 use endpoints::{
-    embedding_endpoint_saved, ollama_base, ollama_base_saved, openai_base, openai_base_saved,
-    required_text, uses_ollama_embedding_api, validate_provider, validate_saved_provider,
+    embedding_endpoint_saved, ollama_base_saved, openai_base_saved,
+    uses_ollama_embedding_api, validate_provider, validate_saved_provider, operation_url,
 };
 use retry::{
     buffer_json_response, provider_pool_id_input, send_with_retry, send_with_retry_raw,
@@ -39,90 +41,23 @@ pub async fn list_models(
     let started = Instant::now();
     let pool_id = provider_pool_id_input(provider);
 
-    let response = match provider.kind.as_str() {
-        "ollama" | "ollama-cloud" => {
-            let url = format!("{}/tags", ollama_base(provider));
-            send_with_retry(
-                &pool_id,
-                api_key,
-                |selected_key| authenticated(client.get(&url), selected_key),
-                retry,
-                keys::PROVIDER_CONNECTION_FAILED,
-            )
-            .await
-        }
-        "cloudflare-workers-ai" => {
-            let account_id = required_text(
-                provider.account_id.as_deref(),
-                keys::PROVIDER_ACCOUNT_ID_REQUIRED,
-            )?;
-            let url = format!(
-                "https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/models/search?per_page=1000"
-            );
-            send_with_retry(
-                &pool_id,
-                api_key,
-                |selected_key| authenticated(client.get(&url), selected_key),
-                retry,
-                keys::PROVIDER_CONNECTION_FAILED,
-            )
-            .await
-        }
-        "character-ai" => {
-            return Err(CommandError::new(keys::PROVIDER_CHARACTER_AI_UNSUPPORTED));
-        }
-        _ => {
-            let url = format!("{}/models", openai_base(provider)?);
-            send_with_retry(
-                &pool_id,
-                api_key,
-                |selected_key| authenticated(client.get(&url), selected_key),
-                retry,
-                keys::PROVIDER_CONNECTION_FAILED,
-            )
-            .await
-        }
-    }?;
-
+    let url = endpoints::models_endpoint(provider)?;
+    let response = send_with_retry(
+        &pool_id, api_key,
+        |selected_key| configured_request(client.get(&url), &provider.options, selected_key),
+        retry, keys::PROVIDER_CONNECTION_FAILED,
+    ).await?;
     let value = response_json(response)?;
-    let mut models = match provider.kind.as_str() {
-        "ollama" | "ollama-cloud" => value
-            .get("models")
-            .and_then(Value::as_array)
-            .into_iter()
-            .flatten()
-            .filter_map(|item| {
-                item.get("model")
-                    .or_else(|| item.get("name"))
-                    .and_then(Value::as_str)
-                    .map(str::to_owned)
-            })
-            .collect::<Vec<_>>(),
-        "cloudflare-workers-ai" => value
-            .get("result")
-            .and_then(Value::as_array)
-            .into_iter()
-            .flatten()
-            .filter_map(|item| {
-                item.get("name")
-                    .or_else(|| item.get("id"))
-                    .and_then(Value::as_str)
-                    .map(str::to_owned)
-            })
-            .collect::<Vec<_>>(),
-        _ => value
-            .get("data")
-            .and_then(Value::as_array)
-            .into_iter()
-            .flatten()
-            .filter_map(|item| {
-                item.get("id")
-                    .and_then(Value::as_str)
-                    .map(str::to_owned)
-                    .or_else(|| item.as_str().map(str::to_owned))
-            })
-            .collect::<Vec<_>>(),
-    };
+    // Native Ollama, Cloudflare and compatible gateways use different envelopes.
+    let mut models = value.get("data").or_else(|| value.get("models")).or_else(|| value.get("result"))
+        .and_then(Value::as_array).into_iter().flatten().filter_map(|item| {
+            let name = match provider.kind.as_str() {
+                "ollama" | "ollama-cloud" => item.get("model").or_else(|| item.get("name")).or_else(|| item.get("id")),
+                "cloudflare-workers-ai" => item.get("name").or_else(|| item.get("id")),
+                _ => item.get("id").or_else(|| item.get("model")).or_else(|| item.get("name")),
+            };
+            name.and_then(Value::as_str).or_else(|| item.as_str()).map(str::to_owned)
+        }).collect::<Vec<_>>();
 
     models.sort_unstable();
     models.dedup();
@@ -159,21 +94,12 @@ pub async fn complete(
 
     let response = match provider.kind.as_str() {
         "ollama" | "ollama-cloud" => {
-            let url = format!("{}/chat", ollama_base_saved(provider));
-            let body = json!({
-                "model": provider.model,
-                "messages": messages,
-                "stream": false,
-                "options": {
-                    "temperature": provider.temperature,
-                    "top_p": provider.top_p,
-                    "num_predict": provider.max_tokens,
-                }
-            });
+            let url = operation_url(&ollama_base_saved(provider), provider.options.chat_path.as_deref(), "chat");
+            let body = completion_body(provider, &messages, false);
             send_with_retry(
                 &pool_id,
                 api_key,
-                |selected_key| authenticated(client.post(&url), selected_key).json(&body),
+                |selected_key| configured_request(client.post(&url), &provider.options, selected_key).json(&body),
                 retry,
                 keys::PROVIDER_REQUEST_FAILED,
             )
@@ -183,19 +109,12 @@ pub async fn complete(
             return Err(CommandError::new(keys::PROVIDER_CHARACTER_AI_UNSUPPORTED));
         }
         _ => {
-            let url = format!("{}/chat/completions", openai_base_saved(provider)?);
-            let body = json!({
-                "model": provider.model,
-                "messages": messages,
-                "temperature": provider.temperature,
-                "top_p": provider.top_p,
-                "max_tokens": provider.max_tokens,
-                "stream": false,
-            });
+            let url = operation_url(&openai_base_saved(provider)?, provider.options.chat_path.as_deref(), "chat/completions");
+            let body = completion_body(provider, &messages, false);
             send_with_retry(
                 &pool_id,
                 api_key,
-                |selected_key| authenticated(client.post(&url), selected_key).json(&body),
+                |selected_key| configured_request(client.post(&url), &provider.options, selected_key).json(&body),
                 retry,
                 keys::PROVIDER_REQUEST_FAILED,
             )
@@ -280,38 +199,21 @@ pub async fn complete_streaming(
         let messages = build_request_messages(history, system_prompt, user_content);
         let (url, body) = match provider.kind.as_str() {
             "ollama" | "ollama-cloud" => (
-                format!("{}/chat", ollama_base_saved(provider)),
-                json!({
-                    "model": provider.model,
-                    "messages": messages,
-                    "stream": true,
-                    "options": {
-                        "temperature": provider.temperature,
-                        "top_p": provider.top_p,
-                        "num_predict": provider.max_tokens,
-                    }
-                }),
+                operation_url(&ollama_base_saved(provider), provider.options.chat_path.as_deref(), "chat"),
+                completion_body(provider, &messages, true),
             ),
             "character-ai" => {
                 return Err(CommandError::new(keys::PROVIDER_CHARACTER_AI_UNSUPPORTED));
             }
             _ => (
-                format!("{}/chat/completions", openai_base_saved(provider)?),
-                json!({
-                    "model": provider.model,
-                    "messages": messages,
-                    "temperature": provider.temperature,
-                    "top_p": provider.top_p,
-                    "max_tokens": provider.max_tokens,
-                    "stream": true,
-                    "stream_options": { "include_usage": true },
-                }),
+                operation_url(&openai_base_saved(provider)?, provider.options.chat_path.as_deref(), "chat/completions"),
+                completion_body(provider, &messages, true),
             ),
         };
         send_with_retry_raw(
             &provider.id,
             api_key,
-            |selected_key| authenticated(client.post(&url), selected_key).json(&body),
+            |selected_key| configured_request(client.post(&url), &provider.options, selected_key).json(&body),
             retry,
             keys::PROVIDER_REQUEST_FAILED,
         )
@@ -601,11 +503,8 @@ impl StreamChunkParser {
         {
             self.finish_reason_received = true;
         }
-        if let Some(text) = value
-            .pointer("/choices/0/delta/content")
-            .and_then(Value::as_str)
-        {
-            parsed.delta.push_str(text);
+        if let Some(text) = value.pointer("/choices/0/delta/content").and_then(extract_text) {
+            parsed.delta.push_str(&text);
         }
         if let Some(usage) = value.get("usage").filter(|usage| usage.is_object()) {
             parsed.usage = Some((
@@ -721,13 +620,36 @@ fn streaming_http_client() -> CommandResult<Client> {
         .map_err(CommandError::internal)
 }
 
+/// Legacy /api/embeddings accepts one prompt, not a batch input array.
 pub async fn embed(
+    provider: &Provider, api_key: Option<&str>, inputs: &[String], retry: &RetrySettings,
+) -> CommandResult<EmbeddingResult> {
+    crate::provider_support::validate_options(&provider.options)?;
+    let url = embedding_endpoint_saved(provider)?;
+    let path = url.split(['?', '#']).next().unwrap_or(&url).trim_end_matches('/').to_ascii_lowercase();
+    if inputs.len() > 1 && uses_ollama_embedding_api(provider, &url) && path.ends_with("/api/embeddings") {
+        let started = Instant::now();
+        let mut embeddings = Vec::with_capacity(inputs.len());
+        for input in inputs {
+            let result = embed_batch(provider, api_key, std::slice::from_ref(input), retry).await?;
+            embeddings.extend(result.embeddings);
+        }
+        let dimensions = embeddings.first().map_or(0, Vec::len);
+        if dimensions == 0 || embeddings.iter().any(|v| v.len() != dimensions) {
+            return Err(CommandError::new(keys::PROVIDER_EMPTY_RESPONSE));
+        }
+        return Ok(EmbeddingResult { embeddings, latency_ms: started.elapsed().as_millis().min(i64::MAX as u128) as i64 });
+    }
+    embed_batch(provider, api_key, inputs, retry).await
+}
+
+async fn embed_batch(
     provider: &Provider,
     api_key: Option<&str>,
     inputs: &[String],
     retry: &RetrySettings,
 ) -> CommandResult<EmbeddingResult> {
-    validate_saved_provider(provider, api_key)?;
+    crate::provider_support::validate_options(&provider.options)?;
     let model = provider
         .embedding_model
         .as_deref()
@@ -747,29 +669,31 @@ pub async fn embed(
     let embedding_url = embedding_endpoint_saved(provider)?;
     let uses_ollama_api = uses_ollama_embedding_api(provider, &embedding_url);
     let response = if uses_ollama_api {
-        let legacy_endpoint = embedding_url
+        let legacy_endpoint = embedding_url.split(['?', '#']).next().unwrap_or(&embedding_url)
             .trim_end_matches('/')
             .to_ascii_lowercase()
             .ends_with("/api/embeddings");
-        let body = if legacy_endpoint && inputs.len() == 1 {
+        let mut body = if legacy_endpoint && inputs.len() == 1 {
             json!({ "model": model, "prompt": inputs[0].as_str() })
         } else {
             json!({ "model": model, "input": inputs })
         };
+        request::embedding_options(&mut body, &provider.options);
         send_with_retry(
             &pool_id,
             api_key,
-            |selected_key| authenticated(client.post(&embedding_url), selected_key).json(&body),
+            |selected_key| configured_request(client.post(&embedding_url), &provider.options, selected_key).json(&body),
             retry,
             keys::PROVIDER_REQUEST_FAILED,
         )
         .await?
     } else {
-        let body = json!({ "model": model, "input": inputs, "encoding_format": "float" });
+        let mut body = json!({ "model": model, "input": inputs, "encoding_format": "float" });
+        request::embedding_options(&mut body, &provider.options);
         send_with_retry(
             &pool_id,
             api_key,
-            |selected_key| authenticated(client.post(&embedding_url), selected_key).json(&body),
+            |selected_key| configured_request(client.post(&embedding_url), &provider.options, selected_key).json(&body),
             retry,
             keys::PROVIDER_REQUEST_FAILED,
         )
@@ -816,8 +740,9 @@ fn parse_embedding_response(value: &Value) -> CommandResult<Vec<Vec<f32>>> {
         .and_then(Value::as_array)
         .into_iter()
         .flatten()
-        .map(|item| {
-            let index = item.get("index").and_then(Value::as_u64).unwrap_or(0) as usize;
+        .enumerate()
+        .map(|(position, item)| {
+            let index = item.get("index").and_then(Value::as_u64).unwrap_or(position as u64) as usize;
             let vector = parse_embedding(
                 item.get("embedding")
                     .ok_or_else(|| CommandError::new(keys::PROVIDER_EMPTY_RESPONSE))?,
@@ -829,6 +754,7 @@ fn parse_embedding_response(value: &Value) -> CommandResult<Vec<Vec<f32>>> {
     if indexed.is_empty() {
         return Err(CommandError::new(keys::PROVIDER_EMPTY_RESPONSE));
     }
+    if indexed.iter().enumerate().any(|(expected, (actual, _))| expected != *actual) { return Err(CommandError::new(keys::PROVIDER_EMPTY_RESPONSE)); }
     Ok(indexed.into_iter().map(|(_, vector)| vector).collect())
 }
 
@@ -842,6 +768,7 @@ fn parse_embedding(value: &Value) -> CommandResult<Vec<f32>> {
                 .as_f64()
                 .filter(|value| value.is_finite())
                 .map(|value| value as f32)
+                .filter(|value| value.is_finite())
                 .ok_or_else(|| CommandError::new(keys::PROVIDER_EMPTY_RESPONSE))
         })
         .collect()
@@ -856,12 +783,6 @@ fn http_client() -> CommandResult<Client> {
         .map_err(CommandError::internal)
 }
 
-fn authenticated(request: RequestBuilder, api_key: Option<&str>) -> RequestBuilder {
-    match api_key.map(str::trim).filter(|key| !key.is_empty()) {
-        Some(key) => request.bearer_auth(key),
-        None => request,
-    }
-}
 
 fn response_json(response: JsonResponse) -> CommandResult<Value> {
     let JsonResponse { status, value } = response;
@@ -891,6 +812,7 @@ fn extract_text(value: &Value) -> Option<String> {
     let parts = value.as_array()?;
     let text = parts
         .iter()
+        .filter(|part| !matches!(part.get("type").and_then(Value::as_str), Some("thinking" | "reasoning")))
         .filter_map(|part| {
             part.get("text")
                 .and_then(Value::as_str)

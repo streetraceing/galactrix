@@ -496,6 +496,33 @@ pub struct GalaxyItemInput {
     pub data: Value,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase", default)]
+pub struct ProviderOptions {
+    pub reasoning_effort: Option<String>,
+    pub thinking_budget: Option<i64>,
+    pub thinking_level: Option<String>,
+    pub top_k: Option<i64>,
+    pub seed: Option<i64>,
+    pub frequency_penalty: Option<f64>,
+    pub presence_penalty: Option<f64>,
+    pub repetition_penalty: Option<f64>,
+    pub stop: Vec<String>,
+    pub max_tokens_field: Option<String>,
+    pub omit_sampling: bool,
+    pub extra_body: serde_json::Map<String, Value>,
+    pub chat_path: Option<String>,
+    pub models_path: Option<String>,
+    pub auth_header: Option<String>,
+    pub auth_prefix: Option<String>,
+    pub no_auth: bool,
+    pub headers: std::collections::BTreeMap<String, String>,
+    pub stream_usage: Option<bool>,
+    pub embedding_format: Option<String>,
+    pub embedding_dimensions: Option<i64>,
+    pub embedding_extra_body: serde_json::Map<String, Value>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Provider {
@@ -514,6 +541,8 @@ pub struct Provider {
     pub embedding_model: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub embedding_base_url: Option<String>,
+    #[serde(default)]
+    pub options: ProviderOptions,
     pub has_secret: bool,
 }
 
@@ -531,6 +560,8 @@ pub struct ProviderInput {
     pub max_tokens: i64,
     pub embedding_model: Option<String>,
     pub embedding_base_url: Option<String>,
+    #[serde(default)]
+    pub options: ProviderOptions,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -579,6 +610,7 @@ impl ProviderInput {
             max_tokens: self.max_tokens,
             embedding_model: self.embedding_model,
             embedding_base_url: self.embedding_base_url,
+            options: self.options,
             has_secret: false,
         }
     }
@@ -598,6 +630,7 @@ impl From<&Provider> for ProviderInput {
             max_tokens: provider.max_tokens,
             embedding_model: provider.embedding_model.clone(),
             embedding_base_url: provider.embedding_base_url.clone(),
+            options: provider.options.clone(),
         }
     }
 }
@@ -1241,6 +1274,7 @@ mod provider_import_tests {
             max_tokens: 1024,
             embedding_model: None,
             embedding_base_url: None,
+            options: Default::default(),
         }
     }
 

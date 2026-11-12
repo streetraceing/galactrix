@@ -416,7 +416,7 @@ export async function fetchProviderModels(
   requireTauri();
   return invokeBackend<ProviderModelResult>('fetch_provider_models', {
     provider,
-    apiKey: apiKey || null,
+    apiKey: apiKey ?? null,
   });
 }
 
@@ -427,7 +427,7 @@ export async function testProviderEmbeddings(
   requireTauri();
   return invokeBackend<EmbeddingProbeResult>('test_provider_embeddings', {
     provider,
-    apiKey: apiKey || null,
+    apiKey: apiKey ?? null,
   });
 }
 
@@ -438,7 +438,7 @@ export async function saveProvider(
   requireTauri();
   return invokeBackend<Provider>('save_provider', {
     provider,
-    apiKey: apiKey || null,
+    apiKey: apiKey ?? null,
   });
 }
 

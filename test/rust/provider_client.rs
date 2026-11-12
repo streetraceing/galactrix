@@ -46,6 +46,7 @@ fn provider(kind: &str, embedding_base_url: Option<&str>) -> crate::models::Prov
         max_tokens: 1024,
         embedding_model: Some("embedding-model".into()),
         embedding_base_url: embedding_base_url.map(str::to_owned),
+        options: Default::default(),
         has_secret: false,
     }
 }

@@ -125,7 +125,6 @@ export function ChatTagsModal({
           </Button>
           <Button
             variant="primary"
-            autoFocus
             isPending={saving}
             isDisabled={working || chatIds.length === 0}
             onPress={() => void apply()}

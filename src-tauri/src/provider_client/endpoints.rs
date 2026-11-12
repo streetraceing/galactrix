@@ -19,16 +19,17 @@ pub(super) fn validate_provider(
     if provider.name.trim().is_empty() {
         return Err(CommandError::new(keys::PROVIDER_NAME_REQUIRED));
     }
+    provider_support::validate_options(&provider.options)?;
     validate_kind(&provider.kind)?;
     validate_supported_kind(&provider.kind)?;
-    validate_auth(&provider.kind, api_key, provider.id.is_some())?;
+    validate_auth(&provider.kind, api_key, provider.id.is_some(), provider.options.no_auth)?;
     if provider.kind == "custom" {
         required_text(
             provider.base_url.as_deref(),
             keys::PROVIDER_BASE_URL_REQUIRED,
         )?;
     }
-    if provider.kind == "cloudflare-workers-ai" {
+    if provider.kind == "cloudflare-workers-ai" && provider.base_url.as_deref().map(str::trim).filter(|v| !v.is_empty()).is_none() {
         required_text(
             provider.account_id.as_deref(),
             keys::PROVIDER_ACCOUNT_ID_REQUIRED,
@@ -41,9 +42,10 @@ pub(super) fn validate_saved_provider(
     provider: &Provider,
     api_key: Option<&str>,
 ) -> CommandResult<()> {
+    provider_support::validate_options(&provider.options)?;
     validate_kind(&provider.kind)?;
     validate_supported_kind(&provider.kind)?;
-    validate_auth(&provider.kind, api_key, false)?;
+    validate_auth(&provider.kind, api_key, false, provider.options.no_auth)?;
     if provider.model.trim().is_empty() {
         return Err(CommandError::new(keys::PROVIDER_MODEL_REQUIRED));
     }
@@ -65,8 +67,8 @@ fn validate_kind(kind: &str) -> CommandResult<()> {
     }
 }
 
-fn validate_auth(kind: &str, api_key: Option<&str>, existing_id: bool) -> CommandResult<()> {
-    if provider_support::requires_key(kind)
+fn validate_auth(kind: &str, api_key: Option<&str>, existing_id: bool, no_auth: bool) -> CommandResult<()> {
+    if !no_auth && provider_support::requires_key(kind)
         && !existing_id
         && api_key
             .map(str::trim)
@@ -94,6 +96,9 @@ pub(super) fn openai_base(provider: &ProviderInput) -> CommandResult<String> {
             .as_deref()
             .unwrap_or(DEFAULT_HUGGINGFACE_URL),
         "cloudflare-workers-ai" => {
+            if let Some(base) = provider.base_url.as_deref().map(str::trim).filter(|v| !v.is_empty()) {
+                return Ok(base.trim_end_matches('/').to_owned());
+            }
             let account_id = required_text(
                 provider.account_id.as_deref(),
                 keys::PROVIDER_ACCOUNT_ID_REQUIRED,
@@ -170,11 +175,55 @@ pub(super) fn required_text<'a>(
 }
 
 pub(super) fn uses_ollama_embedding_api(provider: &Provider, endpoint: &str) -> bool {
-    if matches!(provider.kind.as_str(), "ollama" | "ollama-cloud") {
+    match provider.options.embedding_format.as_deref() {
+        Some("openai") => return false,
+        Some("ollama") => return true,
+        _ => {}
+    }
+    // An explicit remote endpoint must not inherit the chat provider protocol.
+    if provider.embedding_base_url.is_none() && matches!(provider.kind.as_str(), "ollama" | "ollama-cloud") {
         return true;
     }
 
     let path = endpoint.split(['?', '#']).next().unwrap_or(endpoint);
     let normalized = path.trim_end_matches('/').to_ascii_lowercase();
     normalized.ends_with("/api/embed") || normalized.ends_with("/api/embeddings")
+}
+
+
+pub(super) fn operation_url(base: &str, path: Option<&str>, default: &str) -> String {
+    format!("{}/{}", base.trim_end_matches('/'), path.unwrap_or(default).trim_start_matches('/'))
+}
+
+/// Route model listing through the same configured service as chat requests.
+pub(super) fn models_endpoint(provider: &ProviderInput) -> CommandResult<String> {
+    if matches!(provider.kind.as_str(), "ollama" | "ollama-cloud") {
+        return Ok(operation_url(&ollama_base(provider), provider.options.models_path.as_deref(), "tags"));
+    }
+    let custom_base = provider.base_url.as_deref().map(str::trim).filter(|s| !s.is_empty());
+    if provider.kind == "cloudflare-workers-ai" && custom_base.is_none() && provider.options.models_path.is_none() {
+        let account = required_text(provider.account_id.as_deref(), keys::PROVIDER_ACCOUNT_ID_REQUIRED)?;
+        return Ok(format!("https://api.cloudflare.com/client/v4/accounts/{account}/ai/models/search?per_page=1000"));
+    }
+    Ok(operation_url(&openai_base(provider)?, provider.options.models_path.as_deref(), "models"))
+}
+
+#[cfg(test)]
+mod reliability_tests {
+    use super::*;
+    fn input(kind: &str) -> ProviderInput {
+        serde_json::from_value(serde_json::json!({"name":"test","kind":kind,"model":"chat", "temperature":0.7,"topP":0.95,"maxTokens":1024})).unwrap()
+    }
+    #[test]
+    fn model_paths_are_respected_for_ollama_and_cloudflare_gateways() {
+        let mut p = input("ollama"); p.base_url = Some("http://localhost:11434/api".into());
+        p.options.models_path = Some("custom-tags".into());
+        assert_eq!(models_endpoint(&p).unwrap(), "http://localhost:11434/api/custom-tags");
+        let mut p = input("cloudflare-workers-ai");
+        p.base_url = Some("https://gateway.example/v1".into()); p.options.no_auth = true;
+        validate_provider(&p, None).unwrap();
+        assert_eq!(models_endpoint(&p).unwrap(), "https://gateway.example/v1/models");
+        p.options.models_path = Some("catalog".into());
+        assert_eq!(models_endpoint(&p).unwrap(), "https://gateway.example/v1/catalog");
+    }
 }

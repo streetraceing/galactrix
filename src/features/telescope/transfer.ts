@@ -1,5 +1,6 @@
 import type { Provider, ProviderImportInput, ProviderKind } from '../../types';
 import { i18next } from '../../i18n';
+import { parseProviderOptions } from './providerOptions';
 import { providerToInput } from './providerHelpers';
 
 const PROVIDER_KINDS: ProviderKind[] = [
@@ -79,6 +80,7 @@ export function parseTelescopeExport(value: unknown): TelescopeImportEntry[] {
         accountId: optionalString(provider.accountId),
         embeddingModel: optionalString(provider.embeddingModel),
         embeddingBaseUrl: optionalString(provider.embeddingBaseUrl),
+        options: parseProviderOptions(provider.options),
         temperature: finiteNumber(provider.temperature, 0.7),
         topP: finiteNumber(provider.topP, 0.95),
         maxTokens: Math.round(finiteNumber(provider.maxTokens, 4096)),

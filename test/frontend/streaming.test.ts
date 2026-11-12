@@ -6,16 +6,18 @@ const root = new URL('../../', import.meta.url);
 const read = (path: string) => readFile(new URL(path, root), 'utf8');
 
 test('provider client streams SSE and Ollama payloads with cancellation support', async () => {
-  const [client, retry, lib] = await Promise.all([
+  const [client, retry, lib, request] = await Promise.all([
     read('src-tauri/src/provider_client.rs'),
     read('src-tauri/src/provider_client/retry.rs'),
     read('src-tauri/src/lib.rs'),
+    read('src-tauri/src/provider_client/request.rs'),
   ]);
 
   assert.match(client, /pub async fn complete_streaming/);
   assert.match(client, /pub\(crate\) struct StreamChunkParser/);
-  assert.match(client, /"stream": true/);
-  assert.match(client, /"stream_options": \{ "include_usage": true \}/);
+  assert.match(client, /completion_body\(provider, &messages, true\)/);
+  assert.match(request, /"stream_options"/);
+  assert.match(request, /"include_usage": true/);
   // A provider that answers with plain JSON falls back to buffered parsing.
   assert.match(client, /fall back to the buffered completion path/);
   // A cancelled stream keeps the partial text instead of dropping it.

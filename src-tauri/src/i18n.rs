@@ -30,6 +30,7 @@ pub mod keys {
     pub const REVISION_NOT_FOUND: &str = "backend.revision.notFound";
     pub const REVISION_KIND_UNKNOWN: &str = "backend.revision.kindUnknown";
 
+    pub const PROVIDER_OPTIONS_INVALID: &str = "backend.provider.optionsInvalid";
     pub const PROVIDER_EMPTY_RESPONSE: &str = "backend.provider.emptyResponse";
     pub const PROVIDER_SELECT_FOR_CHAT: &str = "backend.provider.selectForChat";
     pub const PROVIDER_NOT_FOUND: &str = "backend.provider.notFound";

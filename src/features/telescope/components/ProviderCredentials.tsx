@@ -102,9 +102,7 @@ export function ProviderCredentials({
           </p>
         </FormField>
       ) : null}
-      {form.kind === 'custom' ||
-      form.kind === 'ollama' ||
-      form.kind === 'ollama-cloud' ? (
+      {form.kind !== 'character-ai' ? (
         <div className="sm:col-span-2">
           <FormField label="Base URL">
             <Input

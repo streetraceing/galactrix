@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { ProviderAdvancedSettings } from './ProviderAdvancedSettings';
 import { Button, Surface } from '@heroui/react';
 import { UiModal } from '../../../components/ui/UiModal';
 import type { providerCatalog } from '../catalog';
@@ -64,13 +66,15 @@ export function ProviderEditorModal({
   onSave: () => void;
 }) {
   const { t } = useTranslation('telescope');
+  const [advancedValid, setAdvancedValid] = useState(true);
   const canSave =
     step === 2 &&
     Boolean(form.name.trim()) &&
     Boolean(form.model.trim()) &&
     form.kind !== 'character-ai' &&
     !saving &&
-    !loadingCredentials;
+    !loadingCredentials &&
+    advancedValid;
 
   return (
     <UiModal
@@ -165,10 +169,16 @@ export function ProviderEditorModal({
                 </span>
               </span>
             </summary>
-            <div className="mt-4 border-t border-separator pt-4">
+            <div className="mt-4 space-y-4 border-t border-separator pt-4">
               <GenerationSettings form={form} onPatch={onPatch} />
             </div>
           </details>
+          <ProviderAdvancedSettings
+            key={form.id ?? form.kind}
+            form={form}
+            onPatch={onPatch}
+            onValidityChange={setAdvancedValid}
+          />
           {error ? (
             <p className="selectable text-sm text-danger">{error}</p>
           ) : null}

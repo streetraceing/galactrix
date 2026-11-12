@@ -27,7 +27,7 @@ test('shared page and collection typography wraps unbroken user content', () => 
   );
 });
 
-test('modal headings and descriptions stay fully readable with scrollable stacked actions', () => {
+test('modal headings and descriptions stay fully readable with scrollable horizontal actions', () => {
   const modal = read('src/components/ui/UiModal.tsx');
   assert.doesNotMatch(modal, /line-clamp-/);
   assert.match(modal, /Modal.Heading className="min-w-0 wrap-anywhere"/);
@@ -37,7 +37,7 @@ test('modal headings and descriptions stay fully readable with scrollable stacke
   );
   assert.match(
     modal,
-    /ui-modal-mobile-footer[^"\n]*flex-col[^"\n]*overflow-y-auto/,
+    /ui-modal-mobile-footer[^"\n]*flex-row[^"\n]*flex-wrap[^"\n]*overflow-y-auto/,
   );
   assert.match(modal, /sm:flex-row/);
   assert.match(modal, /\[&>button\]:whitespace-normal/);

@@ -2,6 +2,7 @@ import { Modal } from '@heroui/react';
 import {
   useLayoutEffect,
   useState,
+  useRef,
   type CSSProperties,
   type KeyboardEvent,
   type ReactNode,
@@ -38,6 +39,7 @@ export function UiModal({
   bodyClassName?: string;
 }) {
   const isMobile = isMobilePlatform();
+  const bodyRef = useRef<HTMLDivElement | null>(null);
   const [mobileLayoutViewport, setMobileLayoutViewport] =
     useState<MobileModalViewport>();
 
@@ -69,6 +71,23 @@ export function UiModal({
       window.cancelAnimationFrame(frame);
       frame = window.requestAnimationFrame(() => {
         syncLayoutViewport();
+        const body = bodyRef.current;
+        const active = document.activeElement;
+        if (!body || !(active instanceof HTMLElement) || !body.contains(active))
+          return;
+        const rect = active.getBoundingClientRect();
+        const bounds = body.getBoundingClientRect();
+        const visibleBottom =
+          (window.visualViewport?.height ?? window.innerHeight) +
+          (window.visualViewport?.offsetTop ?? 0);
+        const bottom = Math.min(bounds.bottom, visibleBottom) - 12;
+        const top = bounds.top + 12;
+        if (rect.top < top) body.scrollTop -= top - rect.top;
+        else if (rect.bottom > bottom)
+          body.scrollTop += Math.min(
+            rect.bottom - bottom,
+            Math.max(0, rect.top - top),
+          );
       });
     };
 
@@ -152,7 +171,7 @@ export function UiModal({
 
     if (
       target.closest(
-        'button, a, [role="button"], [role="option"], [role="menuitem"], [role="checkbox"], [role="radio"], [role="slider"], [role="listbox"]',
+        'button, a, [role="button"], [role="option"], [role="menuitem"], [role="checkbox"], [role="radio"], [role="slider"], [role="listbox"], select, summary',
       ) ||
       target.matches('[role="combobox"][aria-expanded="true"]')
     ) {
@@ -206,12 +225,13 @@ export function UiModal({
                 ) : null}
               </Modal.Header>
               <Modal.Body
+                ref={bodyRef}
                 className={`ui-modal-mobile-body scrollbar-thin min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-4 py-4 sm:px-6 sm:py-5 scrollbar-gutter-stable ${bodyClassName ?? ''}`}
               >
                 {children}
               </Modal.Body>
               {footer ? (
-                <Modal.Footer className="ui-modal-mobile-footer min-h-0 max-h-[40%] shrink-0 flex-col overflow-y-auto gap-2 [&>button]:h-auto [&>button]:w-full [&>button]:whitespace-normal [&>button]:wrap-anywhere [&>button]:py-2 sm:flex-row sm:[&>button]:w-auto border-t border-separator px-4 py-4 [&>button]:min-h-11 [&>button]:flex-none sm:px-6">
+                <Modal.Footer className="ui-modal-mobile-footer min-h-0 max-h-[40%] shrink-0 flex-row flex-wrap overflow-y-auto gap-2 [&>button]:h-auto [&>button]:min-w-0 [&>button]:flex-1 [&>button]:whitespace-normal [&>button]:wrap-anywhere [&>button]:py-2 sm:flex-row sm:[&>button]:w-auto border-t border-separator px-4 py-4 [&>button]:min-h-11 sm:[&>button]:flex-none sm:px-6">
                   {footer}
                 </Modal.Footer>
               ) : null}

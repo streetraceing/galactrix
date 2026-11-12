@@ -2107,3 +2107,11 @@ textarea {
   block-size: 100%;
   flex: 1 1 0%;
 }
+
+/* Expanding editor sections must not move the user's existing scroll anchor. */
+.ui-modal-mobile-body {
+  overflow-anchor: none;
+}
+.ui-modal-mobile-footer > button {
+  max-inline-size: 100%;
+}

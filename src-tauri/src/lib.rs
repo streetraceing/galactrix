@@ -1051,7 +1051,7 @@ async fn test_provider_embeddings(
     api_key: Option<String>,
     state: State<'_, AppState>,
 ) -> CommandResult<EmbeddingProbeResult> {
-    provider_support::validate_input(&provider)?;
+    provider_support::validate_embedding_input(&provider)?;
     let embedding_model = provider
         .embedding_model
         .as_deref()
@@ -1107,17 +1107,13 @@ async fn save_provider(
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .map(str::to_owned);
-    let previous_provider = {
-        let database = state.database.lock().map_err(CommandError::internal)?;
-        db::provider_optional(&database, &id)?
+    let clear_secret = api_key.as_deref().is_some_and(|value| value.trim().is_empty());
+    let previous_secret = if api_key.is_some() || (!provider.options.no_auth && provider_support::requires_key(&provider.kind)) {
+        secure_storage::read_provider_secret(&id)?
+    } else {
+        secure_storage::read_provider_secret(&id).unwrap_or(None)
     };
-    let previous_secret =
-        if supplied_secret.is_some() || provider_support::requires_key(&provider.kind) {
-            secure_storage::read_provider_secret(&id)?
-        } else {
-            secure_storage::read_provider_secret(&id).unwrap_or(None)
-        };
-    let effective_secret = supplied_secret.clone().or_else(|| previous_secret.clone());
+    let effective_secret = if clear_secret { None } else { supplied_secret.clone().or_else(|| previous_secret.clone()) };
     let retry = {
         let database = state.database.lock().map_err(CommandError::internal)?;
         db::get_settings(&database)?.ai_modules.retry
@@ -1125,7 +1121,7 @@ async fn save_provider(
 
     let mut probe_input = provider.clone();
     probe_input.id = Some(id.clone());
-    let probe = if provider_support::requires_key(&probe_input.kind) && effective_secret.is_none() {
+    let probe = if !probe_input.options.no_auth && provider_support::requires_key(&probe_input.kind) && effective_secret.is_none() {
         Err(CommandError::new(keys::PROVIDER_API_KEY_MISSING))
     } else {
         provider_client::list_models(&probe_input, effective_secret.as_deref(), &retry).await
@@ -1137,23 +1133,20 @@ async fn save_provider(
 
     let mut saved = provider.into_provider(id.clone(), status, latency_ms);
     saved.has_secret = effective_secret.is_some();
-    {
-        let database = state.database.lock().map_err(CommandError::internal)?;
-        db::save_provider(&database, &saved)?;
-    }
-
-    if let Some(secret) = supplied_secret.as_deref() {
-        if let Err(error) = secure_storage::save_provider_secret(&id, secret) {
-            if let Ok(database) = state.database.lock() {
-                if let Some(previous) = previous_provider.as_ref() {
-                    let _ = db::save_provider(&database, previous);
-                } else {
-                    let _ = db::delete_provider_record(&database, &id);
-                }
-            }
-            provider_support::restore_secret(&id, previous_secret.as_deref());
-            return Err(error);
+    // Mutate the keyring first; failed secure storage must not invalidate vectors.
+    if api_key.is_some() {
+        match supplied_secret.as_deref() {
+            Some(secret) => secure_storage::save_provider_secret(&id, secret)?,
+            None => secure_storage::delete_provider_secret(&id)?,
         }
+    }
+    let persist = (|| -> CommandResult<()> {
+        let database = state.database.lock().map_err(CommandError::internal)?;
+        db::save_provider(&database, &saved)
+    })();
+    if let Err(error) = persist {
+        if api_key.is_some() { provider_support::restore_secret(&id, previous_secret.as_deref()); }
+        return Err(error);
     }
 
     saved.has_secret = secure_storage::has_provider_secret(&saved.id);

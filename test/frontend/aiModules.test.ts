@@ -327,7 +327,11 @@ test('providers accept multiple protected API keys with temporary rate-limit rot
 
   assert.match(credentials, /type="password"/);
   assert.match(credentials, /providerCredentials\.addApiKey/);
-  assert.match(editor, /setToken\(await onReadSecrets\(provider\.id\)\)/);
+  assert.match(editor, /const secret = await onReadSecrets\(provider\.id\)/);
+  assert.match(
+    editor,
+    /if \(epoch\.isCurrent\(ticket\)\) setTokenState\(secret\)/,
+  );
   assert.match(editor, /loadingCredentials/);
   assert.match(telescope, /onExportSecrets\(\[providerId\]\)/);
   assert.match(telescope, /\.join\('\\n'\)/);

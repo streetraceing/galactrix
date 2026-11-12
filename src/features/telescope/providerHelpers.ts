@@ -42,5 +42,6 @@ export function providerToInput(provider: Provider): ProviderInput {
     maxTokens: provider.maxTokens,
     embeddingModel: provider.embeddingModel ?? undefined,
     embeddingBaseUrl: provider.embeddingBaseUrl ?? undefined,
+    options: provider.options ? structuredClone(provider.options) : undefined,
   };
 }

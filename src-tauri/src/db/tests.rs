@@ -537,6 +537,7 @@ fn dynamic_context_and_semantic_memory_are_invalidated_together() {
         max_tokens: 4096,
         embedding_model: Some("qwen3-embedding".into()),
         embedding_base_url: None,
+        options: Default::default(),
         has_secret: false,
     };
     save_provider(&connection, &provider).expect("provider must save");
@@ -595,6 +596,7 @@ fn semantic_memory_reindexes_changed_content_and_prunes_stale_sources() {
         max_tokens: 4096,
         embedding_model: Some("qwen3-embedding".into()),
         embedding_base_url: None,
+        options: Default::default(),
         has_secret: false,
     };
     save_provider(&connection, &provider).expect("provider must save");
@@ -1975,6 +1977,7 @@ fn deleting_a_provider_clears_every_reference_to_it() {
                 max_tokens: 4096,
                 embedding_model: None,
                 embedding_base_url: None,
+                options: Default::default(),
                 has_secret: false,
             },
         )
@@ -2076,6 +2079,7 @@ fn a_backup_exported_after_a_provider_deletion_still_validates() {
             max_tokens: 4096,
             embedding_model: Some("text-embedding-3-small".into()),
             embedding_base_url: None,
+            options: Default::default(),
             has_secret: false,
         },
     )
@@ -2090,4 +2094,42 @@ fn a_backup_exported_after_a_provider_deletion_still_validates() {
 
     let data = backup_data(&connection).expect("backup must export");
     validate_backup_data(&data).expect("an export after deletion must stay restorable");
+}
+
+fn reliability_provider() -> Provider {
+    serde_json::from_value(serde_json::json!({"id":"vector-provider","name":"Vector provider","kind":"ollama","model":"chat","status":"connected", "temperature":0.7,"topP":0.95,"maxTokens":1024,"embeddingModel":"embed","hasSecret":false})).unwrap()
+}
+fn seed_reliability_vector(connection: &Connection, provider: &Provider) {
+    create_test_chat(connection, "vector-chat");
+    upsert_semantic_memories(connection, "vector-chat", &provider.id, "embed", &[(SemanticMemoryCandidate {
+        source_kind: "context-summary".into(), source_id: "summary".into(), content: "Fact".into(),
+    }, vec![0.1, 0.2])]).unwrap();
+}
+#[test]
+fn generation_options_preserve_vectors_but_embedding_options_invalidate_them() {
+    let connection = test_database(); let mut p = reliability_provider();
+    save_provider(&connection, &p).unwrap(); seed_reliability_vector(&connection, &p);
+    p.options.reasoning_effort = Some("high".into()); p.options.extra_body.insert("temperature".into(), serde_json::json!(0.5));
+    save_provider(&connection, &p).unwrap();
+    assert_eq!(list_semantic_memories(&connection, "vector-chat", &p.id, "embed").unwrap().len(), 1);
+    p.options.embedding_dimensions = Some(128); save_provider(&connection, &p).unwrap();
+    assert!(list_semantic_memories(&connection, "vector-chat", &p.id, "embed").unwrap().is_empty());
+}
+#[test]
+fn failed_provider_write_rolls_back_vector_invalidation() {
+    let connection = test_database(); let mut p = reliability_provider();
+    save_provider(&connection, &p).unwrap(); seed_reliability_vector(&connection, &p);
+    connection.execute_batch("CREATE TRIGGER reject_provider_update BEFORE UPDATE ON providers BEGIN SELECT RAISE(ABORT, 'test failure'); END;").unwrap();
+    p.embedding_model = Some("other".into()); assert!(save_provider(&connection, &p).is_err());
+    assert_eq!(list_semantic_memories(&connection, "vector-chat", &p.id, "embed").unwrap().len(), 1);
+    assert_eq!(get_provider(&connection, &p.id).unwrap().embedding_model.as_deref(), Some("embed"));
+}
+#[test]
+fn provider_save_preserves_outer_transactions_and_rejects_corrupt_options() {
+    let connection = test_database(); let p = reliability_provider();
+    connection.execute_batch("BEGIN").unwrap(); save_provider(&connection, &p).unwrap();
+    connection.execute_batch("ROLLBACK").unwrap(); assert!(provider_optional(&connection, &p.id).unwrap().is_none());
+    save_provider(&connection, &p).unwrap();
+    connection.execute("UPDATE providers SET options_json = 'not json' WHERE id = ?1", params![p.id]).unwrap();
+    assert!(get_provider(&connection, &p.id).is_err()); assert!(list_providers(&connection).is_err());
 }

@@ -370,6 +370,7 @@ pub(crate) fn migrate(connection: &Connection) -> CommandResult<()> {
     )?;
     ensure_column(connection, "providers", "embedding_model", "TEXT")?;
     ensure_column(connection, "providers", "embedding_base_url", "TEXT")?;
+    ensure_column(connection, "providers", "options_json", "TEXT NOT NULL DEFAULT '{}'")?;
     ensure_column(
         connection,
         "app_settings",
@@ -1094,10 +1095,19 @@ fn list_galaxy_items(connection: &Connection) -> CommandResult<Vec<GalaxyItem>> 
     result
 }
 
+fn provider_options_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<crate::models::ProviderOptions> {
+    let raw: String = row.get(13)?;
+    let options = serde_json::from_str::<crate::models::ProviderOptions>(&raw)
+        .map_err(|error| rusqlite::Error::FromSqlConversionFailure(13, rusqlite::types::Type::Text, Box::new(error)))?;
+    crate::provider_support::validate_options(&options)
+        .map_err(|error| rusqlite::Error::FromSqlConversionFailure(13, rusqlite::types::Type::Text, Box::new(error)))?;
+    Ok(options)
+}
+
 fn list_providers(connection: &Connection) -> CommandResult<Vec<Provider>> {
     let mut statement = connection.prepare(
         "SELECT id, name, kind, model, status, base_url, account_id, latency_ms,
-                    temperature, top_p, max_tokens, embedding_model, embedding_base_url
+                    temperature, top_p, max_tokens, embedding_model, embedding_base_url, options_json
              FROM providers ORDER BY updated_at DESC",
     )?;
     let result = statement
@@ -1116,6 +1126,7 @@ fn list_providers(connection: &Connection) -> CommandResult<Vec<Provider>> {
                 max_tokens: row.get(10)?,
                 embedding_model: row.get(11)?,
                 embedding_base_url: row.get(12)?,
+                options: provider_options_from_row(row)?,
                 has_secret: false,
             })
         })?
@@ -2522,7 +2533,7 @@ pub fn provider_optional(connection: &Connection, id: &str) -> CommandResult<Opt
     connection
         .query_row(
             "SELECT id, name, kind, model, status, base_url, account_id, latency_ms,
-                    temperature, top_p, max_tokens, embedding_model, embedding_base_url
+                    temperature, top_p, max_tokens, embedding_model, embedding_base_url, options_json
              FROM providers WHERE id = ?1",
             params![id],
             |row| {
@@ -2540,6 +2551,7 @@ pub fn provider_optional(connection: &Connection, id: &str) -> CommandResult<Opt
                     max_tokens: row.get(10)?,
                     embedding_model: row.get(11)?,
                     embedding_base_url: row.get(12)?,
+                    options: provider_options_from_row(row)?,
                     has_secret: false,
                 })
             },
@@ -2664,12 +2676,20 @@ pub fn get_chat_prompt_context(
 }
 
 pub fn save_provider(connection: &Connection, provider: &Provider) -> CommandResult<()> {
+    connection.execute_batch("SAVEPOINT provider_config_write")?;
+    let result = (|| -> CommandResult<()> {
+    if let Some(previous) = provider_optional(connection, &provider.id)? {
+        let identity = |p: &Provider| serde_json::json!([p.kind, p.base_url, p.account_id, p.embedding_model, p.embedding_base_url, p.options.embedding_format, p.options.embedding_dimensions, p.options.embedding_extra_body, p.options.auth_header, p.options.auth_prefix, p.options.no_auth, p.options.headers]);
+        if identity(&previous) != identity(provider) {
+            connection.execute("DELETE FROM semantic_memories WHERE embedding_provider_id = ?1", params![provider.id])?;
+        }
+    }
     connection.execute(
         r#"INSERT INTO providers (
                     id, name, kind, model, status, base_url, account_id, latency_ms,
-                    temperature, top_p, max_tokens, embedding_model, embedding_base_url,
+                    temperature, top_p, max_tokens, embedding_model, embedding_base_url, options_json,
                     created_at, updated_at
-               ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?14)
+               ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?15)
                ON CONFLICT(id) DO UPDATE SET
                     name = excluded.name,
                     kind = excluded.kind,
@@ -2683,6 +2703,7 @@ pub fn save_provider(connection: &Connection, provider: &Provider) -> CommandRes
                     max_tokens = excluded.max_tokens,
                     embedding_model = excluded.embedding_model,
                     embedding_base_url = excluded.embedding_base_url,
+                    options_json = excluded.options_json,
                     updated_at = excluded.updated_at"#,
         params![
             provider.id,
@@ -2698,10 +2719,16 @@ pub fn save_provider(connection: &Connection, provider: &Provider) -> CommandRes
             provider.max_tokens,
             provider.embedding_model,
             provider.embedding_base_url,
+            serde_json::to_string(&provider.options)?,
             now_unix()
         ],
     )?;
     Ok(())
+    })().and_then(|_| connection.execute_batch("RELEASE SAVEPOINT provider_config_write").map_err(CommandError::internal));
+    if result.is_err() {
+        connection.execute_batch("ROLLBACK TO SAVEPOINT provider_config_write; RELEASE SAVEPOINT provider_config_write")?;
+    }
+    result
 }
 
 pub fn delete_provider_record(connection: &Connection, id: &str) -> CommandResult<()> {

@@ -89,5 +89,6 @@
   "backend.provider.unknownKind": "Неизвестный тип провайдера: {{kind}}",
   "backend.revision.kindUnknown": "Неизвестный тип версии",
   "backend.revision.notFound": "Выбранная версия не найдена",
-  "backend.secureStorage.unavailable": "Защищённое хранилище недоступно: {{detail}}"
+  "backend.secureStorage.unavailable": "Защищённое хранилище недоступно: {{detail}}",
+  "backend.provider.optionsInvalid": "Некорректные параметры провайдера: проверьте диапазоны, пути, заголовки и JSON."
 }

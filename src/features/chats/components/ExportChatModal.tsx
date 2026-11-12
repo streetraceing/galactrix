@@ -122,7 +122,6 @@ export function ExportChatModal({
           </Button>
           <Button
             variant="primary"
-            autoFocus
             isPending={exporting}
             isDisabled={!chat}
             onPress={() => void run()}

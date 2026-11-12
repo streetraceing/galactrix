@@ -9,6 +9,8 @@ import { FormField } from './FormField';
 
 function defaultEmbeddingModel(kind: ProviderInput['kind']) {
   if (kind === 'ollama' || kind === 'ollama-cloud') return 'qwen3-embedding';
+  if (kind === 'google-gemini') return 'gemini-embedding-001';
+  if (kind === 'cloudflare-workers-ai') return '@cf/baai/bge-m3';
   if (kind === 'mistral') return 'mistral-embed';
   return '';
 }
