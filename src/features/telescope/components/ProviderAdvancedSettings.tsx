@@ -1,4 +1,8 @@
-import { Input, TextArea } from '@heroui/react';
+import { Input, TextArea, Select, ListBox, Label } from '@heroui/react';
+import type { Key } from 'react';
+import { AppPanel } from '../../../components/ui/AppPanel';
+import { SectionHeader } from '../../../components/ui/SectionHeader';
+import { SettingSwitchRow } from '../../profile/components/SettingSwitchRow';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { JsonValue, ProviderInput, ProviderOptions } from '../../../types';
@@ -165,9 +169,6 @@ function StopSequencesField({
   );
 }
 
-const controlClass =
-  'min-h-11 w-full min-w-0 rounded-xl border border-separator bg-surface-secondary px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-focus';
-
 export function ProviderAdvancedSettings({
   form,
   onPatch,
@@ -234,34 +235,48 @@ export function ProviderAdvancedSettings({
     choices: string[],
   ) => (
     <FormField label={label}>
-      <select
+      <Select
         aria-label={label}
-        className={controlClass}
-        value={value}
-        onChange={(event) => change(event.target.value)}
+        fullWidth
+        variant="secondary"
+        className="min-w-0 max-w-full"
+        value={value || '__default__'}
+        onChange={(key: Key | Key[] | null) => {
+          const next = String(key ?? '__default__');
+          change(next === '__default__' ? '' : next);
+        }}
       >
-        <option value="">{t('advanced.default')}</option>
-        {choices.map((choice) => (
-          <option key={choice} value={choice}>
-            {choice}
-          </option>
-        ))}
-      </select>
+        <Select.Trigger className="w-full min-w-0 max-w-full">
+          <Select.Value />
+          <Select.Indicator />
+        </Select.Trigger>
+        <Select.Popover>
+          <ListBox>
+            <ListBox.Item id="__default__" textValue={t('advanced.default')}>
+              <Label>{t('advanced.default')}</Label>
+              <ListBox.ItemIndicator />
+            </ListBox.Item>
+            {choices.map((choice) => (
+              <ListBox.Item id={choice} key={choice} textValue={choice}>
+                <Label>{choice}</Label>
+                <ListBox.ItemIndicator />
+              </ListBox.Item>
+            ))}
+          </ListBox>
+        </Select.Popover>
+      </Select>
     </FormField>
   );
   const flag = (
     key: 'omitSampling' | 'noAuth' | 'streamUsage',
     checked = false,
   ) => (
-    <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm">
-      <input
-        type="checkbox"
-        className="size-5 shrink-0 accent-accent focus-visible:outline-2 focus-visible:outline-focus"
-        checked={options[key] ?? checked}
-        onChange={(event) => patch(key, event.target.checked)}
-      />
-      {t(`advanced.${key}`)}
-    </label>
+    <SettingSwitchRow
+      label={t(`advanced.${key}`)}
+      description={t(`advanced.${key}Description`)}
+      value={options[key] ?? checked}
+      onChange={(value) => patch(key, value)}
+    />
   );
   const text = (
     key: 'chatPath' | 'modelsPath' | 'authHeader' | 'authPrefix',
@@ -287,12 +302,10 @@ export function ProviderAdvancedSettings({
     </FormField>
   );
   const section = (title: string, children: ReactNode) => (
-    <details className="rounded-2xl border border-separator p-4">
-      <summary className="min-h-10 cursor-pointer text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-focus">
-        {title}
-      </summary>
-      <div className="mt-3 space-y-4">{children}</div>
-    </details>
+    <AppPanel emphasis="subtle" className="min-w-0 space-y-4 p-4">
+      <SectionHeader title={title} />
+      {children}
+    </AppPanel>
   );
 
   return (
@@ -374,16 +387,17 @@ export function ProviderAdvancedSettings({
         <>
           {form.kind === 'custom' ? (
             <FormField label={t('advanced.preset')}>
-              <select
+              <Select
                 aria-label={t('advanced.preset')}
-                className={controlClass}
-                value=""
-                onChange={(event) => {
+                fullWidth
+                variant="secondary"
+                value={null}
+                placeholder={t('advanced.selectPreset')}
+                onChange={(key: Key | Key[] | null) => {
                   const preset = compatiblePresets.find(
-                    (p) => p.id === event.target.value,
+                    (p) => p.id === String(key ?? ''),
                   );
                   if (!preset) return;
-                  // Change routing, not the user's chosen model or generation parameters.
                   onPatch('baseUrl', preset.baseUrl);
                   onPatch('options', {
                     ...options,
@@ -396,13 +410,25 @@ export function ProviderAdvancedSettings({
                   });
                 }}
               >
-                <option value="">{t('advanced.selectPreset')}</option>
-                {compatiblePresets.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
+                <Select.Trigger className="w-full min-w-0 max-w-full">
+                  <Select.Value />
+                  <Select.Indicator />
+                </Select.Trigger>
+                <Select.Popover>
+                  <ListBox>
+                    {compatiblePresets.map((preset) => (
+                      <ListBox.Item
+                        id={preset.id}
+                        key={preset.id}
+                        textValue={preset.name}
+                      >
+                        <Label>{preset.name}</Label>
+                        <ListBox.ItemIndicator />
+                      </ListBox.Item>
+                    ))}
+                  </ListBox>
+                </Select.Popover>
+              </Select>
             </FormField>
           ) : null}
           <p className="text-xs leading-5 text-muted">

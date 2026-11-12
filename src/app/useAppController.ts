@@ -35,6 +35,7 @@ import {
   loadChatState,
   listGenerationJobs,
   loadSnapshot,
+  refreshProviderSecretPresence,
   loadUsageHistory,
   markChatRead as markChatReadBackend,
   regenerateMessage,
@@ -56,6 +57,7 @@ import {
   updateSettings,
   upsertGalaxyItem,
 } from '../lib/backend';
+import { loadStartupData, StartupTimeoutError } from '../lib/startup';
 import type {
   AppSettings,
   ChatConfigInput,
@@ -124,6 +126,8 @@ export function useAppController() {
   );
   const [chatListRequest, setChatListRequest] = useState(0);
   const [loading, setLoading] = useState(true);
+  const bootRequestRef = useRef(0);
+  const bootStateRef = useRef({ phase: 'loading', startedAt: Date.now() });
   const [fatalError, setFatalError] = useState('');
   const [notice, setNotice] = useState('');
   const [generationJobs, setGenerationJobs] = useState<GenerationJob[]>([]);
@@ -339,20 +343,64 @@ export function useAppController() {
   }, [refreshChat, refreshUsage, updateGenerationJobs]);
 
   const boot = useCallback(async () => {
+    const request = ++bootRequestRef.current;
+    bootStateRef.current = { phase: 'loading', startedAt: Date.now() };
     setLoading(true);
     setFatalError('');
     try {
-      // Read jobs first: if one finishes during the following snapshot load,
-      // the committed response is included; otherwise polling keeps the job.
-      const jobs = await listGenerationJobs();
-      await refresh();
+      const { jobs, snapshot: data } = await loadStartupData(
+        listGenerationJobs,
+        loadSnapshot,
+      );
+      if (request !== bootRequestRef.current) return;
+      setSnapshot(data);
+      setActiveChatId((current) =>
+        data.chats.some((chat) => chat.id === current)
+          ? current
+          : (data.chats[0]?.id ?? ''),
+      );
+      if (data.chats.length === 0) setIsChatOpen(false);
       updateGenerationJobs(() => jobs);
+      bootStateRef.current.phase = 'ready';
+      // Deferred and read-only: slow legacy keyring migration cannot gate the first frame.
+      window.setTimeout(() => {
+        if (request !== bootRequestRef.current) return;
+        void refreshProviderSecretPresence()
+          .then((presence) => {
+            if (
+              request !== bootRequestRef.current ||
+              Object.keys(presence).length === 0
+            )
+              return;
+            const originalProviders = new Map(
+              data.providers.map((provider) => [provider.id, provider]),
+            );
+            setSnapshot((current) => ({
+              ...current,
+              providers: current.providers.map((provider) =>
+                provider === originalProviders.get(provider.id) &&
+                Object.prototype.hasOwnProperty.call(presence, provider.id)
+                  ? { ...provider, hasSecret: presence[provider.id] }
+                  : provider,
+              ),
+            }));
+          })
+          .catch(() => {
+            /* Optional metadata; explicit credential operations remain available. */
+          });
+      }, 500);
     } catch (error) {
-      setFatalError(errorMessage(error));
+      if (request !== bootRequestRef.current) return;
+      bootStateRef.current.phase = 'error';
+      setFatalError(
+        error instanceof StartupTimeoutError
+          ? i18next.t('errors.startupTimeout')
+          : errorMessage(error),
+      );
     } finally {
-      setLoading(false);
+      if (request === bootRequestRef.current) setLoading(false);
     }
-  }, [refresh, updateGenerationJobs]);
+  }, [updateGenerationJobs]);
 
   useEffect(() => {
     if (loading || activeTab !== 'profile') return;
@@ -361,6 +409,19 @@ export function useAppController() {
 
   useEffect(() => {
     void boot();
+    const resume = () => {
+      if (document.visibilityState === 'hidden') return;
+      const state = bootStateRef.current;
+      if (state.phase !== 'ready' && Date.now() - state.startedAt >= 15_000)
+        void boot();
+    };
+    document.addEventListener('visibilitychange', resume);
+    window.addEventListener('pageshow', resume);
+    return () => {
+      bootRequestRef.current += 1;
+      document.removeEventListener('visibilitychange', resume);
+      window.removeEventListener('pageshow', resume);
+    };
   }, [boot]);
 
   useEffect(() => {

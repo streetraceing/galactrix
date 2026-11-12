@@ -206,13 +206,47 @@ fn get_chat_state(chat_id: String, state: State<'_, AppState>) -> CommandResult<
 }
 
 #[tauri::command]
-fn get_app_snapshot(state: State<'_, AppState>) -> CommandResult<AppSnapshot> {
-    let database = state.database.lock().map_err(CommandError::internal)?;
-    let mut snapshot = db::snapshot(&database, env!("CARGO_PKG_VERSION"))?;
-    for provider in &mut snapshot.providers {
-        provider.has_secret = secure_storage::has_provider_secret(&provider.id);
+async fn get_app_snapshot(app: tauri::AppHandle) -> CommandResult<AppSnapshot> {
+    // Synchronous SQLite work must not run on the Android UI thread. No keyring IO here.
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<AppState>();
+        let database = state.database.lock().map_err(CommandError::internal)?;
+        db::snapshot(&database, env!("CARGO_PKG_VERSION"))
+    }).await.map_err(CommandError::internal)?
+}
+
+#[tauri::command]
+async fn refresh_provider_secret_presence(app: tauri::AppHandle) -> CommandResult<HashMap<String, bool>> {
+    // Only one reconciliation may run, including when a stalled startup is retried.
+    static RUNNING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+    use std::sync::atomic::Ordering;
+    if RUNNING.compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire).is_err() {
+        return Ok(HashMap::new());
     }
-    Ok(snapshot)
+    // Best-effort legacy migration, deliberately outside startup and outside the DB lock.
+    tauri::async_runtime::spawn_blocking(move || {
+        struct RunningGuard;
+        impl Drop for RunningGuard {
+            fn drop(&mut self) { RUNNING.store(false, Ordering::Release); }
+        }
+        let _running = RunningGuard;
+        let state = app.state::<AppState>();
+        let ids = {
+            let database = state.database.lock().map_err(CommandError::internal)?;
+            db::unknown_provider_secret_ids(&database)?
+        };
+        let mut result = HashMap::new();
+        for id in ids {
+            if let Ok(secret) = secure_storage::read_provider_secret(&id) {
+                let present = secret.is_some();
+                let database = state.database.lock().map_err(CommandError::internal)?;
+                // Do not overwrite metadata if a concurrent save already resolved it.
+                database.execute("UPDATE providers SET has_secret = ?1 WHERE id = ?2 AND has_secret IS NULL", rusqlite::params![present, id])?;
+                if database.changes() > 0 { result.insert(id, present); }
+            }
+        }
+        Ok(result)
+    }).await.map_err(CommandError::internal)?
 }
 
 #[tauri::command]
@@ -1149,7 +1183,7 @@ async fn save_provider(
         return Err(error);
     }
 
-    saved.has_secret = secure_storage::has_provider_secret(&saved.id);
+    // The key mutation succeeded before SQL persistence; retain its known result.
     Ok(saved)
 }
 
@@ -1285,6 +1319,7 @@ async fn check_provider(id: String, state: State<'_, AppState>) -> CommandResult
         &provider.status,
         provider.latency_ms,
     )?;
+    db::set_provider_secret_presence(&database, &provider.id, provider.has_secret)?;
     Ok(provider)
 }
 
@@ -1336,10 +1371,6 @@ pub fn run() {
                 }
             }
 
-            if let Err(error) = secure_storage::initialize() {
-                eprintln!("Secure storage is unavailable: {error}");
-            }
-
             let app_data_dir = app.path().app_local_data_dir().map_err(|error| {
                 std::io::Error::other(format!("failed to resolve app data directory: {error}"))
             })?;
@@ -1356,6 +1387,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             get_app_snapshot,
+            refresh_provider_secret_presence,
             get_usage_history,
             get_budget_status,
             create_app_backup,

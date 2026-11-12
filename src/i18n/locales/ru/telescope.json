@@ -125,7 +125,7 @@
   "selection.deleteSelectedTitle": "Удалить выбранные подключения ({{count}})?",
   "selection.deleteSelectedDescription": "Подключения будут удалены. Сохранённые для них ключи также перестанут использоваться.",
   "selection.deletedCount": "Удалено подключений: {{count}}",
-  "providerEditorModal.advancedGenerationDefaults": "Расширенные параметры генерации",
+  "providerEditorModal.advancedGenerationDefaults": "Дополнительные параметры подключения",
   "advanced.default": "По умолчанию",
   "advanced.generation": "Рассуждения и дополнительные параметры",
   "advanced.capabilitiesHint": "Поддержка параметров зависит от модели. Не заполняйте неподдерживаемые поля. В Gemini бюджет имеет приоритет над effort; budget и thinking level взаимоисключающие.",
@@ -160,5 +160,8 @@
   "advanced.embeddingFormat": "Протокол embeddings",
   "advanced.embeddingDimensions": "Размерность вектора (если поддерживается)",
   "advanced.embeddingExtraBody": "Дополнительный JSON embeddings",
-  "advanced.embeddingHint": "Отдельная embedding-модель использует те же защищённые ключи и авторизацию подключения. Пустой URL использует текущего провайдера; для другого endpoint выберите протокол. JSON embeddings отделён от генерации. Смена параметров векторов сбрасывает семантический индекс."
+  "advanced.embeddingHint": "Отдельная embedding-модель использует те же защищённые ключи и авторизацию подключения. Пустой URL использует текущего провайдера; для другого endpoint выберите протокол. JSON embeddings отделён от генерации. Смена параметров векторов сбрасывает семантический индекс.",
+  "advanced.omitSamplingDescription": "Использовать собственные temperature и top-p выбранной модели.",
+  "advanced.noAuthDescription": "Для доверенного локального сервера или шлюза, которому не нужен API-ключ.",
+  "advanced.streamUsageDescription": "Запрашивать расход токенов в потоковых ответах, если сервер это поддерживает."
 }

@@ -171,14 +171,15 @@ export function ProviderEditorModal({
             </summary>
             <div className="mt-4 space-y-4 border-t border-separator pt-4">
               <GenerationSettings form={form} onPatch={onPatch} />
+              <ProviderAdvancedSettings
+                key={form.id ?? form.kind}
+                form={form}
+                onPatch={onPatch}
+                onValidityChange={setAdvancedValid}
+              />
             </div>
           </details>
-          <ProviderAdvancedSettings
-            key={form.id ?? form.kind}
-            form={form}
-            onPatch={onPatch}
-            onValidityChange={setAdvancedValid}
-          />
+
           {error ? (
             <p className="selectable text-sm text-danger">{error}</p>
           ) : null}

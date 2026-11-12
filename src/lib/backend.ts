@@ -89,6 +89,16 @@ export async function loadSnapshot(): Promise<AppSnapshot> {
   return invokeBackend<AppSnapshot>('get_app_snapshot');
 }
 
+/** Optional legacy credential metadata reconciliation; never awaited by startup. */
+export async function refreshProviderSecretPresence(): Promise<
+  Record<string, boolean>
+> {
+  requireTauri();
+  return invokeBackend<Record<string, boolean>>(
+    'refresh_provider_secret_presence',
+  );
+}
+
 export async function loadUsageHistory(): Promise<UsagePoint[]> {
   requireTauri();
   return invokeBackend<UsagePoint[]>('get_usage_history');

@@ -1,25 +1,17 @@
-# Provider reliability fixes
+# Startup recovery and provider UI patch
 
-This patch addresses the findings from the source audit against the supplied snapshot. App version remains 1.10.3.
+Input application version: 1.10.4, unchanged.
 
-## Implemented
+## Findings and changes
 
-1. Editor session and edit-revision guards reject late credentials, model lists, embedding probes and save results after edits, switching connections, closing or unmounting. Changing fields/keys clears the old probe. Pending credential loads cannot overwrite newly typed credentials.
-2. No-auth connections bypass keyring lookup and required-key validation consistently, including save-time connection probes and runtime generation.
-3. Untouched credentials are omitted and preserved; explicitly edited empty credentials are sent through IPC as an empty string and delete the keyring entry. The three IPC adapters use nullish rather than truthy fallback. Secure-storage mutations happen before SQL persistence, with best-effort restoration if persistence fails.
-4. Legacy Ollama /api/embeddings batches issue one prompt request per input; aggregate vectors are checked for matching dimensions. /api/embed continues using native batches.
-5. The model-list endpoint respects modelsPath for Ollama and other providers. Cloudflare uses its native catalog only with its default configuration; a gateway Base URL and custom path are honored. Responses accept native and compatible model envelopes.
-6. Explicit embedding dimensions are included in both native Ollama and compatible requests. Older servers/models may reject unsupported dimensions; this is not silently ignored.
-7. Embedding connection tests use embedding-specific validation and do not require a chat model or valid chat sampling defaults.
-8. Stop sequences update form state on change, so Ctrl/Cmd+Enter cannot save the previous value. Numeric fields use editable text drafts, preserving partial negative/decimal values while blocking invalid saves.
-9. Vector identity includes embedding model/endpoint/protocol/dimensions/embedding JSON and transport context, not generation reasoning, sampling overrides or stops. Generation-only option edits no longer clear the vector index.
-10. A nested-safe SQLite savepoint covers index invalidation and provider upsert. Failure rolls back both. Corrupt stored provider options raise a read error instead of silently falling back to defaults.
-11. Added executable asynchronous epoch tests, source contract regressions and Rust tests for auth policy, routing, dimension requests, vector identity, rollback, nested transactions and corrupt options.
+- Startup synchronously initialized secure storage during native setup and read every provider key while holding the SQLite mutex in get_app_snapshot. Cold/idle Android keystore latency could therefore block startup. This is an identified blocking path, not a device-confirmed diagnosis of every reported hang.
+- Native setup no longer initializes the keyring. Snapshot reads run in a blocking worker, contain no keyring calls and use cached non-secret credential-presence metadata.
+- An additive nullable providers.has_secret column preserves legacy data. New saves persist known presence. Legacy unknown entries are reconciled after the initial frame in a separate worker, with keyring access outside the DB lock. Errors remain unknown rather than being written as false. A single-flight guard prevents accumulating workers on retries; conditional writes avoid overwriting a concurrent save. Actual credentials remain exclusively in protected storage.
+- Frontend startup keeps jobs-before-snapshot ordering, applies results only for the latest attempt and has a 15-second deadline. It reuses the existing localized error/retry screen instead of spinning forever. Late responses and unmounted/StrictMode attempts cannot replace the current startup state. Returning to the app retries a stale or failed startup, but does not reset a healthy session or its drafts.
+- Deferred presence replies only update unchanged provider objects from that startup attempt; they cannot overwrite a subsequently saved/refreshed connection.
+- Advanced provider settings now reuse HeroUI Select/ListBox, the project's SettingSwitchRow, AppPanel and SectionHeader. Bespoke native dropdowns, checkbox styling and nested custom details were removed. All additional connection parameters sit under the editor's existing advanced section. Numeric drafts, JSON validation, stop-sequence updates, preset application and independent embedding controls are preserved.
+- TODO-026 now records that the earlier implementation shipped in 1.10.4, without falsely marking outstanding device/service verification complete.
 
-## Rust diagnostic
+## Important limits
 
-The supplied archive already declares provider_support in lib.rs and uses crate::provider_support::validate_options. This correct path is retained. The repeated editor screenshot is not proof of an unresolved import in a fresh Cargo build. Run npm run test:rust on the maintainer machine; if it succeeds but the editor still shows E0433, restart Rust Analyzer and check the active workspace checkout. Rust compilation was not available in this environment.
-
-## Remaining verification gates
-
-See VALIDATION.md. Real API calls, rendering and Android/iOS keyboard QA are not verified. Optional generation parameters remain model-specific. This is a source patch, not a claim that every project defect has been eliminated or that live compatibility has been certified. Atomicity is guaranteed by the SQL savepoint only within SQLite; OS-keyring compensation remains best-effort because it is a separate storage system.
+No Android device or native compiler is available here. The cold-start/screen-off symptom has not been reproduced or certified fixed on hardware. Startup deadlines cover frontend IPC waits; a native failure before the WebView/JavaScript starts still requires Android logs. Android TLS/NDK context initialization and the keyboard overlay policy were intentionally left unchanged. See VALIDATION.md for exact checks and remaining gates.

@@ -371,6 +371,8 @@ pub(crate) fn migrate(connection: &Connection) -> CommandResult<()> {
     ensure_column(connection, "providers", "embedding_model", "TEXT")?;
     ensure_column(connection, "providers", "embedding_base_url", "TEXT")?;
     ensure_column(connection, "providers", "options_json", "TEXT NOT NULL DEFAULT '{}'")?;
+    // NULL means legacy presence is not known yet; never read the keystore while opening UI.
+    ensure_column(connection, "providers", "has_secret", "INTEGER")?;
     ensure_column(
         connection,
         "app_settings",
@@ -1107,7 +1109,7 @@ fn provider_options_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<crate:
 fn list_providers(connection: &Connection) -> CommandResult<Vec<Provider>> {
     let mut statement = connection.prepare(
         "SELECT id, name, kind, model, status, base_url, account_id, latency_ms,
-                    temperature, top_p, max_tokens, embedding_model, embedding_base_url, options_json
+                    temperature, top_p, max_tokens, embedding_model, embedding_base_url, options_json, has_secret
              FROM providers ORDER BY updated_at DESC",
     )?;
     let result = statement
@@ -1127,7 +1129,7 @@ fn list_providers(connection: &Connection) -> CommandResult<Vec<Provider>> {
                 embedding_model: row.get(11)?,
                 embedding_base_url: row.get(12)?,
                 options: provider_options_from_row(row)?,
-                has_secret: false,
+                has_secret: row.get::<_, Option<bool>>(14)?.unwrap_or(false),
             })
         })?
         .collect::<Result<Vec<_>, _>>()
@@ -2533,7 +2535,7 @@ pub fn provider_optional(connection: &Connection, id: &str) -> CommandResult<Opt
     connection
         .query_row(
             "SELECT id, name, kind, model, status, base_url, account_id, latency_ms,
-                    temperature, top_p, max_tokens, embedding_model, embedding_base_url, options_json
+                    temperature, top_p, max_tokens, embedding_model, embedding_base_url, options_json, has_secret
              FROM providers WHERE id = ?1",
             params![id],
             |row| {
@@ -2552,7 +2554,7 @@ pub fn provider_optional(connection: &Connection, id: &str) -> CommandResult<Opt
                     embedding_model: row.get(11)?,
                     embedding_base_url: row.get(12)?,
                     options: provider_options_from_row(row)?,
-                    has_secret: false,
+                    has_secret: row.get::<_, Option<bool>>(14)?.unwrap_or(false),
                 })
             },
         )
@@ -2687,9 +2689,9 @@ pub fn save_provider(connection: &Connection, provider: &Provider) -> CommandRes
     connection.execute(
         r#"INSERT INTO providers (
                     id, name, kind, model, status, base_url, account_id, latency_ms,
-                    temperature, top_p, max_tokens, embedding_model, embedding_base_url, options_json,
+                    temperature, top_p, max_tokens, embedding_model, embedding_base_url, options_json, has_secret,
                     created_at, updated_at
-               ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?15)
+               ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?16)
                ON CONFLICT(id) DO UPDATE SET
                     name = excluded.name,
                     kind = excluded.kind,
@@ -2704,6 +2706,7 @@ pub fn save_provider(connection: &Connection, provider: &Provider) -> CommandRes
                     embedding_model = excluded.embedding_model,
                     embedding_base_url = excluded.embedding_base_url,
                     options_json = excluded.options_json,
+                    has_secret = excluded.has_secret,
                     updated_at = excluded.updated_at"#,
         params![
             provider.id,
@@ -2720,6 +2723,7 @@ pub fn save_provider(connection: &Connection, provider: &Provider) -> CommandRes
             provider.embedding_model,
             provider.embedding_base_url,
             serde_json::to_string(&provider.options)?,
+            provider.has_secret,
             now_unix()
         ],
     )?;
@@ -2850,5 +2854,17 @@ pub(crate) fn now_unix() -> i64 {
         .as_secs() as i64
 }
 
+/// Presence is non-secret metadata. Unknown legacy entries are reconciled after rendering.
+pub(crate) fn unknown_provider_secret_ids(connection: &Connection) -> CommandResult<Vec<String>> {
+    let mut statement = connection.prepare("SELECT id FROM providers WHERE has_secret IS NULL")?;
+    let ids = statement.query_map([], |row| row.get(0))?.collect::<Result<Vec<String>, _>>()?;
+    Ok(ids)
+}
+pub(crate) fn set_provider_secret_presence(connection: &Connection, id: &str, present: bool) -> CommandResult<()> {
+    connection.execute("UPDATE providers SET has_secret = ?1 WHERE id = ?2", params![present, id])?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests;
+

@@ -2133,3 +2133,21 @@ fn provider_save_preserves_outer_transactions_and_rejects_corrupt_options() {
     connection.execute("UPDATE providers SET options_json = 'not json' WHERE id = ?1", params![p.id]).unwrap();
     assert!(get_provider(&connection, &p.id).is_err()); assert!(list_providers(&connection).is_err());
 }
+
+#[test]
+fn provider_secret_presence_roundtrips_without_keyring_access() {
+    let connection = test_database();
+    let mut provider = reliability_provider();
+    provider.has_secret = true;
+    save_provider(&connection, &provider).unwrap();
+    assert!(get_provider(&connection, &provider.id).unwrap().has_secret);
+    assert!(unknown_provider_secret_ids(&connection).unwrap().is_empty());
+    set_provider_secret_presence(&connection, &provider.id, false).unwrap();
+    assert!(!get_provider(&connection, &provider.id).unwrap().has_secret);
+    connection.execute("UPDATE providers SET has_secret = NULL WHERE id = ?1", params![provider.id]).unwrap();
+    assert_eq!(unknown_provider_secret_ids(&connection).unwrap(), vec![provider.id.clone()]);
+    // Re-running additive migrations must keep legacy unknowns and all provider data.
+    migrate(&connection).unwrap();
+    assert_eq!(unknown_provider_secret_ids(&connection).unwrap(), vec![provider.id.clone()]);
+    assert_eq!(get_provider(&connection, &provider.id).unwrap().model, provider.model);
+}

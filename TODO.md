@@ -12,7 +12,7 @@ This file is the canonical backlog for product improvements. The planning baseli
 
 ## Now
 
-- [ ] **TODO-026 - Validate expanded provider and embedding configuration on real services and devices.** Implementation includes persisted generation options, compatible API routing/authentication and separate embedding controls. Complete dependency-backed verification, live provider smoke tests and Android/iOS modal keyboard QA before assigning the release. Suggested target v1.11.0; not marked completed.
+- [ ] **TODO-026 - Validate expanded provider and embedding configuration on real services and devices.** Implementation shipped in v1.10.4 with persisted generation options, compatible API routing/authentication and separate embedding controls. Complete dependency-backed verification, live provider smoke tests and Android/iOS modal keyboard QA. The follow-up startup/UI patch additionally needs cold-launch and screen-off/resume checks after at least 30 minutes on Android. Follow-up release is not assigned; verification is not marked completed.
 
 - [ ] **TODO-022 - Add conversation branching tree.** Visualise branched chats as a tree so users can see where each branch diverged, switch between branches, and merge content from one branch into another.
 - [ ] **TODO-023 - Add character voice presets for text-to-speech.** Let users attach TTS voice settings per character, read replies aloud from the message bubble, and generate audio on demand using browser or provider TTS engines.

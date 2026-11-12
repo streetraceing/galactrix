@@ -125,7 +125,7 @@
   "selection.deleteSelectedTitle": "Delete selected connections ({{count}})?",
   "selection.deleteSelectedDescription": "The selected connections will be deleted. Their saved keys will no longer be used.",
   "selection.deletedCount": "Connections deleted: {{count}}",
-  "providerEditorModal.advancedGenerationDefaults": "Advanced generation defaults",
+  "providerEditorModal.advancedGenerationDefaults": "Advanced connection settings",
   "advanced.default": "Provider default",
   "advanced.generation": "Reasoning and advanced generation",
   "advanced.capabilitiesHint": "Optional settings depend on the model. Leave unsupported fields empty. Gemini budget overrides effort; budget and thinking level are mutually exclusive.",
@@ -160,5 +160,8 @@
   "advanced.embeddingFormat": "Embedding protocol",
   "advanced.embeddingDimensions": "Vector dimensions (when supported)",
   "advanced.embeddingExtraBody": "Extra embedding JSON",
-  "advanced.embeddingHint": "The separate embedding model reuses this connection’s protected keys and authentication. Empty URL uses this provider; override protocol for another endpoint. Embedding JSON is separate from generation JSON. Changing vector settings invalidates the semantic index."
+  "advanced.embeddingHint": "The separate embedding model reuses this connection’s protected keys and authentication. Empty URL uses this provider; override protocol for another endpoint. Embedding JSON is separate from generation JSON. Changing vector settings invalidates the semantic index.",
+  "advanced.omitSamplingDescription": "Let the selected model use its own temperature and top-p defaults.",
+  "advanced.noAuthDescription": "For a trusted local server or gateway that does not require an API key.",
+  "advanced.streamUsageDescription": "Ask for token usage in streaming responses when supported by the server."
 }

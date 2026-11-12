@@ -135,5 +135,6 @@
   "toast.copyFailed": "Could not copy",
   "toast.hideDetails": "Hide details",
   "toast.showDetails": "Show details",
-  "user.defaultName": "User"
+  "user.defaultName": "User",
+  "errors.startupTimeout": "Opening local data took too long. Tap Retry to reconnect without closing the app."
 }
