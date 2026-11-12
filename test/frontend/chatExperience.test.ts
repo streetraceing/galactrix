@@ -249,7 +249,11 @@ test('optimistic messages keep stable ids through the backend commit', async () 
     readFile(messageListPath, 'utf8'),
   ]);
 
-  assert.match(controller, /const userMessageId = createRuntimeId\(\)/);
+  // Normal sends allocate an id; retries must keep the persisted user id.
+  assert.match(
+    controller,
+    /const userMessageId = retry\?\.messageId \?\? createRuntimeId\(\)/,
+  );
   assert.match(controller, /const assistantMessageId = createRuntimeId\(\)/);
   assert.match(controller, /reconcileChatMessages\(/);
   assert.match(frontendBackend, /userMessageId/);

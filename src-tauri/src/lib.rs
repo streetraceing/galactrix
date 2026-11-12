@@ -882,6 +882,7 @@ async fn send_chat_message(
     assistant_message_id: Option<String>,
     response_language: Option<String>,
     channel: tauri::ipc::Channel<StreamDelta>,
+    retry_user_message: Option<bool>,
     state: State<'_, AppState>,
 ) -> CommandResult<()> {
     let content = content.trim().to_owned();
@@ -912,7 +913,12 @@ async fn send_chat_message(
     ))?;
     let (provider, chain, full_history) = {
         let database = state.database.lock().map_err(CommandError::internal)?;
-        db::add_user_message(&database, &chat_id, &user_message_id, &content)?;
+        if retry_user_message.unwrap_or(false) {
+            // A retry reuses the persisted tail user message; never duplicate or edit history.
+            db::validate_user_message_retry(&database, &chat_id, &user_message_id, &content)?;
+        } else {
+            db::add_user_message(&database, &chat_id, &user_message_id, &content)?;
+        }
         (|| -> CommandResult<_> {
             let provider_id = db::chat_provider_id(&database, &chat_id)?;
             let mut provider = db::get_provider(&database, &provider_id)?;

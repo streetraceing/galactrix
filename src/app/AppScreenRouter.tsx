@@ -97,6 +97,9 @@ export function AppScreenRouter({
         showMessageTimestamps={snapshot.settings.showMessageTimestamps}
         responseLanguage={getResponseLocale(snapshot.settings.responseLanguage)}
         generationJobs={controller.generationJobs}
+        generationFailures={controller.generationFailures}
+        onDismissGenerationFailure={controller.dismissGenerationFailure}
+        onRetryGenerationFailure={controller.retryGenerationFailure}
       />
     );
   }

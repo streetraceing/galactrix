@@ -1843,6 +1843,26 @@ fn message_update_timestamp(connection: &Connection, message_id: &str) -> Comman
     Ok(timestamp)
 }
 
+/// Only the unchanged, latest user turn can be retried without creating another user row.
+pub(crate) fn validate_user_message_retry(
+    connection: &Connection,
+    chat_id: &str,
+    message_id: &str,
+    content: &str,
+) -> CommandResult<()> {
+    ensure_chat_mutable(connection, chat_id)?;
+    let latest = connection.query_row(
+        "SELECT id, role, content FROM messages WHERE chat_id = ?1 ORDER BY created_at DESC, rowid DESC LIMIT 1",
+        params![chat_id],
+        |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?, row.get::<_, String>(2)?)),
+    ).optional()?;
+    if latest.as_ref().is_some_and(|(id, role, saved)| id == message_id && role == "user" && saved == content) {
+        Ok(())
+    } else {
+        Err(CommandError::new(keys::MESSAGE_NOT_FOUND))
+    }
+}
+
 pub fn add_user_message(
     connection: &Connection,
     chat_id: &str,

@@ -2151,3 +2151,17 @@ fn provider_secret_presence_roundtrips_without_keyring_access() {
     assert_eq!(unknown_provider_secret_ids(&connection).unwrap(), vec![provider.id.clone()]);
     assert_eq!(get_provider(&connection, &provider.id).unwrap().model, provider.model);
 }
+
+#[test]
+fn retry_requires_unchanged_tail_user_message_and_never_inserts_rows() {
+    let connection = test_database();
+    create_test_chat(&connection, "retry-chat");
+    add_user_message(&connection, "retry-chat", "retry-user", "question").unwrap();
+    let count = messages_for_chat(&connection, "retry-chat").unwrap().len();
+    validate_user_message_retry(&connection, "retry-chat", "retry-user", "question").unwrap();
+    assert_eq!(messages_for_chat(&connection, "retry-chat").unwrap().len(), count);
+    assert!(validate_user_message_retry(&connection, "retry-chat", "retry-user", "edited").is_err());
+    assert!(validate_user_message_retry(&connection, "retry-chat", "other", "question").is_err());
+    add_assistant_message(&connection, "retry-chat", "retry-answer", "answer").unwrap();
+    assert!(validate_user_message_retry(&connection, "retry-chat", "retry-user", "question").is_err());
+}

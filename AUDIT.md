@@ -1,17 +1,18 @@
-# Startup recovery and provider UI patch
+# Generation failure UX patch
 
-Input application version: 1.10.4, unchanged.
+Input: supplied galactrix.zip, application version 1.10.4. Version unchanged.
 
-## Findings and changes
+## Implemented
 
-- Startup synchronously initialized secure storage during native setup and read every provider key while holding the SQLite mutex in get_app_snapshot. Cold/idle Android keystore latency could therefore block startup. This is an identified blocking path, not a device-confirmed diagnosis of every reported hang.
-- Native setup no longer initializes the keyring. Snapshot reads run in a blocking worker, contain no keyring calls and use cached non-secret credential-presence metadata.
-- An additive nullable providers.has_secret column preserves legacy data. New saves persist known presence. Legacy unknown entries are reconciled after the initial frame in a separate worker, with keyring access outside the DB lock. Errors remain unknown rather than being written as false. A single-flight guard prevents accumulating workers on retries; conditional writes avoid overwriting a concurrent save. Actual credentials remain exclusively in protected storage.
-- Frontend startup keeps jobs-before-snapshot ordering, applies results only for the latest attempt and has a 15-second deadline. It reuses the existing localized error/retry screen instead of spinning forever. Late responses and unmounted/StrictMode attempts cannot replace the current startup state. Returning to the app retries a stale or failed startup, but does not reset a healthy session or its drafts.
-- Deferred presence replies only update unchanged provider objects from that startup attempt; they cannot overwrite a subsequently saved/refreshed connection.
-- Advanced provider settings now reuse HeroUI Select/ListBox, the project's SettingSwitchRow, AppPanel and SectionHeader. Bespoke native dropdowns, checkbox styling and nested custom details were removed. All additional connection parameters sit under the editor's existing advanced section. Numeric drafts, JSON validation, stop-sequence updates, preset application and independent embedding controls are preserved.
-- TODO-026 now records that the earlier implementation shipped in 1.10.4, without falsely marking outstanding device/service verification complete.
+- Failed send/regenerate/continue operations now create a persistent, chat-scoped notice instead of relying on a short-lived generic toast. One latest failure per chat is retained in controller memory, up to 50 chats, across screen/chat navigation. It is dismissed explicitly or cleared by a new generation. Diagnostics are not persisted to disk or telemetry and do not survive a process restart.
+- Errors have concise localized explanations for API credentials, forbidden access, balance/quota, request limits, network/timeout, provider service failure, context size, incompatible settings, model/API routing and empty output. HTTP status is taken from structured error data or an explicit HTTP marker, not unrelated numeric text. Unknown failures are not invented into a definite cause.
+- Existing HeroUI Alert/Button and shared UiModal are reused. The notice offers retry where safe, chat settings, technical details and dismissal. Long details open in a bounded shared modal, render as plain text, wrap on narrow screens and can be copied explicitly. The notice itself is scroll-bounded, preserving room for messages/composer with the keyboard. No new overlay/menu framework or bespoke dropdown was introduced.
+- Diagnostics extract JSON error message/type/code instead of dumping arbitrary response/request fields; omit HTML pages, redact common key/header/URL credentials and cap retained text. Redaction is best-effort; the UI asks users to review before sharing. No diagnostics are automatically copied or sent anywhere.
+- Cancellation does not create a failure notice. Already-reported generation errors do not also produce duplicate disappearing toasts. Background failures remain attached to their originating chat and produce a short generic notification.
+- Retry preserves the operation and any custom regeneration instruction. Regenerate/continue target an existing assistant message. A send retry uses the existing latest user turn and a fresh assistant id; it does not create a second user row or misuse assistant-only regeneration for a user message. Native send accepts an optional retryUserMessage flag; the DB validator rejects changed, missing, cross-chat, archived or non-tail turns without writing history. Existing normal sends retain their previous path.
+- Retry guards prevent double-click submissions, disable unavailable/archived/running targets and avoid automatic retry after an unsuccessful state refresh. Failed send placeholders are removed if reconciliation itself fails. The original structured error/persistence marker is preserved so composer draft recovery still works.
+- Added 12 frontend error/retry/privacy/UI regression tests and a Rust DB validation test. Updated the optimistic-id source guard to require reusing the persisted id on retry while allocating a new id for normal sends. No tests were deleted or skipped.
 
-## Important limits
+## Limits
 
-No Android device or native compiler is available here. The cold-start/screen-off symptom has not been reproduced or certified fixed on hardware. Startup deadlines cover frontend IPC waits; a native failure before the WebView/JavaScript starts still requires Android logs. Android TLS/NDK context initialization and the keyboard overlay policy were intentionally left unchanged. See VALIDATION.md for exact checks and remaining gates.
+See VALIDATION.md. Rust compilation, full frontend build and device rendering are not certified. Classification is provider-independent and heuristic where the backend gives only text; unknown errors retain a generic explanation. This patch does not add persistent error history or change provider retry/backoff policy, stream persistence, fallback behavior or token accounting. Partial-stream persistence semantics remain those of the supplied backend.

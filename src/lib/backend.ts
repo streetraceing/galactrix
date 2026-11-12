@@ -230,6 +230,7 @@ export async function sendChatMessage(
   assistantMessageId: string,
   responseLanguage?: 'en' | 'ru',
   onDelta?: (delta: GenerationStreamDelta) => void,
+  retryUserMessage = false,
 ) {
   requireTauri();
   return invokeBackend<void>('send_chat_message', {
@@ -239,6 +240,7 @@ export async function sendChatMessage(
     generationId,
     userMessageId,
     assistantMessageId,
+    retryUserMessage,
     responseLanguage: responseLanguage ?? null,
   });
 }

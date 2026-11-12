@@ -1,3 +1,8 @@
+import { GenerationFailureNotice } from './components/GenerationFailureNotice';
+import {
+  isReportedGenerationError,
+  generationRetryTarget,
+} from './generationFailures';
 import { Button } from '@heroui/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '../../components/Icon';
@@ -92,6 +97,9 @@ export function ChatsScreen({
   showMessageTimestamps,
   responseLanguage,
   generationJobs,
+  generationFailures = [],
+  onDismissGenerationFailure,
+  onRetryGenerationFailure,
 }: ChatsScreenProps) {
   const { t } = useTranslation(['chats', 'common']);
   const isMobile = isMobilePlatform();
@@ -199,11 +207,24 @@ export function ChatsScreen({
     confirmTarget == null;
   const showChatError = useCallback(
     (error: unknown) =>
+      !isReportedGenerationError(error) &&
       toast.danger(t('errors.chatActionFailed'), {
         description: errorMessage(error),
         timeout: 3_500,
       }),
     [t],
+  );
+
+  // Persistent chat notices own generation failures; do not add a second disappearing toast.
+  const generationAction = async (action: () => Promise<void>) => {
+    try {
+      await action();
+    } catch (error) {
+      if (!isReportedGenerationError(error)) throw error;
+    }
+  };
+  const canvasFailure = generationFailures.find(
+    (failure) => failure.chatId === canvasChat?.id,
   );
 
   const send = useCallback(
@@ -633,9 +654,17 @@ export function ChatsScreen({
                       onDelete={onDeleteMessage}
                       onDeleteMany={onDeleteMessages}
                       onRemember={onRememberMessage}
-                      onRegenerate={onRegenerateMessage}
-                      onRegenerateWith={onRegenerateMessage}
-                      onContinue={onContinueMessage}
+                      onRegenerate={(id) =>
+                        generationAction(() => onRegenerateMessage(id))
+                      }
+                      onRegenerateWith={(id, instruction) =>
+                        generationAction(() =>
+                          onRegenerateMessage(id, instruction),
+                        )
+                      }
+                      onContinue={(id) =>
+                        generationAction(() => onContinueMessage(id))
+                      }
                       onSelectVariant={onSelectMessageVariant}
                       onRateVariant={onRateMessageVariant}
                       onTranslateMessage={onTranslateMessage}
@@ -645,6 +674,35 @@ export function ChatsScreen({
                   </div>
                 ) : null}
               </div>
+              {canvasFailure && canvasChat && onDismissGenerationFailure ? (
+                <GenerationFailureNotice
+                  key={canvasFailure.id}
+                  failure={canvasFailure}
+                  canRetry={
+                    !canvasChat.archived &&
+                    !canvasGenerationActive &&
+                    Boolean(
+                      generationRetryTarget(canvasFailure, canvasMessages),
+                    )
+                  }
+                  onRetry={
+                    onRetryGenerationFailure
+                      ? () =>
+                          generationAction(() =>
+                            onRetryGenerationFailure(canvasFailure.id),
+                          )
+                      : undefined
+                  }
+                  onDismiss={() => onDismissGenerationFailure(canvasFailure.id)}
+                  onSettings={
+                    !canvasChat.archived
+                      ? () => setConfigTarget(canvasChat)
+                      : undefined
+                  }
+                  providerName={canvasProvider?.name}
+                  model={canvasProvider?.model}
+                />
+              ) : null}
               {canvasChat ? (
                 <div className="shrink-0">
                   {canvasChat.archived ? (

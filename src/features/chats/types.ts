@@ -1,3 +1,4 @@
+import type { GenerationFailure } from './generationFailures';
 import type {
   AiModuleSettings,
   AppSettings,
@@ -71,7 +72,10 @@ export type ChatsScreenProps = {
   onDeleteMessages: (messageIds: string[]) => Promise<void>;
   onRewindMessage: (messageId: string) => Promise<void>;
   onRememberMessage: (messageId: string, remembered: boolean) => Promise<void>;
-  onRegenerateMessage: (messageId: string) => Promise<void>;
+  onRegenerateMessage: (
+    messageId: string,
+    customInstruction?: string,
+  ) => Promise<void>;
   onContinueMessage: (messageId: string) => Promise<void>;
   onSelectMessageVariant: (
     messageId: string,
@@ -104,4 +108,7 @@ export type ChatsScreenProps = {
   showMessageTimestamps: boolean;
   responseLanguage?: 'en' | 'ru';
   generationJobs: GenerationJob[];
+  generationFailures?: GenerationFailure[];
+  onDismissGenerationFailure?: (id: string) => void;
+  onRetryGenerationFailure?: (id: string) => Promise<void>;
 };

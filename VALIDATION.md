@@ -1,28 +1,30 @@
-# Validation: startup recovery and UI consistency
+# Validation: generation failure presentation
 
-Version 1.10.4 preserved; no release/version fields or lockfiles changed.
+Application remains version 1.10.4. All original input files retained; version fields, lockfiles, dependency manifests and .packagerc preserved byte-for-byte.
 
 ## Passed
 
-- Focused startup/provider tests: 25/25. Five executable startup-helper tests cover ordering, hung jobs, hung snapshots, successful retry, error propagation and timer cleanup; source guards cover latest-attempt handling, resume, protected-storage boundaries and standard UI components. Existing provider regressions remain intact.
-- Full npm test: 267 discovered, 264 passed, 3 dependency-load failures. The same three files already could not load in this environment: appArchitecture.test.ts (i18next), designSystemRefactor.test.ts (clsx), recoveryUi.test.ts (@heroui/react). No tests were deleted or skipped.
-- npm run i18n:check: 2 locales / 8 namespaces, consistent.
-- npm run version:check: npm/Cargo/Tauri synchronized at 1.10.4.
-- esbuild syntax/bundle checks with external imports for the controller, startup helper, IPC adapter, advanced settings and provider modal. This is not a full application build or typecheck.
-- Edited frontend source formatted with local Prettier.
-- Python SQLite executed SQL extracted from db.rs: additive legacy-column migration, true/false presence upserts, retained creation time/settings and conditional reconciliation that cannot overwrite known metadata. This is an SQL smoke test, not execution of Rust code.
-- Full ZIP payload hashes, sizes, modes, canonical rootHash, CRCs, input-file retention and unchanged version/package configuration independently checked during packaging.
+- New generationFailures.test.ts: 12 tests covering status/code classification, unknown errors, credential redaction, minimal JSON diagnostics, bounded text, safe target selection, error/persistence-marker identity, controller scoping/cancellation, backend retry contract and mobile/shared-component source guards.
+- Targeted error/streaming/chat-experience tests: 24/24 passed.
+- Combined error/startup/provider-reliability/streaming regressions: 31/31 passed.
+- Full npm test: 279 discovered, 276 passed, 3 dependency-load failures. The three files cannot load absent project dependencies: appArchitecture.test.ts (i18next), designSystemRefactor.test.ts (clsx), recoveryUi.test.ts (@heroui/react). No tests removed or skipped.
+- Isolated strict TypeScript check for the pure generation-failure module and its types passed. This is NOT a full application typecheck.
+- esbuild parsed/bundled edited controller/router/chat screen/notice/IPC adapter with external imports. Syntax validation only, not a dependency-backed UI build.
+- npm run i18n:check: 2 locales / 8 namespaces consistent. npm run version:check: 1.10.4 synchronized across npm, Cargo and Tauri.
+- Edited frontend files formatted with local Prettier.
+- Python SQLite smoke executed the exact retry SELECT from db.rs: chat isolation and latest-row ordering for equal timestamps, no writes. This does not execute Rust validation code.
+- ZIP integrity, per-file hashes/sizes/modes, canonical rootHash, CRCs, retention of every input file and unchanged version/package configuration independently verified during packaging.
 
 ## Blocked / not verified
 
-- npm run typecheck: TS2688, Node type definitions missing.
+- Full npm run typecheck: TS2688, missing Node type definitions.
 - npm run lint: eslint not installed.
-- cargo fmt --check, cargo test, cargo clippy --all-targets -- -D warnings: cargo not installed. The new Rust metadata roundtrip/migration test was added but NOT executed. Rust compilation is NOT claimed to pass.
-- HeroUI CLI documentation command: unavailable. Official Select documentation and existing project components were used instead.
-- Android native build, runtime rendering, 360px/large-font layouts and keyboard interactions require a dependency-complete build/device. No visual-rendering or live-provider compatibility claim is made.
-- No npm install, curl or wget, package hooks, dependency changes or version mutators were run.
-- Package CLI check/apply --dry-run is not available here; custom archive verification does not substitute for its official check.
+- cargo fmt --check, cargo test, cargo clippy --all-targets -- -D warnings: cargo not installed. New Rust DB test was added, NOT executed; successful native compilation is NOT claimed.
+- HeroUI documentation CLI unavailable; official Alert documentation and existing shared components used.
+- No Android device, native build, rendered layout/keyboard QA or live provider outage tests. Source assertions are not a substitute for rendering or Rust compilation.
+- No npm install, curl or wget, package hooks, dependency changes, version mutation or automatic external diagnostic upload was performed.
+- Official package CLI check/apply --dry-run unavailable; custom archive verification is not its replacement.
 
-## Maintainer/device gate
+## Maintainer smoke test
 
-Run cargo fmt, npm run test:rust, npm run typecheck, npm run lint and npm test with project dependencies installed. On Android check: force-stop/cold launch; first launch after reboot; screen off for at least 30 minutes followed by resume; repeated close/open; legacy saved keys; adding/clearing a key; model/protocol/preset selections; embedding-only configuration; invalid numeric/JSON drafts; 360px and large-font modal layout with the keyboard. Confirm existing keys remain usable and that a failed startup can recover using Retry. If the freeze remains, capture logcat from before launch, distinguishing a native/pre-WebView stall from a visible loading screen/IPC timeout.
+With dependencies and Rust installed run cargo fmt, npm run test:rust, npm run typecheck, npm run lint and npm test. On Android and desktop test invalid keys/401, 429 rate limit versus exhausted quota, network offline/timeout, 400 unsupported parameters and empty responses. Confirm the notice remains after switching chats/screens, appears only in its own chat, can be dismissed, and does not appear for cancellation. Retry a failed initial send several times and confirm exactly one user row; test regenerate/continue and custom instructions; change/archive/delete the target while an error is visible; confirm safe rejection of stale targets. Check 360px, large fonts, keyboard overlay, long technical text and horizontal modal actions. Inspect copied diagnostics before sharing; arbitrary provider prose can still contain sensitive context despite common credential redaction.

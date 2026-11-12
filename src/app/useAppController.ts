@@ -86,6 +86,12 @@ import {
 } from '../app/chatNavigationState';
 import { createEmptySnapshot } from '../app/appState';
 import { useApplicationPreferences } from '../app/useApplicationPreferences';
+import {
+  describeGenerationError,
+  generationRetryTarget,
+  markGenerationErrorReported,
+  type GenerationFailure,
+} from '../features/chats/generationFailures';
 import { errorMessage } from '../lib/errors';
 import { createRuntimeId } from '../lib/id';
 import {
@@ -131,6 +137,48 @@ export function useAppController() {
   const [fatalError, setFatalError] = useState('');
   const [notice, setNotice] = useState('');
   const [generationJobs, setGenerationJobs] = useState<GenerationJob[]>([]);
+  const [generationFailures, setGenerationFailures] = useState<
+    GenerationFailure[]
+  >([]);
+  const retryingFailuresRef = useRef(new Set<string>());
+  const dismissGenerationFailure = useCallback((id: string) => {
+    setGenerationFailures((current) =>
+      current.filter((failure) => failure.id !== id),
+    );
+  }, []);
+  const recordGenerationFailure = useCallback(
+    (
+      error: unknown,
+      context: Omit<GenerationFailure, 'kind' | 'status' | 'key' | 'details'>,
+    ) => {
+      markGenerationErrorReported(error);
+      setGenerationFailures((current) =>
+        [
+          ...current.filter((failure) => failure.chatId !== context.chatId),
+          { ...context, ...describeGenerationError(error) },
+        ].slice(-50),
+      );
+      if (
+        activeChatIdRef.current !== context.chatId ||
+        !isChatOpenRef.current
+      ) {
+        toast.danger(i18next.t('generationFailure.title', { ns: 'chats' }), {
+          description: i18next.t('generationFailure.background', {
+            ns: 'chats',
+          }),
+        });
+      }
+    },
+    [],
+  );
+  useEffect(() => {
+    const ids = new Set(snapshot.chats.map((chat) => chat.id));
+    setGenerationFailures((current) =>
+      current.some((failure) => !ids.has(failure.chatId))
+        ? current.filter((failure) => ids.has(failure.chatId))
+        : current,
+    );
+  }, [snapshot.chats]);
   const generationJobsRef = useRef<GenerationJob[]>([]);
   const localGenerationIdsRef = useRef(new Set<string>());
   const chatRefreshVersionsRef = useRef(new Map<string, number>());
@@ -295,6 +343,9 @@ export function useAppController() {
   const startLocalGeneration = useCallback(
     (job: GenerationJob) => {
       localGenerationIdsRef.current.add(job.id);
+      setGenerationFailures((current) =>
+        current.filter((failure) => failure.chatId !== job.chatId),
+      );
       updateGenerationJobs((current) => [
         ...current.filter((candidate) => candidate.id !== job.id),
         job,
@@ -630,22 +681,23 @@ export function useAppController() {
   );
 
   const sendMessage = useCallback(
-    async (content: string) => {
-      if (!activeChatId) return;
+    async (content: string, retry?: { chatId: string; messageId: string }) => {
+      const targetChatId = retry?.chatId ?? activeChatId;
+      if (!targetChatId) return;
       if (
-        generationJobsRef.current.some((job) => job.chatId === activeChatId)
+        generationJobsRef.current.some((job) => job.chatId === targetChatId)
       ) {
         throw new Error(
           i18next.t('errors.generationInProgress', { ns: 'chats' }),
         );
       }
       const activeChat = snapshot.chats.find(
-        (chat) => chat.id === activeChatId,
+        (chat) => chat.id === targetChatId,
       );
       if (!activeChat || activeChat.archived) return;
-      const chatId = activeChatId;
+      const chatId = targetChatId;
       const generationId = createRuntimeId();
-      const userMessageId = createRuntimeId();
+      const userMessageId = retry?.messageId ?? createRuntimeId();
       const assistantMessageId = createRuntimeId();
       const createdAt = Math.floor(Date.now() / 1_000);
       await warnIfBudgetExceeded(chatId);
@@ -666,23 +718,27 @@ export function useAppController() {
                   ...chat,
                   preview: content,
                   updatedAt: createdAt,
-                  messageCount: chat.messageCount + 2,
+                  messageCount: chat.messageCount + (retry ? 1 : 2),
                 }
               : chat,
           ),
         ),
         messages: [
           ...current.messages,
-          {
-            id: userMessageId,
-            chatId,
-            role: 'user',
-            content,
-            createdAt,
-            remembered: false,
-            activeVariantIndex: 0,
-            variants: [],
-          },
+          ...(retry
+            ? []
+            : [
+                {
+                  id: userMessageId,
+                  chatId,
+                  role: 'user' as const,
+                  content,
+                  createdAt,
+                  remembered: false,
+                  activeVariantIndex: 0,
+                  variants: [],
+                },
+              ]),
           {
             id: assistantMessageId,
             chatId,
@@ -710,15 +766,35 @@ export function useAppController() {
             streamed += delta.delta;
             applyStreamedText(chatId, assistantMessageId, streamed);
           },
+          Boolean(retry),
         );
         await refreshChat(chatId);
         await refreshUsage().catch(() => undefined);
         haptic();
       } catch (error) {
-        await refreshChat(chatId).catch(() => undefined);
+        const recovered = await refreshChat(chatId).catch(() => undefined);
+        if (!recovered) {
+          setSnapshot((current) => ({
+            ...current,
+            messages: current.messages.filter(
+              (message) =>
+                message.id !== assistantMessageId || !message.pending,
+            ),
+          }));
+        }
         if (
-          !isBackendCommandError(error, 'backend.provider.requestCancelled')
+          !isBackendCommandError(error, 'backend.provider.requestCancelled') &&
+          !generationJobsRef.current.some(
+            (job) => job.id === generationId && job.status === 'cancelling',
+          )
         ) {
+          recordGenerationFailure(error, {
+            id: generationId,
+            chatId,
+            messageId: userMessageId,
+            mode: 'send',
+            retryBlocked: !recovered,
+          });
           throw error;
         }
       } finally {
@@ -726,6 +802,7 @@ export function useAppController() {
       }
     },
     [
+      recordGenerationFailure,
       activeChatId,
       applyStreamedText,
       haptic,
@@ -968,8 +1045,18 @@ export function useAppController() {
       } catch (error) {
         if (chatId) await refreshChat(chatId).catch(() => undefined);
         if (
-          !isBackendCommandError(error, 'backend.provider.requestCancelled')
+          !isBackendCommandError(error, 'backend.provider.requestCancelled') &&
+          !generationJobsRef.current.some(
+            (job) => job.id === generationId && job.status === 'cancelling',
+          )
         ) {
+          recordGenerationFailure(error, {
+            id: generationId,
+            chatId,
+            messageId,
+            mode,
+            customInstruction,
+          });
           throw error;
         }
       } finally {
@@ -977,6 +1064,7 @@ export function useAppController() {
       }
     },
     [
+      recordGenerationFailure,
       applyStreamedText,
       haptic,
       refreshChat,
@@ -1004,6 +1092,50 @@ export function useAppController() {
     (messageId: string) =>
       runExistingMessageGeneration(messageId, 'continue', continueMessage),
     [runExistingMessageGeneration],
+  );
+
+  const retryGenerationFailure = useCallback(
+    async (id: string) => {
+      const failure = generationFailures.find(
+        (candidate) => candidate.id === id,
+      );
+      if (!failure || retryingFailuresRef.current.has(failure.chatId)) return;
+      const target = generationRetryTarget(failure, snapshot.messages);
+      if (
+        !target ||
+        snapshot.chats.find((chat) => chat.id === failure.chatId)?.archived
+      )
+        return;
+      retryingFailuresRef.current.add(failure.chatId);
+      try {
+        if (failure.mode === 'send') {
+          const userMessage = snapshot.messages.find(
+            (message) => message.id === target,
+          );
+          if (userMessage)
+            await sendMessage(userMessage.content, {
+              chatId: failure.chatId,
+              messageId: target,
+            });
+          return;
+        }
+        await runExistingMessageGeneration(
+          target,
+          failure.mode === 'continue' ? 'continue' : 'regenerate',
+          failure.mode === 'continue' ? continueMessage : regenerateMessage,
+          failure.customInstruction,
+        );
+      } finally {
+        retryingFailuresRef.current.delete(failure.chatId);
+      }
+    },
+    [
+      generationFailures,
+      snapshot.messages,
+      snapshot.chats,
+      runExistingMessageGeneration,
+      sendMessage,
+    ],
   );
 
   const chooseMessageVariant = useCallback(
@@ -1247,6 +1379,9 @@ export function useAppController() {
     fatalError,
     notice,
     generationJobs,
+    generationFailures,
+    dismissGenerationFailure,
+    retryGenerationFailure,
     navigate,
     openChat,
     closeChat,
